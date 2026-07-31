@@ -32,7 +32,7 @@ const COMMON_CATEGORIES = [
 ];
 
 export const EditBillModal: React.FC<EditBillModalProps> = ({ bill, isOpen, onClose }) => {
-  const { apBills, updateBill, syncModuleToGoogleSheet, googleUser, theme } = useFinance();
+  const { apBills, updateBill, theme } = useFinance();
 
   const [selectedSheet, setSelectedSheet] = useState<string>("TI Bills");
   const [subCompany, setSubCompany] = useState<string>("TI");
@@ -48,7 +48,6 @@ export const EditBillModal: React.FC<EditBillModalProps> = ({ bill, isOpen, onCl
   const [remarksTargetCol, setRemarksTargetCol] = useState<"Remarks" | "Payment Instructions" | "Status 1">("Remarks");
   const [status, setStatus] = useState<"unpaid" | "paid" | "hold">("unpaid");
   const [inQBO, setInQBO] = useState(false);
-  const [syncToSheet, setSyncToSheet] = useState(true);
 
   useEffect(() => {
     if (bill) {
@@ -152,11 +151,6 @@ export const EditBillModal: React.FC<EditBillModalProps> = ({ bill, isOpen, onCl
     };
 
     updateBill(updated);
-
-    if (syncToSheet && googleUser) {
-      syncModuleToGoogleSheet("ap", false);
-    }
-
     onClose();
   };
 
@@ -425,18 +419,6 @@ export const EditBillModal: React.FC<EditBillModalProps> = ({ bill, isOpen, onCl
               </div>
             )}
           </div>
-
-          <label className="flex items-center gap-2 cursor-pointer pt-1">
-            <input
-              type="checkbox"
-              checked={syncToSheet}
-              onChange={(e) => setSyncToSheet(e.target.checked)}
-              className="rounded bg-[#1c1c1c] border-[#333] text-[#1a73e8] focus:ring-0"
-            />
-            <span className={`text-xs ${isLight ? "text-slate-600" : "text-[#aaa]"}`}>
-              Automatically push edits to source Google Sheet
-            </span>
-          </label>
 
           <div className="flex items-center justify-end gap-2 pt-4 border-t border-[#333]">
             <button

@@ -98,8 +98,9 @@ function mergeDatasets(liveList: any[], currentList: any[], idKey = "id") {
     const itemId = String(liveItem[idKey] || "");
     if (itemId && currentMap.has(itemId)) {
       const currentItem = currentMap.get(itemId);
-      // Fresh live sheet data overrides stored item data
-      return { ...currentItem, ...liveItem };
+      const invoiceNo = liveItem.invoiceNo || currentItem.invoiceNo || undefined;
+      // Fresh live sheet data overrides stored item data, preserving invoiceNo if live sheet lacks it
+      return { ...currentItem, ...liveItem, ...(invoiceNo ? { invoiceNo } : {}) };
     }
     return liveItem;
   });
@@ -131,12 +132,13 @@ async function syncLiveDataFromSheets(accessToken?: string) {
     const method = accessToken ? "Sheets API v4 (FORMATTED_VALUE)" : "GViz public API";
     console.log(`[GoogleSheetSync] Pulling live data from Google Sheets via ${method}...`);
     const liveData = await fetchFullLiveDataset(accessToken);
+    console.log(`[GoogleSheetSync] liveData.ap count: ${liveData.ap?.length || 0} (token: ${accessToken ? "yes" : "no"})`);
     const current = getStoredData();
     // When using Sheets API v4 (token present), row indices may differ from cached GViz data.
     // Use v4 data directly for AP — it is complete and has evaluated formula values (invoice numbers).
     const updated = {
       ...current,
-      ap: accessToken ? liveData.ap : mergeDatasets(liveData.ap, current.ap, "id"),
+      ap: (accessToken && liveData.ap.length > 0) ? liveData.ap : mergeDatasets(liveData.ap, current.ap, "id"),
       banks: mergeDatasets(liveData.banks, current.banks, "id"),
       loans: mergeDatasets(liveData.loans, current.loans, "id"),
       ar: mergeDatasets(liveData.ar, current.ar, "id"),
@@ -175,6 +177,7 @@ function getStoredData() {
 
 function saveStoredData(data: any) {
   try {
+    console.log(`[saveStoredData] writing ${(data.ap||[]).length} AP bills to ${DATA_FILE}`);
     fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
   } catch (e) {
     console.error("Error writing data file:", e);

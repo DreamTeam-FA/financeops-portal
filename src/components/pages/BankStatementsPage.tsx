@@ -6,7 +6,7 @@ import { AddStatementModal } from "../modals/AddBankModal";
 import { formatTimestampLocal } from "../../utils/formatters";
 
 export const BankStatementsPage: React.FC = () => {
-  const { bankStatements, selectedEntities, toggleStatementDownload, deleteBankStatement, syncModuleToGoogleSheet, theme } = useFinance();
+  const { bankStatements, selectedEntities, toggleStatementDownload, deleteBankStatement, theme } = useFinance();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<string>("ALL");
   const [selectedBank, setSelectedBank] = useState<string>("ALL");
@@ -80,7 +80,6 @@ export const BankStatementsPage: React.FC = () => {
 
   const handleToggle = (id: string) => {
     toggleStatementDownload(id);
-    syncModuleToGoogleSheet("statements", false);
   };
 
   const getEntityBadge = (entity: string) => {

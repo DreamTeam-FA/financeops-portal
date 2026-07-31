@@ -14,7 +14,6 @@ export const ARPage: React.FC = () => {
     addARItem,
     updateARItem,
     deleteARItem,
-    syncModuleToGoogleSheet,
     theme
   } = useFinance();
 
@@ -85,7 +84,6 @@ export const ARPage: React.FC = () => {
     e.preventDefault();
     if (!editingAR) return;
     updateARItem(editingAR);
-    syncModuleToGoogleSheet("ar", false);
     setEditingAR(null);
   };
 

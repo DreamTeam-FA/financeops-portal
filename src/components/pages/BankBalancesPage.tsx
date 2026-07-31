@@ -17,7 +17,7 @@ import {
 } from "recharts";
 
 export const BankBalancesPage: React.FC = () => {
-  const { bankAccounts, selectedEntities, updateBankBalance, deleteBankAccount, syncModuleToGoogleSheet, theme } = useFinance();
+  const { bankAccounts, selectedEntities, updateBankBalance, deleteBankAccount, theme } = useFinance();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newVal, setNewVal] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -34,7 +34,6 @@ export const BankBalancesPage: React.FC = () => {
   const handleSaveBalance = (id: string) => {
     if (!newVal) return;
     updateBankBalance(id, parseFloat(newVal));
-    syncModuleToGoogleSheet("banks", false);
     setEditingId(null);
     setNewVal("");
   };

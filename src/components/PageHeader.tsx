@@ -38,7 +38,6 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
     handleGoogleSignIn,
     isSyncing,
     syncModuleFromGoogleSheet,
-    syncModuleToGoogleSheet,
     syncAllFromGoogleSheets,
     theme,
     toggleTheme

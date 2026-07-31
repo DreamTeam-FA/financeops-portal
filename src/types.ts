@@ -49,6 +49,7 @@ export interface BankAccount {
   status: "Active" | "Inactive";
   trend: "up" | "down";
   yesterday?: number;
+  row?: number; // 1-indexed row within fetched data range (set by parser; used for per-item sheet writes)
 }
 
 export interface Loan {
@@ -62,6 +63,7 @@ export interface Loan {
   nextPay: string;
   maturity: string;
   status: "Active" | "Paid" | "Refinanced";
+  row?: number; // 1-indexed row within fetched data range (set by parser; used for per-item sheet writes)
 }
 
 export interface ARItem {
@@ -78,6 +80,7 @@ export interface ARItem {
   dueDate: string;
   amount: number;
   remarks: string;
+  row?: number; // 1-indexed row within fetched data range (set by parser; used for per-item sheet writes)
 }
 
 export interface BankStatement {

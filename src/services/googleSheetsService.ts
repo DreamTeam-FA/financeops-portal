@@ -8,6 +8,7 @@ import {
   PaymentMethod,
   PayrollPivot
 } from "../types";
+import { extractInvoiceNumber } from "./liveSheetsFetcher";
 
 // Extract Google Spreadsheet ID from URL or return ID as-is
 export const extractSpreadsheetId = (urlOrId: string): string => {
@@ -318,6 +319,13 @@ export const parseAPSheetRows = (
 
   const startIdx = headerRowIdx !== -1 ? headerRowIdx + 1 : 0;
 
+  // If header detection missed (range starts after header row), use known column positions per entity
+  if (invoiceCol === -1) invoiceCol = 6; // col G = Invoice# for Ruby's, TI, MSDx
+  if (remarksCol === -1) {
+    if (tabNameSource && /ruby|msdx/i.test(tabNameSource)) remarksCol = 10; // col K = Payment Instructions
+    else if (tabNameSource && /ti/i.test(tabNameSource)) remarksCol = 14;   // col O = Remarks
+  }
+
   rows.slice(startIdx).forEach((row, idx) => {
     if (!row || row.length === 0) return;
 
@@ -338,7 +346,8 @@ export const parseAPSheetRows = (
     let dueDate = "2026-07-25";
     let status: "unpaid" | "paid" | "hold" = "unpaid";
     let entity: EntityName = fallbackFromTab;
-    let invoiceNo = invoiceCol !== -1 && row[invoiceCol] ? String(row[invoiceCol]).trim() : String(row[6] || "").trim();
+    const rawInvoice = invoiceCol !== -1 && row[invoiceCol] ? row[invoiceCol] : row[6];
+    let invoiceNo = extractInvoiceNumber(rawInvoice);
 
     // Check header column if found
     if (vendorCol !== -1 && row[vendorCol]) {
@@ -414,8 +423,7 @@ export const parseAPSheetRows = (
     };
     if (remarksCol !== -1 && row[remarksCol]) {
       const raw = String(row[remarksCol]).trim();
-      // If the remarks column only has a URL, don't show it as remarks text
-      if (!isUrl(raw)) remarks = raw;
+      if (!isUrl(raw) && !isMetadata(raw)) remarks = raw;
     }
     if (!remarks) {
       // Collect only human-readable non-URL text from supplementary columns
@@ -461,6 +469,10 @@ export const parseAPSheetRows = (
       ? (parseDateVal(row[11]) || parseDateVal(row[10]) || undefined)
       : undefined;
 
+    // col F (5) = category for Layout A (Ruby's/MSDx); col H (7) = invoice date for all layouts
+    const categoryVal = String(row[5] || "").trim();
+    const invoiceDateVal = String(row[7] || "").trim();
+
     bills.push({
       id: `ap-gs-${idx + 1}-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       vendor,
@@ -477,7 +489,9 @@ export const parseAPSheetRows = (
       sheet: tabNameSource || `${entity} Bills`,
       row: startIdx + idx + 1,
       invoiceNo,
-      remarks
+      remarks,
+      category: categoryVal || undefined,
+      invoiceDate: invoiceDateVal || undefined,
     });
   });
 
@@ -506,7 +520,7 @@ export const parseBankSheetRows = (rows: any[][]): BankAccount[] => {
 
   dataRows.forEach((row, idx) => {
     if (!row || row.length === 0 || row.every((c) => !c || String(c).trim() === "")) return;
-    
+
     const entity = normalizeEntityName(entityIdx !== -1 ? String(row[entityIdx]) : undefined, "Ruby's");
     const bank = String(row[bankIdx] || "Bank");
     const type = String(row[typeIdx] || "Checking");
@@ -524,7 +538,8 @@ export const parseBankSheetRows = (rows: any[][]): BankAccount[] => {
       balance,
       asOf,
       status: "Active",
-      trend: "up"
+      trend: "up",
+      row: idx + 2 // 1-indexed within fetched range (row 1 = header, row 2 = first data row)
     });
   });
 
@@ -581,7 +596,8 @@ export const parseLoanSheetRows = (rows: any[][]): Loan[] => {
       monthly,
       nextPay,
       maturity,
-      status: "Active"
+      status: "Active",
+      row: idx + 2 // 1-indexed within fetched range (row 1 = header, row 2 = first data row)
     });
   });
 
@@ -739,7 +755,8 @@ export const parseARSheetRows = (rows: any[][]): ARItem[] => {
       approval,
       sent,
       payment,
-      remarks
+      remarks,
+      row: idx + 2 // 1-indexed within fetched range (row 1 = header, row 2 = first data row)
     });
   });
 
@@ -891,6 +908,8 @@ interface APColMap {
   vendor: number;
   company: number | null;
   invoiceNo: number;
+  invoiceDateCol: number;    // idate — invoice date column
+  categoryCol: number | null; // cat — null means entity has no separate category column
   dueDate: number;
   amount: number;
   paidDateCol: number;       // column that receives the paid date (pdate)
@@ -908,21 +927,24 @@ interface APColMap {
 
 const AP_COL_MAPS: Record<"Ruby's" | "TI" | "MSDx", APColMap> = {
   "Ruby's": {
-    vendor: 3, company: null, invoiceNo: 6, dueDate: 8, amount: 9,
+    vendor: 3, company: null, invoiceNo: 6, invoiceDateCol: 7, categoryCol: 5,
+    dueDate: 8, amount: 9,
     paidDateCol: 11, methodCol: null, paytypeCol: 17,
     status: 12, inQBO: 13, onHold: 17,  // Ruby's holdCol=17 per CALcode (same col as paytype)
     remarksCol: 10, payInstCol: 14, status1Col: 15, totalCols: 19,
     dataRange: "'Ruby''s Bills'!A5:S1504"   // 1500 data rows starting row 5
   },
   "TI": {
-    vendor: 5, company: 4, invoiceNo: 6, dueDate: 8, amount: 9,  // co:4 per APcode Layout B
+    vendor: 5, company: 4, invoiceNo: 6, invoiceDateCol: 7, categoryCol: null, // col 5 = vendor for TI
+    dueDate: 8, amount: 9,
     paidDateCol: 10, methodCol: 12, paytypeCol: 19,
     status: 13, inQBO: 15, onHold: 22,  // holdCol:22 per CALcode
     remarksCol: 14, payInstCol: 16, status1Col: 17, totalCols: 23,
     dataRange: "'TI Bills'!A7:W1506"    // 1500 data rows starting row 7
   },
   "MSDx": {
-    vendor: 3, company: null, invoiceNo: 6, dueDate: 8, amount: 9,
+    vendor: 3, company: null, invoiceNo: 6, invoiceDateCol: 7, categoryCol: 5,
+    dueDate: 8, amount: 9,
     paidDateCol: 11, methodCol: null, paytypeCol: 17,
     status: 12, inQBO: 13, onHold: 18,  // holdCol:18 per CALcode
     remarksCol: 10, payInstCol: 14, status1Col: 15, totalCols: 19,
@@ -943,11 +965,305 @@ function resolveRemarksCol(
   }
 }
 
+// Build a single formatted row array for one AP bill (shared by per-item and full-tab writers)
+export const buildAPBillRow = (b: APBill, entity: "Ruby's" | "TI" | "MSDx"): any[] => {
+  const map = AP_COL_MAPS[entity];
+  const row: any[] = new Array(map.totalCols).fill("");
+
+  const dueParts = b.dueDate ? b.dueDate.split("-") : [];
+  row[0] = dueParts[0] || "";
+  row[1] = dueParts[1] ? String(parseInt(dueParts[1])) : "";
+  row[2] = dueParts[2] ? String(parseInt(dueParts[2])) : "";
+
+  row[map.vendor]      = b.vendor;
+  if (map.company !== null) row[map.company] = b.company || "";
+  if (map.categoryCol !== null) row[map.categoryCol] = b.category || "";
+  if (b.invoiceNo) row[map.invoiceNo] = b.invoiceNo; // leave undefined when empty so writeSingleAPBill can skip overwriting
+  row[map.invoiceDateCol] = b.invoiceDate || "";
+  row[map.dueDate]        = b.dueDate;
+  row[map.amount]         = b.amount;
+  row[map.paidDateCol]    = b.paidDate || "";
+  if (map.methodCol !== null) row[map.methodCol] = b.method || "";
+  row[map.paytypeCol] = b.paymentType === "Auto-Debit" ? "Auto-Debit" : "Manual";
+  row[map.status]     = b.status.toUpperCase();
+  row[map.inQBO]      = b.inQBO ? "TRUE" : "FALSE";
+  row[map.onHold]     = b.status === "hold" ? "TRUE" : "FALSE";
+  const rawRemarks = b.remarks || b.notes || "";
+  if (rawRemarks) {
+    const { col, text } = resolveRemarksCol(rawRemarks, map);
+    row[col] = text;
+  }
+  return row;
+};
+
+// Compute the exact single-row range for a bill (e.g. "'Ruby''s Bills'!A5:S5")
+// Returns null if the bill has no sheet row number yet (newly added, not in sheet)
+export const getAPBillSingleRowRange = (
+  bill: APBill,
+  entity: "Ruby's" | "TI" | "MSDx"
+): string | null => {
+  if (!bill.row || bill.row < 1) return null;
+  const map = AP_COL_MAPS[entity];
+  const tabPart    = map.dataRange.split("!")[0];
+  const rangeBody  = map.dataRange.split("!")[1];            // e.g. "A5:S1504"
+  const dataStart  = parseInt(rangeBody.split(":")[0].replace(/\D/g, "")); // 5
+  const sheetRow   = dataStart + bill.row - 1;
+  const colLetter  = String.fromCharCode(64 + map.totalCols); // 19→S, 23→W
+  return `${tabPart}!A${sheetRow}:${colLetter}${sheetRow}`;
+};
+
+// Write ONE bill to its exact sheet row — touches only that row, nothing else
+export const writeSingleAPBill = async (
+  bill: APBill,
+  entity: "Ruby's" | "TI" | "MSDx",
+  spreadsheetId: string,
+  accessToken: string
+): Promise<void> => {
+  const range = getAPBillSingleRowRange(bill, entity);
+  if (!range) throw new Error(`Bill "${bill.vendor}" has no sheet row — use appendAPBill for new bills`);
+  const map = AP_COL_MAPS[entity];
+  const fullRow = buildAPBillRow(bill, entity);
+
+  if (fullRow[map.invoiceNo] === undefined) {
+    // Bill has no invoiceNo — split the write around column G to preserve existing sheet value
+    const tabPart = range.split("!")[0];
+    const rowNum = range.match(/\d+/)?.[0];
+    const gIdx = map.invoiceNo; // always 6
+    const colBefore = String.fromCharCode(64 + gIdx);      // F  (0-indexed gIdx → 1-indexed col letter)
+    const colAfter  = String.fromCharCode(64 + gIdx + 2);  // H
+    const colEnd    = String.fromCharCode(64 + map.totalCols); // S
+    await Promise.all([
+      updateSheetValues(spreadsheetId, `${tabPart}!A${rowNum}:${colBefore}${rowNum}`,
+        [fullRow.slice(0, gIdx)], accessToken),
+      updateSheetValues(spreadsheetId, `${tabPart}!${colAfter}${rowNum}:${colEnd}${rowNum}`,
+        [fullRow.slice(gIdx + 1)], accessToken),
+    ]);
+  } else {
+    await updateSheetValues(spreadsheetId, range, [fullRow], accessToken);
+  }
+};
+
+// Append a NEW bill as a row at the end of the entity's tab
+export const appendAPBill = async (
+  bill: APBill,
+  entity: "Ruby's" | "TI" | "MSDx",
+  spreadsheetId: string,
+  accessToken: string
+): Promise<void> => {
+  const tabPart = AP_COL_MAPS[entity].dataRange.split("!")[0];
+  await appendSheetValues(spreadsheetId, `${tabPart}!A:A`, [buildAPBillRow(bill, entity)], accessToken);
+};
+
+// Clear a deleted bill's row in the sheet (writes blanks to that row only)
+export const clearSingleAPBill = async (
+  bill: APBill,
+  entity: "Ruby's" | "TI" | "MSDx",
+  spreadsheetId: string,
+  accessToken: string
+): Promise<void> => {
+  const range = getAPBillSingleRowRange(bill, entity);
+  if (!range) return; // new bill that was never in the sheet — nothing to clear
+  const blank = new Array(AP_COL_MAPS[entity].totalCols).fill("");
+  await updateSheetValues(spreadsheetId, range, [blank], accessToken);
+};
+
+// --- Generic per-item row helper for non-AP modules ---
+// Parses a range string like "'Sheet'!A2:L500" or "Sheet1!A1:J100"
+// and computes the targeted range for a single item (by its row within the fetched data).
+// itemRowInRange: 1-indexed row number within the fetched range (e.g. row 1 = first row incl. header,
+//                row 2 = first data row when header is at row 1).
+export const computeSingleItemRange = (
+  mappingRange: string,
+  itemRowInRange: number,
+  numCols: number
+): string | null => {
+  if (!mappingRange || itemRowInRange < 1) return null;
+  // Extract tab part and cell range (handles both plain and quoted tab names)
+  const bangIdx = mappingRange.indexOf("!");
+  if (bangIdx === -1) return null;
+  const tabPart = mappingRange.slice(0, bangIdx);
+  const cellRange = mappingRange.slice(bangIdx + 1); // e.g. "A2:L500"
+  const startMatch = cellRange.match(/^([A-Za-z]+)(\d+)/);
+  if (!startMatch) return null;
+  const rangeStartRow = parseInt(startMatch[2], 10);
+  const absoluteRow = rangeStartRow + itemRowInRange - 1;
+  const endColLetter = String.fromCharCode(64 + numCols); // 1→A, 12→L, 9→I
+  return `${tabPart}!A${absoluteRow}:${endColLetter}${absoluteRow}`;
+};
+
+// Write a single bank account to its exact sheet row (only touches that row).
+// mappingRange is from the user's SheetMappingConfig (e.g. "'Banks'!A1:D100").
+export const writeSingleBankAccount = async (
+  account: BankAccount,
+  mappingRange: string,
+  spreadsheetId: string,
+  accessToken: string
+): Promise<void> => {
+  if (!account.row) return;
+  const row: any[] = new Array(4).fill("");
+  row[0] = account.bank;
+  row[1] = account.balance;
+  row[3] = account.asOf;
+  const range = computeSingleItemRange(mappingRange, account.row, 4);
+  if (!range) return;
+  await updateSheetValues(spreadsheetId, range, [row], accessToken);
+};
+
+// Append a new bank account row at the end of the sheet tab.
+export const appendBankAccount = async (
+  account: BankAccount,
+  mappingRange: string,
+  spreadsheetId: string,
+  accessToken: string
+): Promise<void> => {
+  const bangIdx = mappingRange.indexOf("!");
+  const tabPart = bangIdx !== -1 ? mappingRange.slice(0, bangIdx) : mappingRange;
+  const row: any[] = new Array(4).fill("");
+  row[0] = account.bank;
+  row[1] = account.balance;
+  row[3] = account.asOf;
+  await appendSheetValues(spreadsheetId, `${tabPart}!A:A`, [row], accessToken);
+};
+
+// Write a single loan to its exact sheet row.
+export const writeSingleLoan = async (
+  loan: Loan,
+  mappingRange: string,
+  spreadsheetId: string,
+  accessToken: string
+): Promise<void> => {
+  if (!loan.row) return;
+  const cleanLender = loan.lender.replace(/\s*\([^)]*\)\s*$/, "").trim();
+  const row: any[] = new Array(5).fill("");
+  row[1] = loan.entity;
+  row[2] = cleanLender;
+  row[3] = loan.monthly;
+  row[4] = loan.nextPay;
+  const range = computeSingleItemRange(mappingRange, loan.row, 5);
+  if (!range) return;
+  await updateSheetValues(spreadsheetId, range, [row], accessToken);
+};
+
+// Append a new loan row at the end of the sheet tab.
+export const appendLoan = async (
+  loan: Loan,
+  mappingRange: string,
+  spreadsheetId: string,
+  accessToken: string
+): Promise<void> => {
+  const bangIdx = mappingRange.indexOf("!");
+  const tabPart = bangIdx !== -1 ? mappingRange.slice(0, bangIdx) : mappingRange;
+  const cleanLender = loan.lender.replace(/\s*\([^)]*\)\s*$/, "").trim();
+  const row: any[] = new Array(5).fill("");
+  row[1] = loan.entity;
+  row[2] = cleanLender;
+  row[3] = loan.monthly;
+  row[4] = loan.nextPay;
+  await appendSheetValues(spreadsheetId, `${tabPart}!A:A`, [row], accessToken);
+};
+
+// Write a single AR item to its exact sheet row (vertical format only).
+// formatARSheetRows includes a header as the first element — items start at row 2 of range.
+export const writeSingleARItem = async (
+  item: ARItem,
+  mappingRange: string,
+  spreadsheetId: string,
+  accessToken: string
+): Promise<void> => {
+  if (!item.row) return;
+  const dataRow = [
+    item.entity, item.customer, item.description, item.amount, item.dueDate,
+    item.month, item.occurrence,
+    item.invoice ? "TRUE" : "FALSE",
+    item.approval ? "TRUE" : "FALSE",
+    item.sent ? "TRUE" : "FALSE",
+    item.payment ? "TRUE" : "FALSE",
+    item.remarks
+  ];
+  const range = computeSingleItemRange(mappingRange, item.row, 12);
+  if (!range) return;
+  await updateSheetValues(spreadsheetId, range, [dataRow], accessToken);
+};
+
+// Append a new AR item row.
+export const appendARItem = async (
+  item: ARItem,
+  mappingRange: string,
+  spreadsheetId: string,
+  accessToken: string
+): Promise<void> => {
+  const bangIdx = mappingRange.indexOf("!");
+  const tabPart = bangIdx !== -1 ? mappingRange.slice(0, bangIdx) : mappingRange;
+  const dataRow = [
+    item.entity, item.customer, item.description, item.amount, item.dueDate,
+    item.month, item.occurrence,
+    item.invoice ? "TRUE" : "FALSE",
+    item.approval ? "TRUE" : "FALSE",
+    item.sent ? "TRUE" : "FALSE",
+    item.payment ? "TRUE" : "FALSE",
+    item.remarks
+  ];
+  await appendSheetValues(spreadsheetId, `${tabPart}!A:A`, [dataRow], accessToken);
+};
+
+// Write a single bank statement to its exact sheet row.
+export const writeSingleStatement = async (
+  statement: BankStatement,
+  mappingRange: string,
+  spreadsheetId: string,
+  accessToken: string
+): Promise<void> => {
+  // BankStatement uses rowIndex (1-indexed within fetched range, including header at pos 0 of range)
+  if (!statement.rowIndex) return;
+  const parts = (statement.remarks || "").split(" - ");
+  const cycleMonth = parts[0]?.trim() || "";
+  const purpose = parts.slice(1).join(" - ").trim();
+  const row: any[] = new Array(9).fill("");
+  row[0] = cycleMonth;
+  row[1] = statement.entity;
+  row[2] = statement.bankName;
+  row[3] = statement.occurrence;
+  row[4] = purpose;
+  row[5] = statement.period;
+  row[6] = statement.downloadedAt || "";
+  row[7] = statement.downloaded ? "TRUE" : "FALSE";
+  row[8] = (statement as any).reconciledDate || "";
+  const range = computeSingleItemRange(mappingRange, statement.rowIndex, 9);
+  if (!range) return;
+  await updateSheetValues(spreadsheetId, range, [row], accessToken);
+};
+
+// Append a new statement row.
+export const appendStatement = async (
+  statement: BankStatement,
+  mappingRange: string,
+  spreadsheetId: string,
+  accessToken: string
+): Promise<void> => {
+  const bangIdx = mappingRange.indexOf("!");
+  const tabPart = bangIdx !== -1 ? mappingRange.slice(0, bangIdx) : mappingRange;
+  const parts = (statement.remarks || "").split(" - ");
+  const cycleMonth = parts[0]?.trim() || "";
+  const purpose = parts.slice(1).join(" - ").trim();
+  const row: any[] = new Array(9).fill("");
+  row[0] = cycleMonth;
+  row[1] = statement.entity;
+  row[2] = statement.bankName;
+  row[3] = statement.occurrence;
+  row[4] = purpose;
+  row[5] = statement.period;
+  row[6] = statement.downloadedAt || "";
+  row[7] = statement.downloaded ? "TRUE" : "FALSE";
+  row[8] = (statement as any).reconciledDate || "";
+  await appendSheetValues(spreadsheetId, `${tabPart}!A:A`, [row], accessToken);
+};
+
 /**
  * Formats AP bills for a single entity tab into the correct sheet column layout.
  * Returns ONLY data rows (no header) — caller writes to the entity-specific range
  * that preserves the sheet's existing summary/header rows above.
  * Pads with blank rows up to MAX_DATA_ROWS to clear any stale data from prior syncs.
+ * Use this only for a full-tab sync (DataSync page). For edits, use writeSingleAPBill.
  */
 const MAX_AP_ROWS = 1500;
 
@@ -956,26 +1272,7 @@ export const formatAPSheetRowsForTab = (
   entity: "Ruby's" | "TI" | "MSDx"
 ): any[][] => {
   const map = AP_COL_MAPS[entity];
-  const dataRows: any[][] = bills.slice(0, MAX_AP_ROWS).map((b) => {
-    const row: any[] = new Array(map.totalCols).fill("");
-    row[map.vendor]      = b.vendor;
-    if (map.company !== null) row[map.company] = b.company || "";
-    row[map.invoiceNo]   = b.invoiceNo || "";
-    row[map.dueDate]     = b.dueDate;
-    row[map.amount]      = b.amount;
-    row[map.paidDateCol] = b.paidDate || "";
-    if (map.methodCol !== null) row[map.methodCol] = b.method || "";
-    row[map.paytypeCol]  = b.paymentType === "Auto-Debit" ? "Auto-Debit" : "Manual";
-    row[map.status]      = b.status.toUpperCase();
-    row[map.inQBO]       = b.inQBO ? "TRUE" : "FALSE";
-    row[map.onHold]      = b.status === "hold" ? "TRUE" : "FALSE";
-    const rawRemarks = b.remarks || b.notes || "";
-    if (rawRemarks) {
-      const { col, text } = resolveRemarksCol(rawRemarks, map);
-      row[col] = text;
-    }
-    return row;
-  });
+  const dataRows: any[][] = bills.slice(0, MAX_AP_ROWS).map((b) => buildAPBillRow(b, entity));
 
   // Pad with blank rows so stale rows from a previous (larger) dataset are cleared
   const blank = new Array(map.totalCols).fill("");
@@ -1052,7 +1349,7 @@ export const formatStatementSheetRows = (statements: BankStatement[]): any[][] =
     row[5] = s.period;                            // col 5: period range
     row[6] = s.downloadedAt || "";               // col 6: download date (parseDateVal)
     row[7] = s.downloaded ? "TRUE" : "FALSE";    // col 7: is-downloaded flag
-    row[8] = s.reconciledDate || "";             // col 8: reconciled date (parseDateVal)
+    row[8] = (s as any).reconciledDate || "";    // col 8: reconciled date (parseDateVal)
     return row;
   });
 };

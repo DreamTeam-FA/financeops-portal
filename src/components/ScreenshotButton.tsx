@@ -85,7 +85,7 @@ export const ScreenshotButton: React.FC = () => {
   return (
     <div
       ref={containerRef}
-      className="fixed bottom-20 right-4 md:bottom-6 z-[60] flex flex-col items-end gap-1"
+      className="fixed bottom-6 left-4 z-[60] flex flex-col items-end gap-1"
     >
       {open && (
         <div

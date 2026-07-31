@@ -72,6 +72,43 @@ function parseDateVal(val: any, year?: any, month?: any, dayStr?: any): string {
   return "";
 }
 
+export function extractInvoiceNumber(val: any, remarksUrl?: string): string {
+  if (!val && !remarksUrl) return "";
+  let str = String(val || "").trim();
+
+  // If cell value is a HYPERLINK formula string (e.g. '=HYPERLINK("http...", "INV-12345")' or '=HYPERLINK("http...")')
+  if (/^=HYPERLINK/i.test(str)) {
+    const labelMatch = str.match(/,\s*"([^"]+)"\s*\)$/i) || str.match(/,\s*'([^']+)'\s*\)$/i);
+    if (labelMatch && labelMatch[1]) {
+      str = labelMatch[1].trim();
+    } else {
+      const urlMatch = str.match(/HYPERLINK\s*\(\s*"([^"]+)"/i) || str.match(/HYPERLINK\s*\(\s*'([^']+)'/i);
+      if (urlMatch && urlMatch[1]) {
+        remarksUrl = urlMatch[1];
+        str = "";
+      }
+    }
+  }
+
+  // Extract invoice ID from URL parameter or standard URL pattern if str is URL or formula
+  if (!str || str.startsWith("=") || str.startsWith("http")) {
+    const targetUrl = str.startsWith("http") ? str : remarksUrl || "";
+    if (targetUrl) {
+      const paramMatch = targetUrl.match(/(?:invoiceNumber|invoice|inv|billNo|bill)[=_]([A-Z0-9_-]+)/i);
+      if (paramMatch && paramMatch[1]) {
+        return paramMatch[1].toUpperCase();
+      }
+      const alscoMatch = targetUrl.match(/\b([A-Z]{2,}[-]?\d{3,})\b/i) || targetUrl.match(/\/(\d{5,})\b/);
+      if (alscoMatch && alscoMatch[1]) {
+        return alscoMatch[1].toUpperCase();
+      }
+    }
+  }
+
+  if (str.startsWith("=")) return "";
+  return str;
+}
+
 export function detectStatus(
   statusVal: string,
   extraStr1: string = "",
@@ -178,7 +215,10 @@ const SPREADSPREAD_ID_REPLACE = SPREADSHEET_ID;
 
 function fetchSheetsV4Tab(sheetName: string, accessToken: string, spreadsheetId: string): Promise<any[][]> {
   return new Promise((resolve) => {
-    const reqPath = `/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(sheetName)}?valueRenderOption=FORMATTED_VALUE&majorDimension=ROWS`;
+    // Wrap sheet name in single quotes for A1 notation (required for names with spaces/apostrophes).
+    // Escape internal apostrophes by doubling them.
+    const a1Name = "'" + sheetName.replace(/'/g, "''") + "'";
+    const reqPath = `/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(a1Name)}?valueRenderOption=FORMATTED_VALUE&majorDimension=ROWS`;
     const req = https.request({
       hostname: "sheets.googleapis.com",
       path: reqPath,
@@ -190,7 +230,12 @@ function fetchSheetsV4Tab(sheetName: string, accessToken: string, spreadsheetId:
       res.on("end", () => {
         try {
           const parsed = JSON.parse(data);
-          if (parsed.error) { console.warn(`[SheetsV4] ${sheetName}: ${parsed.error.message}`); resolve([]); return; }
+          if (parsed.error) {
+            const code = parsed.error.code || "";
+            if (code === 401 || code === 403) console.warn(`[SheetsV4] Auth error (${code}) — token may be expired`);
+            else console.warn(`[SheetsV4] ${sheetName}: ${parsed.error.message}`);
+            resolve([]); return;
+          }
           resolve(parsed.values || []);
         } catch { resolve([]); }
       });
@@ -354,12 +399,10 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       amount = 35000; // Default $35k payroll auto debit if amount unlisted
     }
 
-    let invoiceNo = String(row[6] || "").trim();
-    // Col G may contain a HYPERLINK formula that GViz can't evaluate (returns null).
-    // Extract the invoice ID from col K URL as fallback (e.g. LOGD\d+ from atrack.alsco.com).
-    if (!invoiceNo) {
-      const col10Str = String(row[10] || "");
-      const extracted = col10Str.match(/\b([A-Z]{2,}[-]?\d{5,})\b/i);
+    const col10Str = String(row[10] || "");
+    let invoiceNo = extractInvoiceNumber(row[6], col10Str);
+    if (!invoiceNo && col10Str) {
+      const extracted = col10Str.match(/\b([A-Z]{2,}[-]?\d{3,}|\d{5,})\b/i);
       if (extracted) invoiceNo = extracted[1].toUpperCase();
     }
     const col11Raw = String(row[11] || "").trim();
@@ -468,7 +511,12 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       // Due date: try multiple positions
       const dueDate = parseDateVal(row[8]) || parseDateVal(row[7]) || parseDateVal(row[9]) || new Date().toISOString().split("T")[0];
 
-      const invoiceNo = String(row[6] || "").trim(); // col G only; col H is invoice date, not invoice #
+      const remarksTI = String(row[14] || row[15] || row[16] || "");
+      let invoiceNo = extractInvoiceNumber(row[6], remarksTI);
+      if (!invoiceNo && remarksTI) {
+        const extracted = remarksTI.match(/\b([A-Z]{2,}[-]?\d{3,}|\d{5,})\b/i);
+        if (extracted) invoiceNo = extracted[1].toUpperCase();
+      }
       const rawMethodTI = String(row[11] || row[10] || row[12] || "Online").trim(); // unchanged for status detection
       const KNOWN_METHOD_RE_TI = /^(autodebit|auto.?debit|auto.?pay|autopay|manual|check|wire|ach|online|credit.?card|cash)$/i;
       const method = /auto/i.test(rawMethodTI) && KNOWN_METHOD_RE_TI.test(rawMethodTI) ? "Autodebit" : "Manual";
@@ -519,7 +567,12 @@ export async function fetchFullLiveDataset(accessToken?: string) {
     let amount = typeof row[9] === "number" ? row[9] : typeof row[8] === "number" ? row[8] : parseFloat(String(row[9] || row[8] || "0").replace(/[^0-9.-]+/g, "")) || 0;
     if (amount >= 10000000) amount = 0;
     const dueDate = parseDateVal(row[8]) || parseDateVal(row[7]) || parseDateVal("", row[0], row[1], row[19]) || new Date().toISOString().split("T")[0];
-    const invoiceNo = String(row[6] || "").trim();
+    const col10MSDx = String(row[10] || "");
+    let invoiceNo = extractInvoiceNumber(row[6], col10MSDx);
+    if (!invoiceNo && col10MSDx) {
+      const extracted = col10MSDx.match(/\b([A-Z]{2,}[-]?\d{3,}|\d{5,})\b/i);
+      if (extracted) invoiceNo = extracted[1].toUpperCase();
+    }
 
     const col11MSDx = String(row[11] || "").trim();
     const KNOWN_METHOD_RE_MSDX = /^(autodebit|auto.?debit|auto.?pay|autopay|manual|check|wire|ach|online|credit.?card|cash)$/i;

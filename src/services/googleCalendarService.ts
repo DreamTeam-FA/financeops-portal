@@ -137,11 +137,11 @@ interface ColMap {
 }
 
 // Column map based on actual calendar sheet structure:
-// A(0)=id, B(1)=source, C(2)=title, D(3)=description, E(4)=end_ms, F(5)=start_ms,
-// G(6)=done, H(7)=calName, I(8)=urgency, J(9)=category, K(10)=assigneeId,
-// L(11)=assigneeName, M(12)=assigneeColor, N(13)=assigneeIds, O(14)=seriesId
+// A(0)=id, B(1)=source, C(2)=title, D(3)=description, E(4)=start_ms, F(5)=end_ms,
+// G(6)=allDay, H(7)=calName, I(8)=urgency, J(9)=category, K(10)=assigneeId,
+// L(11)=assigneeName, M(12)=assigneeColor, N(13)=assigneeIds, O(14)=seriesId, P(15)=done
 const DEFAULT_COL_MAP: ColMap = {
-  id: 0, title: 2, notes: 3, date: 5, done: 6,
+  id: 0, title: 2, notes: 3, date: 4, done: 15,
   entity: 7, urgency: 8, type: 9, assignee: 11
 };
 
@@ -232,9 +232,10 @@ export async function loadCalendarSheet(token: string): Promise<{
     const title = row[colMap.title]?.trim() || "";
     if (!title) return; // skip blank rows
 
-    const dateRaw = row[colMap.date]?.trim() || "";
+    const dateRaw = row[colMap.date]?.trim() || ""; // col E (start_ms)
     const date = parseMsOrDateString(dateRaw);
-    const time = parseMsToTime(dateRaw);
+    // Try start_ms (col E) first; if midnight, fall back to end_ms (col F)
+    const time = parseMsToTime(dateRaw) || parseMsToTime((row[5] || "").trim());
 
     const doneRaw = (row[colMap.done] || "").toLowerCase().trim();
     const done = doneRaw === "true" || doneRaw === "yes" || doneRaw === "1" || doneRaw === "done" || doneRaw === "✓";
