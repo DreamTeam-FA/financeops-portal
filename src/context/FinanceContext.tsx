@@ -43,7 +43,18 @@ import {
   formatLoanSheetRows,
   formatARSheetRows,
   formatStatementSheetRows,
-  formatPayrollSheetRows
+  formatPayrollSheetRows,
+  writeSingleAPBill,
+  appendAPBill,
+  clearSingleAPBill,
+  writeSingleBankAccount,
+  appendBankAccount,
+  writeSingleLoan,
+  appendLoan,
+  writeSingleARItem,
+  appendARItem,
+  writeSingleStatement,
+  appendStatement
 } from "../services/googleSheetsService";
 
 interface FinanceContextType {
@@ -367,7 +378,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [autoSyncEnabled, setAutoSyncEnabled] = useState<boolean>(false);
-  const [autoPushEnabled, setAutoPushEnabled] = useState<boolean>(true);
+  const [autoPushEnabled, setAutoPushEnabled] = useState<boolean>(false);
   const [syncToast, setSyncToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
   const clearSyncToast = () => setSyncToast(null);
   const showToast = (message: string, type: "success" | "error" | "info" = "info", duration = 4000) => {
@@ -1039,7 +1050,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setIsSyncing(true);
     try {
       // force: true tells the server to always overwrite existing data with sheet data
-      const res = await fetch("/api/pull-live", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ force: true }) });
+      const token = getAccessToken();
+      const res = await fetch("/api/pull-live", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ force: true, accessToken: token || undefined }) });
       const resp = await res.json();
       if (resp && resp.data) {
         const live = resp.data;
@@ -1161,6 +1173,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // AP-specific push that accepts fresh bill data directly — avoids stale closure
   // when called immediately after setApBills (React state is async).
+  // Only used for DataSync full-tab pushes now; CRUD operations use per-item helpers below.
   const pushAPBillsToSheet = (bills: APBill[]) => {
     if (!autoPushEnabled) return;
     const token = getAccessToken();
@@ -1200,7 +1213,111 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     })();
   };
 
-  // Generic push for non-AP modules — accepts fresh data directly to avoid stale closure.
+  // Write a single AP bill to its exact sheet row — only touches that one row.
+  const pushSingleAPBillToSheet = (bill: APBill, action: "write" | "append" | "clear") => {
+    const token = getAccessToken();
+    if (!token) return; // not connected — silent skip, don't corrupt data
+    const mapping = sheetMappings.find((m) => m.module === "ap");
+    if (!mapping) return;
+    const entity = bill.entity as "Ruby's" | "TI" | "MSDx";
+    (async () => {
+      try {
+        if (action === "append") {
+          await appendAPBill(bill, entity, mapping.spreadsheetIdOrUrl, token);
+        } else if (action === "clear") {
+          await clearSingleAPBill(bill, entity, mapping.spreadsheetIdOrUrl, token);
+        } else {
+          if (!bill.row) return; // no sheet row — bill was never synced, skip
+          await writeSingleAPBill(bill, entity, mapping.spreadsheetIdOrUrl, token);
+        }
+        showToast("Saved to Google Sheets ✓", "success", 2500);
+      } catch (err: any) {
+        const msg: string = err?.message || "";
+        const isAuthError = msg.includes("401") || msg.toLowerCase().includes("unauthorized") || msg.toLowerCase().includes("invalid credentials") || msg.toLowerCase().includes("invalid authentication") || msg.toLowerCase().includes("access token");
+        if (isAuthError) {
+          clearAccessToken();
+          setNeedsAuth(true);
+          showToast("Google token expired — click 'Connect Google Sheets' to reconnect.", "error", 6000);
+        } else {
+          showToast(`Sheet sync failed: ${msg || "unknown error"}`, "error", 5000);
+          console.warn("AP per-item push failed:", msg);
+        }
+      }
+    })();
+  };
+
+  // Shared error handler for per-item sheet pushes
+  const handleSheetPushError = (err: any, label: string) => {
+    const msg: string = err?.message || "";
+    const isAuthError = msg.includes("401") || msg.toLowerCase().includes("unauthorized") || msg.toLowerCase().includes("invalid credentials") || msg.toLowerCase().includes("invalid authentication") || msg.toLowerCase().includes("access token");
+    if (isAuthError) {
+      clearAccessToken();
+      setNeedsAuth(true);
+      showToast("Google token expired — click 'Connect Google Sheets' to reconnect.", "error", 6000);
+    } else {
+      showToast(`Sheet sync failed: ${msg || "unknown error"}`, "error", 5000);
+      console.warn(`${label} per-item push failed:`, msg);
+    }
+  };
+
+  const pushSingleBankToSheet = (account: BankAccount, action: "write" | "append") => {
+    const token = getAccessToken();
+    if (!token) return;
+    const mapping = sheetMappings.find((m) => m.module === "banks");
+    if (!mapping) return;
+    (async () => {
+      try {
+        if (action === "append") await appendBankAccount(account, mapping.range, mapping.spreadsheetIdOrUrl, token);
+        else await writeSingleBankAccount(account, mapping.range, mapping.spreadsheetIdOrUrl, token);
+        showToast("Saved to Google Sheets ✓", "success", 2500);
+      } catch (err) { handleSheetPushError(err, "banks"); }
+    })();
+  };
+
+  const pushSingleLoanToSheet = (loan: Loan, action: "write" | "append") => {
+    const token = getAccessToken();
+    if (!token) return;
+    const mapping = sheetMappings.find((m) => m.module === "loans");
+    if (!mapping) return;
+    (async () => {
+      try {
+        if (action === "append") await appendLoan(loan, mapping.range, mapping.spreadsheetIdOrUrl, token);
+        else await writeSingleLoan(loan, mapping.range, mapping.spreadsheetIdOrUrl, token);
+        showToast("Saved to Google Sheets ✓", "success", 2500);
+      } catch (err) { handleSheetPushError(err, "loans"); }
+    })();
+  };
+
+  const pushSingleARToSheet = (item: ARItem, action: "write" | "append") => {
+    const token = getAccessToken();
+    if (!token) return;
+    const mapping = sheetMappings.find((m) => m.module === "ar");
+    if (!mapping) return;
+    (async () => {
+      try {
+        if (action === "append") await appendARItem(item, mapping.range, mapping.spreadsheetIdOrUrl, token);
+        else await writeSingleARItem(item, mapping.range, mapping.spreadsheetIdOrUrl, token);
+        showToast("Saved to Google Sheets ✓", "success", 2500);
+      } catch (err) { handleSheetPushError(err, "AR"); }
+    })();
+  };
+
+  const pushSingleStatementToSheet = (statement: BankStatement, action: "write" | "append") => {
+    const token = getAccessToken();
+    if (!token) return;
+    const mapping = sheetMappings.find((m) => m.module === "statements");
+    if (!mapping) return;
+    (async () => {
+      try {
+        if (action === "append") await appendStatement(statement, mapping.range, mapping.spreadsheetIdOrUrl, token);
+        else await writeSingleStatement(statement, mapping.range, mapping.spreadsheetIdOrUrl, token);
+        showToast("Saved to Google Sheets ✓", "success", 2500);
+      } catch (err) { handleSheetPushError(err, "statements"); }
+    })();
+  };
+
+  // Generic push for non-AP modules — ONLY used for DataSync full-tab pushes now.
+  // CRUD operations use the per-item helpers above.
   const pushModuleToSheet = (moduleKey: "banks" | "loans" | "ar" | "statements", freshData: any[]) => {
     if (!autoPushEnabled) return;
     const token = getAccessToken();
@@ -1293,39 +1410,43 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setApBills(nextBills);
     persistChanges({ ap: nextBills });
     logAction("Added Bill", `${newBill.vendor} (${newBill.entity}) - $${newBill.amount}`);
-    pushAPBillsToSheet(nextBills);
+    pushSingleAPBillToSheet(newBill, "append");
   };
 
   const updateBill = (updatedBill: APBill) => {
     const bucket = computeBucket(updatedBill.dueDate, updatedBill.status);
-    const nextBills = apBills.map((b) => (b.id === updatedBill.id ? { ...updatedBill, bucket } : b));
+    const billWithBucket = { ...updatedBill, bucket };
+    const nextBills = apBills.map((b) => (b.id === updatedBill.id ? billWithBucket : b));
     setApBills(nextBills);
     persistChanges({ ap: nextBills });
     logAction("Updated Bill", `${updatedBill.vendor} (${updatedBill.entity}) - $${updatedBill.amount}`);
-    pushAPBillsToSheet(nextBills);
+    pushSingleAPBillToSheet(billWithBucket, "write");
   };
 
   const toggleBillStatus = (id: string, newStatus: "unpaid" | "paid" | "hold", paidDate?: string) => {
+    let updatedBill: APBill | undefined;
     const nextBills = apBills.map((b) => {
       if (b.id === id) {
         const bucket = computeBucket(b.dueDate, newStatus);
         const pd = newStatus === "paid" ? (paidDate || new Date().toISOString().split("T")[0]) : undefined;
-        return { ...b, status: newStatus, bucket, paidDate: pd };
+        updatedBill = { ...b, status: newStatus, bucket, paidDate: pd };
+        return updatedBill;
       }
       return b;
     });
     setApBills(nextBills);
     persistChanges({ ap: nextBills });
     logAction("Updated Bill Status", `Bill ID ${id} marked as ${newStatus}`);
-    pushAPBillsToSheet(nextBills);
+    if (updatedBill) pushSingleAPBillToSheet(updatedBill, "write");
   };
 
   const deleteBill = (id: string) => {
+    const billToDelete = apBills.find((b) => b.id === id);
     const nextBills = apBills.filter((b) => b.id !== id);
     setApBills(nextBills);
     persistChanges({ ap: nextBills });
     logAction("Deleted Bill", `Bill ID ${id} deleted`);
-    pushAPBillsToSheet(nextBills);
+    if (billToDelete) pushSingleAPBillToSheet(billToDelete, "clear");
   };
 
   const addBankAccount = (accData: Omit<BankAccount, "id">) => {
@@ -1334,7 +1455,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setBankAccounts(nextAccs);
     persistChanges({ banks: nextAccs });
     logAction("Added Bank Account", `${newAcc.bank} (${newAcc.entity})`);
-    pushModuleToSheet("banks", nextAccs);
+    pushSingleBankToSheet(newAcc, "append");
   };
 
   const updateBankAccount = (updatedAccount: BankAccount) => {
@@ -1342,27 +1463,23 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setBankAccounts(nextAccs);
     persistChanges({ banks: nextAccs });
     logAction("Updated Bank Account", `${updatedAccount.bank} (${updatedAccount.entity})`);
-    pushModuleToSheet("banks", nextAccs);
+    pushSingleBankToSheet(updatedAccount, "write");
   };
 
   const updateBankBalance = (id: string, newBalance: number) => {
+    let updatedAcc: BankAccount | undefined;
     const nextAccs = bankAccounts.map((a) => {
       if (a.id === id) {
         const trend: "up" | "down" = newBalance >= a.balance ? "up" : "down";
-        return {
-          ...a,
-          yesterday: a.balance,
-          balance: newBalance,
-          asOf: new Date().toISOString().split("T")[0],
-          trend
-        };
+        updatedAcc = { ...a, yesterday: a.balance, balance: newBalance, asOf: new Date().toISOString().split("T")[0], trend };
+        return updatedAcc;
       }
       return a;
     });
     setBankAccounts(nextAccs);
     persistChanges({ banks: nextAccs });
     logAction("Updated Bank Balance", `Account ID ${id} set to $${newBalance}`);
-    pushModuleToSheet("banks", nextAccs);
+    if (updatedAcc) pushSingleBankToSheet(updatedAcc, "write");
   };
 
   const deleteBankAccount = (id: string) => {
@@ -1370,7 +1487,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setBankAccounts(nextAccs);
     persistChanges({ banks: nextAccs });
     logAction("Deleted Bank Account", `Account ID ${id} deleted`);
-    pushModuleToSheet("banks", nextAccs);
+    // No sheet row clear on delete — use DataSync to reconcile
   };
 
   const addLoan = (loanData: Omit<Loan, "id">) => {
@@ -1379,7 +1496,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setLoans(nextLoans);
     persistChanges({ loans: nextLoans });
     logAction("Added Loan", `${newLoan.lender} (${newLoan.entity}) - $${newLoan.principal}`);
-    pushModuleToSheet("loans", nextLoans);
+    pushSingleLoanToSheet(newLoan, "append");
   };
 
   const updateLoan = (updatedLoan: Loan) => {
@@ -1387,7 +1504,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setLoans(nextLoans);
     persistChanges({ loans: nextLoans });
     logAction("Updated Loan", `${updatedLoan.lender} (${updatedLoan.entity})`);
-    pushModuleToSheet("loans", nextLoans);
+    pushSingleLoanToSheet(updatedLoan, "write");
   };
 
   const deleteLoan = (id: string) => {
@@ -1395,7 +1512,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setLoans(nextLoans);
     persistChanges({ loans: nextLoans });
     logAction("Deleted Loan", `Loan ID ${id} deleted`);
-    pushModuleToSheet("loans", nextLoans);
+    // No sheet row clear on delete — use DataSync to reconcile
   };
 
   const addARItem = (arData: Omit<ARItem, "id">) => {
@@ -1404,7 +1521,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setArItems(nextAR);
     persistChanges({ ar: nextAR });
     logAction("Added AR Item", `${newAR.customer} (${newAR.entity}) - $${newAR.amount}`);
-    pushModuleToSheet("ar", nextAR);
+    pushSingleARToSheet(newAR, "append");
   };
 
   const updateARItem = (updatedAR: ARItem) => {
@@ -1412,7 +1529,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setArItems(nextAR);
     persistChanges({ ar: nextAR });
     logAction("Updated AR Invoice", `${updatedAR.customer} (${updatedAR.entity})`);
-    pushModuleToSheet("ar", nextAR);
+    pushSingleARToSheet(updatedAR, "write");
   };
 
   const deleteARItem = (id: string) => {
@@ -1420,28 +1537,37 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setArItems(nextAR);
     persistChanges({ ar: nextAR });
     logAction("Deleted AR Invoice", `Invoice ID ${id} deleted`);
-    pushModuleToSheet("ar", nextAR);
+    // No sheet row clear on delete — use DataSync to reconcile
   };
 
   const toggleARStage = (id: string, stage: "invoice" | "approval" | "sent" | "payment") => {
+    let updatedAR: ARItem | undefined;
     const nextAR = arItems.map((a) => {
       if (a.id === id) {
-        return { ...a, [stage]: !a[stage] };
+        updatedAR = { ...a, [stage]: !a[stage] };
+        return updatedAR;
       }
       return a;
     });
     setArItems(nextAR);
     persistChanges({ ar: nextAR });
     logAction("Toggled AR Stage", `Item ID ${id} stage ${stage} toggled`);
-    pushModuleToSheet("ar", nextAR);
+    if (updatedAR) pushSingleARToSheet(updatedAR, "write");
   };
 
   const updateARRemarks = (id: string, remarks: string) => {
-    const nextAR = arItems.map((a) => (a.id === id ? { ...a, remarks } : a));
+    let updatedAR: ARItem | undefined;
+    const nextAR = arItems.map((a) => {
+      if (a.id === id) {
+        updatedAR = { ...a, remarks };
+        return updatedAR;
+      }
+      return a;
+    });
     setArItems(nextAR);
     persistChanges({ ar: nextAR });
     logAction("Updated AR Remarks", `Item ID ${id}`);
-    pushModuleToSheet("ar", nextAR);
+    if (updatedAR) pushSingleARToSheet(updatedAR, "write");
   };
 
   const addBankStatement = (statementData: Omit<BankStatement, "id">) => {
@@ -1450,7 +1576,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setBankStatements(nextSt);
     persistChanges({ statements: nextSt });
     logAction("Added Bank Statement Record", `${newSt.bankName} (${newSt.period})`);
-    pushModuleToSheet("statements", nextSt);
+    pushSingleStatementToSheet(newSt, "append");
   };
 
   const updateBankStatement = (updatedStatement: BankStatement) => {
@@ -1458,7 +1584,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setBankStatements(nextSt);
     persistChanges({ statements: nextSt });
     logAction("Updated Bank Statement Record", `${updatedStatement.bankName} (${updatedStatement.period})`);
-    pushModuleToSheet("statements", nextSt);
+    pushSingleStatementToSheet(updatedStatement, "write");
   };
 
   const deleteBankStatement = (id: string) => {
@@ -1466,24 +1592,26 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setBankStatements(nextSt);
     persistChanges({ statements: nextSt });
     logAction("Deleted Bank Statement Record", `Statement ID ${id} deleted`);
-    pushModuleToSheet("statements", nextSt);
+    // No sheet row clear on delete — use DataSync to reconcile
   };
 
   const toggleStatementDownload = (id: string) => {
+    let updatedSt: BankStatement | undefined;
     const nextSt = bankStatements.map((s) => {
       if (s.id === id) {
         const nextDownloaded = !s.downloaded;
         const downloadedAt = nextDownloaded
           ? new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" })
           : "";
-        return { ...s, downloaded: nextDownloaded, downloadedAt };
+        updatedSt = { ...s, downloaded: nextDownloaded, downloadedAt };
+        return updatedSt;
       }
       return s;
     });
     setBankStatements(nextSt);
     persistChanges({ statements: nextSt });
     logAction("Toggled Bank Statement Download", `Statement ID ${id}`);
-    pushModuleToSheet("statements", nextSt);
+    if (updatedSt) pushSingleStatementToSheet(updatedSt, "write");
   };
 
   const updatePayrollPivot = (newPivot: PayrollPivot) => {

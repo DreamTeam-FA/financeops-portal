@@ -126,14 +126,17 @@ function mergeDatasets(liveList: any[], currentList: any[], idKey = "id") {
   return merged;
 }
 
-async function syncLiveDataFromSheets() {
+async function syncLiveDataFromSheets(accessToken?: string) {
   try {
-    console.log("[GoogleSheetSync] Pulling live data from Google Sheets 15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs...");
-    const liveData = await fetchFullLiveDataset();
+    const method = accessToken ? "Sheets API v4 (FORMATTED_VALUE)" : "GViz public API";
+    console.log(`[GoogleSheetSync] Pulling live data from Google Sheets via ${method}...`);
+    const liveData = await fetchFullLiveDataset(accessToken);
     const current = getStoredData();
+    // When using Sheets API v4 (token present), row indices may differ from cached GViz data.
+    // Use v4 data directly for AP — it is complete and has evaluated formula values (invoice numbers).
     const updated = {
       ...current,
-      ap: mergeDatasets(liveData.ap, current.ap, "id"),
+      ap: accessToken ? liveData.ap : mergeDatasets(liveData.ap, current.ap, "id"),
       banks: mergeDatasets(liveData.banks, current.banks, "id"),
       loans: mergeDatasets(liveData.loans, current.loans, "id"),
       ar: mergeDatasets(liveData.ar, current.ar, "id"),
@@ -313,7 +316,8 @@ app.get("/api/data", (_req, res) => {
 
 app.post("/api/pull-live", async (req, res) => {
   const forceOverwrite = req.body?.force === true;
-  const updated = await syncLiveDataFromSheets();
+  const accessToken: string | undefined = req.body?.accessToken || undefined;
+  const updated = await syncLiveDataFromSheets(accessToken);
   const existing = getStoredData();
 
   // Don't overwrite AP/bank/loans/AR if portal already has sufficient data and this isn't

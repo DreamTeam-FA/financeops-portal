@@ -5,16 +5,10 @@ const SPREADSHEET_ID = "15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs";
 const CALENDAR_SPREADSHEET_ID = "1ChoHr7dsfai0Unl-Gk-HyPmgrpWOYu07gllY9PA8epo";
 
 function cleanRemarks(parts: any[]): string {
-  const isUrl = (v: string) => /^https?:\/\//i.test(v) || /^mailto:/i.test(v);
-  const isMetadata = (v: string) => {
-    const lc = v.toLowerCase();
-    return ["true","false","check","online","paid","unpaid","hold","qbo",
-      "recurring","non-recurring","manual","auto-debit","autodebit","fixed","estimate"].includes(lc);
-  };
   return parts
     .map((v) => String(v || "").trim())
-    .filter((v) => v && v.length > 2 && !isUrl(v) && !isMetadata(v))
-    .join(" | ");
+    .filter((v) => v.length > 0)
+    .join(" · ");
 }
 
 function parseDateVal(val: any, year?: any, month?: any, dayStr?: any): string {
@@ -158,7 +152,16 @@ function fetchPublicTab(sheetName: string, spreadsheetId?: string): Promise<any[
           const rows = parsed.table ? parsed.table.rows : [];
           const cleanRows = rows.map((r: any) => (r.c || []).map((cell: any) => {
             if (!cell) return "";
-            if (cell.v !== null && cell.v !== undefined) return cell.v;
+            const v = cell.v;
+            if (v !== null && v !== undefined) {
+              // Convert GViz date strings "Date(year,month,day)" to ISO "YYYY-MM-DD"
+              if (typeof v === "string" && /^Date\(\d+,\d+,\d+\)$/.test(v)) {
+                const p = v.replace("Date(", "").replace(")", "").split(",").map(Number);
+                // Use string construction to avoid local-timezone date shift
+                return `${p[0]}-${String(p[1] + 1).padStart(2, "0")}-${String(p[2]).padStart(2, "0")}`;
+              }
+              return v;
+            }
             if (cell.f) return cell.f;
             return "";
           }));
@@ -173,7 +176,31 @@ function fetchPublicTab(sheetName: string, spreadsheetId?: string): Promise<any[
 
 const SPREADSPREAD_ID_REPLACE = SPREADSHEET_ID;
 
-export async function fetchFullLiveDataset() {
+function fetchSheetsV4Tab(sheetName: string, accessToken: string, spreadsheetId: string): Promise<any[][]> {
+  return new Promise((resolve) => {
+    const reqPath = `/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(sheetName)}?valueRenderOption=FORMATTED_VALUE&majorDimension=ROWS`;
+    const req = https.request({
+      hostname: "sheets.googleapis.com",
+      path: reqPath,
+      method: "GET",
+      headers: { "Authorization": `Bearer ${accessToken}` }
+    }, (res) => {
+      let data = "";
+      res.on("data", (chunk: any) => data += chunk);
+      res.on("end", () => {
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.error) { console.warn(`[SheetsV4] ${sheetName}: ${parsed.error.message}`); resolve([]); return; }
+          resolve(parsed.values || []);
+        } catch { resolve([]); }
+      });
+    });
+    req.on("error", () => resolve([]));
+    req.end();
+  });
+}
+
+export async function fetchFullLiveDataset(accessToken?: string) {
   const tabs = [
     "Calendar Dashboard",
     "Calendar Dashboard - Local Events",
@@ -197,8 +224,11 @@ export async function fetchFullLiveDataset() {
   // Fetch from both main spreadsheet tabs AND the dedicated calendar spreadsheet in parallel.
   // Try multiple tab name candidates for the calendar sheet (Events, Sheet1, Calendar, Tasks).
   const CAL_TAB_CANDIDATES = ["Events", "Sheet1", "Calendar", "Tasks", "Schedule"];
+  const fetchTab = accessToken
+    ? (t: string) => fetchSheetsV4Tab(t, accessToken, SPREADSHEET_ID)
+    : (t: string) => fetchPublicTab(t);
   const [results, calSheetRowsArr] = await Promise.all([
-    Promise.all(tabs.map(async (t) => ({ sheetName: t, rows: await fetchPublicTab(t) }))),
+    Promise.all(tabs.map(async (t) => ({ sheetName: t, rows: await fetchTab(t) }))),
     Promise.all(CAL_TAB_CANDIDATES.map(t => fetchPublicTab(t, CALENDAR_SPREADSHEET_ID)))
   ]);
   // Use the first tab that returned data
@@ -207,8 +237,9 @@ export async function fetchFullLiveDataset() {
   results.forEach(r => dataByTab[r.sheetName] = r.rows);
 
   // Calendar events from the dedicated calendar spreadsheet
-  // Column layout: A(0)=id, C(2)=title, D(3)=description, F(5)=start_ms, G(6)=done,
-  //                H(7)=calName, I(8)=urgency, J(9)=category, L(11)=assigneeName
+  // Column layout: A(0)=id, C(2)=title, D(3)=description, E(4)=start_ms, F(5)=end_ms,
+  //                G(6)=allDay, H(7)=calName, I(8)=urgency, J(9)=category,
+  //                L(11)=assigneeName, P(15)=done
   const calendarLocalEvents: any[] = [];
 
   (calSheetRows || []).forEach((row, i) => {
@@ -220,22 +251,26 @@ export async function fetchFullLiveDataset() {
     const title = String(row[2] || "").trim();
     if (!title) return;
 
-    // Date is stored as ms epoch in column F (index 5)
-    const dateMs = typeof row[5] === "number" ? row[5] : parseFloat(String(row[5] || "0"));
-    const date = parseDateVal(dateMs) || parseDateVal(row[5]) || parseDateVal(row[4]) || "";
+    // Date and time: prefer start_ms (E/col4); fall back to end_ms (F/col5)
+    const ms4 = typeof row[4] === "number" ? row[4] : parseFloat(String(row[4] || "0"));
+    const ms5 = typeof row[5] === "number" ? row[5] : parseFloat(String(row[5] || "0"));
+    const dateMs = ms4 || ms5;
+    const date = parseDateVal(dateMs) || parseDateVal(row[4]) || parseDateVal(row[5]) || "";
     if (!date) return; // skip rows without a valid date
 
-    // Extract time from the ms timestamp (local hours/minutes)
+    // Extract time from start_ms; if midnight try end_ms
     let timeStr: string | undefined;
-    if (dateMs && !isNaN(dateMs) && dateMs > 0) {
-      const d = new Date(dateMs);
-      const h = d.getHours();
-      const m = d.getMinutes();
-      if (h !== 0 || m !== 0) timeStr = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    for (const ms of [ms4, ms5]) {
+      if (ms && !isNaN(ms) && ms > 0) {
+        const d = new Date(ms);
+        const h = d.getHours();
+        const m = d.getMinutes();
+        if (h !== 0 || m !== 0) { timeStr = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`; break; }
+      }
     }
 
     const description = String(row[3] || "").trim();
-    const isDone = row[6] === true || String(row[6]).toLowerCase() === "true";
+    const isDone = row[15] === true || String(row[15] || "").toLowerCase() === "true";
     const calName = String(row[7] || "").trim();
     const urgency = String(row[8] || "normal").trim();
     const category = String(row[9] || "task").trim();
@@ -319,7 +354,14 @@ export async function fetchFullLiveDataset() {
       amount = 35000; // Default $35k payroll auto debit if amount unlisted
     }
 
-    const invoiceNo = String(row[6] || "").trim();
+    let invoiceNo = String(row[6] || "").trim();
+    // Col G may contain a HYPERLINK formula that GViz can't evaluate (returns null).
+    // Extract the invoice ID from col K URL as fallback (e.g. LOGD\d+ from atrack.alsco.com).
+    if (!invoiceNo) {
+      const col10Str = String(row[10] || "");
+      const extracted = col10Str.match(/\b([A-Z]{2,}[-]?\d{5,})\b/i);
+      if (extracted) invoiceNo = extracted[1].toUpperCase();
+    }
     const col11Raw = String(row[11] || "").trim();
     // Normalise display method to Autodebit/Manual; keep raw col11 for status detection (unchanged behaviour).
     const KNOWN_METHOD_RE = /^(autodebit|auto.?debit|auto.?pay|autopay|manual|check|wire|ach|online|credit.?card|cash)$/i;
@@ -329,8 +371,8 @@ export async function fetchFullLiveDataset() {
 
     const inQBO = row[13] === true || String(row[13]).toLowerCase() === "true" || String(row[13]).toLowerCase() === "qbo";
 
-    // Col 11 goes to remarks only when it's payment instruction text, not a method keyword
-    const remarks = cleanRemarks([!isKnownMethod ? col11Raw : "", row[14], row[15], row[16], row[17]]);
+    // GAS Layout A: remarks = col K (Payment Instructions) + col M (Status 1), joined with " · "
+    const remarks = cleanRemarks([row[10], row[12]]);
 
     const finalDueDate = dueDate || new Date().toISOString().split("T")[0];
 
@@ -426,7 +468,7 @@ export async function fetchFullLiveDataset() {
       // Due date: try multiple positions
       const dueDate = parseDateVal(row[8]) || parseDateVal(row[7]) || parseDateVal(row[9]) || new Date().toISOString().split("T")[0];
 
-      const invoiceNo = String(row[6] || row[7] || "").trim();
+      const invoiceNo = String(row[6] || "").trim(); // col G only; col H is invoice date, not invoice #
       const rawMethodTI = String(row[11] || row[10] || row[12] || "Online").trim(); // unchanged for status detection
       const KNOWN_METHOD_RE_TI = /^(autodebit|auto.?debit|auto.?pay|autopay|manual|check|wire|ach|online|credit.?card|cash)$/i;
       const method = /auto/i.test(rawMethodTI) && KNOWN_METHOD_RE_TI.test(rawMethodTI) ? "Autodebit" : "Manual";
@@ -456,7 +498,7 @@ export async function fetchFullLiveDataset() {
         bucket: computeBucket(dueDate, status),
         sheet: tabName,
         invoiceNo,
-        remarks: cleanRemarks([row[15], row[16], row[17]]),
+        remarks: cleanRemarks([row[14], row[15], row[16], row[17]]),
         row: i + 1
       });
     });
@@ -489,7 +531,8 @@ export async function fetchFullLiveDataset() {
 
     const inQBO = row[13] === true || String(row[13]).toLowerCase() === "true" || String(row[13]).toLowerCase() === "qbo";
 
-    const remarks = cleanRemarks([!isKnownMethodMSDx ? col11MSDx : "", row[14], row[15], row[16], row[17]]);
+    // GAS Layout A: remarks = col K (Payment Instructions) + col M (Status 1), joined with " · "
+    const remarks = cleanRemarks([row[10], row[12]]);
 
     ap.push({
       id: `ap-msdx-${i + 1}`,

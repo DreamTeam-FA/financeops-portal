@@ -407,6 +407,7 @@ export const CalendarPage: React.FC = () => {
           label,
           type: "task",
           time: ev.time,
+          isLocalTask: true,
           entity: ev.entity || "",
           description: ev.description && ev.description !== ev.vendor ? ev.description : "",
           urgency: (doneOverrides[ev.id] ?? ev.done) ? "low" : "high",
@@ -1313,7 +1314,7 @@ export const CalendarPage: React.FC = () => {
                   </>
                 ) : (
                   <>
-                    {!selectedEvent.billsList && (
+                    {!selectedEvent.billsList && selectedEvent.isLocalTask && (
                       <button
                         onClick={() => {
                           const newDone = !selectedEvent.done;
@@ -1336,7 +1337,7 @@ export const CalendarPage: React.FC = () => {
                         {selectedEvent.done ? "↩ Undo Done" : "✅ Mark Done"}
                       </button>
                     )}
-                    {!selectedEvent.billsList && (
+                    {!selectedEvent.billsList && selectedEvent.isLocalTask && (
                       <div className="relative">
                         <button
                           onClick={() => setShowUrgencyPicker(v => !v)}
@@ -1360,13 +1361,13 @@ export const CalendarPage: React.FC = () => {
                         )}
                       </div>
                     )}
-                    {!selectedEvent.billsList && (
+                    {!selectedEvent.billsList && selectedEvent.isLocalTask && (
                       <button onClick={() => setIsEditingEvent(true)}
                         className={`px-[14px] py-[7px] rounded-lg text-xs font-bold flex items-center gap-1.5 border transition-all ${isLight ? "border-slate-200 text-slate-700 bg-white hover:bg-slate-50" : "border-[#2E3340] text-slate-300 bg-[#20242E] hover:bg-white/5"}`}>
                         ✏️ Edit
                       </button>
                     )}
-                    {!selectedEvent.billsList && (
+                    {!selectedEvent.billsList && selectedEvent.isLocalTask && (
                       <button
                         onClick={() => {
                           const evId = selectedEvent.id;
