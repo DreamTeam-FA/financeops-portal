@@ -2,8 +2,8 @@ services:
   - type: web
     name: financeops-portal
     runtime: node
-    buildCommand: npm install && npm run build
-    startCommand: node -e "require('tsx/cjs'); require('./server.ts')"
+    buildCommand: npm run build
+    startCommand: node dist/server.cjs
     envVars:
       - key: NODE_ENV
         value: production
