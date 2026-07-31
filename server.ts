@@ -10,7 +10,9 @@ const PORT = 3000;
 app.use(express.json({ limit: "10mb" }));
 
 // Persistent JSON file storage path
-const DATA_FILE = path.join(process.cwd(), "financeops_data.json");
+const DATA_FILE = process.env.VERCEL
+  ? "/tmp/financeops_data.json"
+  : path.join(process.cwd(), "financeops_data.json");
 
 // Default initial backend data structure
 const DEFAULT_DATA = {
@@ -391,4 +393,8 @@ async function startServer() {
   });
 }
 
-startServer();
+export default app;
+
+if (!process.env.VERCEL) {
+  startServer();
+}

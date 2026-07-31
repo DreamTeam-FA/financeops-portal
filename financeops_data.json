@@ -7411,6 +7411,12 @@
   },
   "auditLog": [
     {
+      "timestamp": "7/31/2026, 6:26:54 PM",
+      "user": "accounting@marktimm.com",
+      "action": "Google OAuth Authenticated",
+      "details": "Connected as accounting@marktimm.com"
+    },
+    {
       "timestamp": "7/31/2026, 5:20:14 PM",
       "user": "accounting@marktimm.com",
       "action": "Google OAuth Authenticated",
@@ -8412,9 +8418,9 @@
     }
   ],
   "gasUrls": {
-    "curcumin": "",
-    "fouryr": "",
-    "ziglar": ""
+    "curcumin": "https://script.google.com/macros/s/AKfycbx8Atk7ajk80WseNyVBuSJBjhyg8RABC5_DmeSZ2adRjkdplu0Bu5zx7yObbLrP4uT_/exec",
+    "fouryr": "https://script.google.com/a/macros/marktimm.com/s/AKfycbxvL1T_dHYg7s2tQmlfen7Y-eeYT6cU-L3vjv8RJ51pJWu7CydOFt9YyUy0MUJesyFi/exec",
+    "ziglar": "https://script.google.com/a/macros/marktimm.com/s/AKfycbwDAqUr0x8hvkVN1m3vn4CCBLw6B0AHrGQYizSAY02RSHYgxH7zCQYSy7lhfSWPcrH3/exec"
   },
   "calendarLocalEvents": [
     {
@@ -36655,6 +36661,5 @@
       "description": "Radxcel",
       "row": 153
     }
-  ],
-  "lastSyncedAt": "2026-07-31T09:55:43.481Z"
+  ]
 }

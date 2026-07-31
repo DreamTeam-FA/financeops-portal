@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: financeops-portal
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: node -e "require('tsx/cjs'); require('./server.ts')"
+    envVars:
+      - key: NODE_ENV
+        value: production
+    autoDeploy: true
