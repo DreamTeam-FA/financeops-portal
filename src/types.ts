@@ -158,6 +158,7 @@ export interface CalendarLocalEvent {
   createdDate?: string;
   weekLabel?: string;
   date: string; // YYYY-MM-DD
+  time?: string; // HH:MM extracted from ms timestamp
   entity: string;
   vendor: string;
   description: string;

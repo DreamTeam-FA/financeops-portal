@@ -91,6 +91,7 @@ export const CalendarPage: React.FC = () => {
 
   // Calendar Sheet Sync State
   const [sheetEvents, setSheetEvents] = useState<CalSheetRow[]>([]);
+  const [doneOverrides, setDoneOverrides] = useState<Record<string, boolean>>({});
   const [sheetTab, setSheetTab] = useState("Calendar");
   const [sheetColMap, setSheetColMap] = useState<{ done: number }>({ done: 7 });
   const [sheetLoading, setSheetLoading] = useState(false);
@@ -405,10 +406,11 @@ export const CalendarPage: React.FC = () => {
           id: ev.id,
           label,
           type: "task",
+          time: ev.time,
           entity: ev.entity || "",
           description: ev.description && ev.description !== ev.vendor ? ev.description : "",
-          urgency: ev.done ? "low" : "high",
-          done: ev.done,
+          urgency: (doneOverrides[ev.id] ?? ev.done) ? "low" : "high",
+          done: doneOverrides[ev.id] ?? ev.done,
         });
       }
     });
@@ -463,6 +465,7 @@ export const CalendarPage: React.FC = () => {
         id: ev.id,
         label: `${ev.time ? ev.time + " " : ""}${ev.title}`,
         type: "task",
+        time: ev.time,
         isLocalTask: true,
         description: ev.description
       });
@@ -475,20 +478,29 @@ export const CalendarPage: React.FC = () => {
     const key = normalizeDateToYYYYMMDD(ev.date);
     if (!key) return;
     if (!eventsByDate[key]) eventsByDate[key] = [];
-    const exists = eventsByDate[key].some((e) => e.id === ev.id);
-    if (!exists) {
-      const typeLC = (ev.type || "task").toLowerCase();
-      const calType: "task" | "google" = typeLC.includes("meet") ? "google" : "task";
-      const category = typeLC.includes("meet") ? "meeting" : typeLC.includes("event") ? "event" : "task";
+    const typeLC = (ev.type || "task").toLowerCase();
+    const calType: "task" | "google" = typeLC.includes("meet") ? "google" : "task";
+    const category = typeLC.includes("meet") ? "meeting" : typeLC.includes("event") ? "event" : "task";
+    const existingIdx = eventsByDate[key].findIndex((e) => e.id === ev.id);
+    const evDone = doneOverrides[ev.id] ?? ev.done;
+    if (existingIdx !== -1) {
+      eventsByDate[key][existingIdx] = {
+        ...eventsByDate[key][existingIdx],
+        done: evDone,
+        sheetRow: ev.sheetRow,
+        urgency: (ev.urgency || "normal") as "critical" | "high" | "normal" | "low",
+      };
+    } else {
       eventsByDate[key].push({
         id: ev.id,
         label: ev.title,
         type: calType,
+        time: ev.time,
         isLocalTask: true,
         description: ev.notes || ev.title,
         urgency: (ev.urgency || "normal") as "critical" | "high" | "normal" | "low",
         assignee: ev.assignee,
-        done: ev.done,
+        done: evDone,
         sheetRow: ev.sheetRow,
         category,
       });
@@ -1305,7 +1317,10 @@ export const CalendarPage: React.FC = () => {
                       <button
                         onClick={() => {
                           const newDone = !selectedEvent.done;
-                          if (selectedEvent.id) setSheetEvents(prev => prev.map(e => e.id === selectedEvent.id ? { ...e, done: newDone } : e));
+                          if (selectedEvent.id) {
+                            setSheetEvents(prev => prev.map(e => e.id === selectedEvent.id ? { ...e, done: newDone } : e));
+                            setDoneOverrides(prev => ({ ...prev, [selectedEvent.id!]: newDone }));
+                          }
                           setSelectedEvent(prev => prev ? { ...prev, done: newDone } : null);
                           const token = getAccessToken();
                           if (token && selectedEvent.sheetRow && selectedEvent.sheetRow > 0) {

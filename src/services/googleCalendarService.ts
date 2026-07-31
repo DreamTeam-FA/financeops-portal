@@ -120,6 +120,7 @@ const SHEET_TAB_CANDIDATES = ["Calendar", "Events", "Schedule", "Tasks", "Sheet1
 export interface CalSheetRow {
   id: string;
   date: string;
+  time?: string;
   title: string;
   notes: string;
   entity: string;
@@ -146,7 +147,6 @@ const DEFAULT_COL_MAP: ColMap = {
 
 function parseMsOrDateString(raw: string): string {
   if (!raw) return "";
-  // Handle millisecond epoch timestamps (13-digit numbers)
   if (/^\d{12,13}$/.test(raw.trim())) {
     const d = new Date(parseInt(raw, 10));
     if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
@@ -155,6 +155,19 @@ function parseMsOrDateString(raw: string): string {
   const d = new Date(raw);
   if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
   return "";
+}
+
+function parseMsToTime(raw: string): string | undefined {
+  if (!raw) return undefined;
+  if (/^\d{12,13}$/.test(raw.trim())) {
+    const d = new Date(parseInt(raw, 10));
+    if (!isNaN(d.getTime())) {
+      const h = String(d.getHours()).padStart(2, "0");
+      const m = String(d.getMinutes()).padStart(2, "0");
+      return h === "00" && m === "00" ? undefined : `${h}:${m}`;
+    }
+  }
+  return undefined;
 }
 
 function detectColMap(header: string[]): ColMap {
@@ -221,6 +234,7 @@ export async function loadCalendarSheet(token: string): Promise<{
 
     const dateRaw = row[colMap.date]?.trim() || "";
     const date = parseMsOrDateString(dateRaw);
+    const time = parseMsToTime(dateRaw);
 
     const doneRaw = (row[colMap.done] || "").toLowerCase().trim();
     const done = doneRaw === "true" || doneRaw === "yes" || doneRaw === "1" || doneRaw === "done" || doneRaw === "✓";
@@ -228,6 +242,7 @@ export async function loadCalendarSheet(token: string): Promise<{
     events.push({
       id: row[colMap.id]?.trim() || `calsheet-${rowOffset + i}`,
       date: date || new Date().toISOString().split("T")[0],
+      time,
       title,
       notes: row[colMap.notes] || "",
       entity: row[colMap.entity] || "Ruby's",

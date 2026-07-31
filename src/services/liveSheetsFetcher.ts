@@ -225,6 +225,15 @@ export async function fetchFullLiveDataset() {
     const date = parseDateVal(dateMs) || parseDateVal(row[5]) || parseDateVal(row[4]) || "";
     if (!date) return; // skip rows without a valid date
 
+    // Extract time from the ms timestamp (local hours/minutes)
+    let timeStr: string | undefined;
+    if (dateMs && !isNaN(dateMs) && dateMs > 0) {
+      const d = new Date(dateMs);
+      const h = d.getHours();
+      const m = d.getMinutes();
+      if (h !== 0 || m !== 0) timeStr = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    }
+
     const description = String(row[3] || "").trim();
     const isDone = row[6] === true || String(row[6]).toLowerCase() === "true";
     const calName = String(row[7] || "").trim();
@@ -235,6 +244,7 @@ export async function fetchFullLiveDataset() {
     calendarLocalEvents.push({
       id,
       date,
+      time: timeStr,
       title,
       notes: description,
       entity: calName || "Ruby's",
