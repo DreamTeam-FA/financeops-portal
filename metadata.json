@@ -1,0 +1,6 @@
+{
+  "name": "FinanceOps Hub",
+  "description": "Consolidated financial operations portal for multi-entity Accounts Payable, Accounts Receivable, Bank Balances, Loans, Bank Statements, Payroll, and Calendar.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
