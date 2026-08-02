@@ -930,7 +930,7 @@ const AP_COL_MAPS: Record<"Ruby's" | "TI" | "MSDx", APColMap> = {
     vendor: 3, company: null, invoiceNo: 6, invoiceDateCol: 7, categoryCol: 5,
     dueDate: 8, amount: 9,
     paidDateCol: 11, methodCol: null, paytypeCol: 17,
-    status: 12, inQBO: 13, onHold: 17,  // Ruby's holdCol=17 per CALcode (same col as paytype)
+    status: 12, inQBO: 13, onHold: 18,  // col S = On Hold
     remarksCol: 10, payInstCol: 14, status1Col: 15, totalCols: 19,
     dataRange: "'Ruby''s Bills'!A5:S1504"   // 1500 data rows starting row 5
   },
@@ -986,8 +986,8 @@ export const buildAPBillRow = (b: APBill, entity: "Ruby's" | "TI" | "MSDx"): any
   if (map.methodCol !== null) row[map.methodCol] = b.method || "";
   row[map.paytypeCol] = b.paymentType === "Auto-Debit" ? "Auto-Debit" : "Manual";
   row[map.status]     = b.status.toUpperCase();
-  row[map.inQBO]      = b.inQBO ? "TRUE" : "FALSE";
-  row[map.onHold]     = b.status === "hold" ? "TRUE" : "FALSE";
+  if (b.inQBO) row[map.inQBO] = "TRUE";
+  if (b.status === "hold") row[map.onHold] = "TRUE";
   const rawRemarks = (b.remarks || b.notes || "").replace(/^\[[^\]]+\]\s*/, "").trim();
   if (rawRemarks) row[map.remarksCol] = rawRemarks;
   return row;
