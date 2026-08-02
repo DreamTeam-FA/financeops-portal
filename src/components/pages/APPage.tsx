@@ -30,16 +30,9 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingBill, setEditingBill] = useState<APBill | null>(null);
-  const [viewingVendorName, setViewingVendorName] = useState<string | null>(null);
-  const [viewingVendorTab, setViewingVendorTab] = useState<"due" | "paid" | "summary">("due");
-  const viewingVendorBills = viewingVendorName
-    ? apBills.filter((b) => {
-        if (b.vendor !== viewingVendorName) return false;
-        if (viewingVendorTab === "paid") return b.status === "paid";
-        if (viewingVendorTab === "due") return b.status === "unpaid" || b.status === "hold";
-        return true;
-      })
-    : [];
+  // Store IDs at click time (preserves bucket filter); derive from live apBills (handles deletes)
+  const [viewingVendorBillIds, setViewingVendorBillIds] = useState<string[]>([]);
+  const viewingVendorBills = apBills.filter((b) => viewingVendorBillIds.includes(b.id));
 
   // Collapsed state for sub-entity banners
   const [collapsedSections, setCollapsedSections] = useState<{ [key: string]: boolean }>({});
@@ -319,7 +312,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                         <div key={vName}>
                           {/* Vendor summary row — clicking always opens vendor modal */}
                           <div
-                            onClick={() => { setViewingVendorName(vName); setViewingVendorTab(activeTab); }}
+                            onClick={() => setViewingVendorBillIds(vBills.map((b) => b.id))}
                             className={`grid grid-cols-12 items-center px-2.5 py-1.5 text-[11px] cursor-pointer select-none transition-colors ${
                               isLight ? "hover:bg-slate-50 text-slate-800" : "hover:bg-white/5 text-white"
                             }`}
@@ -636,8 +629,8 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
 
       <BillDetailsModal
         vendorBills={viewingVendorBills}
-        isOpen={viewingVendorName !== null}
-        onClose={() => setViewingVendorName(null)}
+        isOpen={viewingVendorBillIds.length > 0}
+        onClose={() => setViewingVendorBillIds([])}
         onEdit={(b) => setEditingBill(b)}
       />
     </div>
