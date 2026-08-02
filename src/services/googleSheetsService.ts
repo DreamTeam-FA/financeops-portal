@@ -346,8 +346,7 @@ export const parseAPSheetRows = (
     let dueDate = "2026-07-25";
     let status: "unpaid" | "paid" | "hold" = "unpaid";
     let entity: EntityName = fallbackFromTab;
-    const rawInvoice = invoiceCol !== -1 && row[invoiceCol] ? row[invoiceCol] : row[6];
-    let invoiceNo = extractInvoiceNumber(rawInvoice);
+    const invoiceNo = String(row[6] || "").trim();
 
     // Check header column if found
     if (vendorCol !== -1 && row[vendorCol]) {
