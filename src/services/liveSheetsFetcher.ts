@@ -433,7 +433,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       sheet: "Ruby's Bills",
       invoiceNo,
       remarks,
-      row: i + 1
+      row: i - 3 // dataStart=5: row 1 = sheet row 5, so bill.row = i+1-(dataStart-1) = i-3
     });
   });
 
@@ -547,7 +547,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
         sheet: tabName,
         invoiceNo,
         remarks: cleanRemarks([row[14], row[15], row[16], row[17]]),
-        row: i + 1
+        row: i - 5 // dataStart=7: row 1 = sheet row 7, so bill.row = i+1-(dataStart-1) = i-5
       });
     });
   });
@@ -600,7 +600,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       sheet: "MSDx Bills",
       invoiceNo,
       remarks,
-      row: i + 2
+      row: i - 4 // dataStart=6: row 1 = sheet row 6, so bill.row = i+1-(dataStart-1) = i-4
     });
   });
 

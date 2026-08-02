@@ -1216,7 +1216,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Write a single AP bill to its exact sheet row — only touches that one row.
   const pushSingleAPBillToSheet = (bill: APBill, action: "write" | "append" | "clear") => {
     const token = getAccessToken();
-    if (!token) return; // not connected — silent skip, don't corrupt data
+    if (!token) {
+      setNeedsAuth(true);
+      showToast("Connect Google Sheets to save changes to the sheet.", "error", 5000);
+      return;
+    }
     const mapping = sheetMappings.find((m) => m.module === "ap");
     if (!mapping) return;
     const entity = bill.entity as "Ruby's" | "TI" | "MSDx";
