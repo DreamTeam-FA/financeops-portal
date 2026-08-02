@@ -989,10 +989,7 @@ export const buildAPBillRow = (b: APBill, entity: "Ruby's" | "TI" | "MSDx"): any
   row[map.inQBO]      = b.inQBO ? "TRUE" : "FALSE";
   row[map.onHold]     = b.status === "hold" ? "TRUE" : "FALSE";
   const rawRemarks = b.remarks || b.notes || "";
-  if (rawRemarks) {
-    const { col, text } = resolveRemarksCol(rawRemarks, map);
-    row[col] = text;
-  }
+  if (rawRemarks) row[map.remarksCol] = rawRemarks;
   return row;
 };
 
@@ -1050,8 +1047,8 @@ export const appendAPBill = async (
   spreadsheetId: string,
   accessToken: string
 ): Promise<void> => {
-  const tabPart = AP_COL_MAPS[entity].dataRange.split("!")[0];
-  await appendSheetValues(spreadsheetId, `${tabPart}!A:A`, [buildAPBillRow(bill, entity)], accessToken);
+  const map = AP_COL_MAPS[entity];
+  await appendSheetValues(spreadsheetId, map.dataRange, [buildAPBillRow(bill, entity)], accessToken);
 };
 
 // Clear a deleted bill's row in the sheet (writes blanks to that row only)
