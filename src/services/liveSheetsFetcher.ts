@@ -73,40 +73,53 @@ function parseDateVal(val: any, year?: any, month?: any, dayStr?: any): string {
 }
 
 export function extractInvoiceNumber(val: any, remarksUrl?: string): string {
-  if (!val && !remarksUrl) return "";
+  if (val === null || val === undefined || val === "") {
+    if (!remarksUrl) return "";
+  }
+
+  // If val is a plain number, treat it as the invoice number directly
+  if (typeof val === "number" && isFinite(val) && val > 0) {
+    return String(Math.round(val));
+  }
+
   let str = String(val || "").trim();
 
   // If cell value is a HYPERLINK formula string (e.g. '=HYPERLINK("http...", "INV-12345")' or '=HYPERLINK("http...")')
   if (/^=HYPERLINK/i.test(str)) {
     const labelMatch = str.match(/,\s*"([^"]+)"\s*\)$/i) || str.match(/,\s*'([^']+)'\s*\)$/i);
-    if (labelMatch && labelMatch[1]) {
-      str = labelMatch[1].trim();
-    } else {
-      const urlMatch = str.match(/HYPERLINK\s*\(\s*"([^"]+)"/i) || str.match(/HYPERLINK\s*\(\s*'([^']+)'/i);
-      if (urlMatch && urlMatch[1]) {
-        remarksUrl = urlMatch[1];
-        str = "";
-      }
+    if (labelMatch && labelMatch[1] && !labelMatch[1].startsWith("http")) {
+      return labelMatch[1].trim();
+    }
+    const urlMatch = str.match(/HYPERLINK\s*\(\s*"([^"]+)"/i) || str.match(/HYPERLINK\s*\(\s*'([^']+)'/i);
+    if (urlMatch && urlMatch[1]) {
+      remarksUrl = urlMatch[1];
+      str = "";
     }
   }
 
-  // Extract invoice ID from URL parameter or standard URL pattern if str is URL or formula
+  // URL parsing — extract invoice ID from URL parameters or path segments
+  const urlToParse = (str.startsWith("http") ? str : "") || remarksUrl || "";
   if (!str || str.startsWith("=") || str.startsWith("http")) {
-    const targetUrl = str.startsWith("http") ? str : remarksUrl || "";
-    if (targetUrl) {
-      const paramMatch = targetUrl.match(/(?:invoiceNumber|invoice|inv|billNo|bill)[=_]([A-Z0-9_-]+)/i);
-      if (paramMatch && paramMatch[1]) {
-        return paramMatch[1].toUpperCase();
-      }
-      const alscoMatch = targetUrl.match(/\b([A-Z]{2,}[-]?\d{3,})\b/i) || targetUrl.match(/\/(\d{5,})\b/);
-      if (alscoMatch && alscoMatch[1]) {
-        return alscoMatch[1].toUpperCase();
-      }
+    if (urlToParse) {
+      // Named query params: invoice=, inv=, billNo=, etc.
+      const paramMatch = urlToParse.match(/(?:invoiceNumber|invoice_?no|invoice|inv|billNo|bill)[=_]([A-Z0-9_-]+)/i);
+      if (paramMatch?.[1]) return paramMatch[1].toUpperCase();
+      // Alphanumeric invoice codes in path/URL: e.g. /INV-12345, ALSCO-789, etc.
+      const codeMatch = urlToParse.match(/\b([A-Z]{2,}[-]?\d{3,})\b/i);
+      if (codeMatch?.[1]) return codeMatch[1].toUpperCase();
+      // Pure numeric invoice IDs in URL path segments (4+ digits)
+      const numMatch = urlToParse.match(/[\/=](\d{4,})(?:[^0-9]|$)/);
+      if (numMatch?.[1]) return numMatch[1];
     }
+    if (str.startsWith("=")) return "";
   }
 
-  if (str.startsWith("=")) return "";
-  return str;
+  // str is plain text — return as-is if it looks like an invoice ID
+  if (str && !str.startsWith("=") && !str.startsWith("http")) {
+    return str;
+  }
+
+  return "";
 }
 
 export function detectStatus(
