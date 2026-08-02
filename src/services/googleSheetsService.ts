@@ -987,7 +987,7 @@ export const buildAPBillRow = (b: APBill, entity: "Ruby's" | "TI" | "MSDx"): any
   row[map.paytypeCol] = b.paymentType === "Auto-Debit" ? "Auto-Debit" : "Manual";
   row[map.status]     = b.status.toUpperCase();
   if (b.inQBO) row[map.inQBO] = "TRUE";
-  if (b.status === "hold") row[map.onHold] = "TRUE";
+  if (b.status === "hold") row[map.onHold] = "on hold";
   const rawRemarks = (b.remarks || b.notes || "").replace(/^\[[^\]]+\]\s*/, "").trim();
   if (rawRemarks) row[map.remarksCol] = rawRemarks;
   return row;
@@ -1048,7 +1048,42 @@ export const appendAPBill = async (
   accessToken: string
 ): Promise<void> => {
   const map = AP_COL_MAPS[entity];
-  await appendSheetValues(spreadsheetId, map.dataRange, [buildAPBillRow(bill, entity)], accessToken);
+  const cleanId = extractSpreadsheetId(spreadsheetId);
+  const appendRes = await appendSheetValues(spreadsheetId, map.dataRange, [buildAPBillRow(bill, entity)], accessToken);
+
+  // After append, add checkbox validation to the inQBO cell of the new row
+  const updatedRange: string | undefined = appendRes?.updates?.updatedRange;
+  if (!cleanId || !updatedRange) return;
+
+  // Extract row number from response range e.g. "'Ruby''s Bills'!A200:S200"
+  const rowMatch = updatedRange.match(/:?[A-Z]+(\d+)$/);
+  if (!rowMatch) return;
+  const rowNum = parseInt(rowMatch[1]);
+
+  // Get numeric sheetId for the tab
+  const metaRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}?fields=sheets.properties`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!metaRes.ok) return;
+  const meta = await metaRes.json();
+  const tabName = map.dataRange.split("!")[0].replace(/^'|'$/g, "").replace(/''/g, "'");
+  const sheetMeta = (meta.sheets || []).find((s: any) => s.properties?.title === tabName);
+  if (!sheetMeta) return;
+  const sheetId = sheetMeta.properties.sheetId;
+
+  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${cleanId}:batchUpdate`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      requests: [{
+        setDataValidation: {
+          range: { sheetId, startRowIndex: rowNum - 1, endRowIndex: rowNum, startColumnIndex: map.inQBO, endColumnIndex: map.inQBO + 1 },
+          rule: { condition: { type: "BOOLEAN" }, strict: true, showCustomUi: true }
+        }
+      }]
+    })
+  });
 };
 
 // Clear a deleted bill's row in the sheet (writes blanks to that row only)
