@@ -207,8 +207,11 @@ function fetchPublicTab(sheetName: string, spreadsheetId?: string): Promise<any[
               // Convert GViz date strings "Date(year,month,day)" to ISO "YYYY-MM-DD"
               if (typeof v === "string" && /^Date\(\d+,\d+,\d+\)$/.test(v)) {
                 const p = v.replace("Date(", "").replace(")", "").split(",").map(Number);
-                // Use string construction to avoid local-timezone date shift
                 return `${p[0]}-${String(p[1] + 1).padStart(2, "0")}-${String(p[2]).padStart(2, "0")}`;
+              }
+              // For hyperlink cells, GViz puts the URL in v and the display label in f
+              if (typeof v === "string" && v.startsWith("http") && cell.f) {
+                return cell.f;
               }
               return v;
             }
@@ -412,12 +415,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       amount = 35000; // Default $35k payroll auto debit if amount unlisted
     }
 
-    const col10Str = String(row[10] || "");
-    let invoiceNo = extractInvoiceNumber(row[6], col10Str);
-    if (!invoiceNo && col10Str) {
-      const extracted = col10Str.match(/\b([A-Z]{2,}[-]?\d{3,}|\d{5,})\b/i);
-      if (extracted) invoiceNo = extracted[1].toUpperCase();
-    }
+    const invoiceNo = String(row[6] || "").trim();
     const col11Raw = String(row[11] || "").trim();
     // Normalise display method to Autodebit/Manual; keep raw col11 for status detection (unchanged behaviour).
     const KNOWN_METHOD_RE = /^(autodebit|auto.?debit|auto.?pay|autopay|manual|check|wire|ach|online|credit.?card|cash)$/i;
@@ -524,12 +522,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       // Due date: try multiple positions
       const dueDate = parseDateVal(row[8]) || parseDateVal(row[7]) || parseDateVal(row[9]) || new Date().toISOString().split("T")[0];
 
-      const remarksTI = String(row[14] || row[15] || row[16] || "");
-      let invoiceNo = extractInvoiceNumber(row[6], remarksTI);
-      if (!invoiceNo && remarksTI) {
-        const extracted = remarksTI.match(/\b([A-Z]{2,}[-]?\d{3,}|\d{5,})\b/i);
-        if (extracted) invoiceNo = extracted[1].toUpperCase();
-      }
+      const invoiceNo = String(row[6] || "").trim();
       const rawMethodTI = String(row[11] || row[10] || row[12] || "Online").trim(); // unchanged for status detection
       const KNOWN_METHOD_RE_TI = /^(autodebit|auto.?debit|auto.?pay|autopay|manual|check|wire|ach|online|credit.?card|cash)$/i;
       const method = /auto/i.test(rawMethodTI) && KNOWN_METHOD_RE_TI.test(rawMethodTI) ? "Autodebit" : "Manual";
@@ -580,12 +573,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
     let amount = typeof row[9] === "number" ? row[9] : typeof row[8] === "number" ? row[8] : parseFloat(String(row[9] || row[8] || "0").replace(/[^0-9.-]+/g, "")) || 0;
     if (amount >= 10000000) amount = 0;
     const dueDate = parseDateVal(row[8]) || parseDateVal(row[7]) || parseDateVal("", row[0], row[1], row[19]) || new Date().toISOString().split("T")[0];
-    const col10MSDx = String(row[10] || "");
-    let invoiceNo = extractInvoiceNumber(row[6], col10MSDx);
-    if (!invoiceNo && col10MSDx) {
-      const extracted = col10MSDx.match(/\b([A-Z]{2,}[-]?\d{3,}|\d{5,})\b/i);
-      if (extracted) invoiceNo = extracted[1].toUpperCase();
-    }
+    const invoiceNo = String(row[6] || "").trim();
 
     const col11MSDx = String(row[11] || "").trim();
     const KNOWN_METHOD_RE_MSDX = /^(autodebit|auto.?debit|auto.?pay|autopay|manual|check|wire|ach|online|credit.?card|cash)$/i;
