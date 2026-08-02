@@ -31,8 +31,14 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingBill, setEditingBill] = useState<APBill | null>(null);
   const [viewingVendorName, setViewingVendorName] = useState<string | null>(null);
+  const [viewingVendorTab, setViewingVendorTab] = useState<"due" | "paid" | "summary">("due");
   const viewingVendorBills = viewingVendorName
-    ? apBills.filter((b) => b.vendor === viewingVendorName)
+    ? apBills.filter((b) => {
+        if (b.vendor !== viewingVendorName) return false;
+        if (viewingVendorTab === "paid") return b.status === "paid";
+        if (viewingVendorTab === "due") return b.status === "unpaid" || b.status === "hold";
+        return true;
+      })
     : [];
 
   // Collapsed state for sub-entity banners
@@ -313,7 +319,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                         <div key={vName}>
                           {/* Vendor summary row — clicking always opens vendor modal */}
                           <div
-                            onClick={() => setViewingVendorName(vName)}
+                            onClick={() => { setViewingVendorName(vName); setViewingVendorTab(activeTab); }}
                             className={`grid grid-cols-12 items-center px-2.5 py-1.5 text-[11px] cursor-pointer select-none transition-colors ${
                               isLight ? "hover:bg-slate-50 text-slate-800" : "hover:bg-white/5 text-white"
                             }`}
