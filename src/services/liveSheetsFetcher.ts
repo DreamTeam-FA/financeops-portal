@@ -400,16 +400,17 @@ export async function fetchFullLiveDataset(accessToken?: string) {
     const col12Quick = String(row[12] || "").trim().toLowerCase();
     const isHistoricalPaid = col12Quick === "paid" || (row[13] === true && col12Quick !== "");
     if (rowYear !== CURRENT_YEAR && isHistoricalPaid && !isOnHold) return;
-    const rawVendor = String(row[3] || row[4] || row[2] || "").trim();
+    // GAS Layout A: vendor is col D (index 3) only — never fall back to col C (Wk#)
+    const rawVendor = String(row[3] || "").trim();
     let amount = typeof row[9] === "number" ? row[9] : typeof row[8] === "number" ? row[8] : parseFloat(String(row[9] || row[8] || "0").replace(/[^0-9.-]+/g, "")) || 0;
     if (amount >= 10000000) amount = 0;
     const dueDate = parseDateVal(row[8]) || parseDateVal(row[7]);
 
-    // Skip empty trailing rows
-    if (!rawVendor && amount === 0 && !dueDate) return;
+    // Skip rows without a vendor name (subtotals, blank rows, week-number rows)
+    if (!rawVendor) return;
 
-    const vendor = rawVendor || "Payroll";
-    if (/^(vendor|payee|company|total|summary|due date|invoice)$/i.test(vendor) || vendor.length > 90) return;
+    const vendor = rawVendor;
+    if (/^(vendor|payee|company|total|summary|due date|invoice|\d+)$/i.test(vendor) || vendor.length > 90) return;
 
     if (amount === 0 && vendor.toLowerCase().includes("payroll")) {
       amount = 35000; // Default $35k payroll auto debit if amount unlisted
