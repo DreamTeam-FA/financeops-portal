@@ -1065,7 +1065,7 @@ export const appendAPBill = async (
   if (!cleanId) throw new Error("Invalid spreadsheet ID");
 
   const tabName = map.dataRange.split("!")[0]; // e.g. "'Ruby''s Bills'"
-  const dataStart = parseInt(map.dataRange.split("!")[1].replace(/[^0-9].*/, "")); // e.g. 5
+  const dataStart = parseInt(map.dataRange.split("!")[1].replace(/^[A-Z]+/, "")); // e.g. 5
   const vendorCol = String.fromCharCode(65 + map.vendor); // e.g. D
   const lastDataCol = String.fromCharCode(64 + map.totalCols); // e.g. S
 
