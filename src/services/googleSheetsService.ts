@@ -973,7 +973,7 @@ export const buildAPBillRow = (b: APBill, entity: "Ruby's" | "TI" | "MSDx"): any
   const dueParts = b.dueDate ? b.dueDate.split("-") : [];
   row[0] = dueParts[0] || "";
   row[1] = dueParts[1] ? String(parseInt(dueParts[1])) : "";
-  row[2] = dueParts[2] ? String(parseInt(dueParts[2])) : "";
+  // col C (index 2) = Wk# is formula-driven — do not write
 
   row[map.vendor]      = b.vendor;
   if (map.company !== null) row[map.company] = b.company || "";
@@ -985,7 +985,7 @@ export const buildAPBillRow = (b: APBill, entity: "Ruby's" | "TI" | "MSDx"): any
   row[map.paidDateCol]    = b.paidDate || "";
   if (map.methodCol !== null) row[map.methodCol] = b.method || "";
   // paytypeCol (Manual/Aut.) is formula-driven in the sheet — do not write
-  row[map.status]     = b.status.toUpperCase();
+  row[map.status]     = b.status === "paid" ? "Paid" : "UNPAID";
   if (b.inQBO) row[map.inQBO] = "TRUE";
   if (b.status === "hold") row[map.onHold] = "on hold";
   const rawRemarks = (b.remarks || b.notes || "").replace(/^\[[^\]]+\]\s*/, "").trim();
