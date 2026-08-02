@@ -984,7 +984,7 @@ export const buildAPBillRow = (b: APBill, entity: "Ruby's" | "TI" | "MSDx"): any
   row[map.amount]         = b.amount;
   row[map.paidDateCol]    = b.paidDate || "";
   if (map.methodCol !== null) row[map.methodCol] = b.method || "";
-  row[map.paytypeCol] = b.paymentType === "Auto-Debit" ? "Auto-Debit" : "Manual";
+  // paytypeCol (Manual/Aut.) is formula-driven in the sheet — do not write
   row[map.status]     = b.status.toUpperCase();
   if (b.inQBO) row[map.inQBO] = "TRUE";
   if (b.status === "hold") row[map.onHold] = "on hold";
@@ -1040,7 +1040,7 @@ export const writeSingleAPBill = async (
   }
 };
 
-// Append a NEW bill as a row at the end of the entity's tab
+// Append a NEW bill as a row right after the last row with vendor data
 export const appendAPBill = async (
   bill: APBill,
   entity: "Ruby's" | "TI" | "MSDx",
@@ -1049,28 +1049,38 @@ export const appendAPBill = async (
 ): Promise<void> => {
   const map = AP_COL_MAPS[entity];
   const cleanId = extractSpreadsheetId(spreadsheetId);
-  const appendRes = await appendSheetValues(spreadsheetId, map.dataRange, [buildAPBillRow(bill, entity)], accessToken);
+  if (!cleanId) throw new Error("Invalid spreadsheet ID");
 
-  // After append, add checkbox validation to the inQBO cell of the new row
-  const updatedRange: string | undefined = appendRes?.updates?.updatedRange;
-  if (!cleanId || !updatedRange) return;
+  const tabName = map.dataRange.split("!")[0]; // e.g. "'Ruby''s Bills'"
+  const dataStart = parseInt(map.dataRange.split("!")[1].replace(/[^0-9].*/, "")); // e.g. 5
+  const vendorCol = String.fromCharCode(65 + map.vendor); // e.g. D
+  const lastDataCol = String.fromCharCode(64 + map.totalCols); // e.g. S
 
-  // Extract row number from response range e.g. "'Ruby''s Bills'!A200:S200"
-  const rowMatch = updatedRange.match(/:?[A-Z]+(\d+)$/);
-  if (!rowMatch) return;
-  const rowNum = parseInt(rowMatch[1]);
+  // Read only the vendor column to find the last row that actually has bill data
+  const vendorRange = `${tabName}!${vendorCol}${dataStart}:${vendorCol}`;
+  const readRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/${encodeURIComponent(vendorRange)}?majorDimension=ROWS`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!readRes.ok) throw new Error(`Failed to read vendor column: ${readRes.status}`);
+  const readData = await readRes.json();
+  const vendorRows: any[][] = readData.values || [];
+  const nextRow = dataStart + vendorRows.length; // first empty row after last bill
 
-  // Get numeric sheetId for the tab
+  // Write the new bill directly to that row
+  const writeRange = `${tabName}!A${nextRow}:${lastDataCol}${nextRow}`;
+  await updateSheetValues(spreadsheetId, writeRange, [buildAPBillRow(bill, entity)], accessToken);
+
+  // Add checkbox validation to the inQBO cell of the new row
   const metaRes = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}?fields=sheets.properties`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
   if (!metaRes.ok) return;
   const meta = await metaRes.json();
-  const tabName = map.dataRange.split("!")[0].replace(/^'|'$/g, "").replace(/''/g, "'");
-  const sheetMeta = (meta.sheets || []).find((s: any) => s.properties?.title === tabName);
+  const tabTitle = tabName.replace(/^'|'$/g, "").replace(/''/g, "'");
+  const sheetMeta = (meta.sheets || []).find((s: any) => s.properties?.title === tabTitle);
   if (!sheetMeta) return;
-  const sheetId = sheetMeta.properties.sheetId;
 
   await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${cleanId}:batchUpdate`, {
     method: "POST",
@@ -1078,7 +1088,7 @@ export const appendAPBill = async (
     body: JSON.stringify({
       requests: [{
         setDataValidation: {
-          range: { sheetId, startRowIndex: rowNum - 1, endRowIndex: rowNum, startColumnIndex: map.inQBO, endColumnIndex: map.inQBO + 1 },
+          range: { sheetId: sheetMeta.properties.sheetId, startRowIndex: nextRow - 1, endRowIndex: nextRow, startColumnIndex: map.inQBO, endColumnIndex: map.inQBO + 1 },
           rule: { condition: { type: "BOOLEAN" }, strict: true, showCustomUi: true }
         }
       }]
