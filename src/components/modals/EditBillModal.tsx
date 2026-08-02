@@ -16,7 +16,6 @@ const SHEET_THEMES: Record<string, { bg: string; btn: string }> = {
 };
 
 const TI_COMPANIES = ["4G", "4YR", "Corner Property Group", "E1", "TI"];
-const PAY_VIA_OPTIONS = ["ACH", "Check", "Wire", "Credit Card", "Online", "Cash", "Auto-Debit", "Manual"];
 
 export const EditBillModal: React.FC<EditBillModalProps> = ({ bill, isOpen, onClose }) => {
   const { apBills, updateBill, theme } = useFinance();
@@ -31,9 +30,9 @@ export const EditBillModal: React.FC<EditBillModalProps> = ({ bill, isOpen, onCl
   const [dueDate, setDueDate] = useState("");
   const [amount, setAmount] = useState("");
   const [paymentDate, setPaymentDate] = useState("");
-  const [payVia, setPayVia] = useState("");
-  const [remarks, setRemarks] = useState("");                             // TI: col O; Ruby's/MSDx depends on picker
-  const [remarksTarget, setRemarksTarget] = useState<"instr" | "status1">("instr"); // Ruby's/MSDx only
+  const [remarks, setRemarks] = useState("");
+  // TI: "payvia" | "remarks"   Ruby's/MSDx: "instr" | "status1"
+  const [remarksTarget, setRemarksTarget] = useState<"payvia" | "remarks" | "instr" | "status1">("instr");
   const [status, setStatus] = useState<"unpaid" | "paid" | "hold">("unpaid");
   const [inQBO, setInQBO] = useState(false);
 
@@ -49,16 +48,19 @@ export const EditBillModal: React.FC<EditBillModalProps> = ({ bill, isOpen, onCl
     setDueDate(bill.dueDate || "");
     setAmount(bill.amount ? bill.amount.toString() : "");
     setPaymentDate(bill.paymentDate || bill.paidDate || "");
-    setPayVia(bill.method || "");
     setStatus(bill.status || "unpaid");
     setInQBO(!!bill.inQBO);
 
-    // Populate remarks and picker from bill fields
     const isTISheet = (bill.sheet || `${bill.entity} Bills`) === "TI Bills";
     if (isTISheet) {
-      setRemarks(bill.remarks || bill.notes || "");
+      if (bill.method && bill.method !== "Manual") {
+        setRemarks(bill.method);
+        setRemarksTarget("payvia");
+      } else {
+        setRemarks(bill.remarks || bill.notes || "");
+        setRemarksTarget("remarks");
+      }
     } else {
-      // Ruby's/MSDx: prefer paymentInstructions (col K), fall back to status1 (col M), then generic
       if (bill.paymentInstructions) {
         setRemarks(bill.paymentInstructions);
         setRemarksTarget("instr");
@@ -123,7 +125,7 @@ export const EditBillModal: React.FC<EditBillModalProps> = ({ bill, isOpen, onCl
       amount: parseFloat(amount) || 0,
       paymentDate: paymentDate || undefined,
       paidDate: paymentDate || undefined,
-      method: (payVia || bill.method || "Manual") as any,
+      method: "Manual" as any,
       status,
       inQBO,
       sheet: selectedSheet,
@@ -135,7 +137,10 @@ export const EditBillModal: React.FC<EditBillModalProps> = ({ bill, isOpen, onCl
     };
 
     if (isTI) {
-      if (remarks) updated.remarks = remarks;
+      if (remarks) {
+        if (remarksTarget === "payvia") updated.method = remarks as any;
+        else updated.remarks = remarks;
+      }
     } else {
       if (remarks) {
         if (remarksTarget === "instr") updated.paymentInstructions = remarks;
@@ -242,20 +247,6 @@ export const EditBillModal: React.FC<EditBillModalProps> = ({ bill, isOpen, onCl
             <input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} className={inp} />
           </div>
 
-          {/* Pay Via — TI only */}
-          {isTI && (
-            <div>
-              <label className={lbl}>Pay Via</label>
-              <input type="text" list="edit-payvia-list" value={payVia}
-                onChange={(e) => setPayVia(e.target.value)}
-                placeholder="e.g. ACH, Check, Wire..."
-                className={inp} />
-              <datalist id="edit-payvia-list">
-                {PAY_VIA_OPTIONS.map((p) => <option key={p} value={p} />)}
-              </datalist>
-            </div>
-          )}
-
           {/* Status */}
           <div>
             <label className={lbl}>Status</label>
@@ -283,28 +274,42 @@ export const EditBillModal: React.FC<EditBillModalProps> = ({ bill, isOpen, onCl
             </span>
           </label>
 
-          {/* Remarks */}
+          {/* Remarks / column picker */}
           <div>
-            <label className={lbl}>Remarks / Payment Instructions</label>
+            <label className={lbl}>{isTI ? "Payment Via / Remarks" : "Payment Instructions / Status 1"}</label>
             <textarea rows={2} value={remarks} onChange={(e) => setRemarks(e.target.value)}
-              placeholder="Payment notes or instructions..."
+              placeholder={isTI ? "e.g. ACH, Check, Wire, or payment notes..." : "Payment notes or instructions..."}
               className={`${inp} resize-vertical`} />
 
-            {/* Column picker — Ruby's/MSDx only */}
-            {isLayoutA && remarks && (
+            {remarks && (
               <div className={`mt-2 p-2.5 rounded-lg border text-xs ${isLight ? "bg-blue-50 border-blue-200" : "bg-[#181818] border-[#2c2c2c]"}`}>
                 <div className={`text-[10px] font-bold uppercase mb-1.5 ${isLight ? "text-blue-700" : "text-[#1a73e8]"}`}>
                   Save to which column?
                 </div>
                 <div className="flex gap-4">
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input type="radio" name="editRemarksCol" checked={remarksTarget === "instr"} onChange={() => setRemarksTarget("instr")} />
-                    <span>Payment Instructions (col K)</span>
-                  </label>
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input type="radio" name="editRemarksCol" checked={remarksTarget === "status1"} onChange={() => setRemarksTarget("status1")} />
-                    <span>Status 1 (col M)</span>
-                  </label>
+                  {isTI ? (
+                    <>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input type="radio" name="editRemarksCol" checked={remarksTarget === "payvia"} onChange={() => setRemarksTarget("payvia")} />
+                        <span>Payment Via (col M)</span>
+                      </label>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input type="radio" name="editRemarksCol" checked={remarksTarget === "remarks"} onChange={() => setRemarksTarget("remarks")} />
+                        <span>Remarks (col O)</span>
+                      </label>
+                    </>
+                  ) : (
+                    <>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input type="radio" name="editRemarksCol" checked={remarksTarget === "instr"} onChange={() => setRemarksTarget("instr")} />
+                        <span>Payment Instructions (col K)</span>
+                      </label>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input type="radio" name="editRemarksCol" checked={remarksTarget === "status1"} onChange={() => setRemarksTarget("status1")} />
+                        <span>Status 1 (col M)</span>
+                      </label>
+                    </>
+                  )}
                 </div>
               </div>
             )}

@@ -1109,17 +1109,65 @@ export const appendAPBill = async (
   });
 };
 
-// Clear a deleted bill's row in the sheet (writes blanks to that row only)
+// Delete a bill's row from the sheet (removes the row, shifting rows above down)
 export const clearSingleAPBill = async (
   bill: APBill,
   entity: "Ruby's" | "TI" | "MSDx",
   spreadsheetId: string,
   accessToken: string
 ): Promise<void> => {
-  const range = getAPBillSingleRowRange(bill, entity);
-  if (!range) return; // new bill that was never in the sheet — nothing to clear
-  const blank = new Array(AP_COL_MAPS[entity].totalCols).fill("");
-  await updateSheetValues(spreadsheetId, range, [blank], accessToken);
+  if (!bill.row || bill.row < 1) return; // new bill that was never synced
+  const map = AP_COL_MAPS[entity];
+  const cleanId = extractSpreadsheetId(spreadsheetId);
+  if (!cleanId) return;
+
+  const dataStart = parseInt(map.dataRange.split("!")[1].replace(/^[A-Z]+/, ""));
+  const sheetRowNumber = dataStart + bill.row - 1; // 1-indexed sheet row
+  const rowIndex = sheetRowNumber - 1;              // 0-indexed for API
+
+  // Fetch sheet metadata to get the numeric sheetId for the tab
+  const metaRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}?fields=sheets.properties`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!metaRes.ok) {
+    // Fallback: blank the row content
+    const range = getAPBillSingleRowRange(bill, entity);
+    if (range) await updateSheetValues(spreadsheetId, range, [new Array(map.totalCols).fill("")], accessToken);
+    return;
+  }
+  const meta = await metaRes.json();
+  const tabTitle = map.dataRange.split("!")[0].replace(/^'|'$/g, "").replace(/''/g, "'");
+  const sheetMeta = (meta.sheets || []).find((s: any) => s.properties?.title === tabTitle);
+  if (!sheetMeta) {
+    const range = getAPBillSingleRowRange(bill, entity);
+    if (range) await updateSheetValues(spreadsheetId, range, [new Array(map.totalCols).fill("")], accessToken);
+    return;
+  }
+
+  const deleteRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}:batchUpdate`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        requests: [{
+          deleteDimension: {
+            range: {
+              sheetId: sheetMeta.properties.sheetId,
+              dimension: "ROWS",
+              startIndex: rowIndex,
+              endIndex: rowIndex + 1
+            }
+          }
+        }]
+      })
+    }
+  );
+  if (!deleteRes.ok) {
+    const errBody = await deleteRes.json().catch(() => ({}));
+    throw new Error(errBody?.error?.message || `Delete row failed (${deleteRes.status})`);
+  }
 };
 
 // --- Generic per-item row helper for non-AP modules ---

@@ -32,9 +32,9 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
   const [dueDate, setDueDate] = useState(new Date().toISOString().split("T")[0]);
   const [amount, setAmount] = useState("");
   const [paymentDate, setPaymentDate] = useState("");
-  const [payVia, setPayVia] = useState("");      // TI only — maps to method/methodCol
-  const [remarks, setRemarks] = useState("");     // the text the user typed
-  const [remarksTarget, setRemarksTarget] = useState<"instr" | "status1">("instr"); // Ruby's/MSDx only
+  const [remarks, setRemarks] = useState("");
+  // TI: "payvia" | "remarks"   Ruby's/MSDx: "instr" | "status1"
+  const [remarksTarget, setRemarksTarget] = useState<"payvia" | "remarks" | "instr" | "status1">("instr");
 
   useEffect(() => {
     setSelectedSheet(`${defaultEntity} Bills`);
@@ -83,8 +83,7 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
     setVendor("");
     setCategory("");
     setRemarks("");
-    setPayVia("");
-    setRemarksTarget("instr");
+    setRemarksTarget(sheet === "TI Bills" ? "payvia" : "instr");
   };
 
   if (!isOpen) return null;
@@ -110,26 +109,28 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
       dueDate,
       amount: parseFloat(amount) || 0,
       paymentDate: paymentDate || undefined,
-      method: isTI ? (payVia || "Manual") : "Manual",
+      method: "Manual",
       status: "unpaid" as const,
       sheet: selectedSheet,
     };
 
-    if (isLayoutA) {
+    if (isTI) {
+      if (remarks) {
+        if (remarksTarget === "payvia") billData.method = remarks;
+        else billData.remarks = remarks;
+      }
+    } else {
       billData.category = category || undefined;
       if (remarks) {
         if (remarksTarget === "instr") billData.paymentInstructions = remarks;
         else billData.status1 = remarks;
       }
-    } else {
-      // TI Layout B: remarks go to col O
-      if (remarks) billData.remarks = remarks;
     }
 
     addBill(billData);
     onClose();
     setVendor(""); setAmount(""); setRemarks(""); setInvoiceNo("");
-    setInvoiceDate(""); setPaymentDate(""); setPayVia(""); setCategory("");
+    setInvoiceDate(""); setPaymentDate(""); setCategory("");
   };
 
   return (
@@ -229,42 +230,42 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
             <input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} className={inp} />
           </div>
 
-          {/* Pay Via — TI only */}
-          {isTI && (
-            <div>
-              <label className={lbl}>Pay Via</label>
-              <input type="text" list="add-payvia-list" value={payVia}
-                onChange={(e) => setPayVia(e.target.value)}
-                placeholder="e.g. ACH, Check, Wire..."
-                className={inp} />
-              <datalist id="add-payvia-list">
-                {PAY_VIA_OPTIONS.map((p) => <option key={p} value={p} />)}
-              </datalist>
-            </div>
-          )}
-
-          {/* Remarks */}
+          {/* Remarks / column picker — shown for all sheets when text is entered */}
           <div>
-            <label className={lbl}>Remarks / Payment Instructions</label>
+            <label className={lbl}>{isTI ? "Payment Via / Remarks" : "Payment Instructions / Status 1"}</label>
             <textarea rows={2} value={remarks} onChange={(e) => setRemarks(e.target.value)}
-              placeholder="Enter payment notes or instructions..."
+              placeholder={isTI ? "e.g. ACH, Check, Wire, or payment notes..." : "Enter payment notes or instructions..."}
               className={`${inp} resize-vertical`} />
 
-            {/* Column picker — Ruby's/MSDx only, shown when remarks not empty */}
-            {isLayoutA && remarks && (
+            {remarks && (
               <div className={`mt-2 p-2.5 rounded-lg border text-xs ${isLight ? "bg-blue-50 border-blue-200" : "bg-[#181818] border-[#2c2c2c]"}`}>
                 <div className={`text-[10px] font-bold uppercase mb-1.5 ${isLight ? "text-blue-700" : "text-[#1a73e8]"}`}>
                   Save to which column?
                 </div>
                 <div className="flex gap-4">
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input type="radio" name="addRemarksCol" checked={remarksTarget === "instr"} onChange={() => setRemarksTarget("instr")} />
-                    <span>Payment Instructions (col K)</span>
-                  </label>
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input type="radio" name="addRemarksCol" checked={remarksTarget === "status1"} onChange={() => setRemarksTarget("status1")} />
-                    <span>Status 1 (col M)</span>
-                  </label>
+                  {isTI ? (
+                    <>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input type="radio" name="addRemarksCol" checked={remarksTarget === "payvia"} onChange={() => setRemarksTarget("payvia")} />
+                        <span>Payment Via (col M)</span>
+                      </label>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input type="radio" name="addRemarksCol" checked={remarksTarget === "remarks"} onChange={() => setRemarksTarget("remarks")} />
+                        <span>Remarks (col O)</span>
+                      </label>
+                    </>
+                  ) : (
+                    <>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input type="radio" name="addRemarksCol" checked={remarksTarget === "instr"} onChange={() => setRemarksTarget("instr")} />
+                        <span>Payment Instructions (col K)</span>
+                      </label>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input type="radio" name="addRemarksCol" checked={remarksTarget === "status1"} onChange={() => setRemarksTarget("status1")} />
+                        <span>Status 1 (col M)</span>
+                      </label>
+                    </>
+                  )}
                 </div>
               </div>
             )}

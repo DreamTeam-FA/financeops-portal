@@ -30,7 +30,10 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingBill, setEditingBill] = useState<APBill | null>(null);
-  const [viewingVendorBills, setViewingVendorBills] = useState<APBill[]>([]);
+  const [viewingVendorName, setViewingVendorName] = useState<string | null>(null);
+  const viewingVendorBills = viewingVendorName
+    ? apBills.filter((b) => b.vendor === viewingVendorName)
+    : [];
 
   // Collapsed state for sub-entity banners
   const [collapsedSections, setCollapsedSections] = useState<{ [key: string]: boolean }>({});
@@ -310,7 +313,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                         <div key={vName}>
                           {/* Vendor summary row — clicking always opens vendor modal */}
                           <div
-                            onClick={() => setViewingVendorBills(vBills)}
+                            onClick={() => setViewingVendorName(vName)}
                             className={`grid grid-cols-12 items-center px-2.5 py-1.5 text-[11px] cursor-pointer select-none transition-colors ${
                               isLight ? "hover:bg-slate-50 text-slate-800" : "hover:bg-white/5 text-white"
                             }`}
@@ -627,8 +630,8 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
 
       <BillDetailsModal
         vendorBills={viewingVendorBills}
-        isOpen={viewingVendorBills.length > 0}
-        onClose={() => setViewingVendorBills([])}
+        isOpen={viewingVendorName !== null}
+        onClose={() => setViewingVendorName(null)}
         onEdit={(b) => setEditingBill(b)}
       />
     </div>
