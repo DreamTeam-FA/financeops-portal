@@ -988,7 +988,7 @@ export const buildAPBillRow = (b: APBill, entity: "Ruby's" | "TI" | "MSDx"): any
   row[map.status]     = b.status.toUpperCase();
   row[map.inQBO]      = b.inQBO ? "TRUE" : "FALSE";
   row[map.onHold]     = b.status === "hold" ? "TRUE" : "FALSE";
-  const rawRemarks = b.remarks || b.notes || "";
+  const rawRemarks = (b.remarks || b.notes || "").replace(/^\[[^\]]+\]\s*/, "").trim();
   if (rawRemarks) row[map.remarksCol] = rawRemarks;
   return row;
 };
