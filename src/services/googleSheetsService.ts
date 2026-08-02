@@ -985,11 +985,25 @@ export const buildAPBillRow = (b: APBill, entity: "Ruby's" | "TI" | "MSDx"): any
   row[map.paidDateCol]    = b.paidDate || "";
   if (map.methodCol !== null) row[map.methodCol] = b.method || "";
   // paytypeCol (Manual/Aut.) is formula-driven in the sheet — do not write
-  row[map.status]     = b.status === "paid" ? "Paid" : "UNPAID";
+  // Status col: "Paid" when paid; for Layout A (Ruby's/MSDx) status1 content overrides "UNPAID"
+  if (entity !== "TI" && b.status1 && b.status !== "paid") {
+    row[map.status] = b.status1;
+  } else {
+    row[map.status] = b.status === "paid" ? "Paid" : "UNPAID";
+  }
   if (b.inQBO) row[map.inQBO] = "TRUE";
   if (b.status === "hold") row[map.onHold] = "on hold";
-  const rawRemarks = (b.remarks || b.notes || "").replace(/^\[[^\]]+\]\s*/, "").trim();
-  if (rawRemarks) row[map.remarksCol] = rawRemarks;
+
+  // Remarks routing per layout
+  if (entity === "TI") {
+    // Layout B: b.remarks → col O (remarksCol=14); method/payVia already written above via methodCol
+    const rem = (b.remarks || b.notes || "").replace(/^\[[^\]]+\]\s*/, "").trim();
+    if (rem) row[map.remarksCol] = rem;
+  } else {
+    // Layout A (Ruby's/MSDx): paymentInstructions → col K (remarksCol=10)
+    const instr = (b.paymentInstructions || b.remarks || b.notes || "").replace(/^\[[^\]]+\]\s*/, "").trim();
+    if (instr) row[map.remarksCol] = instr;
+  }
   return row;
 };
 

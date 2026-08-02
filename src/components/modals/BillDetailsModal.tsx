@@ -1,385 +1,216 @@
 import React, { useState } from "react";
 import { APBill } from "../../types";
 import { useFinance } from "../../context/FinanceContext";
-import {
-  X,
-  CreditCard,
-  Building2,
-  Calendar,
-  FileText,
-  CheckCircle2,
-  PauseCircle,
-  Pencil,
-  Trash2,
-  AlertCircle,
-  Zap,
-  RefreshCw,
-  DollarSign
-} from "lucide-react";
+import { X, Pencil, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 
 interface BillDetailsModalProps {
-  bill: APBill | null;
+  vendorBills: APBill[];
   isOpen: boolean;
   onClose: () => void;
   onEdit: (bill: APBill) => void;
 }
 
-export const BillDetailsModal: React.FC<BillDetailsModalProps> = ({
-  bill,
-  isOpen,
-  onClose,
-  onEdit
-}) => {
-  const { toggleBillStatus, deleteBill, updateBill, theme } = useFinance();
-  const isLight = theme === "light";
+const STATUS_OPTIONS = [
+  { value: "hold",   label: "On Hold" },
+  { value: "unpaid", label: "Unpaid" },
+  { value: "paid",   label: "Paid" },
+];
 
-  const [notes, setNotes] = useState(bill?.notes || bill?.remarks || "");
-  const [isEditingNotes, setIsEditingNotes] = useState(false);
-  const [confirmingPaid, setConfirmingPaid] = useState(false);
-  const [paidDateInput, setPaidDateInput] = useState(new Date().toISOString().split("T")[0]);
+const STATUS_COLORS: Record<string, { badge: string; dropdown: string }> = {
+  paid:   { badge: "bg-[#e8f5e9] text-[#2e7d32]", dropdown: "bg-[#e8f5e9] text-[#2e7d32] border-[#a5d6a7]" },
+  unpaid: { badge: "bg-[#ffebee] text-[#c62828]", dropdown: "bg-[#ffebee] text-[#c62828] border-[#ef9a9a]" },
+  hold:   { badge: "bg-[#fff3e0] text-[#e65100]", dropdown: "bg-[#fff3e0] text-[#e65100] border-[#ffcc80]" },
+};
 
-  React.useEffect(() => {
-    if (bill) {
-      setNotes(bill.notes || bill.remarks || "");
-      setIsEditingNotes(false);
+const ENTITY_COLORS: Record<string, string> = {
+  "Ruby's": "#d81b60",
+  TI:       "#1a73e8",
+  MSDx:     "#00897b",
+};
+
+const fmt = (v: number) => "$" + v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+interface BillRowProps {
+  bill: APBill;
+  isLight: boolean;
+  onEdit: (bill: APBill) => void;
+}
+
+const BillRow: React.FC<BillRowProps> = ({ bill, isLight, onEdit }) => {
+  const { toggleBillStatus, deleteBill, updateBill } = useFinance();
+  const [localStatus, setLocalStatus] = useState<string>(bill.status || "unpaid");
+  const [paidDate, setPaidDate] = useState(bill.paymentDate || bill.paidDate || new Date().toISOString().split("T")[0]);
+  const [showDetails, setShowDetails] = useState(false);
+
+  const colors = STATUS_COLORS[localStatus] || STATUS_COLORS.unpaid;
+
+  const handleStatusChange = (newStatus: string) => {
+    setLocalStatus(newStatus);
+    if (newStatus === "paid") {
+      toggleBillStatus(bill.id, "paid", paidDate);
+    } else {
+      toggleBillStatus(bill.id, newStatus as any);
     }
-  }, [bill]);
-
-  if (!isOpen || !bill) return null;
-
-  const formatCurrency = (val: number) =>
-    "$" + val.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-  const handleSaveNotes = () => {
-    updateBill({ ...bill, notes, remarks: notes });
-    setIsEditingNotes(false);
   };
 
-  const togglePaymentType = () => {
-    const next = bill.paymentType === "Auto-Debit" ? "Manual" : "Auto-Debit";
-    updateBill({ ...bill, paymentType: next });
+  const handlePaidDateChange = (d: string) => {
+    setPaidDate(d);
+    if (localStatus === "paid") toggleBillStatus(bill.id, "paid", d);
   };
 
-  const toggleRecurringType = () => {
-    const next = bill.recurringType === "Recurring" ? "Non-Recurring" : "Recurring";
-    updateBill({ ...bill, recurringType: next });
+  const handleQBOToggle = () => {
+    updateBill({ ...bill, inQBO: !bill.inQBO });
   };
 
-  const toggleCostType = () => {
-    const next = bill.costType === "Fixed" ? "Estimate" : "Fixed";
-    updateBill({ ...bill, costType: next });
-  };
+  const remarks = bill.paymentInstructions || bill.remarks || bill.notes || "";
 
-  const getStatusBadge = () => {
-    if (bill.status === "paid") {
-      return (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
-          <CheckCircle2 className="w-3.5 h-3.5" /> Paid
-        </span>
-      );
-    }
-    if (bill.status === "hold") {
-      return (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
-          <PauseCircle className="w-3.5 h-3.5" /> On Hold
-        </span>
-      );
-    }
-    const label = bill.bucket === "past-due" ? "Unpaid (past due)" :
-                  bill.bucket === "this-week" ? "Unpaid (this week)" :
-                  bill.bucket === "next-week" ? "Unpaid (next week)" :
-                  "Unpaid";
-    return (
-      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/30">
-        <AlertCircle className="w-3.5 h-3.5" /> {label}
-      </span>
-    );
-  };
-
-  const surf = isLight ? "bg-white border-slate-200 text-slate-800" : "bg-[#121212] border-[#2a2a2a] text-[#e8e8e8]";
-  const card = isLight ? "bg-slate-50 border-slate-200" : "bg-[#181818] border-[#262626]";
-  const hdr  = isLight ? "border-slate-200 bg-slate-50" : "border-[#262626] bg-[#181818]";
-  const sub  = isLight ? "text-slate-400" : "text-[#666]";
-  const val  = isLight ? "text-slate-900" : "text-white";
+  const card = isLight ? "bg-slate-50 border-slate-200" : "bg-[#1c1c1c] border-[#2a2a2a]";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className={`w-full max-w-lg rounded-2xl border shadow-2xl overflow-hidden flex flex-col ${surf}`}>
-
-        {/* Header */}
-        <div className={`flex items-center justify-between p-4 border-b ${hdr}`}>
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-sky-500/15 text-sky-500">
-              <CreditCard className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className={`text-base font-extrabold ${val}`}>{bill.vendor}</h3>
-              <p className={`text-[11px] ${sub}`}>Accounts Payable Bill Details</p>
-            </div>
+    <div className={`rounded-xl border ${card} overflow-hidden`}>
+      {/* Main row */}
+      <div className="p-3 flex flex-col gap-2">
+        {/* Top: invoice + amount + QBO + status */}
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className={`text-[11px] font-mono font-bold ${isLight ? "text-slate-500" : "text-[#888]"}`}>
+              {bill.invoiceNo || "—"}
+            </span>
+            <span className={`text-sm font-extrabold ${isLight ? "text-slate-900" : "text-white"}`}>
+              {fmt(bill.amount)}
+            </span>
           </div>
-          <button
-            onClick={onClose}
-            className={`p-1.5 rounded-lg transition-colors ${isLight ? "hover:bg-slate-200 text-slate-500" : "hover:bg-[#262626] text-[#888]"}`}
-          >
-            <X className="w-4 h-4" />
-          </button>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* QBO Badge */}
+            <button
+              onClick={handleQBOToggle}
+              title={bill.inQBO ? "In QBO — click to toggle" : "Not in QBO — click to toggle"}
+              className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black transition-all border ${
+                bill.inQBO
+                  ? "bg-emerald-500 text-white border-emerald-400"
+                  : isLight ? "bg-slate-200 text-slate-500 border-slate-300" : "bg-[#333] text-[#888] border-[#444]"
+              }`}
+            >Q</button>
+
+            {/* Status dropdown */}
+            <select
+              value={localStatus}
+              onChange={(e) => handleStatusChange(e.target.value)}
+              className={`text-[11px] font-bold rounded-full px-2 py-0.5 border focus:outline-none cursor-pointer ${colors.dropdown}`}
+            >
+              {STATUS_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        {/* Scrollable body */}
-        <div className="p-5 space-y-4 overflow-y-auto max-h-[76vh]">
-
-          {/* Amount + Status hero */}
-          <div className={`p-4 rounded-xl border flex items-center justify-between ${card}`}>
-            <div>
-              <span className={`text-[10px] font-bold uppercase tracking-wider block ${sub}`}>Total Payable Amount</span>
-              <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5 block">
-                {formatCurrency(bill.amount)}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => updateBill({ ...bill, inQBO: !bill.inQBO })}
-                title={bill.inQBO ? "In QBO (Click to toggle)" : "Not in QBO (Click to toggle)"}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer select-none ${
-                  bill.inQBO
-                    ? "bg-emerald-600 text-white ring-2 ring-emerald-400/50"
-                    : isLight
-                    ? "bg-slate-200 text-slate-600 hover:bg-slate-300"
-                    : "bg-slate-800 text-slate-400 hover:text-slate-200"
-                }`}
-              >
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center font-black text-[12px] ${
-                  bill.inQBO
-                    ? "bg-white text-emerald-700"
-                    : isLight ? "bg-slate-300 text-slate-700" : "bg-slate-700 text-slate-300"
-                }`}>Q</span>
-                QBO
-              </button>
-              {getStatusBadge()}
-            </div>
+        {/* Payment date — only when paid */}
+        {localStatus === "paid" && (
+          <div className="flex items-center gap-2">
+            <span className={`text-[10px] font-bold uppercase ${isLight ? "text-slate-500" : "text-[#888]"}`}>Payment Date:</span>
+            <input
+              type="date"
+              value={paidDate}
+              onChange={(e) => handlePaidDateChange(e.target.value)}
+              className={`text-[11px] font-semibold border rounded px-2 py-0.5 focus:outline-none ${
+                isLight ? "bg-white border-slate-300 text-slate-900" : "bg-[#111] border-[#444] text-white"
+              }`}
+            />
           </div>
+        )}
 
-          {/* 3-column info cards: Entity | Due Date | Invoice */}
-          <div className="grid grid-cols-3 gap-2.5 text-xs">
-            <div className={`p-3 rounded-xl border ${card}`}>
-              <div className={`text-[10px] font-bold uppercase flex items-center gap-1 mb-1 ${sub}`}>
-                <Building2 className="w-3 h-3 text-blue-500" /> Company Entity
-              </div>
-              <div className={`font-bold text-sm ${val}`}>{bill.entity}</div>
-            </div>
-
-            <div className={`p-3 rounded-xl border ${card}`}>
-              <div className={`text-[10px] font-bold uppercase flex items-center gap-1 mb-1 ${sub}`}>
-                <Calendar className="w-3 h-3 text-red-500" /> Due Date
-              </div>
-              <div className={`font-bold text-sm ${val}`}>{bill.dueDate || "N/A"}</div>
-            </div>
-
-            <div className={`p-3 rounded-xl border ${card}`}>
-              <div className={`text-[10px] font-bold uppercase flex items-center gap-1 mb-1 ${sub}`}>
-                <FileText className="w-3 h-3 text-purple-500" /> Invoice Number
-              </div>
-              <div className={`font-bold text-sm truncate ${val}`}>{bill.invoiceNo || "—"}</div>
-            </div>
-          </div>
-
-          {/* Bill Schedule & Payment Details — clickable toggle chips */}
-          <div className={`p-4 rounded-xl border space-y-3 ${card}`}>
-            <div className="flex items-center justify-between">
-              <span className={`text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${isLight ? "text-slate-600" : "text-[#aaa]"}`}>
-                <Zap className="w-3.5 h-3.5 text-amber-500" /> Bill Schedule &amp; Payment Details
-              </span>
-              <span className={`text-[10px] font-semibold ${sub}`}>Click chips to toggle</span>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              {/* Debit Type chip */}
-              <button
-                onClick={togglePaymentType}
-                className={`flex flex-col items-start gap-1 p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                  bill.paymentType
-                    ? "bg-amber-50 border-amber-300 dark:bg-amber-900/20 dark:border-amber-600/40"
-                    : isLight ? "bg-slate-100 border-slate-200 hover:border-slate-300" : "bg-[#222] border-[#333] hover:border-[#444]"
-                }`}
-              >
-                <span className={`text-[9px] font-bold uppercase tracking-wider ${sub}`}>Debit Type</span>
-                <span className={`flex items-center gap-1 text-xs font-extrabold ${
-                  bill.paymentType ? "text-amber-600 dark:text-amber-400" : isLight ? "text-slate-700" : "text-[#ccc]"
-                }`}>
-                  <Zap className="w-3 h-3" />
-                  {bill.paymentType || "Manual"}
-                </span>
-              </button>
-
-              {/* Frequency chip */}
-              <button
-                onClick={toggleRecurringType}
-                className={`flex flex-col items-start gap-1 p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                  bill.recurringType
-                    ? "bg-amber-50 border-amber-300 dark:bg-amber-900/20 dark:border-amber-600/40"
-                    : isLight ? "bg-slate-100 border-slate-200 hover:border-slate-300" : "bg-[#222] border-[#333] hover:border-[#444]"
-                }`}
-              >
-                <span className={`text-[9px] font-bold uppercase tracking-wider ${sub}`}>Frequency</span>
-                <span className={`flex items-center gap-1 text-xs font-extrabold ${
-                  bill.recurringType ? "text-amber-600 dark:text-amber-400" : isLight ? "text-slate-700" : "text-[#ccc]"
-                }`}>
-                  <RefreshCw className="w-3 h-3" />
-                  {bill.recurringType || "Non-Recurring"}
-                </span>
-              </button>
-
-              {/* Amount Type chip */}
-              <button
-                onClick={toggleCostType}
-                className={`flex flex-col items-start gap-1 p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                  bill.costType === "Estimate"
-                    ? "bg-amber-50 border-amber-300 dark:bg-amber-900/20 dark:border-amber-600/40"
-                    : isLight ? "bg-slate-100 border-slate-200 hover:border-slate-300" : "bg-[#222] border-[#333] hover:border-[#444]"
-                }`}
-              >
-                <span className={`text-[9px] font-bold uppercase tracking-wider ${sub}`}>Amount Type</span>
-                <span className={`flex items-center gap-1 text-xs font-extrabold ${
-                  bill.costType === "Estimate" ? "text-amber-600 dark:text-amber-400" : isLight ? "text-slate-700" : "text-[#ccc]"
-                }`}>
-                  <DollarSign className="w-3 h-3" />
-                  {bill.costType || "Fixed"}
-                </span>
-              </button>
-            </div>
-          </div>
-
-          {/* Remarks / Payment Instructions */}
-          <div className={`p-4 rounded-xl border space-y-2 ${card}`}>
-            <div className="flex items-center justify-between">
-              <span className={`text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 ${isLight ? "text-slate-600" : "text-[#aaa]"}`}>
-                <FileText className="w-3.5 h-3.5 text-amber-500" /> Remarks / Payment Instructions
-              </span>
-              {!isEditingNotes && (
-                <button
-                  onClick={() => setIsEditingNotes(true)}
-                  className="text-[11px] text-sky-500 hover:underline flex items-center gap-1 font-semibold"
-                >
-                  <Pencil className="w-3 h-3" /> Edit
-                </button>
-              )}
-            </div>
-
-            {isEditingNotes ? (
-              <div className="space-y-2 pt-1">
-                <textarea
-                  rows={3}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Enter remarks, bank instructions, or payment notes..."
-                  className={`w-full p-2.5 text-xs rounded-lg border ${
-                    isLight ? "bg-white border-slate-300 text-slate-900" : "bg-[#111] border-[#333] text-white"
-                  } focus:outline-none focus:ring-2 focus:ring-sky-500`}
-                />
-                <div className="flex justify-end gap-2">
-                  <button
-                    onClick={() => setIsEditingNotes(false)}
-                    className="px-3 py-1 rounded text-xs font-semibold text-slate-500 hover:underline"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSaveNotes}
-                    className="px-3 py-1 rounded text-xs font-bold bg-sky-600 hover:bg-sky-700 text-white"
-                  >
-                    Save Remarks
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <p className={`text-xs ${isLight ? "text-slate-700" : "text-[#ccc]"} whitespace-pre-wrap leading-relaxed pt-1`}>
-                {notes || bill.remarks || "No special remarks or payment instructions recorded."}
-              </p>
-            )}
-          </div>
-
-          {/* Source info footer */}
-          {bill.sheet && (
-            <div className={`text-[10px] ${sub} flex items-center justify-between px-1`}>
-              <span>Source Sheet: <strong className={isLight ? "text-slate-600" : "text-[#aaa]"}>{bill.sheet}</strong></span>
-              {bill.row && <span>Row Index: <strong className={isLight ? "text-slate-600" : "text-[#aaa]"}>{bill.row}</strong></span>}
-            </div>
+        {/* Due date + invoice date row */}
+        <div className={`flex items-center gap-3 text-[11px] ${isLight ? "text-slate-500" : "text-[#888]"}`}>
+          {bill.dueDate && <span>Due: <strong className={isLight ? "text-slate-700" : "text-[#ccc]"}>{bill.dueDate}</strong></span>}
+          {bill.invoiceDate && <span>Inv: <strong className={isLight ? "text-slate-700" : "text-[#ccc]"}>{bill.invoiceDate}</strong></span>}
+          {bill.method && bill.method !== "Manual" && (
+            <span>Via: <strong className={isLight ? "text-slate-700" : "text-[#ccc]"}>{bill.method}</strong></span>
           )}
         </div>
 
-        {/* Footer action bar */}
-        <div className={`p-4 border-t flex flex-wrap items-center justify-between gap-2 ${hdr}`}>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {bill.status !== "paid" && !confirmingPaid && (
-              <button
-                onClick={() => { setPaidDateInput(new Date().toISOString().split("T")[0]); setConfirmingPaid(true); }}
-                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 transition-colors"
-              >
-                <CheckCircle2 className="w-3.5 h-3.5" /> Mark Paid
-              </button>
-            )}
-            {confirmingPaid && (
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className={`text-[11px] font-semibold ${isLight ? "text-slate-600" : "text-[#aaa]"}`}>Payment Date:</span>
-                <input
-                  type="date"
-                  value={paidDateInput}
-                  onChange={(e) => setPaidDateInput(e.target.value)}
-                  className={`px-2 py-1 rounded border text-xs font-semibold ${isLight ? "bg-white border-slate-300 text-slate-900" : "bg-[#222] border-[#444] text-white"}`}
-                />
-                <button
-                  onClick={() => { toggleBillStatus(bill.id, "paid", paidDateInput); setConfirmingPaid(false); onClose(); }}
-                  className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1"
-                >
-                  <CheckCircle2 className="w-3 h-3" /> Confirm
-                </button>
-                <button
-                  onClick={() => setConfirmingPaid(false)}
-                  className={`px-2 py-1 rounded text-xs font-semibold ${isLight ? "text-slate-500 hover:bg-slate-100" : "text-[#888] hover:bg-[#222]"}`}
-                >
-                  Cancel
-                </button>
-              </div>
-            )}
-            {bill.status !== "hold" && !confirmingPaid ? (
-              <button
-                onClick={() => { toggleBillStatus(bill.id, "hold"); onClose(); }}
-                className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center gap-1 transition-colors"
-              >
-                <PauseCircle className="w-3.5 h-3.5" /> Put On Hold
-              </button>
-            ) : (
-              <button
-                onClick={() => { toggleBillStatus(bill.id, "unpaid"); onClose(); }}
-                className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1 transition-colors"
-              >
-                <CheckCircle2 className="w-3.5 h-3.5" /> Release Hold
-              </button>
-            )}
+        {/* Bottom: details toggle + edit + delete */}
+        <div className="flex items-center justify-between gap-1">
+          <button
+            onClick={() => setShowDetails((p) => !p)}
+            className={`flex items-center gap-1 text-[11px] font-semibold ${isLight ? "text-slate-500 hover:text-slate-700" : "text-[#888] hover:text-white"} transition-colors`}
+          >
+            {showDetails ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+            {showDetails ? "Hide details" : "Show details"}
+          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => onEdit(bill)}
+              className={`p-1.5 rounded-lg text-sky-400 ${isLight ? "hover:bg-sky-50" : "hover:bg-sky-900/20"} transition-colors`}
+              title="Edit"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => { if (confirm(`Delete bill for ${bill.vendor}?`)) deleteBill(bill.id); }}
+              className={`p-1.5 rounded-lg text-red-400 ${isLight ? "hover:bg-red-50" : "hover:bg-red-900/20"} transition-colors`}
+              title="Delete"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
           </div>
+        </div>
+      </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => { onClose(); onEdit(bill); }}
-              className={`px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1 transition-colors ${
-                isLight ? "bg-white border-slate-300 text-slate-700 hover:bg-slate-100" : "bg-[#222] border-[#333] text-white hover:bg-[#2a2a2a]"
-              }`}
-            >
-              <Pencil className="w-3.5 h-3.5 text-sky-400" /> Edit Bill
-            </button>
-            <button
-              onClick={() => {
-                if (confirm(`Delete bill for ${bill.vendor}?`)) {
-                  deleteBill(bill.id);
-                  onClose();
-                }
-              }}
-              className="p-1.5 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-              title="Delete Bill"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+      {/* Details panel */}
+      {showDetails && (
+        <div className={`px-3 pb-3 pt-0 border-t ${isLight ? "border-slate-200" : "border-[#333]"}`}>
+          <p className={`text-[11px] mt-2 leading-relaxed whitespace-pre-wrap ${isLight ? "text-slate-600" : "text-[#bbb]"}`}>
+            {remarks || <span className={isLight ? "text-slate-400 italic" : "text-[#666] italic"}>No remarks</span>}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export const BillDetailsModal: React.FC<BillDetailsModalProps> = ({ vendorBills, isOpen, onClose, onEdit }) => {
+  const { theme } = useFinance();
+  const isLight = theme === "light";
+
+  if (!isOpen || vendorBills.length === 0) return null;
+
+  const vendor = vendorBills[0].vendor;
+  const entity = vendorBills[0].entity;
+  const sheet = vendorBills[0].sheet || `${entity} Bills`;
+  const accentColor = ENTITY_COLORS[entity] || ENTITY_COLORS.TI;
+  const totalAmount = vendorBills.reduce((s, b) => s + b.amount, 0);
+
+  const surf = isLight ? "bg-white text-slate-900" : "bg-[#121212] text-white";
+
+  const handleEdit = (bill: APBill) => {
+    onClose();
+    onEdit(bill);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4">
+      <div className={`w-full max-w-lg border border-[#333] rounded-2xl shadow-2xl overflow-hidden ${surf}`}>
+
+        {/* Header */}
+        <div style={{ backgroundColor: accentColor }} className="px-5 py-4 flex items-center justify-between text-white">
+          <div>
+            <h2 className="text-lg font-black tracking-tight">{vendor}</h2>
+            <p className="text-[11px] text-white/75 font-medium">
+              {sheet} — {vendorBills.length} bill{vendorBills.length !== 1 ? "s" : ""} · Total: <strong>{fmt(totalAmount)}</strong>
+            </p>
           </div>
+          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-black/20 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Bill list */}
+        <div className="p-4 space-y-2.5 overflow-y-auto max-h-[80vh]">
+          {vendorBills.map((bill) => (
+            <BillRow key={bill.id} bill={bill} isLight={isLight} onEdit={handleEdit} />
+          ))}
         </div>
       </div>
     </div>

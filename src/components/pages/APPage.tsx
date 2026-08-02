@@ -30,18 +30,12 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingBill, setEditingBill] = useState<APBill | null>(null);
-  const [viewingBill, setViewingBill] = useState<APBill | null>(null);
+  const [viewingVendorBills, setViewingVendorBills] = useState<APBill[]>([]);
 
   // Collapsed state for sub-entity banners
   const [collapsedSections, setCollapsedSections] = useState<{ [key: string]: boolean }>({});
   const toggleSection = (key: string) => {
     setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
-  // Collapsed state for vendor rows within sub-entities
-  const [collapsedVendors, setCollapsedVendors] = useState<{ [key: string]: boolean }>({});
-  const toggleVendor = (key: string) => {
-    setCollapsedVendors((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   // Entity config (used for individual bill row styling)
@@ -304,43 +298,26 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                         return dA.localeCompare(dB);
                       });
                       const vTotal = vBills.reduce((s, b) => s + b.amount, 0);
-                      const vendorKey = `${subSecKey}-${vName}`;
-                      const isVCollapsed = collapsedVendors[vendorKey] !== false;
-                      const isMulti = vBills.length > 1;
 
                       // Most recent due/paid date for this vendor
                       const pickDate = (bill: APBill) => (isPaidTab ? bill.paidDate || bill.dueDate : bill.dueDate) || "";
                       const latestDate = vBills.reduce((mx, bill) => { const d = pickDate(bill); return d > mx ? d : mx; }, "");
-
-                      const handleVendorClick = () => {
-                        if (isMulti) {
-                          toggleVendor(vendorKey);
-                        } else {
-                          setViewingBill(vBills[0]);
-                        }
-                      };
 
                       const vEntity = normalizeEntityName(vBills[0]?.entity);
                       const vCfg = ENTITY_CONFIG[vEntity] || ENTITY_CONFIG["TI"];
 
                       return (
                         <div key={vName}>
-                          {/* Vendor summary row */}
+                          {/* Vendor summary row — clicking always opens vendor modal */}
                           <div
-                            onClick={handleVendorClick}
+                            onClick={() => setViewingVendorBills(vBills)}
                             className={`grid grid-cols-12 items-center px-2.5 py-1.5 text-[11px] cursor-pointer select-none transition-colors ${
                               isLight ? "hover:bg-slate-50 text-slate-800" : "hover:bg-white/5 text-white"
                             }`}
                           >
                             {/* Vendor name */}
                             <div className="col-span-5 flex items-center gap-1 min-w-0">
-                              {isMulti ? (
-                                isVCollapsed
-                                  ? <ChevronRight className={`w-3 h-3 shrink-0 ${isLight ? "text-slate-400" : "text-gray-500"}`} />
-                                  : <ChevronDown className={`w-3 h-3 shrink-0 ${isLight ? "text-slate-400" : "text-gray-500"}`} />
-                              ) : (
-                                <Eye className={`w-3 h-3 shrink-0 ${isLight ? "text-slate-300" : "text-gray-600"}`} />
-                              )}
+                              <Eye className={`w-3 h-3 shrink-0 ${isLight ? "text-slate-300" : "text-gray-600"}`} />
                               <span className="truncate font-semibold">{vName}</span>
                             </div>
                             {/* Due date */}
@@ -359,41 +336,6 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                             </div>
                           </div>
 
-                          {/* Expanded individual bill rows (multi-bill vendors only) */}
-                          {isMulti && !isVCollapsed && (
-                            <div className={`divide-y ${isLight ? "divide-slate-100/60" : "divide-[#1e1e1e]"}`}>
-                              {vBills.map((r) => {
-                                const normE = normalizeEntityName(r.entity);
-                                const eCfg = ENTITY_CONFIG[normE] || ENTITY_CONFIG["TI"];
-                                const borderColor = normE === "Ruby's" ? "border-l-pink-500" : normE === "MSDx" ? "border-l-teal-500" : "border-l-blue-500";
-
-                                return (
-                                  <div
-                                    key={r.id}
-                                    onClick={() => setViewingBill(r)}
-                                    className={`grid grid-cols-12 items-center pl-6 pr-2.5 py-1.5 text-[11px] cursor-pointer group border-l-4 ${borderColor} ${eCfg.fillClass} transition-colors`}
-                                  >
-                                    <div className="col-span-5 flex items-center gap-1 min-w-0">
-                                      <Eye className={`w-3 h-3 shrink-0 text-sky-500 opacity-0 group-hover:opacity-100 transition-opacity`} />
-                                      <span className={`truncate text-[10px] ${isLight ? "text-slate-600" : "text-gray-400"}`}>
-                                        {r.invoiceNo || "—"}
-                                      </span>
-                                      {r.status === "hold" && (
-                                        <span className="text-[9px] bg-amber-500/15 text-amber-600 dark:text-amber-400 px-1 rounded font-bold shrink-0">Hold</span>
-                                      )}
-                                    </div>
-                                    <div className={`col-span-3 text-center text-[11px] ${isLight ? "text-slate-500" : "text-gray-400"}`}>
-                                      {formatDateStr(isPaidTab ? r.paidDate || r.dueDate : r.dueDate)}
-                                    </div>
-                                    <div className="col-span-2 text-center text-[10px] text-gray-400">—</div>
-                                    <div className={`col-span-2 text-right text-[11px] font-semibold ${r.status === "hold" ? "text-orange-500" : eCfg.textClass}`}>
-                                      {formatCurrency(r.amount)}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
                         </div>
                       );
                     })}
@@ -684,9 +626,9 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
       />
 
       <BillDetailsModal
-        bill={viewingBill}
-        isOpen={!!viewingBill}
-        onClose={() => setViewingBill(null)}
+        vendorBills={viewingVendorBills}
+        isOpen={viewingVendorBills.length > 0}
+        onClose={() => setViewingVendorBills([])}
         onEdit={(b) => setEditingBill(b)}
       />
     </div>
