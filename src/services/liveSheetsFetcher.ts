@@ -505,13 +505,28 @@ export async function fetchFullLiveDataset(accessToken?: string) {
 
       // If no known company found, check if this is a group-header row (only company populated, no amount)
       if (!company) {
-        // Try to get vendor from common positions [3],[4],[5]
-        for (const colIdx of [3, 4, 5]) {
-          const v = String(row[colIdx] || "").trim();
-          if (v && !HEADER_WORDS.test(v) && v.length >= 2 && v.length <= 90 && isNaN(Number(v)) && !parseDateVal(v)) {
-            vendor = v;
-            company = currentCompany;
-            break;
+        // TI layout: col E (index 4) = company, col F (index 5) = vendor
+        // If both are populated, read them directly (handles any new sub-company like "Co-Alliance")
+        const colEText = String(row[4] || "").trim();
+        const colFText = String(row[5] || "").trim();
+        if (
+          colEText && colFText &&
+          !HEADER_WORDS.test(colEText) && !HEADER_WORDS.test(colFText) &&
+          isNaN(Number(colEText)) && !parseDateVal(colEText) &&
+          isNaN(Number(colFText)) && !parseDateVal(colFText)
+        ) {
+          company = colEText;
+          vendor = colFText;
+          currentCompany = company; // update for subsequent rows
+        } else {
+          // Fallback: scan common positions for vendor
+          for (const colIdx of [3, 4, 5]) {
+            const v = String(row[colIdx] || "").trim();
+            if (v && !HEADER_WORDS.test(v) && v.length >= 2 && v.length <= 90 && isNaN(Number(v)) && !parseDateVal(v)) {
+              vendor = v;
+              company = currentCompany;
+              break;
+            }
           }
         }
       } else {
