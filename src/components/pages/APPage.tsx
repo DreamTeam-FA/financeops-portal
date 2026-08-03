@@ -112,13 +112,18 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
     if (normE === "MSDx") return "msdx";
     if (normE === "CurcuminPro") return "curcumin";
     if (normE === "Ziglar") return "ziglar";
-    const comp = (b.company || "").trim().toLowerCase();
-    if (comp.includes("4g")) return "4g";
-    if (comp.includes("4yr")) return "4yr";
-    if (comp.includes("corner")) return "corner";
-    if (comp.includes("e1")) return "e1";
     if (b.amount < 0) return "ti-bills";
-    if (normE === "TI") return "ti";
+    if (normE === "TI") {
+      const comp = (b.company || "").trim();
+      const cl = comp.toLowerCase();
+      if (cl === "4g") return "4g";
+      if (cl === "4yr" || cl === "4 yr") return "4yr";
+      if (cl.includes("corner")) return "corner";
+      if (cl === "e1" || cl === "e-1") return "e1";
+      if (!comp || cl === "ti") return "ti";
+      // Any other TI sub-company (e.g. "TI - 7796", "Co-Alliance") gets its own banner
+      return `ti-sub:${comp}`;
+    }
     // Unknown entity: use a slug of the entity name
     return normE.toLowerCase().replace(/[^a-z0-9]/g, "");
   };
@@ -235,7 +240,11 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
       groupsMap[k].push(b);
     });
 
-    const activeKeys = SUBENTITY_ORDER.filter((k) => groupsMap[k] && groupsMap[k].length > 0);
+    const staticKeys = SUBENTITY_ORDER.filter((k) => groupsMap[k] && groupsMap[k].length > 0);
+    const dynamicKeys = Object.keys(groupsMap)
+      .filter((k) => !SUBENTITY_ORDER.includes(k) && groupsMap[k]?.length > 0)
+      .sort();
+    const activeKeys = [...staticKeys, ...dynamicKeys];
 
     if (activeKeys.length === 0) {
       return (
@@ -250,7 +259,10 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
         {activeKeys.map((subKey) => {
           const subBills = groupsMap[subKey];
           const subTotal = subBills.reduce((s, b) => s + b.amount, 0);
-          const bannerCfg = SUBENTITY_BANNER_CONFIGS[subKey] || { label: subKey.toUpperCase(), bg: "bg-slate-700 text-white" };
+          const bannerCfg = SUBENTITY_BANNER_CONFIGS[subKey] || {
+            label: subBills[0]?.company || subKey.replace(/^ti-sub:/, ""),
+            bg: "bg-[#1565c0] text-white"
+          };
           const subSecKey = `${bucketId}-${subKey}`;
           // rest-of-year sub-entities default collapsed; others default open
           const isSubCollapsed = bucketId === "rest-of-year"
