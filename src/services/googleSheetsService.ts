@@ -1067,7 +1067,7 @@ export const writeSingleAPBill = async (
   const map = getAPColMap(entity);
   const fullRow = buildAPBillRow(bill, entity);
 
-  if (fullRow[map.invoiceNo] === undefined) {
+  if (!fullRow[map.invoiceNo]) {
     // Bill has no invoiceNo — split the write around column G to preserve existing sheet value
     const tabPart = range.split("!")[0];
     const rowNum = range.match(/\d+/)?.[0];
