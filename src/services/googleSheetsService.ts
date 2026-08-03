@@ -924,7 +924,7 @@ interface APColMap {
   dataRange: string;
 }
 
-const AP_COL_MAPS: Record<"Ruby's" | "TI" | "MSDx", APColMap> = {
+const AP_COL_MAPS: Record<string, APColMap> = {
   "Ruby's": {
     vendor: 3, company: null, invoiceNo: 6, invoiceDateCol: 7, categoryCol: 5,
     dueDate: 8, amount: 9,
@@ -951,6 +951,39 @@ const AP_COL_MAPS: Record<"Ruby's" | "TI" | "MSDx", APColMap> = {
   }
 };
 
+// Returns the column map for a known entity, or Layout A defaults for any new entity
+export const getAPColMap = (entity: string): APColMap => {
+  if (AP_COL_MAPS[entity]) return AP_COL_MAPS[entity];
+  // Unknown entity: Layout A (Ruby's columns), tab name derived from entity name
+  const sheetTitle = `${entity} Bills`;
+  const quoted = /[ ']/.test(sheetTitle) ? `'${sheetTitle.replace(/'/g, "''")}'` : sheetTitle;
+  return { ...AP_COL_MAPS["Ruby's"], dataRange: `${quoted}!A5:S1504` };
+};
+
+// Fetch the list of "* Bills" tab names from the spreadsheet (for dynamic entity detection)
+export const fetchAvailableAPTabs = async (
+  spreadsheetId: string,
+  accessToken: string
+): Promise<string[]> => {
+  const cleanId = extractSpreadsheetId(spreadsheetId);
+  if (!cleanId) return [];
+  try {
+    const res = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}?fields=sheets.properties.title`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.sheets || [])
+      .map((s: any) => (s.properties?.title || "") as string)
+      .filter((t: string) => /\bbills\b/i.test(t))
+      .map((t: string) => t.replace(/\s*bills\s*$/i, "").trim())
+      .filter((t: string) => t.length > 0);
+  } catch {
+    return [];
+  }
+};
+
 function resolveRemarksCol(
   raw: string,
   map: APColMap
@@ -965,8 +998,8 @@ function resolveRemarksCol(
 }
 
 // Build a single formatted row array for one AP bill (shared by per-item and full-tab writers)
-export const buildAPBillRow = (b: APBill, entity: "Ruby's" | "TI" | "MSDx"): any[] => {
-  const map = AP_COL_MAPS[entity];
+export const buildAPBillRow = (b: APBill, entity: string): any[] => {
+  const map = getAPColMap(entity);
   const row: any[] = new Array(map.totalCols).fill("");
 
   const dueParts = b.dueDate ? b.dueDate.split("-") : [];
@@ -1010,10 +1043,10 @@ export const buildAPBillRow = (b: APBill, entity: "Ruby's" | "TI" | "MSDx"): any
 // Returns null if the bill has no sheet row number yet (newly added, not in sheet)
 export const getAPBillSingleRowRange = (
   bill: APBill,
-  entity: "Ruby's" | "TI" | "MSDx"
+  entity: string
 ): string | null => {
   if (!bill.row || bill.row < 1) return null;
-  const map = AP_COL_MAPS[entity];
+  const map = getAPColMap(entity);
   const tabPart    = map.dataRange.split("!")[0];
   const rangeBody  = map.dataRange.split("!")[1];            // e.g. "A5:S1504"
   const dataStart  = parseInt(rangeBody.split(":")[0].replace(/\D/g, "")); // 5
@@ -1025,13 +1058,13 @@ export const getAPBillSingleRowRange = (
 // Write ONE bill to its exact sheet row — touches only that row, nothing else
 export const writeSingleAPBill = async (
   bill: APBill,
-  entity: "Ruby's" | "TI" | "MSDx",
+  entity: string,
   spreadsheetId: string,
   accessToken: string
 ): Promise<void> => {
   const range = getAPBillSingleRowRange(bill, entity);
   if (!range) throw new Error(`Bill "${bill.vendor}" has no sheet row — use appendAPBill for new bills`);
-  const map = AP_COL_MAPS[entity];
+  const map = getAPColMap(entity);
   const fullRow = buildAPBillRow(bill, entity);
 
   if (fullRow[map.invoiceNo] === undefined) {
@@ -1056,11 +1089,11 @@ export const writeSingleAPBill = async (
 // Append a NEW bill as a row right after the last row with vendor data
 export const appendAPBill = async (
   bill: APBill,
-  entity: "Ruby's" | "TI" | "MSDx",
+  entity: string,
   spreadsheetId: string,
   accessToken: string
 ): Promise<void> => {
-  const map = AP_COL_MAPS[entity];
+  const map = getAPColMap(entity);
   const cleanId = extractSpreadsheetId(spreadsheetId);
   if (!cleanId) throw new Error("Invalid spreadsheet ID");
 
@@ -1112,12 +1145,12 @@ export const appendAPBill = async (
 // Delete a bill's row from the sheet (removes the row, shifting rows above down)
 export const clearSingleAPBill = async (
   bill: APBill,
-  entity: "Ruby's" | "TI" | "MSDx",
+  entity: string,
   spreadsheetId: string,
   accessToken: string
 ): Promise<void> => {
   if (!bill.row || bill.row < 1) return; // new bill that was never synced
-  const map = AP_COL_MAPS[entity];
+  const map = getAPColMap(entity);
   const cleanId = extractSpreadsheetId(spreadsheetId);
   if (!cleanId) return;
 
@@ -1372,9 +1405,9 @@ const MAX_AP_ROWS = 1500;
 
 export const formatAPSheetRowsForTab = (
   bills: APBill[],
-  entity: "Ruby's" | "TI" | "MSDx"
+  entity: string
 ): any[][] => {
-  const map = AP_COL_MAPS[entity];
+  const map = getAPColMap(entity);
   const dataRows: any[][] = bills.slice(0, MAX_AP_ROWS).map((b) => buildAPBillRow(b, entity));
 
   // Pad with blank rows so stale rows from a previous (larger) dataset are cleared
@@ -1385,8 +1418,8 @@ export const formatAPSheetRowsForTab = (
 };
 
 /** Returns the per-entity data range (for use in updateSheetValues). */
-export const getAPTabRange = (entity: "Ruby's" | "TI" | "MSDx"): string =>
-  AP_COL_MAPS[entity].dataRange;
+export const getAPTabRange = (entity: string): string =>
+  getAPColMap(entity).dataRange;
 
 export const formatBankSheetRows = (accounts: BankAccount[]): any[][] => {
   // Live reader (liveSheetsFetcher): col0=name, col1=balance, col2=yesterday, col3=asOf

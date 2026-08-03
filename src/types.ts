@@ -1,4 +1,4 @@
-export type EntityName = "Ruby's" | "TI" | "MSDx" | "CurcuminPro" | "Ziglar";
+export type EntityName = string; // open-ended — new entities are detected from the sheet
 
 export type APBucket = "past-due" | "this-week" | "next-week" | "rest-of-month" | "rest-of-year" | "remaining" | "on-hold" | "paid";
 

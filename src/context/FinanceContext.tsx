@@ -47,6 +47,7 @@ import {
   writeSingleAPBill,
   appendAPBill,
   clearSingleAPBill,
+  fetchAvailableAPTabs,
   writeSingleBankAccount,
   appendBankAccount,
   writeSingleLoan,
@@ -108,6 +109,8 @@ interface FinanceContextType {
   paymentMethodFilter: string;
   setPaymentMethodFilter: (method: string) => void;
   
+  availableAPEntities: string[];
+
   // CRUD Actions
   addBill: (bill: Omit<APBill, "id">) => void;
   updateBill: (bill: APBill) => void;
@@ -521,6 +524,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   // State collections
+  const [availableAPEntities, setAvailableAPEntities] = useState<string[]>(["Ruby's", "TI", "MSDx"]);
   const [apBills, setApBills] = useState<APBill[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
@@ -551,6 +555,14 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setUserEmail(user.email || "accounting@marktimm.com");
         setNeedsAuth(false);
         startAutoTokenRefresh();
+        // Fetch available AP sheet tabs so the portal picks up any new entities
+        const tok = getAccessToken();
+        const apMapping = sheetMappings.find((m) => m.module === "ap");
+        if (tok && apMapping) {
+          fetchAvailableAPTabs(apMapping.spreadsheetIdOrUrl, tok).then((entities) => {
+            if (entities.length > 0) setAvailableAPEntities(entities);
+          });
+        }
       },
       () => {
         setGoogleUser(null);
@@ -993,7 +1005,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         // Each entity has different column positions and a different starting row
         // (Ruby's/MSDx: A3+ to preserve summary+header rows 1-2;
         //  TI: A2+ to preserve header row 1).
-        const AP_ENTITIES = ["Ruby's", "TI", "MSDx"] as const;
+        const AP_ENTITIES = availableAPEntities;
         for (const entity of AP_ENTITIES) {
           const tabBills = apBills.filter((b) => b.entity === entity);
           const rows = formatAPSheetRowsForTab(tabBills, entity); // pads to 500 rows
@@ -1685,6 +1697,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         toggleEntityFilter,
         paymentMethodFilter,
         setPaymentMethodFilter,
+        availableAPEntities,
         addBill,
         updateBill,
         toggleBillStatus,

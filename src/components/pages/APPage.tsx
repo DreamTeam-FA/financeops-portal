@@ -40,11 +40,15 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
     setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const ENTITY_CONFIG_FALLBACK = {
+    bg: "bg-[#546e7a]",
+    light: isLight ? "bg-slate-50/80" : "bg-slate-700/10",
+    textClass: "text-[#546e7a]",
+    badgeClass: "bg-[#546e7a]/20 text-[#546e7a]",
+    fillClass: isLight ? "bg-slate-50/90 border-slate-200/80 hover:bg-slate-100/90" : "bg-slate-900/25 border-slate-700/40 hover:bg-slate-700/40"
+  };
   // Entity config (used for individual bill row styling)
-  const ENTITY_CONFIG: Record<
-    EntityName,
-    { bg: string; light: string; textClass: string; badgeClass: string; fillClass: string }
-  > = {
+  const ENTITY_CONFIG_MAP: Record<string, { bg: string; light: string; textClass: string; badgeClass: string; fillClass: string }> = {
     "Ruby's": {
       bg: "bg-[#d81b60]",
       light: isLight ? "bg-pink-50/80" : "bg-[#d81b60]/10",
@@ -81,6 +85,9 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
       fillClass: isLight ? "bg-emerald-50/90 border-emerald-200/80 hover:bg-emerald-100/90" : "bg-emerald-950/25 border-emerald-900/40 hover:bg-emerald-900/40"
     }
   };
+  const ENTITY_CONFIG = new Proxy(ENTITY_CONFIG_MAP, {
+    get: (target, key: string) => target[key] ?? ENTITY_CONFIG_FALLBACK
+  });
 
   // Sub-entity banner configs
   const SUBENTITY_BANNER_CONFIGS: Record<string, { label: string; bg: string }> = {
@@ -111,7 +118,9 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
     if (comp.includes("corner")) return "corner";
     if (comp.includes("e1")) return "e1";
     if (b.amount < 0) return "ti-bills";
-    return "ti";
+    if (normE === "TI") return "ti";
+    // Unknown entity: use a slug of the entity name
+    return normE.toLowerCase().replace(/[^a-z0-9]/g, "");
   };
 
   // Unique vendors for dropdown

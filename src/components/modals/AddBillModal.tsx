@@ -12,15 +12,16 @@ interface AddBillModalProps {
 const SHEET_THEMES: Record<string, { bg: string; btn: string }> = {
   "Ruby's Bills": { bg: "bg-[#d81b60]", btn: "bg-[#d81b60] hover:bg-[#c2185b]" },
   "MSDx Bills":  { bg: "bg-[#00897b]", btn: "bg-[#00897b] hover:bg-[#00695c]" },
-  "TI Bills":    { bg: "bg-[#1a73e8]", btn: "bg-[#1a73e8] hover:bg-[#1557b0]" }
+  "TI Bills":    { bg: "bg-[#1a73e8]", btn: "bg-[#1a73e8] hover:bg-[#1557b0]" },
 };
+const DEFAULT_SHEET_THEME = { bg: "bg-[#546e7a]", btn: "bg-[#546e7a] hover:bg-[#455a64]" };
 
 const TI_COMPANIES = ["4G", "4YR", "Corner Property Group", "E1", "TI"];
 
 const PAY_VIA_OPTIONS = ["ACH", "Check", "Wire", "Credit Card", "Online", "Cash", "Auto-Debit", "Manual"];
 
 export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, defaultEntity = "Ruby's" }) => {
-  const { apBills, addBill, theme } = useFinance();
+  const { apBills, addBill, theme, availableAPEntities } = useFinance();
   const isLight = theme === "light";
 
   const [selectedSheet, setSelectedSheet] = useState(`${defaultEntity} Bills`);
@@ -88,7 +89,7 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
 
   if (!isOpen) return null;
 
-  const theme2 = SHEET_THEMES[selectedSheet] || SHEET_THEMES["TI Bills"];
+  const theme2 = SHEET_THEMES[selectedSheet] || DEFAULT_SHEET_THEME;
   const entityName = selectedSheet.replace(" Bills", "").trim() as EntityName;
 
   const inp = `w-full border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:border-[#1a73e8] ${
@@ -151,9 +152,9 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
           <div>
             <label className={lbl}>Sheet *</label>
             <select value={selectedSheet} onChange={(e) => handleSheetChange(e.target.value)} className={inp}>
-              <option value="Ruby's Bills">Ruby's Bills</option>
-              <option value="TI Bills">TI Bills</option>
-              <option value="MSDx Bills">MSDx Bills</option>
+              {availableAPEntities.map((e) => (
+                <option key={e} value={`${e} Bills`}>{e} Bills</option>
+              ))}
             </select>
           </div>
 
