@@ -729,7 +729,8 @@ export async function fetchFullLiveDataset(accessToken?: string) {
           approval: isTrue(appVal) || amt > 0,
           sent: isTrue(senVal) || amt > 0,
           payment: isTrue(payVal),
-          remarks: remarksVal !== "null" ? remarksVal : ""
+          remarks: remarksVal !== "null" ? remarksVal : "",
+          row: i + 1
         });
       });
     });

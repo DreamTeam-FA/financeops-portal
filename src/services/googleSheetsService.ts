@@ -1298,8 +1298,28 @@ export const appendLoan = async (
   await appendSheetValues(spreadsheetId, `${tabPart}!A:A`, [row], accessToken);
 };
 
-// Write a single AR item to its exact sheet row (vertical format only).
-// formatARSheetRows includes a header as the first element — items start at row 2 of range.
+// 0-indexed column number → A1-notation column letter (A=0, Z=25, AA=26, …)
+const zeroIdxColLetter = (c: number): string => {
+  let n = c + 1;
+  let result = "";
+  while (n > 0) {
+    n--;
+    result = String.fromCharCode(65 + (n % 26)) + result;
+    n = Math.floor(n / 26);
+  }
+  return result;
+};
+
+// Column indices (0-based) for each month in the horizontal AR Dashboard Data layout
+const AR_MONTH_COLS: Record<string, { invCol: number; appCol: number; senCol: number; payCol: number; remCol: number }> = {
+  March: { invCol: -1,  appCol: -1,  senCol: -1,  payCol: -1,  remCol: 12 },
+  April: { invCol: 15,  appCol: 17,  senCol: 19,  payCol: 21,  remCol: 23 },
+  May:   { invCol: 26,  appCol: 28,  senCol: 30,  payCol: 32,  remCol: 34 },
+  June:  { invCol: 37,  appCol: 39,  senCol: 41,  payCol: 43,  remCol: 45 },
+  July:  { invCol: 48,  appCol: 50,  senCol: 52,  payCol: 54,  remCol: 56 },
+};
+
+// Write a single AR item back to its exact cells in the horizontal AR Dashboard Data sheet.
 export const writeSingleARItem = async (
   item: ARItem,
   mappingRange: string,
@@ -1307,18 +1327,23 @@ export const writeSingleARItem = async (
   accessToken: string
 ): Promise<void> => {
   if (!item.row) return;
-  const dataRow = [
-    item.entity, item.customer, item.description, item.amount, item.dueDate,
-    item.month, item.occurrence,
-    item.invoice ? "TRUE" : "FALSE",
-    item.approval ? "TRUE" : "FALSE",
-    item.sent ? "TRUE" : "FALSE",
-    item.payment ? "TRUE" : "FALSE",
-    item.remarks
-  ];
-  const range = computeSingleItemRange(mappingRange, item.row, 12);
-  if (!range) return;
-  await updateSheetValues(spreadsheetId, range, [dataRow], accessToken);
+  const bangIdx = mappingRange.indexOf("!");
+  const tabPart = bangIdx !== -1 ? mappingRange.slice(0, bangIdx) : "'AR Dashboard Data'";
+  const mCfg = AR_MONTH_COLS[item.month];
+  if (!mCfg) return;
+  const sheetRow = item.row;
+  const updates: Promise<any>[] = [];
+  const writeCell = (colIdx: number, val: any) => {
+    if (colIdx < 0) return;
+    const cl = zeroIdxColLetter(colIdx);
+    updates.push(updateSheetValues(spreadsheetId, `${tabPart}!${cl}${sheetRow}`, [[val]], accessToken));
+  };
+  writeCell(mCfg.invCol, item.invoice ? "TRUE" : "FALSE");
+  writeCell(mCfg.appCol, item.approval ? "TRUE" : "FALSE");
+  writeCell(mCfg.senCol, item.sent ? "TRUE" : "FALSE");
+  writeCell(mCfg.payCol, item.payment ? "TRUE" : "FALSE");
+  writeCell(mCfg.remCol, item.remarks || "");
+  await Promise.all(updates);
 };
 
 // Append a new AR item row.
