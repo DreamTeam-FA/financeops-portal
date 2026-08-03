@@ -15,10 +15,16 @@ const SHEET_THEMES: Record<string, { bg: string; btn: string }> = {
   "TI Bills":    { bg: "bg-[#1a73e8]", btn: "bg-[#1a73e8] hover:bg-[#1557b0]" },
 };
 
-const TI_COMPANIES = ["4G", "4YR", "Corner Property Group", "E1", "TI"];
+const DEFAULT_TI_COMPANIES = ["4G", "4YR", "Corner Property Group", "E1", "TI"];
 
 export const EditBillModal: React.FC<EditBillModalProps> = ({ bill, isOpen, onClose }) => {
   const { apBills, updateBill, theme } = useFinance();
+
+  const tiCompanies = useMemo(() => {
+    const set = new Set<string>(DEFAULT_TI_COMPANIES);
+    apBills.filter((b) => b.entity === "TI" && b.company).forEach((b) => set.add(b.company!));
+    return Array.from(set).sort();
+  }, [apBills]);
   const isLight = theme === "light";
 
   const [selectedSheet, setSelectedSheet] = useState("TI Bills");
@@ -180,7 +186,7 @@ export const EditBillModal: React.FC<EditBillModalProps> = ({ bill, isOpen, onCl
             <div>
               <label className={lbl}>Company *</label>
               <div className="flex gap-1.5 flex-wrap">
-                {TI_COMPANIES.map((c) => (
+                {tiCompanies.map((c) => (
                   <button key={c} type="button" onClick={() => setSubCompany(c)}
                     className={`py-1.5 px-3 rounded-lg text-xs font-extrabold border transition-all ${
                       subCompany === c

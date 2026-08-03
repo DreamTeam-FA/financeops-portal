@@ -463,6 +463,17 @@ export async function fetchFullLiveDataset(accessToken?: string) {
 
     (rows || []).forEach((row, i) => {
       if (i < 1) return; // skip first header row only
+
+      // Detect company header rows: col E (index 4) has text, col F (index 5) is empty, no amount
+      // This catches ANY new sub-company, not just the known ones
+      const colEVal = String(row[4] || "").trim();
+      const colFVal = String(row[5] || "").trim();
+      const rawAmt = typeof row[9] === "number" ? row[9] : parseFloat(String(row[9] || "0").replace(/[^0-9.-]+/g, "")) || 0;
+      if (colEVal && !colFVal && !rawAmt && !HEADER_WORDS.test(colEVal) && isNaN(Number(colEVal))) {
+        currentCompany = colEVal;
+        return; // header row — not a bill
+      }
+
       const rowYear = typeof row[0] === "number" ? row[0] : parseInt(String(row[0] || "0"));
       // Keep historical unpaid/on-hold from all years; only skip confirmed paid historical rows
       const statusRaw13 = String(row[13] || "").trim().toLowerCase();

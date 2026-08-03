@@ -16,7 +16,7 @@ const SHEET_THEMES: Record<string, { bg: string; btn: string }> = {
 };
 const DEFAULT_SHEET_THEME = { bg: "bg-[#546e7a]", btn: "bg-[#546e7a] hover:bg-[#455a64]" };
 
-const TI_COMPANIES = ["4G", "4YR", "Corner Property Group", "E1", "TI"];
+const DEFAULT_TI_COMPANIES = ["4G", "4YR", "Corner Property Group", "E1", "TI"];
 
 const PAY_VIA_OPTIONS = ["ACH", "Check", "Wire", "Credit Card", "Online", "Cash", "Auto-Debit", "Manual"];
 
@@ -45,6 +45,12 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
   const isRuby = selectedSheet === "Ruby's Bills";
   const isMSDx = selectedSheet === "MSDx Bills";
   const isLayoutA = isRuby || isMSDx;
+
+  const tiCompanies = useMemo(() => {
+    const set = new Set<string>(DEFAULT_TI_COMPANIES);
+    apBills.filter((b) => b.entity === "TI" && b.company).forEach((b) => set.add(b.company!));
+    return Array.from(set).sort();
+  }, [apBills]);
 
   const vendorCategoriesMap = useMemo(() => {
     const map: Record<string, Set<string>> = {};
@@ -163,7 +169,7 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
             <div>
               <label className={lbl}>Company *</label>
               <div className="flex gap-1.5 flex-wrap">
-                {TI_COMPANIES.map((c) => (
+                {tiCompanies.map((c) => (
                   <button key={c} type="button" onClick={() => setSubCompany(c)}
                     className={`py-1.5 px-3 rounded-lg text-xs font-extrabold border transition-all ${
                       subCompany === c
