@@ -128,6 +128,16 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
     return normE.toLowerCase().replace(/[^a-z0-9]/g, "");
   };
 
+  // Dynamic TI sub-companies (e.g. "TI - 7796") not in the hardcoded order
+  const dynamicSubKeys = useMemo(() => {
+    const keys = new Set<string>();
+    apBills.forEach((b) => {
+      const k = getSubEntityKey(b);
+      if (!SUBENTITY_ORDER.includes(k)) keys.add(k);
+    });
+    return Array.from(keys).sort();
+  }, [apBills]);
+
   // Unique vendors for dropdown
   const uniqueVendors = useMemo(() => {
     const setV = new Set<string>();
@@ -425,6 +435,9 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
           <option value="e1">E1</option>
           <option value="ti">TI</option>
           <option value="ti-bills">TI Bills</option>
+          {dynamicSubKeys.map((k) => (
+            <option key={k} value={k}>{k.replace(/^ti-sub:/, "")}</option>
+          ))}
           <option value="msdx">MSDx</option>
           <option value="curcumin">CurcuminPro</option>
           <option value="ziglar">Ziglar</option>

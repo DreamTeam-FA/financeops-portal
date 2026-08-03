@@ -416,7 +416,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       amount = 35000; // Default $35k payroll auto debit if amount unlisted
     }
 
-    const invoiceNo = extractInvoiceNumber(row[6]) || String(row[6] || "").trim();
+    const invoiceNo = String(row[6] || "").trim();
     const col11Raw = String(row[11] || "").trim();
     // Normalise display method to Autodebit/Manual; keep raw col11 for status detection (unchanged behaviour).
     const KNOWN_METHOD_RE = /^(autodebit|auto.?debit|auto.?pay|autopay|manual|check|wire|ach|online|credit.?card|cash)$/i;
