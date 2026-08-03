@@ -678,19 +678,27 @@ export async function fetchFullLiveDataset(accessToken?: string) {
     loans.push({ id: `cc-${i + 1}`, entity, lender: cardName, purpose: "Credit Card Facility", principal: 0, outstanding: 0, monthly: bal, nextPay: dueDate, maturity: "Revolving", status: "Active" });
   });
 
-  // AR Items - Unrolling horizontal month columns (March, April, May, June, July, etc.)
+  // AR Items - Unrolling horizontal month columns.
+  // The sheet layout: March occupies cols 12-14 (remarks/due/amount), then each subsequent
+  // month adds an 11-column block: inv, _, app, _, sen, _, pay, _, rem, due, amt.
+  const AR_MONTH_NAMES = ["March","April","May","June","July","August","September","October","November","December"];
+  const AR_MONTH_CONFIGS = (() => {
+    const configs: { name: string; amtCol: number; dueCol: number; remCol: number; invCol: number; appCol: number; senCol: number; payCol: number }[] = [];
+    configs.push({ name: "March", amtCol: 14, dueCol: 13, remCol: 12, invCol: -1, appCol: -1, senCol: -1, payCol: -1 });
+    let prevAmt = 14;
+    for (let m = 1; m < AR_MONTH_NAMES.length; m++) {
+      const b = prevAmt + 1;
+      configs.push({ name: AR_MONTH_NAMES[m], invCol: b, appCol: b+2, senCol: b+4, payCol: b+6, remCol: b+8, dueCol: b+9, amtCol: b+10 });
+      prevAmt = b + 10;
+    }
+    return configs;
+  })();
+
   const ar: any[] = [];
   const arRawRows = dataByTab["AR Dashboard Data"] || [];
 
   if (arRawRows.length > 0) {
-    const monthConfigs = [
-      { name: "March", amtCol: 14, dueCol: 13, remCol: 12, invCol: -1, appCol: -1, senCol: -1, payCol: -1 },
-      { name: "April", amtCol: 25, dueCol: 24, remCol: 23, invCol: 15, appCol: 17, senCol: 19, payCol: 21 },
-      { name: "May", amtCol: 36, dueCol: 35, remCol: 34, invCol: 26, appCol: 28, senCol: 30, payCol: 32 },
-      { name: "June", amtCol: 47, dueCol: 46, remCol: 45, invCol: 37, appCol: 39, senCol: 41, payCol: 43 },
-      { name: "July",   amtCol: 58, dueCol: 57, remCol: 56, invCol: 48, appCol: 50, senCol: 52, payCol: 54 },
-      { name: "August", amtCol: 69, dueCol: 68, remCol: 67, invCol: 59, appCol: 61, senCol: 63, payCol: 65 }
-    ];
+    const monthConfigs = AR_MONTH_CONFIGS;
 
     arRawRows.forEach((row, i) => {
       const entityRaw = String(row[0] || "").trim();

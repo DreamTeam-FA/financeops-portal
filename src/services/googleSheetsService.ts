@@ -1310,15 +1310,19 @@ const zeroIdxColLetter = (c: number): string => {
   return result;
 };
 
-// Column indices (0-based) for each month in the horizontal AR Dashboard Data layout
-const AR_MONTH_COLS: Record<string, { invCol: number; appCol: number; senCol: number; payCol: number; remCol: number }> = {
-  March: { invCol: -1,  appCol: -1,  senCol: -1,  payCol: -1,  remCol: 12 },
-  April: { invCol: 15,  appCol: 17,  senCol: 19,  payCol: 21,  remCol: 23 },
-  May:   { invCol: 26,  appCol: 28,  senCol: 30,  payCol: 32,  remCol: 34 },
-  June:  { invCol: 37,  appCol: 39,  senCol: 41,  payCol: 43,  remCol: 45 },
-  July:   { invCol: 48,  appCol: 50,  senCol: 52,  payCol: 54,  remCol: 56 },
-  August: { invCol: 59,  appCol: 61,  senCol: 63,  payCol: 65,  remCol: 67 },
-};
+// Column indices (0-based) for each month — generated from the same pattern as the fetcher.
+const AR_MONTH_COLS: Record<string, { invCol: number; appCol: number; senCol: number; payCol: number; remCol: number }> = (() => {
+  const names = ["March","April","May","June","July","August","September","October","November","December"];
+  const map: Record<string, { invCol: number; appCol: number; senCol: number; payCol: number; remCol: number }> = {};
+  map["March"] = { invCol: -1, appCol: -1, senCol: -1, payCol: -1, remCol: 12 };
+  let prevAmt = 14;
+  for (let i = 1; i < names.length; i++) {
+    const b = prevAmt + 1;
+    map[names[i]] = { invCol: b, appCol: b+2, senCol: b+4, payCol: b+6, remCol: b+8 };
+    prevAmt = b + 10;
+  }
+  return map;
+})();
 
 // Write a single AR item back to its exact cells in the horizontal AR Dashboard Data sheet.
 export const writeSingleARItem = async (
