@@ -1316,7 +1316,8 @@ const AR_MONTH_COLS: Record<string, { invCol: number; appCol: number; senCol: nu
   April: { invCol: 15,  appCol: 17,  senCol: 19,  payCol: 21,  remCol: 23 },
   May:   { invCol: 26,  appCol: 28,  senCol: 30,  payCol: 32,  remCol: 34 },
   June:  { invCol: 37,  appCol: 39,  senCol: 41,  payCol: 43,  remCol: 45 },
-  July:  { invCol: 48,  appCol: 50,  senCol: 52,  payCol: 54,  remCol: 56 },
+  July:   { invCol: 48,  appCol: 50,  senCol: 52,  payCol: 54,  remCol: 56 },
+  August: { invCol: 59,  appCol: 61,  senCol: 63,  payCol: 65,  remCol: 67 },
 };
 
 // Write a single AR item back to its exact cells in the horizontal AR Dashboard Data sheet.

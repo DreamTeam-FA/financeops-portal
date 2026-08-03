@@ -688,7 +688,8 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       { name: "April", amtCol: 25, dueCol: 24, remCol: 23, invCol: 15, appCol: 17, senCol: 19, payCol: 21 },
       { name: "May", amtCol: 36, dueCol: 35, remCol: 34, invCol: 26, appCol: 28, senCol: 30, payCol: 32 },
       { name: "June", amtCol: 47, dueCol: 46, remCol: 45, invCol: 37, appCol: 39, senCol: 41, payCol: 43 },
-      { name: "July", amtCol: 58, dueCol: 57, remCol: 56, invCol: 48, appCol: 50, senCol: 52, payCol: 54 }
+      { name: "July",   amtCol: 58, dueCol: 57, remCol: 56, invCol: 48, appCol: 50, senCol: 52, payCol: 54 },
+      { name: "August", amtCol: 69, dueCol: 68, remCol: 67, invCol: 59, appCol: 61, senCol: 63, payCol: 65 }
     ];
 
     arRawRows.forEach((row, i) => {
