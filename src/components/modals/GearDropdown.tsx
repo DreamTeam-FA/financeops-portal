@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
-  Settings, X, Moon, Sun, FileSpreadsheet, Tag, Database,
+  Settings, X, FileSpreadsheet, Tag, Database,
   Plus, Pencil, Trash2, Check
 } from "lucide-react";
 import { useFinance } from "../../context/FinanceContext";
@@ -733,7 +733,7 @@ const MetadataModal: React.FC<{ isLight: boolean; onClose: () => void }> = ({ is
 interface GearDropdownProps { variant?: "wide"|"collapsed"; }
 
 export const GearDropdown: React.FC<GearDropdownProps> = ({ variant="wide" }) => {
-  const { theme, toggleTheme, setCurrentPage } = useFinance();
+  const { theme, setCurrentPage } = useFinance();
   const [open, setOpen]       = useState(false);
   const [pos, setPos]         = useState({ bottom:0, left:0 });
   const [modal, setModal]     = useState<"headleys"|"metadata"|null>(null);
@@ -783,13 +783,6 @@ export const GearDropdown: React.FC<GearDropdownProps> = ({ variant="wide" }) =>
             isLight ? "bg-white border-slate-200 shadow-slate-300/50" : "bg-[#1c1c1c] border-[#2e2e2e] shadow-black/60"
           }`}>
           <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider ${isLight?"text-slate-400":"text-[#555]"}`}>Tools</div>
-
-          <button onClick={() => { toggleTheme(); setOpen(false); }} className={menuItem}>
-            {isLight ? <Moon className="w-3.5 h-3.5 text-[#1a73e8]" /> : <Sun className="w-3.5 h-3.5 text-[#1a73e8]" />}
-            {isLight ? "Dark Mode" : "Light Mode"}
-          </button>
-
-          <div className={divLine} />
 
           <button onClick={() => { setModal("headleys"); setOpen(false); }} className={menuItem}>
             <FileSpreadsheet className="w-3.5 h-3.5 text-[#1a73e8]" /> Headley's Invoice
