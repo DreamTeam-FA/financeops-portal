@@ -152,7 +152,7 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
           <button onClick={onClose} className="p-1.5 rounded-full hover:bg-black/20"><X className="w-5 h-5" /></button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[85vh] overflow-y-auto">
+        <form onSubmit={handleSubmit} autoComplete="off" className="p-6 space-y-4 max-h-[85vh] overflow-y-auto">
 
           {/* Sheet */}
           <div>
@@ -187,6 +187,7 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
             <input type="text" required list="add-vendor-list" value={vendor}
               onChange={(e) => handleVendorChange(e.target.value)}
               placeholder="Select or type vendor name..."
+              autoComplete="off" data-lpignore="true" data-form-type="other"
               className={inp} />
             <datalist id="add-vendor-list">
               {vendorOptions.map((v) => <option key={v} value={v} />)}
@@ -200,6 +201,7 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
               <input type="text" list="add-cat-list" value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 placeholder="e.g. Utilities, Rent..."
+                autoComplete="off" data-lpignore="true" data-form-type="other"
                 className={inp} />
               <datalist id="add-cat-list">
                 {Array.from(vendorCategoriesMap[vendor.toLowerCase().trim()] || []).map((c) => <option key={c} value={c} />)}
@@ -211,7 +213,8 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={lbl}>Invoice #</label>
-              <input type="text" value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} placeholder="Optional" className={inp} />
+              <input type="text" value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} placeholder="Optional"
+                autoComplete="off" data-lpignore="true" data-form-type="other" className={inp} />
             </div>
             <div>
               <label className={lbl}>Amount ($) *</label>
