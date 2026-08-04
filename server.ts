@@ -5,7 +5,7 @@ import { createServer as createViteServer } from "vite";
 import { fetchFullLiveDataset } from "./src/services/liveSheetsFetcher";
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
 app.use(express.json({ limit: "10mb" }));
 
