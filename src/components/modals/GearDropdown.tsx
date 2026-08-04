@@ -144,15 +144,20 @@ async function appendHeadleysToSheet(
   for (let i = allRows.length - 1; i > headerIdx; i--) {
     if (allRows[i].slice(startCol, startCol + 10).join("").trim()) { lastDataRow = i; break; }
   }
-  const nextRow = lastDataRow + 2; // 1-based sheet row
-  await sheetsBatchUpdate(
-    rows.map((r, j) => ({
-      range: `${HEADLEYS_TAB}!A${nextRow + j}:J${nextRow + j}`,
-      values: [[r.bu, r.date, r.ref, r.st||"1", r.type||"I",
-                r.description, r.debit||"", r.credit||"", r.amount||"", billingDate]]
-    })),
-    token
-  );
+  const nextRow = lastDataRow + 2; // 0-indexed lastDataRow + 1 → 1-based sheet row, + 1 more → next empty row
+  const startColLetter = startCol > 0 ? colLetter(startCol + 1) : "A";
+  const endColLetter   = colLetter(startCol + 10); // A+9 = J for startCol=0
+  await sheetsBatchUpdate([{
+    range: `${HEADLEYS_TAB}!${startColLetter}${nextRow}:${endColLetter}${nextRow + rows.length - 1}`,
+    values: rows.map(r => [
+      r.bu, r.date, r.ref, r.st || "1", r.type || "I",
+      r.description,
+      r.debit  !== 0 ? r.debit  : "",
+      r.credit !== 0 ? r.credit : "",
+      r.amount !== 0 ? r.amount : (r.debit || r.credit || ""),
+      billingDate,
+    ]),
+  }], token);
 }
 
 // ── Metadata CRUD ─────────────────────────────────────────────────────────────
@@ -283,7 +288,7 @@ const HeadleysImportModal: React.FC<{ isLight: boolean; onClose: () => void }> =
     const iso = billingToISO(billingDate);
     addBill({
       vendor:"Headley's", entity:"TI", company:bu, amount,
-      dueDate:iso, invoiceDate:iso, method:"Manual" as any,
+      dueDate:iso, invoiceDate:iso, method:"Manual",
       status:"unpaid", bucket:"remaining",
       sheet:"TI Bills", category:"",
       remarks:`Headley's — billing cycle ${billingDate}`,
