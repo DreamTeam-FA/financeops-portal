@@ -19,7 +19,8 @@ export const ARPage: React.FC = () => {
 
   const isLight = theme === "light";
 
-  const [selectedMonth, setSelectedMonth] = useState<string>("ALL");
+  const currentMonthName = new Date().toLocaleString("default", { month: "long" });
+  const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthName);
   const [editingRemarksId, setEditingRemarksId] = useState<string | null>(null);
   const [tempRemarks, setTempRemarks] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
