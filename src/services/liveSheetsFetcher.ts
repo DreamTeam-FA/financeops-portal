@@ -415,7 +415,6 @@ export async function fetchFullLiveDataset(accessToken?: string) {
     if (amount === 0 && vendor.toLowerCase().includes("payroll")) {
       amount = 35000; // Default $35k payroll auto debit if amount unlisted
     }
-    if (amount <= 0) return; // Skip placeholder/template rows with no amount
 
     const invoiceNo = String(row[6] || "").trim();
     const col11Raw = String(row[11] || "").trim();
@@ -546,7 +545,6 @@ export async function fetchFullLiveDataset(accessToken?: string) {
         const parsed = parseFloat(String(v || "").replace(/[^0-9.-]+/g, ""));
         if (!isNaN(parsed) && Math.abs(parsed) > 0 && Math.abs(parsed) < 10000000) { amount = parsed; break; }
       }
-      if (amount <= 0) return; // Skip placeholder/template rows with no amount
 
       // Due date: try multiple positions
       const dueDate = parseDateVal(row[8]) || parseDateVal(row[7]) || parseDateVal(row[9]) || new Date().toISOString().split("T")[0];
@@ -601,7 +599,6 @@ export async function fetchFullLiveDataset(accessToken?: string) {
     if (!vendor || !isNaN(Number(vendor)) || /^(vendor|payee|company|total|summary|due date|invoice)$/i.test(vendor) || vendor.length > 90) return;
     let amount = typeof row[9] === "number" ? row[9] : typeof row[8] === "number" ? row[8] : parseFloat(String(row[9] || row[8] || "0").replace(/[^0-9.-]+/g, "")) || 0;
     if (amount >= 10000000) amount = 0;
-    if (amount <= 0) return; // Skip placeholder/template rows with no amount
     const dueDate = parseDateVal(row[8]) || parseDateVal(row[7]) || parseDateVal("", row[0], row[1], row[19]) || new Date().toISOString().split("T")[0];
     const invoiceNo = String(row[6] || "").trim();
 
