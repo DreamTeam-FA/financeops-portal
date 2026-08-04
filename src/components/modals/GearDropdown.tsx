@@ -14,7 +14,7 @@ interface GearDropdownProps {
 }
 
 export const GearDropdown: React.FC<GearDropdownProps> = ({ variant = "wide" }) => {
-  const { theme, toggleTheme, bills, setCurrentPage } = useFinance();
+  const { theme, toggleTheme, apBills, setCurrentPage } = useFinance();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [modal, setModal] = useState<"headleys" | "metadata" | null>(null);
   const [metaSearch, setMetaSearch] = useState("");
@@ -35,7 +35,7 @@ export const GearDropdown: React.FC<GearDropdownProps> = ({ variant = "wide" }) 
 
   // Derive unique vendor metadata entries from bills
   const vendorMetaMap: Record<string, { entity: string; vendor: string; recurringType?: string; costType?: string; paymentType?: string }> = {};
-  bills.forEach(bill => {
+  apBills.forEach(bill => {
     const key = `${bill.entity}::${bill.vendor}`;
     if (!vendorMetaMap[key] && (bill.recurringType || bill.costType || bill.paymentType)) {
       vendorMetaMap[key] = {
