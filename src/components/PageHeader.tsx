@@ -1,6 +1,7 @@
 import React from "react";
 import { useFinance } from "../context/FinanceContext";
 import { Plus, RefreshCw, ArrowDownToLine, ArrowUpFromLine, CheckCircle2, AlertCircle, Sun, Moon } from "lucide-react";
+import { ScreenshotButton } from "./ScreenshotButton";
 
 interface PageHeaderProps {
   title: string;
@@ -145,6 +146,9 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin" : ""}`} />
           </button>
+
+          {/* Screenshot Button */}
+          <ScreenshotButton />
 
           {/* Theme Toggle Button */}
           <button

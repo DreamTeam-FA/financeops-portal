@@ -16,7 +16,6 @@ import { MemberWorkspacePage } from "./components/pages/MemberWorkspacePage";
 import { GasDashboardView } from "./components/pages/GasDashboardView";
 import { HeadleysPage } from "./components/pages/HeadleysPage";
 import { NotesFloatingWidget } from "./components/modals/NotesFloatingWidget";
-import { ScreenshotButton } from "./components/ScreenshotButton";
 import { LoginModal } from "./components/modals/LoginModal";
 import {
   LayoutDashboard,
@@ -129,9 +128,6 @@ const PortalContent: React.FC = () => {
 
       {/* Floating Notes Widget */}
       <NotesFloatingWidget />
-
-      {/* Screenshot Button */}
-      <ScreenshotButton />
 
       {/* Sync Toast Notification */}
       <SyncToastBanner />
