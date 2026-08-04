@@ -21,9 +21,9 @@ export const ScreenshotButton: React.FC = () => {
     hasMoved:   boolean;
   }>({ startMouseX:0, startMouseY:0, startPosX:0, startPosY:0, hasMoved:false });
 
-  // Default: bottom-right corner (matches screenshot)
+  // Default: bottom-left corner (original position, left-4 bottom-6)
   const defaultPos = () => ({
-    x: window.innerWidth  - BTN_SIZE - 16,
+    x: 16,
     y: window.innerHeight - BTN_SIZE - 24,
   });
 
