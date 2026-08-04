@@ -203,7 +203,7 @@ export const EditBillModal: React.FC<EditBillModalProps> = ({ bill, isOpen, onCl
             <label className={lbl}>Vendor *</label>
             <input type="text" required list="edit-vendor-list" value={vendor}
               onChange={(e) => setVendor(e.target.value)}
-              autoComplete="off" data-lpignore="true" data-form-type="other"
+              autoComplete="new-password" data-lpignore="true" data-form-type="other"
               className={inp} />
             <datalist id="edit-vendor-list">
               {vendorOptions.map((v) => <option key={v} value={v} />)}
@@ -217,7 +217,7 @@ export const EditBillModal: React.FC<EditBillModalProps> = ({ bill, isOpen, onCl
               <input type="text" list="edit-cat-list" value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 placeholder="e.g. Utilities, Rent..."
-                autoComplete="off" data-lpignore="true" data-form-type="other"
+                autoComplete="new-password" data-lpignore="true" data-form-type="other"
                 className={inp} />
               <datalist id="edit-cat-list">
                 {Array.from(vendorCategoriesMap[vendor.toLowerCase().trim()] || []).map((c) => <option key={c} value={c} />)}
@@ -230,7 +230,7 @@ export const EditBillModal: React.FC<EditBillModalProps> = ({ bill, isOpen, onCl
             <div>
               <label className={lbl}>Invoice #</label>
               <input type="text" value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)}
-                autoComplete="off" data-lpignore="true" data-form-type="other" className={inp} />
+                autoComplete="new-password" data-lpignore="true" data-form-type="other" className={inp} />
             </div>
             <div>
               <label className={lbl}>Amount ($) *</label>

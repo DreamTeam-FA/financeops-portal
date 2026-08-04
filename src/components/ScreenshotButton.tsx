@@ -2,6 +2,9 @@ import React, { useState, useEffect, useRef } from "react";
 import { toPng } from "html-to-image";
 import { useFinance } from "../context/FinanceContext";
 
+const BTN_SIZE = 40; // w-10 h-10
+const MENU_W   = 208; // w-52
+
 export const ScreenshotButton: React.FC = () => {
   const [open, setOpen]           = useState(false);
   const [capturing, setCapturing] = useState(false);
@@ -9,30 +12,33 @@ export const ScreenshotButton: React.FC = () => {
   const { theme }                 = useFinance();
   const containerRef              = useRef<HTMLDivElement>(null);
 
-  // ── Drag state ────────────────────────────────────────────────────────────────
-  // Use top+left in px so we can clamp to viewport easily.
-  // Default: same position as the old "bottom-6 left-4" (bottom:24, left:16).
-  const [pos, setPos]         = useState<{ x: number; y: number } | null>(null);
+  // ── Position state ────────────────────────────────────────────────────────────
+  const [pos, setPos]       = useState<{ x: number; y: number } | null>(null);
   const [dragging, setDragging] = useState(false);
   const dragRef = useRef<{
     startMouseX: number; startMouseY: number;
-    startPosX: number;  startPosY: number;
-    hasMoved: boolean;
-  }>({ startMouseX: 0, startMouseY: 0, startPosX: 0, startPosY: 0, hasMoved: false });
+    startPosX:  number; startPosY:  number;
+    hasMoved:   boolean;
+  }>({ startMouseX:0, startMouseY:0, startPosX:0, startPosY:0, hasMoved:false });
 
+  // Default: bottom-right corner (matches screenshot)
   const defaultPos = () => ({
-    x: 16,
-    y: window.innerHeight - 24 - 40, // bottom:24 + button height 40
+    x: window.innerWidth  - BTN_SIZE - 16,
+    y: window.innerHeight - BTN_SIZE - 24,
   });
 
+  const clamp = (x: number, y: number) => ({
+    x: Math.max(8, Math.min(window.innerWidth  - BTN_SIZE - 8, x)),
+    y: Math.max(8, Math.min(window.innerHeight - BTN_SIZE - 8, y)),
+  });
+
+  // ── Pointer drag handlers ─────────────────────────────────────────────────────
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0 || capturing) return;
     const cur = pos ?? defaultPos();
     dragRef.current = {
-      startMouseX: e.clientX,
-      startMouseY: e.clientY,
-      startPosX: cur.x,
-      startPosY: cur.y,
+      startMouseX: e.clientX, startMouseY: e.clientY,
+      startPosX: cur.x,       startPosY:  cur.y,
       hasMoved: false,
     };
     setDragging(true);
@@ -44,10 +50,7 @@ export const ScreenshotButton: React.FC = () => {
     const dx = e.clientX - dragRef.current.startMouseX;
     const dy = e.clientY - dragRef.current.startMouseY;
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragRef.current.hasMoved = true;
-    setPos({
-      x: Math.max(8, Math.min(window.innerWidth - 48, dragRef.current.startPosX + dx)),
-      y: Math.max(8, Math.min(window.innerHeight - 48, dragRef.current.startPosY + dy)),
-    });
+    setPos(clamp(dragRef.current.startPosX + dx, dragRef.current.startPosY + dy));
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
@@ -57,18 +60,17 @@ export const ScreenshotButton: React.FC = () => {
     if (!dragRef.current.hasMoved && !capturing) setOpen(v => !v);
   };
 
-  // Close popup on outside click
+  // Close on outside click
   useEffect(() => {
     const close = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node))
         setOpen(false);
-      }
     };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, []);
 
-  // ── Screenshot logic ──────────────────────────────────────────────────────────
+  // ── Screenshot capture ────────────────────────────────────────────────────────
   const timestamp = () => new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
 
   const capture = async (fullPage: boolean) => {
@@ -77,70 +79,76 @@ export const ScreenshotButton: React.FC = () => {
     setStatus(fullPage ? "Capturing full page…" : "Capturing view…");
     try {
       const target = document.querySelector("main") as HTMLElement;
-      if (!target) throw new Error("No main element found");
+      if (!target) throw new Error("No <main> element");
       const pixelRatio = window.devicePixelRatio || 1;
       let dataUrl: string;
       if (fullPage) {
-        const prevOverflow = target.style.overflow;
-        const prevHeight   = target.style.height;
+        const prevOvf = target.style.overflow, prevH = target.style.height;
         target.style.overflow = "visible";
         target.style.height   = target.scrollHeight + "px";
         dataUrl = await toPng(target, {
-          quality: 1, pixelRatio,
-          width: target.scrollWidth, height: target.scrollHeight,
+          quality:1, pixelRatio,
+          width:target.scrollWidth, height:target.scrollHeight,
           filter: n => !(n instanceof HTMLElement && n.tagName === "IFRAME"),
         });
-        target.style.overflow = prevOverflow;
-        target.style.height   = prevHeight;
+        target.style.overflow = prevOvf;
+        target.style.height   = prevH;
       } else {
         dataUrl = await toPng(target, {
-          quality: 1, pixelRatio,
-          width: target.clientWidth, height: target.clientHeight,
+          quality:1, pixelRatio,
+          width:target.clientWidth, height:target.clientHeight,
           filter: n => !(n instanceof HTMLElement && n.tagName === "IFRAME"),
         });
       }
       const a = document.createElement("a");
       a.href = dataUrl;
       a.download = `financeops-${fullPage ? "full" : "view"}-${timestamp()}.png`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
       setStatus("Saved!");
       setTimeout(() => setStatus(""), 2000);
     } catch (e) {
       console.error("Screenshot failed:", e);
       setStatus("Failed");
       setTimeout(() => setStatus(""), 2000);
-    } finally {
-      setCapturing(false);
-    }
+    } finally { setCapturing(false); }
   };
 
   // ── Render ────────────────────────────────────────────────────────────────────
-  const isDark    = theme === "dark";
-  const computed  = pos ?? defaultPos();
+  const isDark   = theme === "dark";
+  const computed = pos ?? defaultPos();
+
+  // Dynamic popup direction: open up if near bottom, down if near top;
+  // open left if near right edge, right if near left edge.
+  const spaceBelow  = window.innerHeight - computed.y - BTN_SIZE;
+  const spaceAbove  = computed.y;
+  const spaceRight  = window.innerWidth  - computed.x - BTN_SIZE;
+  const openUpward  = spaceBelow < 160 || spaceAbove > spaceBelow; // prefer up when near bottom
+  const openLeftward = spaceRight < MENU_W;                         // flip left when near right edge
+
+  const popupStyle: React.CSSProperties = {
+    position: "absolute",
+    ...(openUpward  ? { bottom: BTN_SIZE + 6 } : { top: BTN_SIZE + 6 }),
+    ...(openLeftward ? { right: 0 }             : { left: 0 }),
+    zIndex: 1,
+  };
+
+  const menuCls = `rounded-xl shadow-2xl border overflow-hidden text-sm w-52 ${
+    isDark ? "bg-[#1a1a1a] border-[#333] text-white" : "bg-white border-slate-200 text-slate-800"
+  }`;
+
+  const itemCls = `w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
+    isDark ? "hover:bg-[#2a2a2a]" : "hover:bg-slate-50"
+  }`;
 
   return (
     <div
       ref={containerRef}
-      style={{ position: "fixed", left: computed.x, top: computed.y, zIndex: 60 }}
-      className="flex flex-col items-start gap-1"
+      style={{ position:"fixed", left:computed.x, top:computed.y, zIndex:60 }}
     >
-      {/* Popup menu — anchored above the button */}
+      {/* Popup menu — dynamic position */}
       {open && (
-        <div
-          style={{ position: "absolute", bottom: 48, left: 0 }}
-          className={`rounded-xl shadow-2xl border overflow-hidden text-sm w-52 ${
-            isDark ? "bg-[#1a1a1a] border-[#333] text-white" : "bg-white border-slate-200 text-slate-800"
-          }`}
-        >
-          <button
-            onClick={() => capture(false)}
-            disabled={capturing}
-            className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
-              isDark ? "hover:bg-[#2a2a2a]" : "hover:bg-slate-50"
-            }`}
-          >
+        <div style={popupStyle} className={menuCls}>
+          <button onClick={() => capture(false)} disabled={capturing} className={itemCls}>
             <span className="text-lg">📷</span>
             <div>
               <div className="font-semibold text-xs">Current View</div>
@@ -148,13 +156,7 @@ export const ScreenshotButton: React.FC = () => {
             </div>
           </button>
           <div className={`h-px mx-3 ${isDark ? "bg-[#2a2a2a]" : "bg-slate-100"}`} />
-          <button
-            onClick={() => capture(true)}
-            disabled={capturing}
-            className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
-              isDark ? "hover:bg-[#2a2a2a]" : "hover:bg-slate-50"
-            }`}
-          >
+          <button onClick={() => capture(true)} disabled={capturing} className={itemCls}>
             <span className="text-lg">🖼️</span>
             <div>
               <div className="font-semibold text-xs">Full Page</div>
@@ -164,7 +166,7 @@ export const ScreenshotButton: React.FC = () => {
         </div>
       )}
 
-      {/* The draggable button */}
+      {/* Draggable button */}
       <button
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -180,11 +182,14 @@ export const ScreenshotButton: React.FC = () => {
       </button>
 
       {status && (
-        <div className={`text-[10px] font-semibold px-2 py-0.5 rounded whitespace-nowrap ${
-          status === "Saved!"  ? "text-emerald-600" :
-          status === "Failed"  ? "text-red-500"     :
-          isDark ? "text-slate-400" : "text-slate-500"
-        }`}>
+        <div
+          style={{ position:"absolute", ...(openUpward ? {bottom: BTN_SIZE + 4} : {top: BTN_SIZE + 4}), left:0 }}
+          className={`text-[10px] font-semibold px-2 py-0.5 rounded whitespace-nowrap pointer-events-none ${
+            status === "Saved!"  ? "text-emerald-600" :
+            status === "Failed"  ? "text-red-500"     :
+            isDark ? "text-slate-400" : "text-slate-500"
+          }`}
+        >
           {status}
         </div>
       )}
