@@ -43,6 +43,8 @@ const silentRefreshGoogleToken = () => {
       if (response?.access_token) {
         cachedAccessToken = response.access_token;
         localStorage.setItem("google_access_token", response.access_token);
+        // Record when the new token was issued so reload-based refresh is accurate
+        localStorage.setItem("google_token_issued_at", String(Date.now()));
         console.log("[Auth] Google token silently refreshed.");
         window.dispatchEvent(new Event("google-token-refreshed"));
         scheduleNextRefresh();
@@ -57,7 +59,12 @@ const silentRefreshGoogleToken = () => {
 
 const scheduleNextRefresh = () => {
   if (tokenRefreshTimer) clearTimeout(tokenRefreshTimer);
-  tokenRefreshTimer = setTimeout(silentRefreshGoogleToken, TOKEN_REFRESH_MS);
+  // Compute how long ago the token was issued (to handle page reloads correctly).
+  // If the token was issued 50 min ago, refresh in 5 min — not 55 min.
+  const issuedAt = parseInt(typeof window !== "undefined" ? localStorage.getItem("google_token_issued_at") || "0" : "0");
+  const elapsed = issuedAt ? Date.now() - issuedAt : 0;
+  const delay = Math.max(10_000, TOKEN_REFRESH_MS - elapsed); // at least 10s
+  tokenRefreshTimer = setTimeout(silentRefreshGoogleToken, delay);
 };
 
 export const startAutoTokenRefresh = () => {
@@ -103,6 +110,8 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
     cachedAccessToken = credential?.accessToken || "authorized_session_token";
     if (typeof window !== "undefined" && credential?.accessToken) {
       localStorage.setItem("google_access_token", credential.accessToken);
+      // Record issue time so the silent-refresh scheduler can compute actual remaining lifetime
+      localStorage.setItem("google_token_issued_at", String(Date.now()));
     }
     return { user: result.user, accessToken: cachedAccessToken };
   } catch (error: any) {

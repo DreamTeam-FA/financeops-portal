@@ -7,8 +7,10 @@ import { formatTimestampLocal } from "../../utils/formatters";
 
 export const BankStatementsPage: React.FC = () => {
   const { bankStatements, selectedEntities, toggleStatementDownload, deleteBankStatement, theme } = useFinance();
+  const currentMonthYear = new Date().toLocaleString("en-US", { month: "long", year: "numeric" });
+
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState<string>("ALL");
+  const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthYear);
   const [selectedBank, setSelectedBank] = useState<string>("ALL");
 
   const isLight = theme === "light";

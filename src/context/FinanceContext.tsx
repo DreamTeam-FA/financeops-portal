@@ -16,7 +16,8 @@ import {
   PortalCalendarEvent,
   CalendarLocalEvent,
   ExternalLinkItem,
-  DashboardNote
+  DashboardNote,
+  HeadleysItem
 } from "../types";
 import {
   initAuthListener,
@@ -101,6 +102,7 @@ interface FinanceContextType {
   payrollWeeks: PayrollWeek[];
   payrollPivot: PayrollPivot;
   auditLogs: AuditLog[];
+  headleys: HeadleysItem[];
   
   // Filters
   selectedEntities: Set<string>;
@@ -534,6 +536,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [payrollPivot, setPayrollPivot] = useState<PayrollPivot>({});
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [calendarLocalEvents, setCalendarLocalEvents] = useState<CalendarLocalEvent[]>([]);
+  const [headleys, setHeadleys] = useState<HeadleysItem[]>([]);
 
   const toggleCalendarLocalEventDone = (id: string) => {
     const updated = calendarLocalEvents.map((ev) =>
@@ -602,6 +605,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           if (data.payrollWeeks) setPayrollWeeks(data.payrollWeeks);
           if (data.payrollPivot) setPayrollPivot(data.payrollPivot);
           if (data.auditLog) setAuditLogs(data.auditLog);
+          if (data.headleys) setHeadleys(data.headleys);
           if (data.lastSyncedAt) setLastSyncedAt(data.lastSyncedAt);
           if (data.sheetMappings && Array.isArray(data.sheetMappings)) {
             const existingIds = new Set(data.sheetMappings.map((m: SheetMappingConfig) => m.id));
@@ -639,6 +643,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 if (live.payrollPivot) setPayrollPivot(live.payrollPivot);
                 if (live.payrollWeeks) setPayrollWeeks(live.payrollWeeks);
                 if (live.lastSyncedAt) setLastSyncedAt(live.lastSyncedAt);
+                if (live.headleys) setHeadleys(live.headleys);
               }
             })
             .catch((e) => console.error("Initial live pull failed:", e))
@@ -1692,6 +1697,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         payrollWeeks,
         payrollPivot,
         auditLogs,
+        headleys,
         selectedEntities,
         setSelectedEntities,
         toggleEntityFilter,

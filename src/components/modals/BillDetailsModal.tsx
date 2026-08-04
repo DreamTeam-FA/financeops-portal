@@ -122,7 +122,7 @@ const BillRow: React.FC<BillRowProps> = ({ bill, isLight, onEdit }) => {
         )}
 
         {/* Due date + invoice date row */}
-        <div className={`flex items-center gap-3 text-[11px] ${isLight ? "text-slate-500" : "text-[#888]"}`}>
+        <div className={`flex flex-wrap items-center gap-3 text-[11px] ${isLight ? "text-slate-500" : "text-[#888]"}`}>
           {bill.dueDate && <span>Due: <strong className={isLight ? "text-slate-700" : "text-[#ccc]"}>{bill.dueDate}</strong></span>}
           {bill.invoiceDate && <span>Inv: <strong className={isLight ? "text-slate-700" : "text-[#ccc]"}>{bill.invoiceDate}</strong></span>}
           {bill.method && bill.method !== "Manual" && (

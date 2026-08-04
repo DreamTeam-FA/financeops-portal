@@ -3,6 +3,7 @@ import { useFinance } from "../context/FinanceContext";
 import { getUserGreetingName } from "../utils/userGreeting";
 import { formatPossessiveName, formatCleanName } from "../utils/formatters";
 import { UserSwitchModal } from "./modals/UserSwitchModal";
+import { GearDropdown } from "./modals/GearDropdown";
 import {
   RubysLogo,
   TILogo,
@@ -24,7 +25,6 @@ import {
   ChevronRight,
   Mail,
   LogOut,
-  Settings,
   RefreshCw,
   FileSpreadsheet,
   Link as LinkIcon,
@@ -670,17 +670,7 @@ export const Sidebar: React.FC = () => {
                 <UserIcon className="w-3.5 h-3.5 text-purple-500" />
                 Change User
               </button>
-              <button
-                onClick={() => setCurrentPage("datasync")}
-                className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg ${
-                  currentPage === "datasync"
-                    ? isLight ? "bg-slate-200 text-slate-800" : "bg-[#1e1e1e] text-white"
-                    : isLight ? "hover:bg-slate-100 text-slate-500" : "hover:bg-[#1a1a1a] text-[#888] hover:text-white"
-                } text-[11px] font-bold transition-colors`}
-                title="Settings & Data Sync"
-              >
-                <Settings className="w-3.5 h-3.5" />
-              </button>
+              <GearDropdown variant="wide" />
               <button
                 onClick={syncAllFromGoogleSheets}
                 disabled={isSyncing}
@@ -711,17 +701,7 @@ export const Sidebar: React.FC = () => {
             >
               {greetingName.charAt(0).toUpperCase()}
             </button>
-            <button
-              onClick={() => setCurrentPage("datasync")}
-              className={`p-1.5 rounded-lg ${
-                currentPage === "datasync"
-                  ? isLight ? "bg-slate-200 text-slate-800" : "bg-[#1e1e1e] text-white"
-                  : isLight ? "hover:bg-slate-100 text-slate-500" : "hover:bg-[#1a1a1a] text-[#888] hover:text-white"
-              }`}
-              title="Settings & Data Sync"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
+            <GearDropdown variant="collapsed" />
             <button
               onClick={syncAllFromGoogleSheets}
               disabled={isSyncing}

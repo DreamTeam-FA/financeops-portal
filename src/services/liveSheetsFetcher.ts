@@ -279,7 +279,9 @@ export async function fetchFullLiveDataset(accessToken?: string) {
     "Meeting Notes",
     "Quick Notes",
     "Notes",
-    "Action Logs"
+    "Action Logs",
+    "Headley's",
+    "Metadata"
   ];
 
   // Fetch from both main spreadsheet tabs AND the dedicated calendar spreadsheet in parallel.
@@ -950,6 +952,121 @@ export async function fetchFullLiveDataset(accessToken?: string) {
     });
   }
 
+  // ── Headley's Sheet ──────────────────────────────────────────────
+  // Two-table layout: summary at top, raw data below.
+  // Raw data header is detected by a row containing "charging bu", "debit", and "credit".
+  // Columns (0-based from startCol): BU, Date, Ref, ST, Type, Desc, Debit, Credit, Amount, DueDate
+  const headleys: any[] = [];
+  const headleysRawRows = dataByTab["Headley's"] || [];
+  if (headleysRawRows.length > 0) {
+    let dataHeaderIdx = -1;
+    let startCol = 0;
+    for (let i = 0; i < headleysRawRows.length; i++) {
+      const joined = headleysRawRows[i].join(" ").toLowerCase();
+      if (joined.includes("charging bu") && joined.includes("debit") && joined.includes("credit")) {
+        dataHeaderIdx = i;
+        for (let c = 0; c < headleysRawRows[i].length; c++) {
+          if (String(headleysRawRows[i][c] || "").toLowerCase().includes("charging bu")) {
+            startCol = c;
+            break;
+          }
+        }
+        break;
+      }
+    }
+    if (dataHeaderIdx >= 0) {
+      const headerRow = headleysRawRows[dataHeaderIdx];
+      // Default offsets from startCol
+      let buCol = startCol, dateCol = startCol + 1, refCol = startCol + 2, stCol = startCol + 3;
+      let typeCol = startCol + 4, descCol = startCol + 5, debitCol = startCol + 6;
+      let creditCol = startCol + 7, amtCol = startCol + 8, dueCol = startCol + 9;
+      // Refine from actual header labels
+      for (let c = startCol; c < headerRow.length; c++) {
+        const h = String(headerRow[c] || "").toLowerCase().trim();
+        if (h === "charging bu") buCol = c;
+        else if (h === "date") dateCol = c;
+        else if (h === "ref") refCol = c;
+        else if (h === "amount") amtCol = c;
+        else if (h === "due date" || h === "due") dueCol = c;
+        else if (h === "description") descCol = c;
+        else if (h === "debit") debitCol = c;
+        else if (h === "credit") creditCol = c;
+      }
+      for (let i = dataHeaderIdx + 1; i < headleysRawRows.length; i++) {
+        const row = headleysRawRows[i];
+        const bu = String(row[buCol] || "").trim();
+        if (!bu) continue;
+        const parseNum = (v: any) => typeof v === "number" ? v : parseFloat(String(v || "0").replace(/[^0-9.-]+/g, "")) || 0;
+        const amt = parseNum(row[amtCol]);
+        const debit = parseNum(row[debitCol]);
+        const credit = parseNum(row[creditCol]);
+        const dueDate = parseDateVal(row[dueCol]) || String(row[dueCol] || "").trim();
+        const date = parseDateVal(row[dateCol]) || String(row[dateCol] || "").trim();
+        headleys.push({
+          id: `hl-${i}`,
+          bu,
+          date,
+          ref: String(row[refCol] || "").trim(),
+          st: String(row[stCol] || "").trim(),
+          type: String(row[typeCol] || "").trim(),
+          description: String(row[descCol] || "").trim(),
+          debit,
+          credit,
+          amount: amt || debit || credit,
+          dueDate,
+          billingDate: dueDate
+        });
+      }
+    }
+  }
+
+  // ── Metadata Sheet — enrich AP bills with recurring / cost / payment type ─
+  // GAS META_COLS (1-based) → 0-based for GViz rows:
+  //   Ruby: vendor=2, recurring=5, fixedEst=6, debitManual=7
+  //   TI:   vendor=13, recurring=15, fixedEst=16, debitManual=17
+  //   MSDx: vendor=20, recurring=22, fixedEst=23, debitManual=24
+  // Data starts at sheet row 4 → GViz index 3 (row 0 = sheet row 1).
+  const metadataRawRows = dataByTab["Metadata"] || [];
+  if (metadataRawRows.length > 3) {
+    const META_SECTIONS = [
+      { vendorCol: 2,  recurCol: 5,  fixedCol: 6,  debitCol: 7  }, // Ruby's
+      { vendorCol: 13, recurCol: 15, fixedCol: 16, debitCol: 17 }, // TI
+      { vendorCol: 20, recurCol: 22, fixedCol: 23, debitCol: 24 }, // MSDx
+    ];
+    const normalize = (v: any) => String(v || "").trim().toLowerCase();
+    const asBool = (v: string) => v === "true" || v === "yes" || v === "1" || v === "✓";
+    const metaLookup: Record<string, { recurringType?: string; costType?: string; paymentType?: string }> = {};
+
+    for (let i = 3; i < metadataRawRows.length; i++) {
+      const row = metadataRawRows[i];
+      META_SECTIONS.forEach(sec => {
+        const vendor = String(row[sec.vendorCol] || "").trim();
+        if (!vendor) return;
+        const recurRaw = normalize(row[sec.recurCol]);
+        const fixedRaw = normalize(row[sec.fixedCol]);
+        const debitRaw = normalize(row[sec.debitCol]);
+        const recurringType =
+          asBool(recurRaw) || recurRaw === "recurring" ? "Recurring" :
+          !asBool(recurRaw) && (recurRaw === "false" || recurRaw === "no" || recurRaw === "non-recurring") ? "Non-Recurring" : undefined;
+        const costType =
+          fixedRaw === "fixed" || asBool(fixedRaw) ? "Fixed" :
+          fixedRaw === "estimate" || fixedRaw === "est" || fixedRaw === "no" || fixedRaw === "false" ? "Estimate" : undefined;
+        const paymentType =
+          debitRaw === "auto" || debitRaw === "autodebit" || debitRaw === "auto-debit" || asBool(debitRaw) ? "Auto-Debit" :
+          debitRaw === "manual" || debitRaw === "no" || debitRaw === "false" ? "Manual" : undefined;
+        metaLookup[vendor.toLowerCase()] = { recurringType, costType, paymentType };
+      });
+    }
+    // Apply to AP bills
+    ap.forEach((bill: any) => {
+      const meta = metaLookup[(bill.vendor || "").toLowerCase()];
+      if (!meta) return;
+      if (meta.recurringType) bill.recurringType = meta.recurringType;
+      if (meta.costType) bill.costType = meta.costType;
+      if (meta.paymentType) bill.paymentType = meta.paymentType;
+    });
+  }
+
   return {
     ap,
     banks,
@@ -960,6 +1077,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
     calendarLocalEvents,
     payrollPivot,
     payrollWeeks,
+    headleys,
     lastSyncedAt: new Date().toISOString()
   };
 }

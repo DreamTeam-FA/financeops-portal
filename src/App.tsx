@@ -14,6 +14,7 @@ import { NotesPage } from "./components/pages/NotesPage";
 import { WorkspacePage } from "./components/pages/WorkspacePage";
 import { MemberWorkspacePage } from "./components/pages/MemberWorkspacePage";
 import { GasDashboardView } from "./components/pages/GasDashboardView";
+import { HeadleysPage } from "./components/pages/HeadleysPage";
 import { NotesFloatingWidget } from "./components/modals/NotesFloatingWidget";
 import { ScreenshotButton } from "./components/ScreenshotButton";
 import { LoginModal } from "./components/modals/LoginModal";
@@ -104,6 +105,8 @@ const PortalContent: React.FC = () => {
         return <DataSyncPage />;
       case "notes":
         return <NotesPage />;
+      case "headleys":
+        return <HeadleysPage />;
       default:
         return <HubPage />;
     }

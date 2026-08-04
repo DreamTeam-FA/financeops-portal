@@ -198,7 +198,22 @@ export interface ExternalLinkItem {
   embedId?: string;
 }
 
-export type PageRoute = 
+export interface HeadleysItem {
+  id: string;
+  bu: string;           // Charging BU (e.g. "TI", "4YR")
+  date: string;         // Transaction date
+  ref: string;          // Reference number
+  st: string;           // ST column
+  type: string;         // Type (I = invoice, etc.)
+  description: string;
+  debit: number;
+  credit: number;
+  amount: number;
+  dueDate: string;      // Due date = billing date column
+  billingDate: string;  // Same as dueDate; used for grouping
+}
+
+export type PageRoute =
   | "hub"
   | "ap"
   | "banks"
@@ -218,4 +233,5 @@ export type PageRoute =
   | "workspace-drive"
   | "member-workspace"
   | "datasync"
-  | "notes";
+  | "notes"
+  | "headleys";
