@@ -192,7 +192,7 @@ async function saveMetaRow(r: MetaRow, token: string): Promise<void> {
 }
 
 async function addMetaRow(
-  section: "ruby"|"ti"|"msdx", vendor: string, dueDate: string,
+  section: "ruby"|"ti"|"msdx", company: string, vendor: string, dueDate: string,
   recurring: string, fixedEst: string, debitManual: string,
   existing: MetaRow[], token: string
 ): Promise<void> {
@@ -201,7 +201,7 @@ async function addMetaRow(
   const c = META_WRITE[section];
   await sheetsBatchUpdate([{
     range: `${METADATA_TAB}!${colLetter(c.company)}${nextRow}:${colLetter(c.debitManual)}${nextRow}`,
-    values: [[ENTITY_NAME[section], vendor, "", dueDate, recurring, fixedEst, debitManual]]
+    values: [[company, vendor, "", dueDate, recurring, fixedEst, debitManual]]
   }], token);
 }
 
@@ -464,8 +464,11 @@ const MetadataModal: React.FC<{ isLight: boolean; onClose: () => void }> = ({ is
   const [draft, setDraft]         = useState<Partial<MetaRow>>({});
   const [saving, setSaving]       = useState(false);
   const [addFor, setAddFor]       = useState<"ruby"|"ti"|"msdx"|null>(null);
-  const [nv, setNv] = useState(""); const [nd, setNd] = useState("");
+  const [nv, setNv] = useState(""); const [nc, setNc] = useState("TI");
+  const [nd, setNd] = useState("");
   const [nr, setNr] = useState(""); const [nf, setNf] = useState(""); const [nm, setNm] = useState("");
+
+  const TI_SUBENTITIES = ["TI", "4YR", "4G", "Corner", "E1"];
 
   const load = useCallback(async () => {
     setLoading(true); setError("");
@@ -518,8 +521,9 @@ const MetadataModal: React.FC<{ isLight: boolean; onClose: () => void }> = ({ is
     try {
       const token = getAccessToken();
       if (!token) throw new Error("No Google token.");
-      await addMetaRow(addFor, nv.trim(), nd, nr, nf, nm, rows, token);
-      setAddFor(null); setNv(""); setNd(""); setNr(""); setNf(""); setNm("");
+      const company = addFor === "ti" ? nc : ENTITY_NAME[addFor];
+      await addMetaRow(addFor, company, nv.trim(), nd, nr, nf, nm, rows, token);
+      setAddFor(null); setNv(""); setNc("TI"); setNd(""); setNr(""); setNf(""); setNm("");
       await load();
     } catch (e: any) { alert("Add error: "+e.message); }
     finally { setSaving(false); }
@@ -584,6 +588,15 @@ const MetadataModal: React.FC<{ isLight: boolean; onClose: () => void }> = ({ is
               </select>
             </div>
             <div className="flex flex-wrap items-end gap-3">
+              {addFor === "ti" && (
+                <div>
+                  <label className={`block text-[10px] font-semibold mb-1 ${s.muted}`}>Sub-Entity</label>
+                  <select value={nc} onChange={e=>setNc(e.target.value)}
+                    className={`text-xs px-2 py-1.5 rounded-lg border focus:outline-none ${s.inp}`}>
+                    {TI_SUBENTITIES.map(x => <option key={x} value={x}>{x}</option>)}
+                  </select>
+                </div>
+              )}
               <div>
                 <label className={`block text-[10px] font-semibold mb-1 ${s.muted}`}>Vendor *</label>
                 <input value={nv} onChange={e=>setNv(e.target.value)} placeholder="Vendor name"
@@ -646,7 +659,7 @@ const MetadataModal: React.FC<{ isLight: boolean; onClose: () => void }> = ({ is
                       <td className={`px-4 py-2 font-semibold ${s.txt}`}>
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] font-bold px-1.5 py-0.5 rounded text-white shrink-0" style={{backgroundColor:color}}>
-                            {ENTITY_NAME[r.section]}
+                            {r.company || ENTITY_NAME[r.section]}
                           </span>
                           {r.vendor}
                         </div>
