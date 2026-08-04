@@ -475,6 +475,8 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       }
 
       const rowYear = typeof row[0] === "number" ? row[0] : parseInt(String(row[0] || "0"));
+      // Skip rows with no valid year — these are description/legend rows, not actual bills
+      if (!rowYear || rowYear < 2020) return;
       // Keep historical unpaid/on-hold from all years; only skip confirmed paid historical rows
       const statusRaw13 = String(row[13] || "").trim().toLowerCase();
       const isOnHoldEarlyTI = statusRaw13.includes("hold") || [10, 11, 12, 13].some(c => String(row[c] || "").toLowerCase().includes("hold"));
