@@ -16,14 +16,30 @@ interface GearDropdownProps {
 export const GearDropdown: React.FC<GearDropdownProps> = ({ variant = "wide" }) => {
   const { theme, toggleTheme, apBills, setCurrentPage } = useFinance();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [dropPos, setDropPos] = useState({ bottom: 0, left: 0 });
   const [modal, setModal] = useState<"headleys" | "metadata" | null>(null);
   const [metaSearch, setMetaSearch] = useState("");
   const [metaFilter, setMetaFilter] = useState<"all" | "Ruby's" | "TI" | "MSDx">("all");
+  const btnRef = useRef<HTMLButtonElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
+
+  const openDropdown = () => {
+    if (btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setDropPos({
+        bottom: window.innerHeight - rect.top + 6,
+        left: rect.left,
+      });
+    }
+    setDropdownOpen(p => !p);
+  };
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (dropRef.current && !dropRef.current.contains(e.target as Node)) {
+      if (
+        dropRef.current && !dropRef.current.contains(e.target as Node) &&
+        btnRef.current && !btnRef.current.contains(e.target as Node)
+      ) {
         setDropdownOpen(false);
       }
     };
@@ -64,9 +80,10 @@ export const GearDropdown: React.FC<GearDropdownProps> = ({ variant = "wide" }) 
 
   return (
     <>
-      <div ref={dropRef} className="relative">
+      <div className="relative">
         <button
-          onClick={() => setDropdownOpen(p => !p)}
+          ref={btnRef}
+          onClick={openDropdown}
           className={btnClass}
           title="Tools & Settings"
         >
@@ -74,9 +91,13 @@ export const GearDropdown: React.FC<GearDropdownProps> = ({ variant = "wide" }) 
         </button>
 
         {dropdownOpen && (
-          <div className={`absolute bottom-full mb-2 left-0 w-52 rounded-xl border shadow-2xl overflow-hidden z-[300] py-1 ${
-            isLight ? "bg-white border-slate-200 shadow-slate-300/50" : "bg-[#1c1c1c] border-[#2e2e2e] shadow-black/60"
-          }`}>
+          <div
+            ref={dropRef}
+            style={{ position: "fixed", bottom: dropPos.bottom, left: dropPos.left, zIndex: 9999 }}
+            className={`w-52 rounded-xl border shadow-2xl overflow-hidden py-1 ${
+              isLight ? "bg-white border-slate-200 shadow-slate-300/50" : "bg-[#1c1c1c] border-[#2e2e2e] shadow-black/60"
+            }`}
+          >
             {/* Section label */}
             <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-400" : "text-[#555]"}`}>
               Tools
