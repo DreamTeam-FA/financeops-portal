@@ -128,27 +128,40 @@ function parseHeadleysText(text: string): ParsedHdlRow[] {
 async function appendHeadleysToSheet(
   rows: ParsedHdlRow[], billingDate: string, token: string
 ): Promise<void> {
-  const allRows = await sheetsGet(`${HEADLEYS_TAB}!A1:J500`, token);
+  // Read the full sheet — NOT a fixed range. The two-table layout means the header row
+  // could be anywhere, and there may be thousands of data rows past the old A1:J500 cap.
+  // Use A:Z (all columns in the sheet) to also handle tables that start beyond column A.
+  const allRows = await sheetsGet(`${HEADLEYS_TAB}!A:Z`, token);
   let headerIdx = -1, startCol = 0;
   for (let i = 0; i < allRows.length; i++) {
     const joined = allRows[i].join(" ").toLowerCase();
     if (joined.includes("charging bu") && joined.includes("debit") && joined.includes("credit")) {
       headerIdx = i;
-      startCol  = allRows[i].findIndex(c => c.toLowerCase().includes("charging bu"));
+      startCol  = allRows[i].findIndex(c => String(c || "").toLowerCase().includes("charging bu"));
       if (startCol < 0) startCol = 0;
       break;
     }
   }
   if (headerIdx < 0) throw new Error("Could not find Headley's raw data table header row.");
-  let lastDataRow = headerIdx;
+
+  // Scan backwards from the end of the fetched rows to find the last non-empty data row
+  let lastDataRow = headerIdx; // default: header row itself (no data yet)
   for (let i = allRows.length - 1; i > headerIdx; i--) {
-    if (allRows[i].slice(startCol, startCol + 10).join("").trim()) { lastDataRow = i; break; }
+    // A row counts as "data" if ANY of its 10 data columns is non-empty
+    if (allRows[i].slice(startCol, startCol + 10).join("").trim()) {
+      lastDataRow = i;
+      break;
+    }
   }
-  const nextRow = lastDataRow + 2; // 0-indexed lastDataRow + 1 → 1-based sheet row, + 1 more → next empty row
-  const startColLetter = startCol > 0 ? colLetter(startCol + 1) : "A";
-  const endColLetter   = colLetter(startCol + 10); // A+9 = J for startCol=0
+
+  // lastDataRow is 0-based index in allRows → sheet row = lastDataRow + 1 (1-based)
+  // next empty sheet row = lastDataRow + 1 + 1 = lastDataRow + 2
+  const nextSheetRow = lastDataRow + 2;
+  const startColLetter = colLetter(startCol + 1);       // startCol=0 → "A"
+  const endColLetter   = colLetter(startCol + 10);      // startCol=0 → "J"
+
   await sheetsBatchUpdate([{
-    range: `${HEADLEYS_TAB}!${startColLetter}${nextRow}:${endColLetter}${nextRow + rows.length - 1}`,
+    range: `${HEADLEYS_TAB}!${startColLetter}${nextSheetRow}:${endColLetter}${nextSheetRow + rows.length - 1}`,
     values: rows.map(r => [
       r.bu, r.date, r.ref, r.st || "1", r.type || "I",
       r.description,

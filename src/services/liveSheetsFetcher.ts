@@ -683,51 +683,91 @@ export async function fetchFullLiveDataset(accessToken?: string) {
   });
 
   // AR Items - Unrolling horizontal month columns.
-  // The sheet layout: March occupies cols 12-14 (remarks/due/amount), then each subsequent
-  // month adds an 11-column block: inv, _, app, _, sen, _, pay, _, rem, due, amt.
+  // Layout: first few cols are entity/customer/description/etc., then month blocks begin.
+  // March block: rem, due, amt  (3 cols, no inv/app/sen/pay)
+  // Each subsequent month: inv, _, app, _, sen, _, pay, _, rem, due, amt  (11 cols)
+  //
+  // The key insight: we detect WHERE "March" starts in the header row dynamically,
+  // then derive all subsequent month column positions from that anchor.
+  // This way, if the sheet ever shifts or gains extra left columns, we stay correct.
+
   const AR_MONTH_NAMES = ["March","April","May","June","July","August","September","October","November","December"];
-  const AR_MONTH_CONFIGS = (() => {
-    const configs: { name: string; amtCol: number; dueCol: number; remCol: number; invCol: number; appCol: number; senCol: number; payCol: number }[] = [];
-    configs.push({ name: "March", amtCol: 14, dueCol: 13, remCol: 12, invCol: -1, appCol: -1, senCol: -1, payCol: -1 });
-    let prevAmt = 14;
+  type ARMonthCfg = { name: string; amtCol: number; dueCol: number; remCol: number; invCol: number; appCol: number; senCol: number; payCol: number };
+
+  const buildMonthConfigs = (firstMonthCol: number): ARMonthCfg[] => {
+    const configs: ARMonthCfg[] = [];
+    // March: 3-col block  [rem, due, amt]
+    configs.push({ name: "March", remCol: firstMonthCol, dueCol: firstMonthCol+1, amtCol: firstMonthCol+2, invCol:-1, appCol:-1, senCol:-1, payCol:-1 });
+    let prevAmt = firstMonthCol + 2;
     for (let m = 1; m < AR_MONTH_NAMES.length; m++) {
       const b = prevAmt + 1;
       configs.push({ name: AR_MONTH_NAMES[m], invCol: b, appCol: b+2, senCol: b+4, payCol: b+6, remCol: b+8, dueCol: b+9, amtCol: b+10 });
       prevAmt = b + 10;
     }
     return configs;
-  })();
+  };
 
   const ar: any[] = [];
   const arRawRows = dataByTab["AR Dashboard Data"] || [];
 
   if (arRawRows.length > 0) {
-    const monthConfigs = AR_MONTH_CONFIGS;
+    // ── Dynamic header detection ──────────────────────────────────────────────
+    // Scan first 5 rows for a row that contains "march" (case-insensitive).
+    // That row's column index for "march" becomes our anchor.
+    let marchCol = -1;
+    let headerRowIdx = -1;
+    const MARCH_RE = /^mar(ch)?\.?$/i;
+
+    for (let ri = 0; ri < Math.min(5, arRawRows.length); ri++) {
+      for (let ci = 0; ci < arRawRows[ri].length; ci++) {
+        if (MARCH_RE.test(String(arRawRows[ri][ci] || "").trim())) {
+          marchCol = ci;
+          headerRowIdx = ri;
+          break;
+        }
+      }
+      if (marchCol >= 0) break;
+    }
+
+    // Fall back to the previously hardcoded anchor (col 12) if no header row found
+    if (marchCol < 0) marchCol = 12;
+
+    const monthConfigs = buildMonthConfigs(marchCol);
+
+    // Data rows start after the detected header row (or row 0 if not found)
+    const dataStartIdx = headerRowIdx >= 0 ? headerRowIdx + 1 : 0;
 
     arRawRows.forEach((row, i) => {
+      if (i < dataStartIdx) return; // skip header rows
+
       const entityRaw = String(row[0] || "").trim();
-      const customer = String(row[1] || "").trim();
-      if (!customer || customer.toLowerCase().includes("customer") || customer.toLowerCase().includes("entity")) return;
+      const customer  = String(row[1] || "").trim();
+
+      // Skip header/legend rows — exact keyword match only, not substring
+      if (!customer) return;
+      if (/^(customer|entity|client|name|company|account|payee|description)$/i.test(customer)) return;
+
       const desc = String(row[2] || "Invoice").trim();
 
       let entity: "Ruby's" | "TI" | "MSDx" = "TI";
-      if (entityRaw.includes("Ruby")) entity = "Ruby's";
-      else if (entityRaw.includes("MSDx")) entity = "MSDx";
+      if (entityRaw.toLowerCase().includes("ruby")) entity = "Ruby's";
+      else if (entityRaw.toLowerCase().includes("msdx")) entity = "MSDx";
+
+      const isTrue = (val: any) => val === true || String(val).toLowerCase() === "true" || val === 1;
 
       monthConfigs.forEach((mCfg) => {
-        const amtVal = row[mCfg.amtCol];
-        const amt = typeof amtVal === "number" ? amtVal : parseFloat(String(amtVal || "0").replace(/[^0-9.-]+/g, "")) || 0;
-        const remarksVal = String(row[mCfg.remCol] || "").trim();
+        const amtVal    = row[mCfg.amtCol];
+        const amt       = typeof amtVal === "number" ? amtVal : parseFloat(String(amtVal || "0").replace(/[^0-9.-]+/g, "")) || 0;
+        const remarksVal = String(mCfg.remCol >= 0 && row[mCfg.remCol] != null ? row[mCfg.remCol] : "").trim();
 
-        if (remarksVal === "__skipped__" || (amt <= 0 && (!remarksVal || remarksVal === "null" || remarksVal === ""))) return;
+        if (remarksVal === "__skipped__") return;
+        if (amt <= 0 && (!remarksVal || remarksVal === "null" || remarksVal === "")) return;
 
-        const rawDue = row[mCfg.dueCol] || row[4] || "End of Month";
-        const invVal = mCfg.invCol !== -1 ? row[mCfg.invCol] : true;
-        const appVal = mCfg.appCol !== -1 ? row[mCfg.appCol] : true;
-        const senVal = mCfg.senCol !== -1 ? row[mCfg.senCol] : true;
-        const payVal = mCfg.payCol !== -1 ? row[mCfg.payCol] : false;
-
-        const isTrue = (val: any) => val === true || String(val).toLowerCase() === "true" || val === 1;
+        const rawDue = (mCfg.dueCol >= 0 ? row[mCfg.dueCol] : null) || row[4] || "End of Month";
+        const invVal = mCfg.invCol >= 0 ? row[mCfg.invCol] : true;
+        const appVal = mCfg.appCol >= 0 ? row[mCfg.appCol] : true;
+        const senVal = mCfg.senCol >= 0 ? row[mCfg.senCol] : true;
+        const payVal = mCfg.payCol >= 0 ? row[mCfg.payCol] : false;
 
         ar.push({
           id: `ar-${i + 1}-${mCfg.name}`,
@@ -738,11 +778,11 @@ export async function fetchFullLiveDataset(accessToken?: string) {
           dueDate: String(rawDue),
           month: mCfg.name,
           occurrence: String(row[6] || "Monthly"),
-          invoice: isTrue(invVal) || amt > 0,
+          invoice:  isTrue(invVal) || amt > 0,
           approval: isTrue(appVal) || amt > 0,
-          sent: isTrue(senVal) || amt > 0,
-          payment: isTrue(payVal),
-          remarks: remarksVal !== "null" ? remarksVal : "",
+          sent:     isTrue(senVal) || amt > 0,
+          payment:  isTrue(payVal),
+          remarks:  remarksVal !== "null" ? remarksVal : "",
           row: i + 1
         });
       });
