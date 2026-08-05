@@ -682,108 +682,177 @@ export async function fetchFullLiveDataset(accessToken?: string) {
     loans.push({ id: `cc-${i + 1}`, entity, lender: cardName, purpose: "Credit Card Facility", principal: 0, outstanding: 0, monthly: bal, nextPay: dueDate, maturity: "Revolving", status: "Active" });
   });
 
-  // AR Items - Unrolling horizontal month columns.
-  // Layout: first few cols are entity/customer/description/etc., then month blocks begin.
-  // March block: rem, due, amt  (3 cols, no inv/app/sen/pay)
-  // Each subsequent month: inv, _, app, _, sen, _, pay, _, rem, due, amt  (11 cols)
-  //
-  // The key insight: we detect WHERE "March" starts in the header row dynamically,
-  // then derive all subsequent month column positions from that anchor.
-  // This way, if the sheet ever shifts or gains extra left columns, we stay correct.
+  // ── AR Items — horizontal month layout ─────────────────────────────────────
+  // The sheet has customers as ROWS and months as COLUMN BLOCKS.
+  // We scan the actual header row for ALL month names and use their real column
+  // positions — no hardcoded offsets. If the sheet gains new months, we find them
+  // automatically. Block layout is inferred from the gap between consecutive months:
+  //   3-col gap  → simple block: [rem, due, amt]
+  //  11-col gap  → full block:   [inv, _, app, _, sen, _, pay, _, rem, due, amt]
+  //  other gap   → treat last col as amt, second-to-last as due, rest as prefix
 
-  const AR_MONTH_NAMES = ["March","April","May","June","July","August","September","October","November","December"];
-  type ARMonthCfg = { name: string; amtCol: number; dueCol: number; remCol: number; invCol: number; appCol: number; senCol: number; payCol: number };
-
-  const buildMonthConfigs = (firstMonthCol: number): ARMonthCfg[] => {
-    const configs: ARMonthCfg[] = [];
-    // March: 3-col block  [rem, due, amt]
-    configs.push({ name: "March", remCol: firstMonthCol, dueCol: firstMonthCol+1, amtCol: firstMonthCol+2, invCol:-1, appCol:-1, senCol:-1, payCol:-1 });
-    let prevAmt = firstMonthCol + 2;
-    for (let m = 1; m < AR_MONTH_NAMES.length; m++) {
-      const b = prevAmt + 1;
-      configs.push({ name: AR_MONTH_NAMES[m], invCol: b, appCol: b+2, senCol: b+4, payCol: b+6, remCol: b+8, dueCol: b+9, amtCol: b+10 });
-      prevAmt = b + 10;
-    }
-    return configs;
+  type ARMonthCfg = {
+    name: string; startCol: number;
+    amtCol: number; dueCol: number; remCol: number;
+    invCol: number; appCol: number; senCol: number; payCol: number;
   };
+
+  // Canonical month spellings + abbreviations we recognise in headers
+  const MONTH_LOOKUP: Record<string, string> = {
+    january:"January",  jan:"January",
+    february:"February",feb:"February",
+    march:"March",      mar:"March",
+    april:"April",      apr:"April",
+    may:"May",
+    june:"June",        jun:"June",
+    july:"July",        jul:"July",
+    august:"August",    aug:"August",
+    september:"September", sep:"September", sept:"September",
+    october:"October",  oct:"October",
+    november:"November",nov:"November",
+    december:"December",dec:"December",
+  };
+  const MONTH_ORDER = ["January","February","March","April","May","June",
+                        "July","August","September","October","November","December"];
 
   const ar: any[] = [];
   const arRawRows = dataByTab["AR Dashboard Data"] || [];
 
   if (arRawRows.length > 0) {
-    // ── Dynamic header detection ──────────────────────────────────────────────
-    // Scan first 5 rows for a row that contains "march" (case-insensitive).
-    // That row's column index for "march" becomes our anchor.
-    let marchCol = -1;
-    let headerRowIdx = -1;
-    const MARCH_RE = /^mar(ch)?\.?$/i;
 
-    for (let ri = 0; ri < Math.min(5, arRawRows.length); ri++) {
-      for (let ci = 0; ci < arRawRows[ri].length; ci++) {
-        if (MARCH_RE.test(String(arRawRows[ri][ci] || "").trim())) {
-          marchCol = ci;
-          headerRowIdx = ri;
+    // ── Step 1: find header row and collect actual month column positions ──────
+    // A header row is defined as having ≥2 distinct month labels in column order.
+    let arHeaderRowIdx = -1;
+    let detectedMonths: { name: string; col: number }[] = [];
+
+    for (let ri = 0; ri < Math.min(6, arRawRows.length); ri++) {
+      const row = arRawRows[ri];
+      const found: { name: string; col: number }[] = [];
+      for (let ci = 0; ci < row.length; ci++) {
+        // Match the first "word" of the cell so "Aug 2026" → "aug" → "August"
+        const raw  = String(row[ci] || "").trim();
+        const key  = raw.split(/[\s.,\-\/]/)[0].toLowerCase();
+        const full = MONTH_LOOKUP[raw.toLowerCase()] || MONTH_LOOKUP[key];
+        if (full) found.push({ name: full, col: ci });
+      }
+      if (found.length >= 2) {
+        found.sort((a, b) => a.col - b.col);
+        // Verify months are in chronological order (no duplicates or scrambled)
+        const ordered = found.every((f, i) =>
+          i === 0 || MONTH_ORDER.indexOf(f.name) > MONTH_ORDER.indexOf(found[i - 1].name)
+        );
+        if (ordered) {
+          detectedMonths  = found;
+          arHeaderRowIdx  = ri;
           break;
         }
       }
-      if (marchCol >= 0) break;
     }
 
-    // Fall back to the previously hardcoded anchor (col 12) if no header row found
-    if (marchCol < 0) marchCol = 12;
+    // ── Step 2: build ARMonthCfg[] from real column positions ─────────────────
+    const monthConfigs: ARMonthCfg[] = [];
 
-    const monthConfigs = buildMonthConfigs(marchCol);
+    if (detectedMonths.length >= 2) {
+      for (let mi = 0; mi < detectedMonths.length; mi++) {
+        const { name, col } = detectedMonths[mi];
+        // Block size = distance to next month's start column
+        const blockSize = mi < detectedMonths.length - 1
+          ? detectedMonths[mi + 1].col - col
+          : (mi > 0 ? detectedMonths[mi].col - detectedMonths[mi - 1].col : 11);
 
-    // Data rows start after the detected header row (or row 0 if not found)
-    const dataStartIdx = headerRowIdx >= 0 ? headerRowIdx + 1 : 0;
+        if (blockSize <= 4) {
+          // Short block (e.g. 3-col: rem/due/amt)
+          monthConfigs.push({
+            name, startCol: col,
+            remCol: col,
+            dueCol: blockSize >= 2 ? col + blockSize - 2 : col,
+            amtCol: col + blockSize - 1,
+            invCol: -1, appCol: -1, senCol: -1, payCol: -1,
+          });
+        } else {
+          // Full block — last col = amt, second-to-last = due, etc.
+          // Standard 11-col: inv(+0), _(+1), app(+2), _(+3), sen(+4), _(+5), pay(+6), _(+7), rem(+8), due(+9), amt(+10)
+          const last = col + blockSize - 1;
+          monthConfigs.push({
+            name, startCol: col,
+            amtCol: last,
+            dueCol: last - 1,
+            remCol: last - 2,
+            payCol: blockSize >= 6 ? last - 4 : -1,
+            senCol: blockSize >= 8 ? last - 6 : -1,
+            appCol: blockSize >= 9 ? last - 8 : -1,
+            invCol: blockSize >= 11 ? col       : -1,
+          });
+        }
+      }
+    } else {
+      // ── Fallback: hardcoded layout (March=col12, 3-col; rest=11-col) ────────
+      console.warn("[AR] No month header row detected — using hardcoded column layout.");
+      const FB = 12;
+      monthConfigs.push({ name:"March", startCol:FB, remCol:FB, dueCol:FB+1, amtCol:FB+2, invCol:-1, appCol:-1, senCol:-1, payCol:-1 });
+      let prev = FB + 2;
+      ["April","May","June","July","August","September","October","November","December"].forEach(n => {
+        const b = prev + 1;
+        monthConfigs.push({ name:n, startCol:b, invCol:b, appCol:b+2, senCol:b+4, payCol:b+6, remCol:b+8, dueCol:b+9, amtCol:b+10 });
+        prev = b + 10;
+      });
+    }
+
+    // ── Step 3: iterate data rows ─────────────────────────────────────────────
+    const dataStartIdx = arHeaderRowIdx >= 0 ? arHeaderRowIdx + 1 : 0;
 
     arRawRows.forEach((row, i) => {
-      if (i < dataStartIdx) return; // skip header rows
+      if (i < dataStartIdx) return;
 
       const entityRaw = String(row[0] || "").trim();
       const customer  = String(row[1] || "").trim();
 
-      // Skip header/legend rows — exact keyword match only, not substring
+      // Skip blank or header/legend rows
       if (!customer) return;
-      if (/^(customer|entity|client|name|company|account|payee|description)$/i.test(customer)) return;
+      if (/^(customer|entity|client|name|company|account|payee|description|total|sub.?total)$/i.test(customer)) return;
 
       const desc = String(row[2] || "Invoice").trim();
 
       let entity: "Ruby's" | "TI" | "MSDx" = "TI";
-      if (entityRaw.toLowerCase().includes("ruby")) entity = "Ruby's";
-      else if (entityRaw.toLowerCase().includes("msdx")) entity = "MSDx";
+      if (/ruby/i.test(entityRaw))  entity = "Ruby's";
+      else if (/msdx/i.test(entityRaw)) entity = "MSDx";
 
-      const isTrue = (val: any) => val === true || String(val).toLowerCase() === "true" || val === 1;
+      const isTrue = (val: any) =>
+        val === true || String(val).toLowerCase() === "true" || val === 1;
 
       monthConfigs.forEach((mCfg) => {
-        const amtVal    = row[mCfg.amtCol];
-        const amt       = typeof amtVal === "number" ? amtVal : parseFloat(String(amtVal || "0").replace(/[^0-9.-]+/g, "")) || 0;
-        const remarksVal = String(mCfg.remCol >= 0 && row[mCfg.remCol] != null ? row[mCfg.remCol] : "").trim();
+        // Safely read value; treat out-of-bounds as empty
+        const safe = (col: number) => col >= 0 && col < row.length ? row[col] : undefined;
+
+        const amtVal     = safe(mCfg.amtCol);
+        const amt        = typeof amtVal === "number"
+          ? amtVal
+          : parseFloat(String(amtVal || "0").replace(/[^0-9.-]+/g, "")) || 0;
+        const remarksVal = String(safe(mCfg.remCol) ?? "").trim();
 
         if (remarksVal === "__skipped__") return;
         if (amt <= 0 && (!remarksVal || remarksVal === "null" || remarksVal === "")) return;
 
-        const rawDue = (mCfg.dueCol >= 0 ? row[mCfg.dueCol] : null) || row[4] || "End of Month";
-        const invVal = mCfg.invCol >= 0 ? row[mCfg.invCol] : true;
-        const appVal = mCfg.appCol >= 0 ? row[mCfg.appCol] : true;
-        const senVal = mCfg.senCol >= 0 ? row[mCfg.senCol] : true;
-        const payVal = mCfg.payCol >= 0 ? row[mCfg.payCol] : false;
+        const rawDue  = safe(mCfg.dueCol) ?? row[4] ?? "End of Month";
+        const invVal  = mCfg.invCol  >= 0 ? safe(mCfg.invCol)  : true;
+        const appVal  = mCfg.appCol  >= 0 ? safe(mCfg.appCol)  : true;
+        const senVal  = mCfg.senCol  >= 0 ? safe(mCfg.senCol)  : true;
+        const payVal  = mCfg.payCol  >= 0 ? safe(mCfg.payCol)  : false;
 
         ar.push({
-          id: `ar-${i + 1}-${mCfg.name}`,
-          entity,
-          customer,
+          id:          `ar-${i + 1}-${mCfg.name}`,
+          entity, customer,
           description: desc,
-          amount: amt,
-          dueDate: String(rawDue),
-          month: mCfg.name,
-          occurrence: String(row[6] || "Monthly"),
-          invoice:  isTrue(invVal) || amt > 0,
-          approval: isTrue(appVal) || amt > 0,
-          sent:     isTrue(senVal) || amt > 0,
-          payment:  isTrue(payVal),
-          remarks:  remarksVal !== "null" ? remarksVal : "",
-          row: i + 1
+          amount:      amt,
+          dueDate:     String(rawDue),
+          month:       mCfg.name,
+          occurrence:  String(row[6] || "Monthly"),
+          invoice:     isTrue(invVal) || amt > 0,
+          approval:    isTrue(appVal) || amt > 0,
+          sent:        isTrue(senVal) || amt > 0,
+          payment:     isTrue(payVal),
+          remarks:     remarksVal !== "null" ? remarksVal : "",
+          row:         i + 1,
         });
       });
     });
