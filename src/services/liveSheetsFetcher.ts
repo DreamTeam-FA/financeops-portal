@@ -1065,17 +1065,24 @@ export async function fetchFullLiveDataset(accessToken?: string) {
     };
     const COL_ID      = qnCol(["id"], 0);
     const COL_CREATED = qnCol(["created", "timestamp", "date created"], 1);
-    const COL_WEEK_LBL= qnCol(["week label", "weeklabel", "week"], 2);
+    const COL_WEEK_LBL= qnCol(["week label", "weeklabel"], 2);
     const COL_WEEK_DT = qnCol(["week start", "weekstart"], 3);
     const COL_COMPANY = qnCol(["company", "entity", "client"], 4);
     const COL_VENDOR  = qnCol(["vendor", "supplier", "payee"], 5);
-    const COL_NOTE    = qnCol(["note", "text", "description", "content", "meeting"], 6);
-    const COL_STATUS  = qnCol(["done", "status", "complete", "finished", "check"], 7);
+    const COL_NOTE    = qnCol(["notetext", "note text", "note", "description", "content"], 6);
+    // "done" must be exact-matched so it doesn't accidentally hit "doneat"
+    const COL_STATUS  = (() => {
+      const exact = qnHeader.findIndex((h: string) => h === "done" || h === "status" || h === "completed" || h === "finished");
+      if (exact !== -1) return exact;
+      return qnCol(["done", "check"], 7);
+    })();
+    const COL_DONE_AT = qnCol(["doneat", "done at", "completedat", "completed at", "done_at"], 8);
 
-    // Helper: interpret a cell as "done" regardless of format
+    // Helper: interpret a cell as "done" regardless of format.
+    // Google Sheets FORMATTED_VALUE mode returns checkbox as "TRUE"/"FALSE" string.
     const parseDone = (val: any): boolean => {
       if (val === true) return true;
-      const s = String(val || "").trim().toLowerCase();
+      const s = String(val ?? "").trim().toLowerCase();
       return ["true", "done", "yes", "1", "complete", "completed", "✓", "x", "finished"].includes(s);
     };
 
@@ -1092,10 +1099,15 @@ export async function fetchFullLiveDataset(accessToken?: string) {
         parseDateVal(row[COL_WEEK_DT]) ||
         parseDateVal(row[COL_CREATED]) ||
         new Date().toISOString().split("T")[0];
-      const company = String(row[COL_COMPANY] || "").trim();
-      const vendor  = String(row[COL_VENDOR]  || "").trim();
-      const status: "open" | "done" = parseDone(row[COL_STATUS]) ? "done" : "open";
-      // row index in sheet: slice(1) starts at idx 0 → sheet row = rowIdx + 2
+      const company    = String(row[COL_COMPANY] || "").trim();
+      const vendor     = String(row[COL_VENDOR]  || "").trim();
+      const isDone     = parseDone(row[COL_STATUS]);
+      const status: "open" | "done" = isDone ? "done" : "open";
+      const doneAtRaw  = row[COL_DONE_AT];
+      const completedAt = isDone && doneAtRaw
+        ? String(doneAtRaw).trim()
+        : undefined;
+      // sheet row = rowIdx + 2 (slice(1) → 0-based; +1 for header; +1 for 1-indexing)
       const sheetRow = rowIdx + 2;
 
       quickNotes.push({
@@ -1106,6 +1118,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
         entity: company || undefined,
         vendorName: vendor || undefined,
         status,
+        completedAt,
         createdAt: weekStart,
         weekLabel,
         row: sheetRow,
