@@ -786,15 +786,19 @@ export async function fetchFullLiveDataset(accessToken?: string) {
         }
       }
     } else {
-      // ── Fallback: hardcoded layout (March=col12, 3-col; rest=11-col) ────────
-      console.warn("[AR] No month header row detected — using hardcoded column layout.");
-      const FB = 12;
-      monthConfigs.push({ name:"March", startCol:FB, remCol:FB, dueCol:FB+1, amtCol:FB+2, invCol:-1, appCol:-1, senCol:-1, payCol:-1 });
-      let prev = FB + 2;
-      ["April","May","June","July","August","September","October","November","December"].forEach(n => {
-        const b = prev + 1;
+      // ── Fallback: 11-col blocks starting at col E (index 4) ─────────────────
+      // Confirmed layout:
+      //   • Columns A–D (0–3): entity, customer, description, occurrence/other
+      //   • Column E (index 4): start of March block (and every subsequent month)
+      //   • Each month occupies exactly 11 columns:
+      //       inv(+0), _(+1), app(+2), _(+3), sen(+4), _(+5),
+      //       pay(+6), _(+7), rem(+8), due(+9), amt(+10)
+      //   • August (idx=5): startCol = 4 + 5×11 = 59, amtCol = 69
+      console.warn("[AR] No month header row detected — using hardcoded 11-col fallback (E-anchored).");
+      const MONTHS_FB = ["March","April","May","June","July","August","September","October","November","December"];
+      MONTHS_FB.forEach((n, idx) => {
+        const b = 4 + idx * 11;   // col E = index 4; each block is 11 wide
         monthConfigs.push({ name:n, startCol:b, invCol:b, appCol:b+2, senCol:b+4, payCol:b+6, remCol:b+8, dueCol:b+9, amtCol:b+10 });
-        prev = b + 10;
       });
     }
 
