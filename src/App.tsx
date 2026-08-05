@@ -32,36 +32,50 @@ import {
 /* ── Toast config per type ───────────────────────────────────────────── */
 const TOAST_CFG = {
   success: {
-    bar:    "bg-emerald-500",
-    pill:   "bg-emerald-50 border-emerald-200 text-emerald-900",
-    icon:   <CheckCircle2 className="w-4.5 h-4.5 text-emerald-500 shrink-0" />,
-    label:  "Success",
+    bar:      "bg-emerald-500",
+    pill:     "bg-emerald-50 border-emerald-200 text-emerald-900",
+    icon:     <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />,
+    label:    "Success",
     labelCls: "text-emerald-600",
   },
   error: {
-    bar:    "bg-red-500",
-    pill:   "bg-red-50 border-red-200 text-red-900",
-    icon:   <AlertCircle className="w-4.5 h-4.5 text-red-500 shrink-0" />,
-    label:  "Error",
+    bar:      "bg-red-500",
+    pill:     "bg-red-50 border-red-200 text-red-900",
+    icon:     <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />,
+    label:    "Error",
     labelCls: "text-red-600",
   },
   info: {
-    bar:    "bg-[#1a73e8]",
-    pill:   "bg-blue-50 border-blue-200 text-blue-900",
-    icon:   <Info className="w-4.5 h-4.5 text-[#1a73e8] shrink-0" />,
-    label:  "Info",
+    bar:      "bg-[#1a73e8]",
+    pill:     "bg-blue-50 border-blue-200 text-blue-900",
+    icon:     <Info className="w-4 h-4 text-[#1a73e8] shrink-0" />,
+    label:    "Info",
     labelCls: "text-[#1a73e8]",
+  },
+  "auth-error": {
+    bar:      "bg-amber-500",
+    pill:     "bg-amber-50 border-amber-200 text-amber-900",
+    icon:     <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />,
+    label:    "Session Expired",
+    labelCls: "text-amber-600",
   },
 } as const;
 
 const SyncToastBanner: React.FC = () => {
-  const { syncToast, clearSyncToast } = useFinance();
+  const { syncToast, clearSyncToast, handleGoogleSignIn } = useFinance();
   if (!syncToast) return null;
   const cfg = TOAST_CFG[syncToast.type];
+  const isAuthError = syncToast.type === "auth-error";
+
+  const handleReconnect = async () => {
+    clearSyncToast();
+    await handleGoogleSignIn();
+  };
+
   return (
     <div
-      className={`fixed bottom-5 left-1/2 -translate-x-1/2 z-[9999] flex flex-col overflow-hidden rounded-xl border shadow-xl text-sm font-medium animate-in fade-in slide-in-from-bottom-3 duration-200`}
-      style={{ minWidth: 280, maxWidth: 500 }}
+      className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[9999] flex flex-col overflow-hidden rounded-xl border shadow-xl text-sm font-medium"
+      style={{ minWidth: 300, maxWidth: 520 }}
     >
       {/* Colored top accent bar */}
       <div className={`h-1 w-full ${cfg.bar}`} />
@@ -74,10 +88,18 @@ const SyncToastBanner: React.FC = () => {
             {cfg.label}
           </p>
           <p className="text-[13px] font-medium leading-snug">{syncToast.message}</p>
+          {isAuthError && (
+            <button
+              onClick={handleReconnect}
+              className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold transition-colors shadow-xs"
+            >
+              🔄 Reconnect Google Sheets
+            </button>
+          )}
         </div>
         <button
           onClick={clearSyncToast}
-          className="p-0.5 rounded-full opacity-50 hover:opacity-100 transition-opacity shrink-0 mt-0.5"
+          className="p-0.5 rounded-full opacity-40 hover:opacity-100 transition-opacity shrink-0 mt-0.5"
           aria-label="Dismiss"
         >
           <X className="w-3.5 h-3.5" />

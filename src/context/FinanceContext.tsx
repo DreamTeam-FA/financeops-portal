@@ -181,7 +181,7 @@ interface FinanceContextType {
   setAutoPushEnabled: (enabled: boolean) => void;
 
   // Sync toast notification
-  syncToast: { message: string; type: "success" | "error" | "info" } | null;
+  syncToast: { message: string; type: "success" | "error" | "info" | "auth-error" } | null;
   clearSyncToast: () => void;
 
   importSheetData: (data: any) => void;
@@ -384,11 +384,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [autoSyncEnabled, setAutoSyncEnabled] = useState<boolean>(false);
   const [autoPushEnabled, setAutoPushEnabled] = useState<boolean>(false);
-  const [syncToast, setSyncToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
+  const [syncToast, setSyncToast] = useState<{ message: string; type: "success" | "error" | "info" | "auth-error" } | null>(null);
   const clearSyncToast = () => setSyncToast(null);
-  const showToast = (message: string, type: "success" | "error" | "info" = "info", duration = 4000) => {
+  const showToast = (message: string, type: "success" | "error" | "info" | "auth-error" = "info", duration = 4000) => {
     setSyncToast({ message, type });
-    setTimeout(() => setSyncToast(null), duration);
+    if (duration > 0) setTimeout(() => setSyncToast(null), duration);
+    // duration=0 → persistent until user dismisses or action resolves
   };
   const [localCalendarEvents, setLocalCalendarEvents] = useState<PortalCalendarEvent[]>([]);
 
@@ -1245,7 +1246,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (isAuthError) {
           clearAccessToken();
           setNeedsAuth(true);
-          showToast("Google token expired — click 'Connect Google Sheets' to reconnect.", "error", 6000);
+          showToast("Google token expired — click Reconnect to restore sync.", "auth-error", 0);
         } else {
           showToast(`Sheet sync failed: ${msg || "unknown error"}`, "error", 5000);
           console.warn("AP auto-push failed:", msg);
@@ -1284,7 +1285,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (isAuthError) {
           clearAccessToken();
           setNeedsAuth(true);
-          showToast("Google token expired — click 'Connect Google Sheets' to reconnect.", "error", 6000);
+          showToast("Google token expired — click Reconnect to restore sync.", "auth-error", 0);
         } else {
           showToast(`Sheet sync failed: ${msg || "unknown error"}`, "error", 5000);
           console.warn("AP per-item push failed:", msg);
@@ -1300,7 +1301,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (isAuthError) {
       clearAccessToken();
       setNeedsAuth(true);
-      showToast("Google token expired — click 'Connect Google Sheets' to reconnect.", "error", 6000);
+      showToast("Google token expired — click Reconnect to restore sync.", "auth-error", 0);
     } else {
       showToast(`Sheet sync failed: ${msg || "unknown error"}`, "error", 5000);
       console.warn(`${label} per-item push failed:`, msg);
@@ -1393,7 +1394,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (isAuthError) {
           clearAccessToken();
           setNeedsAuth(true);
-          showToast("Google token expired — click 'Connect Google Sheets' to reconnect.", "error", 6000);
+          showToast("Google token expired — click Reconnect to restore sync.", "auth-error", 0);
         } else {
           showToast(`Sheet sync failed: ${msg || "unknown error"}`, "error", 5000);
           console.warn(`${moduleKey} auto-push failed:`, msg);

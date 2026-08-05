@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { ARItem, EntityName } from "../../types";
-import { Receipt, CheckSquare, Square, Edit3, AlertTriangle, Plus, X, Pencil, Trash2 } from "lucide-react";
+import { Receipt, CheckSquare, Square, Edit3, AlertTriangle, Plus, X, Pencil, Trash2, FileText, ChevronRight } from "lucide-react";
 import { formatCurrency, formatTimestampLocal } from "../../utils/formatters";
 
 export const ARPage: React.FC = () => {
@@ -26,6 +26,7 @@ export const ARPage: React.FC = () => {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingAR, setEditingAR] = useState<ARItem | null>(null);
   const [showOverdueModal, setShowOverdueModal] = useState(false);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
 
   // New AR Item Form
   const [customer, setCustomer] = useState("");
@@ -33,6 +34,41 @@ export const ARPage: React.FC = () => {
   const [amount, setAmount] = useState("");
   const [dueDate, setDueDate] = useState(new Date().toISOString().split("T")[0]);
   const [description, setDescription] = useState("");
+
+  // Build unique template list from all AR items (deduped by customer+entity+description)
+  const templates = useMemo(() => {
+    const seen = new Set<string>();
+    const list: ARItem[] = [];
+    // Sort by most recently seen (reverse order preserves last-seen)
+    [...arItems].reverse().forEach((a) => {
+      const key = `${a.customer}|${a.entity}|${a.description}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        list.push(a);
+      }
+    });
+    return list.sort((a, b) => a.customer.localeCompare(b.customer));
+  }, [arItems]);
+
+  const openFromTemplate = (tpl: ARItem) => {
+    setCustomer(tpl.customer);
+    setEntity(tpl.entity as EntityName);
+    setAmount(String(tpl.amount));
+    setDescription(tpl.description);
+    setDueDate(new Date().toISOString().split("T")[0]);
+    setShowTemplatePicker(false);
+    setIsAddOpen(true);
+  };
+
+  const openBlankForm = () => {
+    setCustomer("");
+    setEntity("TI");
+    setAmount("");
+    setDescription("");
+    setDueDate(new Date().toISOString().split("T")[0]);
+    setShowTemplatePicker(false);
+    setIsAddOpen(true);
+  };
 
   // Extract unique months from AR items
   const availableMonths = Array.from(
@@ -125,7 +161,7 @@ export const ARPage: React.FC = () => {
         bgClass="bg-[#16a34a]"
         moduleId="ar"
         showEntityPills={true}
-        onAddClick={() => setIsAddOpen(true)}
+        onAddClick={() => setShowTemplatePicker(true)}
         addLabel="Add Receivable"
       />
 
@@ -340,46 +376,139 @@ export const ARPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Add AR Modal */}
-      {isAddOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div className="bg-[#111] border border-[#262626] rounded-xl w-full max-w-md p-5 text-white">
-            <div className="flex items-center justify-between pb-3 border-b border-[#262626]">
-              <h3 className="text-base font-bold">Add Receivable Invoice</h3>
-              <button onClick={() => setIsAddOpen(false)} className="p-1 text-[#888] hover:text-white">
+      {/* Template Picker Modal */}
+      {showTemplatePicker && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className={`w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border ${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#2a2a2a]"}`}>
+            <div className="h-1.5 bg-[#16a34a]" />
+            <div className={`flex items-center justify-between px-5 py-4 border-b ${isLight ? "border-slate-100" : "border-[#222]"}`}>
+              <div>
+                <h3 className={`text-sm font-black ${isLight ? "text-slate-900" : "text-white"}`}>Add Receivable Invoice</h3>
+                <p className={`text-[11px] mt-0.5 ${isLight ? "text-slate-500" : "text-[#888]"}`}>Start from an existing template or create new</p>
+              </div>
+              <button onClick={() => setShowTemplatePicker(false)} className={`p-1.5 rounded-full ${isLight ? "hover:bg-slate-100 text-slate-400" : "hover:bg-[#222] text-[#666]"}`}>
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <form onSubmit={handleCreateAR} className="mt-4 space-y-3">
+
+            <div className="overflow-y-auto max-h-[65vh] p-3 space-y-1">
+              {/* New blank invoice */}
+              <button
+                onClick={openBlankForm}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-dashed text-left transition-all ${
+                  isLight
+                    ? "border-[#16a34a]/40 hover:border-[#16a34a] hover:bg-green-50/50 text-slate-700"
+                    : "border-[#16a34a]/30 hover:border-[#16a34a]/70 hover:bg-green-950/20 text-[#ccc]"
+                }`}
+              >
+                <div className="w-8 h-8 rounded-full bg-[#16a34a]/15 flex items-center justify-center shrink-0">
+                  <Plus className="w-4 h-4 text-[#16a34a]" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-[#16a34a]">New Accounts Receivable</p>
+                  <p className={`text-[11px] ${isLight ? "text-slate-400" : "text-[#666]"}`}>Start with a blank invoice form</p>
+                </div>
+              </button>
+
+              {/* Divider */}
+              {templates.length > 0 && (
+                <div className={`flex items-center gap-2 py-2 px-1 ${isLight ? "text-slate-400" : "text-[#555]"}`}>
+                  <div className={`flex-1 h-px ${isLight ? "bg-slate-200" : "bg-[#2a2a2a]"}`} />
+                  <span className="text-[10px] font-semibold uppercase tracking-wider">From existing templates</span>
+                  <div className={`flex-1 h-px ${isLight ? "bg-slate-200" : "bg-[#2a2a2a]"}`} />
+                </div>
+              )}
+
+              {/* Template rows */}
+              {templates.map((tpl) => (
+                <button
+                  key={`${tpl.customer}|${tpl.entity}|${tpl.description}`}
+                  onClick={() => openFromTemplate(tpl)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
+                    isLight
+                      ? "bg-slate-50 border-slate-200 hover:border-[#16a34a]/50 hover:bg-green-50/40"
+                      : "bg-[#161616] border-[#2a2a2a] hover:border-[#16a34a]/40 hover:bg-green-950/10"
+                  }`}
+                >
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                    style={{ backgroundColor: tpl.entity.includes("Ruby") ? "#d81b6022" : tpl.entity.includes("MSDx") ? "#00897b22" : "#1a73e822" }}>
+                    <FileText className="w-3.5 h-3.5"
+                      style={{ color: tpl.entity.includes("Ruby") ? "#d81b60" : tpl.entity.includes("MSDx") ? "#00897b" : "#1a73e8" }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className={`text-sm font-semibold truncate ${isLight ? "text-slate-900" : "text-white"}`}>{tpl.customer}</p>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
+                        tpl.entity.includes("Ruby") ? "bg-[#d81b60]/15 text-[#e91e63]" :
+                        tpl.entity.includes("MSDx") ? "bg-[#00897b]/15 text-[#00897b]" :
+                        "bg-[#1a73e8]/15 text-[#1a73e8]"
+                      }`}>{tpl.entity}</span>
+                    </div>
+                    <p className={`text-[11px] truncate ${isLight ? "text-slate-500" : "text-[#888]"}`}>
+                      {tpl.description} · <span className="font-semibold">{formatCurrency(tpl.amount)}</span>
+                    </p>
+                  </div>
+                  <ChevronRight className={`w-4 h-4 shrink-0 ${isLight ? "text-slate-300" : "text-[#444]"}`} />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add AR Modal */}
+      {isAddOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className={`w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border ${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#2a2a2a]"}`}>
+            <div className="h-1.5 bg-[#16a34a]" />
+            <div className={`flex items-center justify-between px-5 py-4 border-b ${isLight ? "border-slate-100" : "border-[#222]"}`}>
+              <h3 className={`text-sm font-black ${isLight ? "text-slate-900" : "text-white"}`}>
+                {customer ? `New Invoice — ${customer}` : "New Accounts Receivable"}
+              </h3>
+              <button onClick={() => setIsAddOpen(false)} className={`p-1.5 rounded-full ${isLight ? "hover:bg-slate-100 text-slate-400" : "hover:bg-[#222] text-[#666]"}`}>
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateAR} className="px-5 py-4 space-y-3">
               <div>
-                <label className="block text-[11px] font-semibold text-[#888] uppercase mb-1">Customer Name</label>
-                <input type="text" required value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="e.g. Apex Retail" className="w-full bg-[#181818] border border-[#262626] rounded px-3 py-1.5 text-xs text-white" />
+                <label className={`block text-[11px] font-semibold uppercase mb-1 ${isLight ? "text-slate-500" : "text-[#888]"}`}>Customer Name</label>
+                <input type="text" required value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="e.g. Apex Retail"
+                  className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"}`} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#888] uppercase mb-1">Entity</label>
-                  <select value={entity} onChange={(e) => setEntity(e.target.value as EntityName)} className="w-full bg-[#181818] border border-[#262626] rounded px-3 py-1.5 text-xs text-white">
+                  <label className={`block text-[11px] font-semibold uppercase mb-1 ${isLight ? "text-slate-500" : "text-[#888]"}`}>Entity</label>
+                  <select value={entity} onChange={(e) => setEntity(e.target.value as EntityName)}
+                    className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"}`}>
                     <option value="Ruby's">Ruby's</option>
                     <option value="TI">TI</option>
                     <option value="MSDx">MSDx</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#888] uppercase mb-1">Amount ($)</label>
-                  <input type="number" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="w-full bg-[#181818] border border-[#262626] rounded px-3 py-1.5 text-xs text-white" />
+                  <label className={`block text-[11px] font-semibold uppercase mb-1 ${isLight ? "text-slate-500" : "text-[#888]"}`}>Amount ($)</label>
+                  <input type="number" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00"
+                    className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"}`} />
                 </div>
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-[#888] uppercase mb-1">Description</label>
-                <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Invoice details" className="w-full bg-[#181818] border border-[#262626] rounded px-3 py-1.5 text-xs text-white" />
+                <label className={`block text-[11px] font-semibold uppercase mb-1 ${isLight ? "text-slate-500" : "text-[#888]"}`}>Description</label>
+                <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Invoice details"
+                  className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"}`} />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-[#888] uppercase mb-1">Due Date</label>
-                <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full bg-[#181818] border border-[#262626] rounded px-3 py-1.5 text-xs text-white color-scheme-dark" />
+                <label className={`block text-[11px] font-semibold uppercase mb-1 ${isLight ? "text-slate-500" : "text-[#888]"}`}>Due Date</label>
+                <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)}
+                  className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"}`} />
               </div>
-              <div className="flex justify-end gap-2 pt-3 border-t border-[#262626]">
-                <button type="button" onClick={() => setIsAddOpen(false)} className="px-3 py-1.5 rounded bg-[#181818] text-xs text-[#888]">Cancel</button>
-                <button type="submit" className="px-4 py-1.5 rounded bg-[#16a34a] text-xs font-semibold text-white">Save Invoice</button>
+              <div className={`flex justify-end gap-2 pt-3 border-t ${isLight ? "border-slate-100" : "border-[#222]"}`}>
+                <button type="button" onClick={() => setIsAddOpen(false)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${isLight ? "bg-slate-100 text-slate-600 hover:bg-slate-200" : "bg-[#1a1a1a] text-[#888] hover:bg-[#222]"}`}>
+                  Cancel
+                </button>
+                <button type="submit" className="px-4 py-1.5 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-xs font-bold text-white transition-colors">
+                  Save Invoice
+                </button>
               </div>
             </form>
           </div>
@@ -470,48 +599,60 @@ export const ARPage: React.FC = () => {
 
       {/* Edit AR Modal */}
       {editingAR && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div className="bg-[#111] border border-[#262626] rounded-xl w-full max-w-md p-5 text-white">
-            <div className="flex items-center justify-between pb-3 border-b border-[#262626]">
-              <h3 className="text-base font-bold">Edit Receivable Invoice</h3>
-              <button onClick={() => setEditingAR(null)} className="p-1 text-[#888] hover:text-white">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className={`w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border ${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#2a2a2a]"}`}>
+            <div className="h-1.5 bg-[#16a34a]" />
+            <div className={`flex items-center justify-between px-5 py-4 border-b ${isLight ? "border-slate-100" : "border-[#222]"}`}>
+              <h3 className={`text-sm font-black ${isLight ? "text-slate-900" : "text-white"}`}>Edit Receivable Invoice</h3>
+              <button onClick={() => setEditingAR(null)} className={`p-1.5 rounded-full ${isLight ? "hover:bg-slate-100 text-slate-400" : "hover:bg-[#222] text-[#666]"}`}>
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <form onSubmit={handleSaveEditAR} className="mt-4 space-y-3">
+            <form onSubmit={handleSaveEditAR} className="px-5 py-4 space-y-3">
               <div>
-                <label className="block text-[11px] font-semibold text-[#888] uppercase mb-1">Customer Name</label>
-                <input type="text" required value={editingAR.customer} onChange={(e) => setEditingAR({ ...editingAR, customer: e.target.value })} className="w-full bg-[#181818] border border-[#262626] rounded px-3 py-1.5 text-xs text-white" />
+                <label className={`block text-[11px] font-semibold uppercase mb-1 ${isLight ? "text-slate-500" : "text-[#888]"}`}>Customer Name</label>
+                <input type="text" required value={editingAR.customer} onChange={(e) => setEditingAR({ ...editingAR, customer: e.target.value })}
+                  className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"}`} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#888] uppercase mb-1">Entity</label>
-                  <select value={editingAR.entity} onChange={(e) => setEditingAR({ ...editingAR, entity: e.target.value as EntityName })} className="w-full bg-[#181818] border border-[#262626] rounded px-3 py-1.5 text-xs text-white">
+                  <label className={`block text-[11px] font-semibold uppercase mb-1 ${isLight ? "text-slate-500" : "text-[#888]"}`}>Entity</label>
+                  <select value={editingAR.entity} onChange={(e) => setEditingAR({ ...editingAR, entity: e.target.value as EntityName })}
+                    className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"}`}>
                     <option value="Ruby's">Ruby's</option>
                     <option value="TI">TI</option>
                     <option value="MSDx">MSDx</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#888] uppercase mb-1">Amount ($)</label>
-                  <input type="number" step="0.01" required value={editingAR.amount} onChange={(e) => setEditingAR({ ...editingAR, amount: parseFloat(e.target.value) || 0 })} className="w-full bg-[#181818] border border-[#262626] rounded px-3 py-1.5 text-xs text-white" />
+                  <label className={`block text-[11px] font-semibold uppercase mb-1 ${isLight ? "text-slate-500" : "text-[#888]"}`}>Amount ($)</label>
+                  <input type="number" step="0.01" required value={editingAR.amount} onChange={(e) => setEditingAR({ ...editingAR, amount: parseFloat(e.target.value) || 0 })}
+                    className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"}`} />
                 </div>
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-[#888] uppercase mb-1">Description</label>
-                <input type="text" value={editingAR.description} onChange={(e) => setEditingAR({ ...editingAR, description: e.target.value })} className="w-full bg-[#181818] border border-[#262626] rounded px-3 py-1.5 text-xs text-white" />
+                <label className={`block text-[11px] font-semibold uppercase mb-1 ${isLight ? "text-slate-500" : "text-[#888]"}`}>Description</label>
+                <input type="text" value={editingAR.description} onChange={(e) => setEditingAR({ ...editingAR, description: e.target.value })}
+                  className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"}`} />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-[#888] uppercase mb-1">Due Date</label>
-                <input type="date" value={editingAR.dueDate} onChange={(e) => setEditingAR({ ...editingAR, dueDate: e.target.value })} className="w-full bg-[#181818] border border-[#262626] rounded px-3 py-1.5 text-xs text-white color-scheme-dark" />
+                <label className={`block text-[11px] font-semibold uppercase mb-1 ${isLight ? "text-slate-500" : "text-[#888]"}`}>Due Date</label>
+                <input type="date" value={editingAR.dueDate} onChange={(e) => setEditingAR({ ...editingAR, dueDate: e.target.value })}
+                  className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"}`} />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-[#888] uppercase mb-1">Remarks</label>
-                <input type="text" value={editingAR.remarks} onChange={(e) => setEditingAR({ ...editingAR, remarks: e.target.value })} className="w-full bg-[#181818] border border-[#262626] rounded px-3 py-1.5 text-xs text-white" />
+                <label className={`block text-[11px] font-semibold uppercase mb-1 ${isLight ? "text-slate-500" : "text-[#888]"}`}>Remarks</label>
+                <input type="text" value={editingAR.remarks || ""} onChange={(e) => setEditingAR({ ...editingAR, remarks: e.target.value })}
+                  className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"}`} />
               </div>
-              <div className="flex justify-end gap-2 pt-3 border-t border-[#262626]">
-                <button type="button" onClick={() => setEditingAR(null)} className="px-3 py-1.5 rounded bg-[#181818] text-xs text-[#888]">Cancel</button>
-                <button type="submit" className="px-4 py-1.5 rounded bg-[#16a34a] text-xs font-semibold text-white">Save Changes & Sync</button>
+              <div className={`flex justify-end gap-2 pt-3 border-t ${isLight ? "border-slate-100" : "border-[#222]"}`}>
+                <button type="button" onClick={() => setEditingAR(null)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${isLight ? "bg-slate-100 text-slate-600 hover:bg-slate-200" : "bg-[#1a1a1a] text-[#888] hover:bg-[#222]"}`}>
+                  Cancel
+                </button>
+                <button type="submit" className="px-4 py-1.5 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-xs font-bold text-white transition-colors">
+                  Save Changes & Sync
+                </button>
               </div>
             </form>
           </div>
