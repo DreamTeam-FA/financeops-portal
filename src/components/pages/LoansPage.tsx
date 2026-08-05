@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
-import { TrendingDown, Calendar, ShieldAlert, Clock, LayoutGrid, Table, Edit2, Trash2, X } from "lucide-react";
+import { TrendingDown, Calendar, ShieldAlert, Clock, LayoutGrid, Table, Edit2, Trash2, X, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { AddLoanModal, EditLoanModal } from "../modals/AddBankModal";
 import { Loan } from "../../types";
 import { formatCurrency, getDaysRemaining } from "../../utils/formatters";
@@ -81,6 +81,45 @@ export const LoansPage: React.FC = () => {
 
   const dueSoonCount = entityFiltered.filter((l) => getDueUrgency(l.nextPay).days <= 0).length;
   const nearDueCount = entityFiltered.filter((l) => getDueUrgency(l.nextPay).days > 0 && getDueUrgency(l.nextPay).days <= 10).length;
+
+  // Group items into urgency buckets for sectioned display
+  const URGENCY_GROUPS = [
+    {
+      key: "due-soon",
+      label: "Due Soon",
+      sublabel: "≤ 3 days",
+      icon: <ShieldAlert className="w-4 h-4 text-red-500" />,
+      headerCls: "border-red-500/30 bg-red-500/8",
+      labelCls: "text-red-600 dark:text-red-400",
+      countCls: "bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30",
+      match: (days: number) => days <= 3,
+    },
+    {
+      key: "near-due",
+      label: "Near Due",
+      sublabel: "4 – 10 days",
+      icon: <Clock className="w-4 h-4 text-amber-500" />,
+      headerCls: "border-amber-500/30 bg-amber-500/8",
+      labelCls: "text-amber-600 dark:text-amber-400",
+      countCls: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30",
+      match: (days: number) => days > 3 && days <= 10,
+    },
+    {
+      key: "upcoming",
+      label: "Upcoming",
+      sublabel: "> 10 days",
+      icon: <CheckCircle2 className="w-4 h-4 text-emerald-500" />,
+      headerCls: "border-emerald-500/30 bg-emerald-500/8",
+      labelCls: "text-emerald-600 dark:text-emerald-400",
+      countCls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30",
+      match: (days: number) => days > 10,
+    },
+  ] as const;
+
+  const groupedItems = URGENCY_GROUPS.map((g) => ({
+    ...g,
+    items: finalFiltered.filter((l) => g.match(getDueUrgency(l.nextPay).days)),
+  })).filter((g) => g.items.length > 0);
 
   return (
     <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#0a0a0a] text-[#e8e8e8]"}`}>
@@ -194,152 +233,167 @@ export const LoansPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Loan Cards View */}
+        {/* ── Cards View — grouped by urgency ───────────────────────── */}
         {viewMode === "cards" && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
-            {finalFiltered.map((l) => {
-              const urgency = getDueUrgency(l.nextPay);
-              const cardType = isCreditCard(l) ? "Credit Card" : "Term Loan";
-              return (
-                <div
-                  key={l.id}
-                  className={`${urgency.cardBorder} ${
-                    isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"
-                  } border rounded-lg p-2 shadow-xs flex flex-col justify-between space-y-1.5 relative overflow-hidden`}
-                >
-                  <div>
-                    <div className="flex items-center justify-between mb-1 gap-1 flex-wrap">
-                      <div className="flex items-center gap-1">
-                        <span className={`px-1 py-0.2 rounded text-[8px] font-bold ${getEntityBadge(l.entity)}`}>
-                          {l.entity}
-                        </span>
-                        <span className={`px-1 py-0.2 rounded text-[8px] font-bold ${isCreditCard(l) ? "bg-purple-500/20 text-purple-600 dark:text-purple-400" : "bg-blue-500/20 text-blue-600 dark:text-blue-400"}`}>
-                          {cardType}
-                        </span>
-                      </div>
-                      <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold ${urgency.badge}`}>
-                        {urgency.icon}
-                        {urgency.days > 0 ? `${urgency.days}d left` : urgency.days === 0 ? "Due today" : `${Math.abs(urgency.days)}d overdue`}
-                      </span>
-                    </div>
-
-                    <h4 className={`text-xs font-extrabold ${isLight ? "text-slate-900" : "text-white"} truncate`}>{l.lender}</h4>
-                    <p className={`text-[9px] ${isLight ? "text-slate-500" : "text-[#888]"} truncate mt-0.5`}>{l.purpose}</p>
-                  </div>
-
-                  <div className={`p-1.5 rounded ${isLight ? "bg-slate-50 border border-slate-200" : "bg-[#181818] border border-[#222]"}`}>
-                    <div className={`text-[8px] font-semibold uppercase ${isLight ? "text-slate-400" : "text-[#666]"}`}>
-                      Monthly
-                    </div>
-                    <div className="text-sm font-black text-red-600 dark:text-red-400 mt-0.5">
-                      {formatCurrency(l.monthly)}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-[#1f1f1f] text-[9px]">
-                    <div className="flex items-center gap-1 text-slate-600 dark:text-[#aaa]">
-                      <Calendar className="w-2.5 h-2.5 text-slate-400 shrink-0" />
-                      <span className="font-bold">Due {l.nextPay}</span>
-                    </div>
-                    <span className="font-extrabold text-slate-600 dark:text-slate-300">
-                      {urgency.days > 0 ? `${urgency.days} days remaining` : urgency.days === 0 ? "Due today" : `${Math.abs(urgency.days)}d overdue`}
-                    </span>
-                  </div>
-
-                  {/* Edit / Delete */}
-                  <div className="flex items-center gap-1 pt-1 border-t border-slate-100 dark:border-[#1f1f1f]">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setEditingLoan(l); }}
-                      className="flex-1 flex items-center justify-center gap-1 py-1 rounded text-[9px] font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 transition-colors"
-                    >
-                      <Edit2 className="w-2.5 h-2.5" /> Edit
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setDeletingLoanId(l.id); }}
-                      className="flex-1 flex items-center justify-center gap-1 py-1 rounded text-[9px] font-semibold text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-colors"
-                    >
-                      <Trash2 className="w-2.5 h-2.5" /> Delete
-                    </button>
-                  </div>
+          <div className="space-y-5">
+            {groupedItems.map((group) => (
+              <div key={group.key}>
+                {/* Section header */}
+                <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border mb-2.5 ${group.headerCls} ${isLight ? "border-opacity-60" : ""}`}>
+                  {group.icon}
+                  <span className={`text-xs font-black uppercase tracking-wider ${group.labelCls}`}>
+                    {group.label}
+                  </span>
+                  <span className={`text-[10px] font-medium ${isLight ? "text-slate-400" : "text-[#666]"}`}>
+                    {group.sublabel}
+                  </span>
+                  <span className={`ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full ${group.countCls}`}>
+                    {group.items.length} {group.items.length === 1 ? "facility" : "facilities"}
+                  </span>
                 </div>
-              );
-            })}
+
+                {/* Cards grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
+                  {group.items.map((l) => {
+                    const urgency = getDueUrgency(l.nextPay);
+                    const cardType = isCreditCard(l) ? "Credit Card" : "Term Loan";
+                    return (
+                      <div
+                        key={l.id}
+                        className={`${urgency.cardBorder} ${
+                          isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"
+                        } border rounded-lg p-2 shadow-xs flex flex-col justify-between space-y-1.5 relative overflow-hidden`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between mb-1 gap-1 flex-wrap">
+                            <div className="flex items-center gap-1">
+                              <span className={`px-1 py-0.5 rounded text-[8px] font-bold ${getEntityBadge(l.entity)}`}>
+                                {l.entity}
+                              </span>
+                              <span className={`px-1 py-0.5 rounded text-[8px] font-bold ${isCreditCard(l) ? "bg-purple-500/20 text-purple-600 dark:text-purple-400" : "bg-blue-500/20 text-blue-600 dark:text-blue-400"}`}>
+                                {cardType}
+                              </span>
+                            </div>
+                            <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold ${urgency.badge}`}>
+                              {urgency.icon}
+                              {urgency.days > 0 ? `${urgency.days}d left` : urgency.days === 0 ? "Due today" : `${Math.abs(urgency.days)}d overdue`}
+                            </span>
+                          </div>
+                          <h4 className={`text-xs font-extrabold ${isLight ? "text-slate-900" : "text-white"} truncate`}>{l.lender}</h4>
+                          <p className={`text-[9px] ${isLight ? "text-slate-500" : "text-[#888]"} truncate mt-0.5`}>{l.purpose}</p>
+                        </div>
+
+                        <div className={`p-1.5 rounded ${isLight ? "bg-slate-50 border border-slate-200" : "bg-[#181818] border border-[#222]"}`}>
+                          <div className={`text-[8px] font-semibold uppercase ${isLight ? "text-slate-400" : "text-[#666]"}`}>Monthly</div>
+                          <div className="text-sm font-black text-red-600 dark:text-red-400 mt-0.5">{formatCurrency(l.monthly)}</div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-[#1f1f1f] text-[9px]">
+                          <div className="flex items-center gap-1 text-slate-600 dark:text-[#aaa]">
+                            <Calendar className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+                            <span className="font-bold">Due {l.nextPay}</span>
+                          </div>
+                          <span className="font-extrabold text-slate-600 dark:text-slate-300">
+                            {urgency.days > 0 ? `${urgency.days}d` : urgency.days === 0 ? "Today" : `${Math.abs(urgency.days)}d late`}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1 pt-1 border-t border-slate-100 dark:border-[#1f1f1f]">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setEditingLoan(l); }}
+                            className="flex-1 flex items-center justify-center gap-1 py-1 rounded text-[9px] font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 transition-colors"
+                          >
+                            <Edit2 className="w-2.5 h-2.5" /> Edit
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setDeletingLoanId(l.id); }}
+                            className="flex-1 flex items-center justify-center gap-1 py-1 rounded text-[9px] font-semibold text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-colors"
+                          >
+                            <Trash2 className="w-2.5 h-2.5" /> Delete
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
-        {/* Loan Table View */}
+        {/* ── Table View — grouped by urgency ───────────────────────── */}
         {viewMode === "table" && (
-          <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl overflow-hidden shadow-sm`}>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className={`${isLight ? "bg-slate-100/70 border-slate-200 text-slate-600" : "bg-[#141414] border-[#262626] text-[#888]"} border-b font-semibold`}>
-                    <th className="p-3">Entity</th>
-                    <th className="p-3">Facility Type</th>
-                    <th className="p-3">Lender Name</th>
-                    <th className="p-3">Purpose</th>
-                    <th className="p-3">Monthly Payment</th>
-                    <th className="p-3">Next Due Date</th>
-                    <th className="p-3">Days Remaining / Status</th>
-                    <th className="p-3">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className={`divide-y ${isLight ? "divide-slate-200" : "divide-[#222]"}`}>
-                  {finalFiltered.map((l) => {
-                    const urgency = getDueUrgency(l.nextPay);
-                    return (
-                      <tr key={l.id} className={`${isLight ? "hover:bg-slate-50" : "hover:bg-white/5"} transition-colors`}>
-                        <td className="p-3">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${getEntityBadge(l.entity)}`}>
-                            {l.entity}
-                          </span>
-                        </td>
-                        <td className="p-3">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${isCreditCard(l) ? "bg-purple-500/20 text-purple-600 dark:text-purple-400" : "bg-blue-500/20 text-blue-600 dark:text-blue-400"}`}>
-                            {isCreditCard(l) ? "Credit Card" : "Term Loan"}
-                          </span>
-                        </td>
-                        <td className={`p-3 font-semibold ${isLight ? "text-slate-900" : "text-white"}`}>{l.lender}</td>
-                        <td className={`p-3 ${isLight ? "text-slate-600" : "text-[#888]"}`}>{l.purpose}</td>
-                        <td className="p-3 font-bold text-red-600 dark:text-red-400 text-sm">
-                          {formatCurrency(l.monthly)}
-                        </td>
-                        <td className={`p-3 ${isLight ? "text-slate-600" : "text-[#888]"}`}>
-                          <span className="flex items-center gap-1 font-semibold">
-                            <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                            {l.nextPay}
-                          </span>
-                        </td>
-                        <td className="p-3">
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[10px] font-bold ${urgency.badge}`}>
-                            {urgency.icon}
-                            {urgency.days > 0 ? `${urgency.days} days remaining` : urgency.status}
-                          </span>
-                        </td>
-                        <td className="p-3">
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => setEditingLoan(l)}
-                              className="p-1.5 rounded hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 transition-colors"
-                              title="Edit"
-                            >
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => setDeletingLoanId(l.id)}
-                              className="p-1.5 rounded hover:bg-red-500/10 text-red-600 dark:text-red-400 transition-colors"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
+          <div className="space-y-4">
+            {groupedItems.map((group) => (
+              <div key={group.key} className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl overflow-hidden shadow-sm`}>
+                {/* Group header row */}
+                <div className={`flex items-center gap-2 px-4 py-2.5 border-b ${group.headerCls} ${isLight ? "border-slate-200" : "border-[#262626]"}`}>
+                  {group.icon}
+                  <span className={`text-xs font-black uppercase tracking-wider ${group.labelCls}`}>{group.label}</span>
+                  <span className={`text-[10px] ${isLight ? "text-slate-400" : "text-[#666]"}`}>· {group.sublabel}</span>
+                  <span className={`ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full ${group.countCls}`}>
+                    {group.items.length}
+                  </span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className={`${isLight ? "bg-slate-50 border-slate-200 text-slate-500" : "bg-[#141414] border-[#262626] text-[#888]"} border-b font-semibold uppercase tracking-wide`}>
+                        <th className="px-4 py-2.5">Entity</th>
+                        <th className="px-4 py-2.5">Type</th>
+                        <th className="px-4 py-2.5">Lender</th>
+                        <th className="px-4 py-2.5">Purpose</th>
+                        <th className="px-4 py-2.5">Monthly</th>
+                        <th className="px-4 py-2.5">Due Date</th>
+                        <th className="px-4 py-2.5">Status</th>
+                        <th className="px-4 py-2.5">Actions</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                    </thead>
+                    <tbody className={`divide-y ${isLight ? "divide-slate-100" : "divide-[#1e1e1e]"}`}>
+                      {group.items.map((l) => {
+                        const urgency = getDueUrgency(l.nextPay);
+                        return (
+                          <tr key={l.id} className={`${isLight ? "hover:bg-slate-50" : "hover:bg-white/5"} transition-colors`}>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${getEntityBadge(l.entity)}`}>{l.entity}</span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${isCreditCard(l) ? "bg-purple-500/20 text-purple-600 dark:text-purple-400" : "bg-blue-500/20 text-blue-600 dark:text-blue-400"}`}>
+                                {isCreditCard(l) ? "Credit Card" : "Term Loan"}
+                              </span>
+                            </td>
+                            <td className={`px-4 py-3 font-semibold ${isLight ? "text-slate-900" : "text-white"}`}>{l.lender}</td>
+                            <td className={`px-4 py-3 ${isLight ? "text-slate-500" : "text-[#888]"}`}>{l.purpose}</td>
+                            <td className="px-4 py-3 font-bold text-red-600 dark:text-red-400">{formatCurrency(l.monthly)}</td>
+                            <td className={`px-4 py-3 ${isLight ? "text-slate-600" : "text-[#aaa]"}`}>
+                              <span className="flex items-center gap-1 font-semibold">
+                                <Calendar className="w-3 h-3 text-slate-400" />{l.nextPay}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${urgency.badge}`}>
+                                {urgency.icon}
+                                {urgency.days > 0 ? `${urgency.days}d remaining` : urgency.days === 0 ? "Due today" : `${Math.abs(urgency.days)}d overdue`}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-1">
+                                <button onClick={() => setEditingLoan(l)} className="p-1.5 rounded hover:bg-blue-500/10 text-blue-600 dark:text-blue-400" title="Edit">
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button onClick={() => setDeletingLoanId(l.id)} className="p-1.5 rounded hover:bg-red-500/10 text-red-600 dark:text-red-400" title="Delete">
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
