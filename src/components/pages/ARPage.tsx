@@ -25,6 +25,7 @@ export const ARPage: React.FC = () => {
   const [tempRemarks, setTempRemarks] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingAR, setEditingAR] = useState<ARItem | null>(null);
+  const [showOverdueModal, setShowOverdueModal] = useState(false);
 
   // New AR Item Form
   const [customer, setCustomer] = useState("");
@@ -46,9 +47,8 @@ export const ARPage: React.FC = () => {
 
   const totalReceivables = filtered.reduce((s, a) => s + a.amount, 0);
   const totalPaid = filtered.filter((a) => a.payment).reduce((s, a) => s + a.amount, 0);
-  const totalOverdue = filtered
-    .filter((a) => !a.payment && new Date(a.dueDate) < new Date())
-    .reduce((s, a) => s + a.amount, 0);
+  const overdueItems = filtered.filter((a) => !a.payment && new Date(a.dueDate) < new Date());
+  const totalOverdue = overdueItems.reduce((s, a) => s + a.amount, 0);
 
   const collectionRate = totalReceivables
     ? Math.round((totalPaid / totalReceivables) * 100)
@@ -170,17 +170,25 @@ export const ARPage: React.FC = () => {
             </div>
           </div>
 
-          <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl p-4 shadow-xs`}>
+          <button
+            onClick={() => setShowOverdueModal(true)}
+            className={`${isLight ? "bg-white border-slate-200 hover:border-red-300 hover:shadow-md" : "bg-[#111] border-[#262626] hover:border-red-800/60 hover:bg-[#161616]"} border rounded-xl p-4 shadow-xs text-left transition-all group w-full`}
+          >
             <div className={`text-[11px] font-semibold ${isLight ? "text-slate-500" : "text-[#888]"} uppercase`}>
               Overdue Receivables
             </div>
             <div className="text-2xl font-bold text-[#f87171] mt-1">
               {formatCurrency(totalOverdue)}
             </div>
-            <div className="text-[11px] text-[#f87171] mt-1 flex items-center gap-1">
-              <AlertTriangle className="w-3.5 h-3.5" /> Action required
+            <div className="text-[11px] text-[#f87171] mt-1 flex items-center justify-between gap-1">
+              <span className="flex items-center gap-1">
+                <AlertTriangle className="w-3.5 h-3.5" /> Action required
+              </span>
+              <span className={`text-[10px] font-semibold opacity-0 group-hover:opacity-100 transition-opacity ${isLight ? "text-red-400" : "text-red-500"}`}>
+                View {overdueItems.length} invoice{overdueItems.length !== 1 ? "s" : ""} →
+              </span>
             </div>
-          </div>
+          </button>
 
           <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl p-4 shadow-xs`}>
             <div className={`text-[11px] font-semibold ${isLight ? "text-slate-500" : "text-[#888]"} uppercase`}>
@@ -374,6 +382,88 @@ export const ARPage: React.FC = () => {
                 <button type="submit" className="px-4 py-1.5 rounded bg-[#16a34a] text-xs font-semibold text-white">Save Invoice</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Overdue Receivables Modal */}
+      {showOverdueModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className={`w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden border ${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#2a2a2a]"}`}>
+            {/* Accent bar */}
+            <div className="h-1.5 w-full bg-red-500" />
+
+            {/* Header */}
+            <div className={`flex items-center justify-between px-5 py-4 border-b ${isLight ? "border-slate-100" : "border-[#222]"}`}>
+              <div>
+                <h2 className={`text-base font-black tracking-tight flex items-center gap-2 ${isLight ? "text-slate-900" : "text-white"}`}>
+                  <AlertTriangle className="w-4 h-4 text-red-500" />
+                  Overdue Receivables
+                </h2>
+                <p className={`text-[11px] mt-0.5 ${isLight ? "text-slate-500" : "text-[#888]"}`}>
+                  {overdueItems.length} invoice{overdueItems.length !== 1 ? "s" : ""} past due
+                  {selectedMonth !== "ALL" ? ` · ${selectedMonth}` : ""} · Total:{" "}
+                  <strong className="text-red-500">{formatCurrency(totalOverdue)}</strong>
+                </p>
+              </div>
+              <button
+                onClick={() => setShowOverdueModal(false)}
+                className={`p-1.5 rounded-full transition-colors ${isLight ? "hover:bg-slate-100 text-slate-400" : "hover:bg-[#222] text-[#666]"}`}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Table */}
+            <div className="overflow-y-auto max-h-[60vh]">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className={`sticky top-0 ${isLight ? "bg-slate-50 border-slate-200 text-slate-500" : "bg-[#161616] border-[#262626] text-[#777]"} border-b font-semibold uppercase tracking-wide`}>
+                    <th className="px-4 py-2.5 text-left">Entity</th>
+                    <th className="px-4 py-2.5 text-left">Customer</th>
+                    <th className="px-4 py-2.5 text-left">Description</th>
+                    <th className="px-4 py-2.5 text-right">Amount</th>
+                    <th className="px-4 py-2.5 text-left">Due Date</th>
+                    <th className="px-4 py-2.5 text-left">Overdue By</th>
+                  </tr>
+                </thead>
+                <tbody className={`divide-y ${isLight ? "divide-slate-100" : "divide-[#1e1e1e]"}`}>
+                  {overdueItems
+                    .slice()
+                    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+                    .map((a) => {
+                      const due = new Date(a.dueDate);
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      due.setHours(0, 0, 0, 0);
+                      const daysOver = Math.round((today.getTime() - due.getTime()) / (1000 * 60 * 60 * 24));
+                      return (
+                        <tr key={a.id} className={`transition-colors ${isLight ? "hover:bg-red-50/50" : "hover:bg-red-950/10"}`}>
+                          <td className="px-4 py-3">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${getEntityBadge(a.entity)}`}>
+                              {a.entity}
+                            </span>
+                          </td>
+                          <td className={`px-4 py-3 font-semibold ${isLight ? "text-slate-900" : "text-white"}`}>{a.customer}</td>
+                          <td className={`px-4 py-3 max-w-[180px] truncate ${isLight ? "text-slate-500" : "text-[#888]"}`}>{a.description}</td>
+                          <td className={`px-4 py-3 text-right font-bold ${isLight ? "text-slate-900" : "text-white"}`}>{formatCurrency(a.amount)}</td>
+                          <td className={`px-4 py-3 ${isLight ? "text-slate-600" : "text-[#aaa]"}`}>{a.dueDate}</td>
+                          <td className="px-4 py-3 font-bold text-red-500">{daysOver}d overdue</td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Footer total */}
+            <div className={`flex items-center justify-between px-5 py-3 border-t text-xs font-semibold ${isLight ? "border-slate-100 bg-slate-50 text-slate-600" : "border-[#222] bg-[#0d0d0d] text-[#aaa]"}`}>
+              <span>{overdueItems.length} overdue invoice{overdueItems.length !== 1 ? "s" : ""}</span>
+              <span>
+                Total Outstanding:{" "}
+                <strong className="text-red-500 text-sm">{formatCurrency(totalOverdue)}</strong>
+              </span>
+            </div>
           </div>
         </div>
       )}
