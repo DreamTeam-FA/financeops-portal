@@ -201,9 +201,6 @@ const BillDetail: React.FC<{
           <span className={`text-[10px] font-bold uppercase tracking-wider ${
             isLight ? "text-slate-500" : "text-[#888]"
           }`}>Bill Schedule &amp; Payment Details</span>
-          <span className={`ml-auto text-[9px] font-medium ${
-            isLight ? "text-slate-400" : "text-[#555]"
-          }`}>Click chips to toggle</span>
         </div>
         <div className="flex gap-2">
           <Chip

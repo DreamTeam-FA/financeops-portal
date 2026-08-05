@@ -22,24 +22,67 @@ import {
   CreditCard,
   Landmark,
   Users,
-  CalendarDays
+  CalendarDays,
+  CheckCircle2,
+  AlertCircle,
+  Info,
+  X
 } from "lucide-react";
 
+/* ── Toast config per type ───────────────────────────────────────────── */
+const TOAST_CFG = {
+  success: {
+    bar:    "bg-emerald-500",
+    pill:   "bg-emerald-50 border-emerald-200 text-emerald-900",
+    icon:   <CheckCircle2 className="w-4.5 h-4.5 text-emerald-500 shrink-0" />,
+    label:  "Success",
+    labelCls: "text-emerald-600",
+  },
+  error: {
+    bar:    "bg-red-500",
+    pill:   "bg-red-50 border-red-200 text-red-900",
+    icon:   <AlertCircle className="w-4.5 h-4.5 text-red-500 shrink-0" />,
+    label:  "Error",
+    labelCls: "text-red-600",
+  },
+  info: {
+    bar:    "bg-[#1a73e8]",
+    pill:   "bg-blue-50 border-blue-200 text-blue-900",
+    icon:   <Info className="w-4.5 h-4.5 text-[#1a73e8] shrink-0" />,
+    label:  "Info",
+    labelCls: "text-[#1a73e8]",
+  },
+} as const;
+
 const SyncToastBanner: React.FC = () => {
-  const { syncToast, clearSyncToast, theme } = useFinance();
+  const { syncToast, clearSyncToast } = useFinance();
   if (!syncToast) return null;
-  const colors = {
-    success: "bg-emerald-600 text-white border-emerald-500",
-    error:   "bg-red-600 text-white border-red-500",
-    info:    "bg-[#1a73e8] text-white border-blue-400",
-  };
+  const cfg = TOAST_CFG[syncToast.type];
   return (
     <div
-      className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-3 px-4 py-2.5 rounded-lg border shadow-lg text-sm font-medium transition-all ${colors[syncToast.type]}`}
-      style={{ minWidth: 260, maxWidth: 480 }}
+      className={`fixed bottom-5 left-1/2 -translate-x-1/2 z-[9999] flex flex-col overflow-hidden rounded-xl border shadow-xl text-sm font-medium animate-in fade-in slide-in-from-bottom-3 duration-200`}
+      style={{ minWidth: 280, maxWidth: 500 }}
     >
-      <span className="flex-1">{syncToast.message}</span>
-      <button onClick={clearSyncToast} className="opacity-70 hover:opacity-100 text-base leading-none">✕</button>
+      {/* Colored top accent bar */}
+      <div className={`h-1 w-full ${cfg.bar}`} />
+
+      {/* Body */}
+      <div className={`flex items-start gap-3 px-4 py-3 ${cfg.pill}`}>
+        {cfg.icon}
+        <div className="flex-1 min-w-0">
+          <p className={`text-[10px] font-bold uppercase tracking-wider mb-0.5 ${cfg.labelCls}`}>
+            {cfg.label}
+          </p>
+          <p className="text-[13px] font-medium leading-snug">{syncToast.message}</p>
+        </div>
+        <button
+          onClick={clearSyncToast}
+          className="p-0.5 rounded-full opacity-50 hover:opacity-100 transition-opacity shrink-0 mt-0.5"
+          aria-label="Dismiss"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
     </div>
   );
 };

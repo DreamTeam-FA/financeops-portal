@@ -185,6 +185,8 @@ export interface DashboardNote {
   completedAt?: string;
   assignedMember?: string;
   memberId?: string;
+  row?: number;       // 1-indexed sheet row for write-back
+  weekLabel?: string; // week group label from sheet
 }
 
 export interface ExternalLinkItem {

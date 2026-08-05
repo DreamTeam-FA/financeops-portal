@@ -598,8 +598,22 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           if (data.ar) setArItems(data.ar);
           if (data.statements) setBankStatements(data.statements);
           if (data.quickNotes) {
-            setQuickNotes(data.quickNotes);
-            localStorage.setItem("financeops_quick_notes", JSON.stringify(data.quickNotes));
+            // Merge: portal-toggled "done" wins over sheet "open" so refreshing
+            // doesn't silently revert notes the user already marked done locally.
+            const localNotes: import("../types").DashboardNote[] = (() => {
+              try { return JSON.parse(localStorage.getItem("financeops_quick_notes") || "[]"); } catch { return []; }
+            })();
+            const localMap = new Map(localNotes.map((n: import("../types").DashboardNote) => [n.id, n]));
+            const merged = (data.quickNotes as import("../types").DashboardNote[]).map((n: import("../types").DashboardNote) => {
+              const local = localMap.get(n.id);
+              // Preserve local "done" if the sheet still shows "open"
+              if (local?.status === "done" && n.status !== "done") {
+                return { ...n, status: "done" as const, completedAt: local.completedAt };
+              }
+              return n;
+            });
+            setQuickNotes(merged);
+            localStorage.setItem("financeops_quick_notes", JSON.stringify(merged));
           }
           if (data.calendarLocalEvents && Array.isArray(data.calendarLocalEvents)) setCalendarLocalEvents(data.calendarLocalEvents);
           if (data.payrollWeeks) setPayrollWeeks(data.payrollWeeks);
@@ -636,8 +650,20 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 if (live.ar) setArItems(live.ar);
                 if (live.statements) setBankStatements(live.statements);
                 if (live.quickNotes && Array.isArray(live.quickNotes) && live.quickNotes.length > 0) {
-                  setQuickNotes(live.quickNotes);
-                  localStorage.setItem("financeops_quick_notes", JSON.stringify(live.quickNotes));
+                  // Smart merge: portal "done" status survives a live sheet sync
+                  const localNotes: import("../types").DashboardNote[] = (() => {
+                    try { return JSON.parse(localStorage.getItem("financeops_quick_notes") || "[]"); } catch { return []; }
+                  })();
+                  const localMap = new Map(localNotes.map((n: import("../types").DashboardNote) => [n.id, n]));
+                  const merged = (live.quickNotes as import("../types").DashboardNote[]).map((n: import("../types").DashboardNote) => {
+                    const local = localMap.get(n.id);
+                    if (local?.status === "done" && n.status !== "done") {
+                      return { ...n, status: "done" as const, completedAt: local.completedAt };
+                    }
+                    return n;
+                  });
+                  setQuickNotes(merged);
+                  localStorage.setItem("financeops_quick_notes", JSON.stringify(merged));
                 }
                 if (!hasCalendarData && live.calendarLocalEvents && Array.isArray(live.calendarLocalEvents)) setCalendarLocalEvents(live.calendarLocalEvents);
                 if (live.payrollPivot) setPayrollPivot(live.payrollPivot);

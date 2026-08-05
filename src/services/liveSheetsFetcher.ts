@@ -1046,26 +1046,57 @@ export async function fetchFullLiveDataset(accessToken?: string) {
     { weekNum: "W24", year: 2026, label: "Jun 8 – Jun 12", startDate: "2026-06-08", endDate: "2026-06-12", sheetName: "4YR Payroll W24" }
   ];
 
-  // Parse Meeting Notes tab from sheet
-  // Column layout (gid=320158278):
-  // 0=ID, 1=Created timestamp, 2=WeekLabel, 3=WeekStart date, 4=Company, 5=Vendor, 6=NoteText, 7=Done (bool), 8=LastUpdated
+  // Parse Meeting Notes / Quick Notes tab from sheet.
+  // Columns are detected dynamically from the header row so the parser
+  // survives sheet re-ordering.  Fallback indices match the known layout:
+  //   0=ID  1=Created  2=WeekLabel  3=WeekStart  4=Company  5=Vendor
+  //   6=NoteText  7=Done(bool)  8=LastUpdated
   const qnRawRows: any[][] = dataByTab["Quick Notes"] || dataByTab["Meeting Notes"] || dataByTab["Notes"] || [];
   const quickNotes: any[] = [];
   if (qnRawRows.length > 1) {
+    // ── detect columns from header ───────────────────────────────────
+    const qnHeader = qnRawRows[0].map((h: any) => String(h || "").toLowerCase().trim());
+    const qnCol = (candidates: string[], fallback: number) => {
+      for (const c of candidates) {
+        const idx = qnHeader.findIndex((h: string) => h.includes(c));
+        if (idx !== -1) return idx;
+      }
+      return fallback;
+    };
+    const COL_ID      = qnCol(["id"], 0);
+    const COL_CREATED = qnCol(["created", "timestamp", "date created"], 1);
+    const COL_WEEK_LBL= qnCol(["week label", "weeklabel", "week"], 2);
+    const COL_WEEK_DT = qnCol(["week start", "weekstart"], 3);
+    const COL_COMPANY = qnCol(["company", "entity", "client"], 4);
+    const COL_VENDOR  = qnCol(["vendor", "supplier", "payee"], 5);
+    const COL_NOTE    = qnCol(["note", "text", "description", "content", "meeting"], 6);
+    const COL_STATUS  = qnCol(["done", "status", "complete", "finished", "check"], 7);
+
+    // Helper: interpret a cell as "done" regardless of format
+    const parseDone = (val: any): boolean => {
+      if (val === true) return true;
+      const s = String(val || "").trim().toLowerCase();
+      return ["true", "done", "yes", "1", "complete", "completed", "✓", "x", "finished"].includes(s);
+    };
+
     qnRawRows.slice(1).forEach((row: any[], rowIdx: number) => {
       if (!row || row.every((c: any) => !c)) return;
-      const rawId = String(row[0] || "").trim();
+      const rawId = String(row[COL_ID] || "").trim();
       if (!rawId || rawId.toLowerCase() === "id") return;
-      const noteText = String(row[6] || "").trim();
+      const noteText = String(row[COL_NOTE] || "").trim();
       if (!noteText) return;
 
       const id = `qn-${rawId}`;
-      const weekLabel = String(row[2] || "").trim();
-      const weekStart = parseDateVal(row[3]) || parseDateVal(row[1]) || new Date().toISOString().split("T")[0];
-      const company = String(row[4] || "").trim();
-      const vendor = String(row[5] || "").trim();
-      const isDone = row[7] === true || String(row[7] || "").toLowerCase() === "true";
-      const status: "open" | "done" = isDone ? "done" : "open";
+      const weekLabel = String(row[COL_WEEK_LBL] || "").trim();
+      const weekStart =
+        parseDateVal(row[COL_WEEK_DT]) ||
+        parseDateVal(row[COL_CREATED]) ||
+        new Date().toISOString().split("T")[0];
+      const company = String(row[COL_COMPANY] || "").trim();
+      const vendor  = String(row[COL_VENDOR]  || "").trim();
+      const status: "open" | "done" = parseDone(row[COL_STATUS]) ? "done" : "open";
+      // row index in sheet: slice(1) starts at idx 0 → sheet row = rowIdx + 2
+      const sheetRow = rowIdx + 2;
 
       quickNotes.push({
         id,
@@ -1077,6 +1108,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
         status,
         createdAt: weekStart,
         weekLabel,
+        row: sheetRow,
         itemType: "note" as const
       });
     });
