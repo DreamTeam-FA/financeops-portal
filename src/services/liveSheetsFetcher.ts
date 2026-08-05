@@ -721,27 +721,44 @@ export async function fetchFullLiveDataset(accessToken?: string) {
   if (arRawRows.length > 0) {
 
     // ── Step 1: find header row and collect actual month column positions ──────
-    // A header row is defined as having ≥2 distinct month labels in column order.
+    // The header row has sub-column labels like "Apr-Invoice", "Apr-Invoice-TS",
+    // "Apr-Approval" … all starting with "Apr". We take only the FIRST occurrence
+    // of each month prefix (which is the block's first column, the Invoice col).
+    // March is special: its block is labeled "Due Date-Invoice" (no month prefix),
+    // so we infer it from April's position: marchCol = aprilCol - 11.
     let arHeaderRowIdx = -1;
     let detectedMonths: { name: string; col: number }[] = [];
 
     for (let ri = 0; ri < Math.min(6, arRawRows.length); ri++) {
       const row = arRawRows[ri];
+      // Dedup: record only the FIRST column index for each month name
+      const seen = new Set<string>();
       const found: { name: string; col: number }[] = [];
       for (let ci = 0; ci < row.length; ci++) {
-        // Match the first "word" of the cell so "Aug 2026" → "aug" → "August"
         const raw  = String(row[ci] || "").trim();
-        const key  = raw.split(/[\s.,\-\/]/)[0].toLowerCase();
-        const full = MONTH_LOOKUP[raw.toLowerCase()] || MONTH_LOOKUP[key];
-        if (full) found.push({ name: full, col: ci });
+        // The sub-column header format is "Apr-Invoice", "Apr-Approval" etc.
+        // Split on "-" to extract the month prefix before the dash.
+        const prefix = raw.split("-")[0].toLowerCase();
+        const full   = MONTH_LOOKUP[raw.toLowerCase()] || MONTH_LOOKUP[prefix];
+        if (full && !seen.has(full)) {
+          seen.add(full);
+          found.push({ name: full, col: ci });
+        }
       }
       if (found.length >= 2) {
         found.sort((a, b) => a.col - b.col);
-        // Verify months are in chronological order (no duplicates or scrambled)
+        // Verify the detected months are in strict chronological order
         const ordered = found.every((f, i) =>
           i === 0 || MONTH_ORDER.indexOf(f.name) > MONTH_ORDER.indexOf(found[i - 1].name)
         );
         if (ordered) {
+          // Only March is unlabeled (header says "Due Date-Invoice").
+          // Prepend it using the gap between the first two labeled months.
+          const blockSize = found.length >= 2 ? found[1].col - found[0].col : 11;
+          if (found[0].name !== "March") {
+            const marchCol = found[0].col - blockSize;
+            if (marchCol >= 0) found.unshift({ name: "March", col: marchCol });
+          }
           detectedMonths  = found;
           arHeaderRowIdx  = ri;
           break;
