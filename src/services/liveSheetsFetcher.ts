@@ -12,23 +12,46 @@ function cleanRemarks(parts: any[]): string {
 }
 
 function parseDateVal(val: any, year?: any, month?: any, dayStr?: any): string {
+  // Current year used to fill in MM/DD entries that have no year component
+  const CY = new Date().getFullYear();
+
+  // Month-name abbreviation → 1-based number ("Jan" → 1, "feb" → 2, …)
+  const MONTHS: Record<string, number> = {
+    jan:1, feb:2, mar:3, apr:4, may:5, jun:6,
+    jul:7, aug:8, sep:9, oct:10, nov:11, dec:12
+  };
+  const monthNum = (s: string): number => {
+    const k = s.trim().toLowerCase().slice(0, 3);
+    return (k in MONTHS) ? MONTHS[k] : parseInt(s);
+  };
+
+  // Build a validated "YYYY-MM-DD" string, or "" if any component is out of range
+  const makeDate = (y: number, m: number, d: number): string => {
+    if (!isNaN(y) && !isNaN(m) && !isNaN(d) &&
+        y >= 2000 && y <= 2035 && m >= 1 && m <= 12 && d >= 1 && d <= 31)
+      return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    return "";
+  };
+
+  // --- Structured / numeric inputs ---
+
+  // GViz "Date(y,m,d)" string (month is 0-based from GViz)
   if (typeof val === "string" && val.startsWith("Date(")) {
-    const parts = val.replace("Date(", "").replace(")", "").split(",").map((n) => parseInt(n.trim()));
+    const parts = val.replace("Date(", "").replace(")", "").split(",").map(n => parseInt(n.trim()));
     if (parts.length >= 3) {
-      const y = parts[0];
-      const m = String(parts[1] + 1).padStart(2, "0");
-      const d = String(parts[2]).padStart(2, "0");
-      if (y >= 2000 && y <= 2030) return `${y}-${m}-${d}`;
+      const r = makeDate(parts[0], parts[1] + 1, parts[2]);
+      if (r) return r;
     }
   }
+  // JavaScript ms epoch (large number > 1e12)
   if (typeof val === "number" && val > 1e12) {
-    // JavaScript ms epoch timestamp
     const d = new Date(val);
     if (!isNaN(d.getTime())) {
       const y = d.getFullYear();
       if (y >= 2000 && y <= 2035) return d.toISOString().split("T")[0];
     }
   }
+  // Excel / Google Sheets date serial (30 000 – 80 000 covers ~1982–2119)
   if (typeof val === "number" || (!isNaN(Number(val)) && Number(val) > 30000 && Number(val) < 80000)) {
     const num = Number(val);
     const d = new Date(Math.round((num - 25569) * 86400 * 1000));
@@ -37,46 +60,84 @@ function parseDateVal(val: any, year?: any, month?: any, dayStr?: any): string {
       if (y >= 2000 && y <= 2030) return d.toISOString().split("T")[0];
     }
   }
+
+  // --- String inputs ---
   if (val && typeof val === "string") {
     const str = val.trim();
+
+    // Fast path: already a clean YYYY-MM-DD or YYYY.MM.DD
     if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
     if (/^\d{4}\.\d{2}\.\d{2}$/.test(str)) return str.replace(/\./g, "-");
-    const slashParts = str.split("/");
-    if (slashParts.length === 3) {
-      // Month name → number helper (handles "Jan", "Feb", etc.)
-      const MONTHS: Record<string, number> = {
-        jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12
+
+    // ---------------------------------------------------------------
+    // Smart extraction — scan the whole string for every recognisable
+    // date pattern, then return the chronologically LATEST one.
+    //
+    // Covers:
+    //   • Free-form text:  "WellsFargo 2026.03.31"
+    //   • Batch entries:   "2026.05.19 $9000\n2026.05.22 $7000\n2026.05.26 $9,637.71"
+    //                      → returns 2026-05-26 (completion date)
+    //   • Short MM/DD:     "06/23" → 2026-06-23 (current year assumed)
+    //   • Mixed formats:   "paid Jan/20/2026" or "YYYY/MM/DD"
+    // ---------------------------------------------------------------
+    const extractAllDates = (text: string): string[] => {
+      type Hit = { start: number; end: number; date: string };
+      const hits: Hit[] = [];
+
+      const addHit = (start: number, end: number, date: string) => {
+        if (date) hits.push({ start, end, date });
       };
-      const toNum = (s: string): number => {
-        const key = s.trim().toLowerCase().slice(0, 3);
-        return (key in MONTHS) ? MONTHS[key] : parseInt(s);
-      };
-      let y: number, mNum: number, dNum: number;
-      if (/^\d{4}$/.test(slashParts[0].trim())) {
-        // YYYY/MM/DD format (first part is a 4-digit year)
-        y = parseInt(slashParts[0]);
-        mNum = toNum(slashParts[1]);
-        dNum = parseInt(slashParts[2]);
-      } else {
-        // MM/DD/YYYY (or Mon/DD/YYYY) format
-        mNum = toNum(slashParts[0]);
-        dNum = parseInt(slashParts[1]);
-        y = parseInt(slashParts[2]);
-        if (!isNaN(y) && y < 100) y += 2000;
+
+      let m: RegExpExecArray | null;
+
+      // Priority 1 — YYYY[-./]MM[-./]DD  (year-first, any separator)
+      // e.g. 2026-03-31, 2026.03.31, 2026/04/20
+      const re1 = /(20\d{2})[.\-/](\d{1,2})[.\-/](\d{1,2})/g;
+      while ((m = re1.exec(text)) !== null)
+        addHit(m.index, m.index + m[0].length,
+          makeDate(parseInt(m[1]), parseInt(m[2]), parseInt(m[3])));
+
+      // Priority 2 — MM/DD/YYYY or MM/DD/YY (month-first with full year)
+      // Also handles "Jan/20/2026" via monthNum()
+      const re2 = /(\w{1,3})\/(\d{1,2})\/(20\d{2}|\d{2})\b/g;
+      while ((m = re2.exec(text)) !== null) {
+        let y = parseInt(m[3]);
+        if (y < 100) y += 2000;
+        addHit(m.index, m.index + m[0].length,
+          makeDate(y, monthNum(m[1]), parseInt(m[2])));
       }
-      if (!isNaN(y) && !isNaN(mNum) && !isNaN(dNum) &&
-          y >= 2000 && y <= 2030 && mNum >= 1 && mNum <= 12) {
-        return `${y}-${String(mNum).padStart(2, "0")}-${String(dNum).padStart(2, "0")}`;
+
+      // Priority 3 — MM/DD (no year) — only when not already covered by a longer hit.
+      // Uses current year (CY) as the inferred year.
+      // e.g. "06/23" → 2026-06-23
+      const re3 = /\b(\d{1,2})\/(\d{1,2})\b/g;
+      while ((m = re3.exec(text)) !== null) {
+        const start = m.index, end = m.index + m[0].length;
+        if (!hits.some(h => h.start <= start && h.end >= end))
+          addHit(start, end, makeDate(CY, parseInt(m[1]), parseInt(m[2])));
       }
+
+      // Deduplicate (multiple patterns may find the same date)
+      return [...new Set(hits.map(h => h.date).filter(Boolean))];
+    };
+
+    const allDates = extractAllDates(str);
+    if (allDates.length > 0) {
+      // Sort ascending (YYYY-MM-DD is lexicographically = chronologically sortable)
+      // Return the LAST entry = most recent = payment completion date for batch strings
+      allDates.sort();
+      return allDates[allDates.length - 1];
     }
-  }
-  if (val && typeof val !== "object") {
-    const d = new Date(val);
+
+    // Final string fallback: native Date() handles "January 20, 2026", etc.
+    const d = new Date(str);
     if (!isNaN(d.getTime())) {
       const y = d.getFullYear();
       if (y >= 2000 && y <= 2030) return d.toISOString().split("T")[0];
     }
   }
+
+  // Context fallback: caller passes year/month/day columns for approximate dating
   if (year && month) {
     const y = parseInt(year);
     const m = String(parseInt(month)).padStart(2, "0");
@@ -89,6 +150,7 @@ function parseDateVal(val: any, year?: any, month?: any, dayStr?: any): string {
       return `${y}-${m}-${day}`;
     }
   }
+
   return "";
 }
 
