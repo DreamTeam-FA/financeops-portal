@@ -186,6 +186,7 @@ interface FinanceContextType {
   // Sync toast notification
   syncToast: { message: string; type: "success" | "error" | "info" | "auth-error" } | null;
   clearSyncToast: () => void;
+  showToast: (message: string, type?: "success" | "error" | "info" | "auth-error", duration?: number) => void;
 
   importSheetData: (data: any) => void;
   logAction: (action: string, details: string) => void;
@@ -1874,6 +1875,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setAutoPushEnabled,
         syncToast,
         clearSyncToast,
+        showToast,
         importSheetData,
         logAction
       }}

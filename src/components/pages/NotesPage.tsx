@@ -68,6 +68,7 @@ export const NotesPage: React.FC = () => {
     addQuickNote,
     updateQuickNote,
     deleteQuickNote,
+    showToast,
     theme
   } = useFinance();
 
@@ -87,6 +88,15 @@ export const NotesPage: React.FC = () => {
   const [formContent, setFormContent] = useState("");   // instructions   → note.content
   const [formEntity, setFormEntity]   = useState("ALL");
   const [formDate, setFormDate]       = useState(new Date().toISOString().split("T")[0]);
+
+  // Inline delete confirmation
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+
+  const confirmDelete = (id: string) => {
+    deleteQuickNote(id);
+    setPendingDeleteId(null);
+    showToast("Note deleted.", "success", 2500);
+  };
 
   // Collapsed state for week groups
   const [collapsedWeeks, setCollapsedWeeks] = useState<{ [key: string]: boolean }>({});
@@ -412,18 +422,32 @@ export const NotesPage: React.FC = () => {
                             </div>
 
                             <div className="flex items-center gap-1 shrink-0">
-                              <button onClick={() => openEditModal(note)} className="p-1 text-slate-400 hover:text-purple-500 transition-colors" title="Edit Note">
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => {
-                                  if (confirm("Are you sure you want to delete this note?")) deleteQuickNote(note.id);
-                                }}
-                                className="p-1 text-slate-400 hover:text-red-500 transition-colors"
-                                title="Delete Note"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              {pendingDeleteId === note.id ? (
+                                <>
+                                  <span className={`text-[10px] font-semibold ${isLight ? "text-slate-600" : "text-[#aaa]"}`}>Delete?</span>
+                                  <button
+                                    onClick={() => confirmDelete(note.id)}
+                                    className="px-2 py-0.5 rounded bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold transition-colors"
+                                  >Yes</button>
+                                  <button
+                                    onClick={() => setPendingDeleteId(null)}
+                                    className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${isLight ? "bg-slate-200 text-slate-700 hover:bg-slate-300" : "bg-[#333] text-[#ccc] hover:bg-[#444]"}`}
+                                  >No</button>
+                                </>
+                              ) : (
+                                <>
+                                  <button onClick={() => openEditModal(note)} className="p-1 text-slate-400 hover:text-purple-500 transition-colors" title="Edit Note">
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => setPendingDeleteId(note.id)}
+                                    className="p-1 text-slate-400 hover:text-red-500 transition-colors"
+                                    title="Delete Note"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </>
+                              )}
                             </div>
                           </div>
 

@@ -26,11 +26,13 @@ export const NotesFloatingWidget: React.FC = () => {
     addQuickNote,
     updateQuickNote,
     deleteQuickNote,
+    showToast,
     setCurrentPage
   } = useFinance();
 
   const isLight = theme === "light";
 
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [isOpen, setIsOpen]           = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"open" | "done" | "all">("open");
@@ -396,18 +398,28 @@ export const NotesFloatingWidget: React.FC = () => {
                             </div>
 
                             <div className="flex items-center gap-1 shrink-0">
-                              <button
-                                onClick={() => handleEdit(note)}
-                                className="p-1 text-slate-400 hover:text-purple-500 transition-colors"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => deleteQuickNote(note.id)}
-                                className="p-1 text-slate-400 hover:text-red-500 transition-colors"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              {pendingDeleteId === note.id ? (
+                                <>
+                                  <span className={`text-[10px] font-semibold ${isLight ? "text-slate-600" : "text-[#aaa]"}`}>Delete?</span>
+                                  <button
+                                    onClick={() => { deleteQuickNote(note.id); setPendingDeleteId(null); showToast("Note deleted.", "success", 2500); }}
+                                    className="px-2 py-0.5 rounded bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold transition-colors"
+                                  >Yes</button>
+                                  <button
+                                    onClick={() => setPendingDeleteId(null)}
+                                    className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${isLight ? "bg-slate-200 text-slate-700" : "bg-[#333] text-[#ccc]"}`}
+                                  >No</button>
+                                </>
+                              ) : (
+                                <>
+                                  <button onClick={() => handleEdit(note)} className="p-1 text-slate-400 hover:text-purple-500 transition-colors">
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button onClick={() => setPendingDeleteId(note.id)} className="p-1 text-slate-400 hover:text-red-500 transition-colors">
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </>
+                              )}
                             </div>
                           </div>
 
