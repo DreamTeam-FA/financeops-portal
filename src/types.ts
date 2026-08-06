@@ -12,6 +12,7 @@ export interface APBill {
   amount: number;
   dueDate: string;
   paidDate?: string;
+  paymentDate?: string;  // alias used by EditBillModal; mirrors paidDate
   method: PaymentMethod;
   status: "unpaid" | "paid" | "hold";
   bucket: APBucket;

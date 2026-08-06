@@ -113,6 +113,14 @@ const Chip: React.FC<{
 );
 
 /* ── Single bill detail view ──────────────────────────────── */
+/* ── Date formatter ──────────────────────────────────────── */
+const fmtDate = (d?: string) => {
+  if (!d) return "";
+  const dt = new Date(d + "T00:00:00");
+  if (isNaN(dt.getTime())) return d;
+  return dt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+};
+
 const BillDetail: React.FC<{
   bill: APBill;
   isLight: boolean;
@@ -122,8 +130,9 @@ const BillDetail: React.FC<{
 }> = ({ bill, isLight, accentColor, onEdit, onClose }) => {
   const { toggleBillStatus, deleteBill, updateBill } = useFinance();
   const [localStatus, setLocalStatus] = useState(bill.status || "unpaid");
+  // Do NOT default to today — leave empty so we know there's truly no record
   const [paidDate, setPaidDate] = useState(
-    bill.paymentDate || bill.paidDate || new Date().toISOString().split("T")[0]
+    bill.paymentDate || bill.paidDate || ""
   );
 
   const remarks = bill.paymentInstructions || bill.remarks || bill.notes || "";
@@ -182,7 +191,7 @@ const BillDetail: React.FC<{
         />
         <InfoCard
           label="Due Date"
-          value={bill.dueDate || "—"}
+          value={fmtDate(bill.dueDate) || "—"}
           isLight={isLight}
         />
         <InfoCard
@@ -191,6 +200,17 @@ const BillDetail: React.FC<{
           isLight={isLight}
         />
       </div>
+
+      {/* Invoice date row (if present) */}
+      {bill.invoiceDate && (
+        <div className="flex gap-2">
+          <InfoCard
+            label="Invoice Date"
+            value={fmtDate(bill.invoiceDate)}
+            isLight={isLight}
+          />
+        </div>
+      )}
 
       {/* Schedule chips */}
       <div className={`rounded-xl border p-3 ${
@@ -227,25 +247,56 @@ const BillDetail: React.FC<{
         </div>
       </div>
 
-      {/* Payment date when paid */}
+      {/* Payment date (paid bills) */}
       {localStatus === "paid" && (
-        <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${
+        <div className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border ${
           isLight ? "bg-emerald-50 border-emerald-200" : "bg-emerald-900/20 border-emerald-800/40"
         }`}>
-          <span className={`text-[10px] font-bold uppercase tracking-wide ${
+          <CheckCircle2 className={`w-3.5 h-3.5 shrink-0 ${isLight ? "text-emerald-600" : "text-emerald-400"}`} />
+          <span className={`text-[10px] font-bold uppercase tracking-wide shrink-0 ${
             isLight ? "text-emerald-700" : "text-emerald-400"
-          }`}>Payment Date:</span>
-          <input
-            type="date"
-            value={paidDate}
-            onChange={(e) => {
-              setPaidDate(e.target.value);
-              toggleBillStatus(bill.id, "paid", e.target.value);
-            }}
-            className={`text-[11px] font-semibold border rounded px-2 py-0.5 focus:outline-none ${
-              isLight ? "bg-white border-emerald-300 text-emerald-800" : "bg-[#111] border-emerald-700 text-emerald-300"
-            }`}
-          />
+          }`}>Payment Date</span>
+          <div className="ml-auto flex items-center gap-2">
+            {paidDate ? (
+              <>
+                <span className={`text-[12px] font-bold ${isLight ? "text-emerald-800" : "text-emerald-300"}`}>
+                  {fmtDate(paidDate)}
+                </span>
+                <input
+                  type="date"
+                  value={paidDate}
+                  onChange={(e) => {
+                    setPaidDate(e.target.value);
+                    toggleBillStatus(bill.id, "paid", e.target.value);
+                  }}
+                  title="Edit payment date"
+                  className={`text-[11px] font-semibold border rounded px-2 py-0.5 focus:outline-none ${
+                    isLight ? "bg-white border-emerald-300 text-emerald-700" : "bg-[#111] border-emerald-700 text-emerald-300"
+                  }`}
+                />
+              </>
+            ) : (
+              <>
+                <span className={`text-[11px] italic font-medium ${isLight ? "text-slate-400" : "text-[#555]"}`}>
+                  -no record-
+                </span>
+                <button
+                  onClick={() => {
+                    const today = new Date().toISOString().split("T")[0];
+                    setPaidDate(today);
+                    toggleBillStatus(bill.id, "paid", today);
+                  }}
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded border transition-colors ${
+                    isLight
+                      ? "border-emerald-300 text-emerald-700 hover:bg-emerald-100"
+                      : "border-emerald-700 text-emerald-400 hover:bg-emerald-900/40"
+                  }`}
+                >
+                  + Set Date
+                </button>
+              </>
+            )}
+          </div>
         </div>
       )}
 

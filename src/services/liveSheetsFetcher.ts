@@ -441,6 +441,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       amount,
       dueDate: finalDueDate,
       invoiceDate: parseDateVal(row[7]) || undefined,
+      paidDate: status === "paid" ? parseDateVal(row[11]) || undefined : undefined, // col L = paid date
       method,
       status,
       inQBO,
@@ -582,6 +583,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
         amount,
         dueDate,
         invoiceDate: parseDateVal(row[7]) || undefined,
+        paidDate: status === "paid" ? parseDateVal(row[10]) || undefined : undefined, // col K = paid date
         method,
         status,
         inQBO,
@@ -631,6 +633,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       amount,
       dueDate,
       invoiceDate: parseDateVal(row[7]) || undefined,
+      paidDate: status === "paid" ? parseDateVal(row[11]) || undefined : undefined, // col L = paid date
       method,
       status,
       inQBO,
