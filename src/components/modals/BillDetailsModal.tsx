@@ -483,7 +483,7 @@ export const BillDetailsModal: React.FC<BillDetailsModalProps> = ({
   const { theme, toggleBillStatus, deleteBill } = useFinance();
   const isLight = theme === "light";
   // For multi-bill: which accordion item is open (-1 = none, auto-open first)
-  const [expandedIdx, setExpandedIdx] = useState<number>(0);
+  const [expandedIdx, setExpandedIdx] = useState<number>(-1);
 
   if (!isOpen || vendorBills.length === 0) return null;
 
