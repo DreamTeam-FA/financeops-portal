@@ -3,7 +3,7 @@ import { APBill } from "../../types";
 import { useFinance } from "../../context/FinanceContext";
 import {
   X, Pencil, Trash2, CheckCircle2, PauseCircle, Zap, FileText,
-  ChevronLeft, ChevronRight, ExternalLink
+  ChevronDown, ExternalLink
 } from "lucide-react";
 
 interface BillDetailsModalProps {
@@ -104,7 +104,7 @@ const Chip: React.FC<{
     }`}
     style={active ? { color: accentColor } : {}}
     >{label}</p>
-    <p className={`text-[12px] font-bold ${active ? "" : ""}`}
+    <p className="text-[12px] font-bold"
       style={active ? { color: accentColor } : {}}
     >
       {value || "—"}
@@ -112,7 +112,6 @@ const Chip: React.FC<{
   </div>
 );
 
-/* ── Single bill detail view ──────────────────────────────── */
 /* ── Date formatter ──────────────────────────────────────── */
 const fmtDate = (d?: string) => {
   if (!d) return "";
@@ -121,6 +120,7 @@ const fmtDate = (d?: string) => {
   return dt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 };
 
+/* ── Single bill detail body ──────────────────────────────── */
 const BillDetail: React.FC<{
   bill: APBill;
   isLight: boolean;
@@ -128,25 +128,12 @@ const BillDetail: React.FC<{
   onEdit: () => void;
   onClose: () => void;
 }> = ({ bill, isLight, accentColor, onEdit, onClose }) => {
-  const { toggleBillStatus, deleteBill, updateBill } = useFinance();
+  const { toggleBillStatus, updateBill } = useFinance();
   const [localStatus, setLocalStatus] = useState(bill.status || "unpaid");
-  // Do NOT default to today — leave empty so we know there's truly no record
-  const [paidDate, setPaidDate] = useState(
-    bill.paymentDate || bill.paidDate || ""
-  );
+  const [paidDate, setPaidDate] = useState(bill.paymentDate || bill.paidDate || "");
 
   const remarks = bill.paymentInstructions || bill.remarks || bill.notes || "";
   const isLink = remarks.startsWith("http");
-
-  const handleMarkPaid = () => {
-    setLocalStatus("paid");
-    toggleBillStatus(bill.id, "paid", paidDate);
-  };
-
-  const handleHold = () => {
-    setLocalStatus(localStatus === "hold" ? "unpaid" : "hold");
-    toggleBillStatus(bill.id, localStatus === "hold" ? "unpaid" : "hold");
-  };
 
   const handleQBO = () => updateBill({ ...bill, inQBO: !bill.inQBO });
 
@@ -164,7 +151,6 @@ const BillDetail: React.FC<{
             {fmt(bill.amount)}
           </span>
           <div className="flex items-center gap-2">
-            {/* QBO badge */}
             <button
               onClick={handleQBO}
               title={bill.inQBO ? "In QBO — click to toggle" : "Not in QBO"}
@@ -183,32 +169,15 @@ const BillDetail: React.FC<{
 
       {/* Info grid */}
       <div className="flex gap-2">
-        <InfoCard
-          label="Company Entity"
-          value={bill.entity}
-          accent={accentColor}
-          isLight={isLight}
-        />
-        <InfoCard
-          label="Due Date"
-          value={fmtDate(bill.dueDate) || "—"}
-          isLight={isLight}
-        />
-        <InfoCard
-          label="Invoice Number"
-          value={bill.invoiceNo || "—"}
-          isLight={isLight}
-        />
+        <InfoCard label="Company Entity" value={bill.entity} accent={accentColor} isLight={isLight} />
+        <InfoCard label="Due Date" value={fmtDate(bill.dueDate) || "—"} isLight={isLight} />
+        <InfoCard label="Invoice Number" value={bill.invoiceNo || "—"} isLight={isLight} />
       </div>
 
       {/* Invoice date row (if present) */}
       {bill.invoiceDate && (
         <div className="flex gap-2">
-          <InfoCard
-            label="Invoice Date"
-            value={fmtDate(bill.invoiceDate)}
-            isLight={isLight}
-          />
+          <InfoCard label="Invoice Date" value={fmtDate(bill.invoiceDate)} isLight={isLight} />
         </div>
       )}
 
@@ -223,27 +192,12 @@ const BillDetail: React.FC<{
           }`}>Bill Schedule &amp; Payment Details</span>
         </div>
         <div className="flex gap-2">
-          <Chip
-            label="Debit Type"
-            value={bill.paymentType || bill.method || "Manual"}
-            active={bill.paymentType === "Auto-Debit"}
-            accentColor={accentColor}
-            isLight={isLight}
-          />
-          <Chip
-            label="Frequency"
-            value={bill.recurringType || "Non-Recurring"}
-            active={bill.recurringType === "Recurring"}
-            accentColor={accentColor}
-            isLight={isLight}
-          />
-          <Chip
-            label="Amount Type"
-            value={bill.costType || "Fixed"}
-            active={bill.costType === "Fixed" || !bill.costType}
-            accentColor={accentColor}
-            isLight={isLight}
-          />
+          <Chip label="Debit Type" value={bill.paymentType || bill.method || "Manual"}
+            active={bill.paymentType === "Auto-Debit"} accentColor={accentColor} isLight={isLight} />
+          <Chip label="Frequency" value={bill.recurringType || "Non-Recurring"}
+            active={bill.recurringType === "Recurring"} accentColor={accentColor} isLight={isLight} />
+          <Chip label="Amount Type" value={bill.costType || "Fixed"}
+            active={bill.costType === "Fixed" || !bill.costType} accentColor={accentColor} isLight={isLight} />
         </div>
       </div>
 
@@ -339,13 +293,177 @@ const BillDetail: React.FC<{
         )}
       </div>
 
-      {/* Footer */}
+      {/* Footer meta */}
       <div className={`flex items-center justify-between text-[10px] px-1 ${
         isLight ? "text-slate-400" : "text-[#555]"
       }`}>
         <span>Source Sheet: <strong className={isLight ? "text-slate-500" : "text-[#777]"}>{bill.sheet || `${bill.entity} Bills`}</strong></span>
         {bill.row && <span>Row Index: <strong className={isLight ? "text-slate-500" : "text-[#777]"}>{bill.row}</strong></span>}
       </div>
+    </div>
+  );
+};
+
+/* ── Accordion item (used in multi-bill view) ─────────────── */
+const AccordionItem: React.FC<{
+  bill: APBill;
+  index: number;
+  isOpen: boolean;
+  onToggle: () => void;
+  isLight: boolean;
+  onEdit: () => void;
+  onClose: () => void;
+}> = ({ bill, index, isOpen, onToggle, isLight, onEdit, onClose }) => {
+  const { toggleBillStatus, deleteBill } = useFinance();
+  const accentColor = getEntityColor(bill.entity);
+  const overdue = bill.status === "unpaid" && isOverdue(bill.dueDate);
+
+  const handleMarkPaid = () =>
+    toggleBillStatus(bill.id, bill.status === "paid" ? "unpaid" : "paid",
+      bill.paidDate || new Date().toISOString().split("T")[0]);
+
+  const handleHold = () =>
+    toggleBillStatus(bill.id, bill.status === "hold" ? "unpaid" : "hold");
+
+  const handleDelete = () => {
+    if (confirm(`Delete this bill for ${bill.vendor}?`)) deleteBill(bill.id);
+  };
+
+  // Border color per status
+  const borderCls = isOpen
+    ? `border-2`
+    : isLight ? "border" : "border";
+  const borderStyle = isOpen
+    ? { borderColor: accentColor + "66" }
+    : {};
+
+  return (
+    <div
+      className={`rounded-xl overflow-hidden transition-all duration-200 ${borderCls} ${
+        isLight ? "border-slate-200 bg-white" : "border-[#2a2a2a] bg-[#161616]"
+      }`}
+      style={borderStyle}
+    >
+      {/* ── Collapsed header / toggle row ── */}
+      <button
+        onClick={onToggle}
+        className={`w-full flex items-center gap-2.5 px-4 py-3 text-left transition-colors ${
+          isOpen
+            ? isLight ? "bg-slate-50" : "bg-[#1a1a1a]"
+            : isLight ? "hover:bg-slate-50" : "hover:bg-[#1e1e1e]"
+        }`}
+      >
+        {/* Bill number pill */}
+        <span
+          className="w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center text-white shrink-0"
+          style={{ backgroundColor: accentColor }}
+        >
+          {index + 1}
+        </span>
+
+        {/* Amount */}
+        <span className="text-[14px] font-black shrink-0" style={{ color: accentColor }}>
+          {fmt(bill.amount)}
+        </span>
+
+        {/* Status badge */}
+        <StatusBadge status={bill.status} dueDate={bill.dueDate} />
+
+        {/* Spacer */}
+        <span className="flex-1" />
+
+        {/* Due date */}
+        <span className={`text-[10px] font-semibold shrink-0 ${
+          overdue
+            ? "text-red-500"
+            : isLight ? "text-slate-400" : "text-[#666]"
+        }`}>
+          Due {fmtDate(bill.dueDate) || "—"}
+        </span>
+
+        {/* Invoice number (if present) */}
+        {bill.invoiceNo && (
+          <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded shrink-0 ${
+            isLight ? "bg-slate-100 text-slate-500" : "bg-[#252525] text-[#888]"
+          }`}>
+            #{bill.invoiceNo}
+          </span>
+        )}
+
+        {/* Chevron */}
+        <ChevronDown
+          className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
+            isOpen ? "rotate-180" : ""
+          } ${isLight ? "text-slate-400" : "text-[#555]"}`}
+        />
+      </button>
+
+      {/* ── Expanded detail panel ── */}
+      {isOpen && (
+        <>
+          <div className={`border-t px-4 pt-4 pb-2 ${
+            isLight ? "border-slate-100" : "border-[#222]"
+          }`}>
+            <BillDetail
+              key={bill.id}
+              bill={bill}
+              isLight={isLight}
+              accentColor={accentColor}
+              onEdit={onEdit}
+              onClose={onClose}
+            />
+          </div>
+
+          {/* Action buttons inside each expanded accordion item */}
+          <div className={`px-4 py-3 border-t flex items-center gap-2 flex-wrap ${
+            isLight ? "border-slate-100 bg-slate-50" : "border-[#222] bg-[#0d0d0d]"
+          }`}>
+            <button
+              onClick={handleMarkPaid}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold text-white transition-all hover:opacity-90 shadow-xs"
+              style={{ backgroundColor: accentColor }}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              {bill.status === "paid" ? "Mark Unpaid" : "Mark Paid"}
+            </button>
+            <button
+              onClick={handleHold}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all hover:opacity-90 border ${
+                bill.status === "hold"
+                  ? "bg-amber-500 text-white border-amber-400"
+                  : isLight
+                    ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                    : "bg-amber-900/20 text-amber-400 border-amber-800/40 hover:bg-amber-900/30"
+              }`}
+            >
+              <PauseCircle className="w-3.5 h-3.5" />
+              {bill.status === "hold" ? "Remove Hold" : "Put On Hold"}
+            </button>
+            <button
+              onClick={onEdit}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold border transition-all ml-auto ${
+                isLight
+                  ? "border-slate-200 text-slate-600 hover:bg-slate-100"
+                  : "border-[#333] text-[#aaa] hover:bg-[#1a1a1a]"
+              }`}
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              Edit Bill
+            </button>
+            <button
+              onClick={handleDelete}
+              className={`p-2 rounded-lg border transition-colors ${
+                isLight
+                  ? "border-red-200 text-red-500 hover:bg-red-50"
+                  : "border-red-900/40 text-red-400 hover:bg-red-900/20"
+              }`}
+              title="Delete bill"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 };
@@ -359,33 +477,30 @@ export const BillDetailsModal: React.FC<BillDetailsModalProps> = ({
 }) => {
   const { theme, toggleBillStatus, deleteBill } = useFinance();
   const isLight = theme === "light";
-  const [idx, setIdx] = useState(0);
+  // For multi-bill: which accordion item is open (-1 = none, auto-open first)
+  const [expandedIdx, setExpandedIdx] = useState<number>(0);
 
   if (!isOpen || vendorBills.length === 0) return null;
 
-  const bill = vendorBills[Math.min(idx, vendorBills.length - 1)];
-  const accentColor = getEntityColor(bill.entity);
-  const total = vendorBills.reduce((s, b) => s + b.amount, 0);
   const multi = vendorBills.length > 1;
+  const accentColor = getEntityColor(vendorBills[0].entity);
+  const total = vendorBills.reduce((s, b) => s + b.amount, 0);
+  const vendor = vendorBills[0].vendor;
 
-  const handleEdit = () => { onClose(); onEdit(bill); };
-
-  const handleDelete = () => {
-    if (confirm(`Delete bill for ${bill.vendor}?`)) {
-      deleteBill(bill.id);
-      if (vendorBills.length <= 1) onClose();
-      else setIdx((p) => Math.max(0, p - 1));
+  // Single-bill helpers (used in footer when multi=false)
+  const singleBill = vendorBills[0];
+  const handleSingleEdit = () => { onClose(); onEdit(singleBill); };
+  const handleSingleDelete = () => {
+    if (confirm(`Delete bill for ${singleBill.vendor}?`)) {
+      deleteBill(singleBill.id);
+      onClose();
     }
   };
-
-  const handleMarkPaid = () => {
-    toggleBillStatus(bill.id, bill.status === "paid" ? "unpaid" : "paid",
-      bill.paidDate || new Date().toISOString().split("T")[0]);
-  };
-
-  const handleHold = () => {
-    toggleBillStatus(bill.id, bill.status === "hold" ? "unpaid" : "hold");
-  };
+  const handleSingleMarkPaid = () =>
+    toggleBillStatus(singleBill.id, singleBill.status === "paid" ? "unpaid" : "paid",
+      singleBill.paidDate || new Date().toISOString().split("T")[0]);
+  const handleSingleHold = () =>
+    toggleBillStatus(singleBill.id, singleBill.status === "hold" ? "unpaid" : "hold");
 
   const surf = isLight ? "bg-white text-slate-900" : "bg-[#111] text-white";
 
@@ -404,7 +519,7 @@ export const BillDetailsModal: React.FC<BillDetailsModalProps> = ({
         }`}>
           <div>
             <h2 className={`text-lg font-black tracking-tight ${isLight ? "text-slate-900" : "text-white"}`}>
-              {bill.vendor}
+              {vendor}
             </h2>
             <p className={`text-[11px] font-medium mt-0.5 ${isLight ? "text-slate-500" : "text-[#888]"}`}>
               Accounts Payable Bill Details
@@ -425,89 +540,84 @@ export const BillDetailsModal: React.FC<BillDetailsModalProps> = ({
           </button>
         </div>
 
-        {/* Bill navigator (multi-bill) */}
-        {multi && (
-          <div className={`flex items-center justify-between px-5 py-2 border-b text-[11px] font-semibold ${
-            isLight ? "bg-slate-50 border-slate-100 text-slate-500" : "bg-[#161616] border-[#222] text-[#888]"
-          }`}>
-            <button
-              onClick={() => setIdx((p) => Math.max(0, p - 1))}
-              disabled={idx === 0}
-              className="p-1 rounded hover:bg-black/10 disabled:opacity-30 transition-opacity"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span>Bill {idx + 1} of {vendorBills.length}</span>
-            <button
-              onClick={() => setIdx((p) => Math.min(vendorBills.length - 1, p + 1))}
-              disabled={idx === vendorBills.length - 1}
-              className="p-1 rounded hover:bg-black/10 disabled:opacity-30 transition-opacity"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
+        {/* ── MULTI-BILL: Accordion list ── */}
+        {multi ? (
+          <div className="px-4 py-4 overflow-y-auto max-h-[78vh] flex flex-col gap-2">
+            {vendorBills.map((bill, i) => (
+              <AccordionItem
+                key={bill.id}
+                bill={bill}
+                index={i}
+                isOpen={expandedIdx === i}
+                onToggle={() => setExpandedIdx(expandedIdx === i ? -1 : i)}
+                isLight={isLight}
+                onEdit={() => { onClose(); onEdit(bill); }}
+                onClose={onClose}
+              />
+            ))}
           </div>
+        ) : (
+          /* ── SINGLE-BILL: original flat view ── */
+          <>
+            <div className="px-5 py-4 overflow-y-auto max-h-[70vh]">
+              <BillDetail
+                key={singleBill.id}
+                bill={singleBill}
+                isLight={isLight}
+                accentColor={accentColor}
+                onEdit={handleSingleEdit}
+                onClose={onClose}
+              />
+            </div>
+            <div className={`px-5 py-3 border-t flex items-center gap-2 flex-wrap ${
+              isLight ? "border-slate-100 bg-slate-50" : "border-[#222] bg-[#0d0d0d]"
+            }`}>
+              <button
+                onClick={handleSingleMarkPaid}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold text-white transition-all hover:opacity-90 shadow-xs"
+                style={{ backgroundColor: accentColor }}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                {singleBill.status === "paid" ? "Mark Unpaid" : "Mark Paid"}
+              </button>
+              <button
+                onClick={handleSingleHold}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all hover:opacity-90 border ${
+                  singleBill.status === "hold"
+                    ? "bg-amber-500 text-white border-amber-400"
+                    : isLight
+                      ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                      : "bg-amber-900/20 text-amber-400 border-amber-800/40 hover:bg-amber-900/30"
+                }`}
+              >
+                <PauseCircle className="w-3.5 h-3.5" />
+                {singleBill.status === "hold" ? "Remove Hold" : "Put On Hold"}
+              </button>
+              <button
+                onClick={handleSingleEdit}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold border transition-all ml-auto ${
+                  isLight
+                    ? "border-slate-200 text-slate-600 hover:bg-slate-100"
+                    : "border-[#333] text-[#aaa] hover:bg-[#1a1a1a]"
+                }`}
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                Edit Bill
+              </button>
+              <button
+                onClick={handleSingleDelete}
+                className={`p-2 rounded-lg border transition-colors ${
+                  isLight
+                    ? "border-red-200 text-red-500 hover:bg-red-50"
+                    : "border-red-900/40 text-red-400 hover:bg-red-900/20"
+                }`}
+                title="Delete bill"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </>
         )}
-
-        {/* Detail body */}
-        <div className="px-5 py-4 overflow-y-auto max-h-[70vh]">
-          <BillDetail
-            key={bill.id}
-            bill={bill}
-            isLight={isLight}
-            accentColor={accentColor}
-            onEdit={handleEdit}
-            onClose={onClose}
-          />
-        </div>
-
-        {/* Action buttons */}
-        <div className={`px-5 py-3 border-t flex items-center gap-2 flex-wrap ${
-          isLight ? "border-slate-100 bg-slate-50" : "border-[#222] bg-[#0d0d0d]"
-        }`}>
-          <button
-            onClick={handleMarkPaid}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold text-white transition-all hover:opacity-90 shadow-xs"
-            style={{ backgroundColor: accentColor }}
-          >
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            {bill.status === "paid" ? "Mark Unpaid" : "Mark Paid"}
-          </button>
-          <button
-            onClick={handleHold}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all hover:opacity-90 border ${
-              bill.status === "hold"
-                ? "bg-amber-500 text-white border-amber-400"
-                : isLight
-                  ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
-                  : "bg-amber-900/20 text-amber-400 border-amber-800/40 hover:bg-amber-900/30"
-            }`}
-          >
-            <PauseCircle className="w-3.5 h-3.5" />
-            {bill.status === "hold" ? "Remove Hold" : "Put On Hold"}
-          </button>
-          <button
-            onClick={handleEdit}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold border transition-all ml-auto ${
-              isLight
-                ? "border-slate-200 text-slate-600 hover:bg-slate-100"
-                : "border-[#333] text-[#aaa] hover:bg-[#1a1a1a]"
-            }`}
-          >
-            <Pencil className="w-3.5 h-3.5" />
-            Edit Bill
-          </button>
-          <button
-            onClick={handleDelete}
-            className={`p-2 rounded-lg border transition-colors ${
-              isLight
-                ? "border-red-200 text-red-500 hover:bg-red-50"
-                : "border-red-900/40 text-red-400 hover:bg-red-900/20"
-            }`}
-            title="Delete bill"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
       </div>
     </div>
   );
