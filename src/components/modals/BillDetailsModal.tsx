@@ -329,27 +329,19 @@ const AccordionItem: React.FC<{
     if (confirm(`Delete this bill for ${bill.vendor}?`)) deleteBill(bill.id);
   };
 
-  // Border color per status
-  const borderCls = isOpen
-    ? `border-2`
-    : isLight ? "border" : "border";
-  const borderStyle = isOpen
-    ? { borderColor: accentColor + "66" }
-    : {};
-
   return (
     <div
-      className={`rounded-xl overflow-hidden transition-all duration-200 ${borderCls} ${
+      className={`rounded-xl border transition-all duration-200 ${
         isLight ? "border-slate-200 bg-white" : "border-[#2a2a2a] bg-[#161616]"
       }`}
-      style={borderStyle}
+      style={isOpen ? { boxShadow: `0 0 0 2px ${accentColor}55` } : {}}
     >
       {/* ── Collapsed header / toggle row ── */}
       <button
         onClick={onToggle}
-        className={`w-full flex items-center gap-2.5 px-4 py-3 text-left transition-colors ${
+        className={`w-full flex items-center gap-2.5 px-4 py-3 text-left transition-colors rounded-xl ${
           isOpen
-            ? isLight ? "bg-slate-50" : "bg-[#1a1a1a]"
+            ? isLight ? "bg-slate-50 rounded-b-none" : "bg-[#1a1a1a] rounded-b-none"
             : isLight ? "hover:bg-slate-50" : "hover:bg-[#1e1e1e]"
         }`}
       >
@@ -542,7 +534,7 @@ export const BillDetailsModal: React.FC<BillDetailsModalProps> = ({
 
         {/* ── MULTI-BILL: Accordion list ── */}
         {multi ? (
-          <div className="px-4 py-4 overflow-y-auto max-h-[78vh] flex flex-col gap-2">
+          <div className="px-4 pt-3 pb-4 overflow-y-auto max-h-[78vh] flex flex-col gap-2.5" style={{ scrollPaddingTop: "4px" }}>
             {vendorBills.map((bill, i) => (
               <AccordionItem
                 key={bill.id}
