@@ -75,7 +75,8 @@ const InfoCard: React.FC<{
         {value}
       </span>
     ) : (
-      <p className={`text-[13px] font-bold truncate ${isLight ? "text-slate-900" : "text-white"}`}>
+      <p className={`font-bold leading-snug break-words ${isLight ? "text-slate-900" : "text-white"}`}
+        style={{ fontSize: typeof value === "string" && value.length > 24 ? "11px" : "13px" }}>
         {value || "—"}
       </p>
     )}
