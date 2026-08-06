@@ -955,12 +955,25 @@ export async function fetchFullLiveDataset(accessToken?: string) {
         const senVal  = mCfg.senCol  >= 0 ? safe(mCfg.senCol)  : true;
         const payVal  = mCfg.payCol  >= 0 ? safe(mCfg.payCol)  : false;
 
+        // Resolve dueDate to ISO YYYY-MM-DD so overdue comparison in HubPage works.
+        // Raw cell values like "End of Month", "Apr 30", or blank all fall through
+        // to the end-of-month fallback for the item's own month.
+        const resolvedDueDate = (() => {
+          const parsed = parseDateVal(rawDue);
+          if (parsed) return parsed;
+          const mIdx = MONTH_ORDER.indexOf(mCfg.name);
+          if (mIdx < 0) return "";
+          const cy = new Date().getFullYear();
+          const lastDay = new Date(cy, mIdx + 1, 0).getDate();
+          return `${cy}-${String(mIdx + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+        })();
+
         ar.push({
           id:          `ar-${i + 1}-${mCfg.name}`,
           entity, customer,
           description: desc,
           amount:      amt,
-          dueDate:     String(rawDue),
+          dueDate:     resolvedDueDate,
           month:       mCfg.name,
           occurrence:  String(row[6] || "Monthly"),
           invoice:     isTrue(invVal) || amt > 0,
