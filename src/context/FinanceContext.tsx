@@ -522,8 +522,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const addQuickNote = (note: Omit<DashboardNote, "id">) => {
     const newNote: DashboardNote = {
       ...note,
-      // Use "qn-" prefix so IDs round-trip correctly through the sheet fetcher
-      id: "qn-" + Date.now(),
+      // "qn-n" prefix: "qn-" is stripped by buildNoteRow → sheet gets "n<timestamp>"
+      // matching the GAS convention so other portals/dashboards can read the note
+      id: "qn-n" + Date.now(),
       createdAt: note.createdAt || new Date().toISOString().split("T")[0]
     };
     const updated = [newNote, ...quickNotes];

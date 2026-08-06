@@ -115,22 +115,25 @@ export const NotesPage: React.FC = () => {
     return base;
   }, [tiSubCompanies]);
 
-  // ── Vendor options filtered by selected entity ─────────────────────────────
+  // ── Vendor options filtered by selected entity (falls back to all vendors) ──
   const vendorOptions = useMemo(() => {
-    const set = new Set<string>();
+    const allVendors = new Set<string>();
+    apBills.forEach((b) => b.vendor && allVendors.add(b.vendor));
+
+    if (!formEntity || formEntity === "ALL") return Array.from(allVendors).sort();
+
+    const filtered = new Set<string>();
+    const fEnt = formEntity.toLowerCase();
     apBills
       .filter((b) => {
-        if (!formEntity || formEntity === "ALL") return true;
         const bEnt = (b.entity || "").toLowerCase();
         const bCom = (b.company || "").toLowerCase();
-        const fEnt = formEntity.toLowerCase();
-        return bEnt.includes(fEnt) || bCom.includes(fEnt) ||
-          (fEnt.includes("ruby") && bEnt.includes("ruby")) ||
-          (fEnt.includes("msdx") && bEnt.includes("msdx")) ||
-          b.company === formEntity || b.entity === formEntity;
+        return bEnt.includes(fEnt) || bCom.includes(fEnt) || b.company === formEntity || b.entity === formEntity;
       })
-      .forEach((b) => b.vendor && set.add(b.vendor));
-    return Array.from(set).sort();
+      .forEach((b) => b.vendor && filtered.add(b.vendor));
+
+    // Fall back to all vendors so the datalist is never empty
+    return (filtered.size > 0 ? Array.from(filtered) : Array.from(allVendors)).sort();
   }, [apBills, formEntity]);
 
   const handleMarkDone = (id: string) => {
@@ -333,12 +336,6 @@ export const NotesPage: React.FC = () => {
           <span className="text-xs font-semibold px-3 py-1 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
             {filteredNotes.length} Total Notes
           </span>
-          <button
-            onClick={openCreateModal}
-            className="px-3.5 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
-          >
-            <Plus className="w-4 h-4" /> New Note
-          </button>
         </div>
       </div>
 
@@ -410,13 +407,6 @@ export const NotesPage: React.FC = () => {
                               {note.entity && (
                                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${getEntityBadgeColor(note.entity)}`}>
                                   {note.entity}
-                                </span>
-                              )}
-
-                              {/* Vendor badge */}
-                              {note.vendorName && (
-                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-600 dark:text-purple-300 uppercase tracking-wider">
-                                  Vendor: {note.vendorName}
                                 </span>
                               )}
                             </div>

@@ -84,18 +84,24 @@ export const NotesFloatingWidget: React.FC = () => {
     return Array.from(set).sort();
   }, [apBills]);
 
-  // ── Vendor options filtered by selected entity ─────────────────────────────
+  // ── Vendor options filtered by selected entity (falls back to all vendors) ──
   const vendorOptions = useMemo(() => {
-    const set = new Set<string>();
+    const allVendors = new Set<string>();
+    apBills.forEach((b) => b.vendor && allVendors.add(b.vendor));
+
+    if (!entity || entity === "ALL") return Array.from(allVendors).sort();
+
+    const filtered = new Set<string>();
+    const ent = entity.toLowerCase();
     apBills
-      .filter((b) => {
-        if (!entity || entity === "ALL") return true;
-        const ent = entity.toLowerCase();
-        return (b.entity || "").toLowerCase().includes(ent) ||
-               (b.company || "").toLowerCase().includes(ent);
-      })
-      .forEach((b) => b.vendor && set.add(b.vendor));
-    return Array.from(set).sort();
+      .filter((b) =>
+        (b.entity || "").toLowerCase().includes(ent) ||
+        (b.company || "").toLowerCase().includes(ent)
+      )
+      .forEach((b) => b.vendor && filtered.add(b.vendor));
+
+    // Fall back to all vendors so the datalist is never empty
+    return (filtered.size > 0 ? Array.from(filtered) : Array.from(allVendors)).sort();
   }, [apBills, entity]);
 
   const resetForm = () => {
