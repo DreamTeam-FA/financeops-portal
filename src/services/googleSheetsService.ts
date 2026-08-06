@@ -6,7 +6,8 @@ import {
   BankStatement,
   EntityName,
   PaymentMethod,
-  PayrollPivot
+  PayrollPivot,
+  DashboardNote
 } from "../types";
 import { extractInvoiceNumber } from "./liveSheetsFetcher";
 
@@ -1597,4 +1598,66 @@ export const formatPayrollSheetRows = (pivot: PayrollPivot): any[][] => {
   });
 
   return [header, ...rows];
+};
+
+// ── Meeting Notes / Quick Notes sheet sync ───────────────────────────────────
+// Tab column layout (0-indexed):
+//   A(0)=ID  B(1)=Created  C(2)=WeekLabel  D(3)=WeekStart
+//   E(4)=Company  F(5)=Vendor  G(6)=NoteText  H(7)=Done  I(8)=LastUpdated
+
+export const buildNoteRow = (note: DashboardNote): any[] => {
+  // Strip the "qn-" prefix to get the raw sheet ID value
+  const rawId = note.id.replace(/^qn-/, "");
+  const today = new Date().toISOString().split("T")[0];
+  // content field stores "vendor — company"; unpack if set
+  const contentParts = (note.content || "").split(" — ");
+  const vendor  = note.vendorName  || (contentParts.length > 1 ? contentParts[0] : "");
+  const company = note.entity      || (contentParts.length > 1 ? contentParts[1] : contentParts[0] || "");
+  return [
+    rawId,
+    note.createdAt  || today,
+    note.weekLabel  || note.category || "",
+    note.createdAt  || today,
+    company,
+    vendor,
+    note.title,
+    note.status === "done" ? "TRUE" : "FALSE",
+    note.completedAt || (note.status === "done" ? today : ""),
+  ];
+};
+
+/** Append a new note row at the end of the tab's data. */
+export const appendNoteToSheet = async (
+  note: DashboardNote,
+  spreadsheetId: string,
+  token: string,
+  tabName = "Meeting Notes"
+): Promise<void> => {
+  await appendSheetValues(spreadsheetId, `'${tabName}'!A:I`, [buildNoteRow(note)], token);
+};
+
+/** Overwrite the note at its exact sheet row; falls back to append if row is unknown. */
+export const writeSingleNote = async (
+  note: DashboardNote,
+  spreadsheetId: string,
+  token: string,
+  tabName = "Meeting Notes"
+): Promise<void> => {
+  if (!note.row) {
+    await appendNoteToSheet(note, spreadsheetId, token, tabName);
+    return;
+  }
+  const range = `'${tabName}'!A${note.row}:I${note.row}`;
+  await updateSheetValues(spreadsheetId, range, [buildNoteRow(note)], token);
+};
+
+/** Clear a note row (soft-delete — empties the cells, row stays). */
+export const clearNoteRow = async (
+  rowNum: number,
+  spreadsheetId: string,
+  token: string,
+  tabName = "Meeting Notes"
+): Promise<void> => {
+  const range = `'${tabName}'!A${rowNum}:I${rowNum}`;
+  await updateSheetValues(spreadsheetId, range, [["", "", "", "", "", "", "", "", ""]], token);
 };

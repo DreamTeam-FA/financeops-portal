@@ -56,7 +56,10 @@ import {
   writeSingleARItem,
   appendARItem,
   writeSingleStatement,
-  appendStatement
+  appendStatement,
+  appendNoteToSheet,
+  writeSingleNote,
+  clearNoteRow
 } from "../services/googleSheetsService";
 
 interface FinanceContextType {
@@ -490,16 +493,36 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     logAction("User Signed Out", "User signed out completely from active session.");
   };
 
+  // Helper: push a note to the Meeting Notes sheet tab (fire-and-forget).
+  const pushNoteToSheet = (note: DashboardNote, action: "append" | "write" | "clear") => {
+    const token = getAccessToken();
+    if (!token) return; // not connected to sheets — skip silently
+    const apMapping = sheetMappings.find((m) => m.module === "ap");
+    const spreadsheetId = apMapping?.spreadsheetIdOrUrl || "";
+    if (!spreadsheetId) return;
+    (async () => {
+      try {
+        if (action === "append") await appendNoteToSheet(note, spreadsheetId, token);
+        else if (action === "write") await writeSingleNote(note, spreadsheetId, token);
+        else if (action === "clear" && note.row) await clearNoteRow(note.row, spreadsheetId, token);
+      } catch (err: any) {
+        console.warn("Note sheet sync failed:", err?.message || err);
+      }
+    })();
+  };
+
   const addQuickNote = (note: Omit<DashboardNote, "id">) => {
     const newNote: DashboardNote = {
       ...note,
-      id: "note-" + Date.now(),
+      // Use "qn-" prefix so IDs round-trip correctly through the sheet fetcher
+      id: "qn-" + Date.now(),
       createdAt: note.createdAt || new Date().toISOString().split("T")[0]
     };
     const updated = [newNote, ...quickNotes];
     setQuickNotes(updated);
     localStorage.setItem("financeops_quick_notes", JSON.stringify(updated));
     persistChanges({ quickNotes: updated } as any);
+    pushNoteToSheet(newNote, "append");
     logAction("Added Note", `Created note '${newNote.title}'`);
   };
 
@@ -508,14 +531,18 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setQuickNotes(updated);
     localStorage.setItem("financeops_quick_notes", JSON.stringify(updated));
     persistChanges({ quickNotes: updated } as any);
+    const updatedNote = updated.find((n) => n.id === id);
+    if (updatedNote) pushNoteToSheet(updatedNote, "write");
     logAction("Updated Note", `Updated note ID '${id}'`);
   };
 
   const deleteQuickNote = (id: string) => {
+    const noteToDelete = quickNotes.find((n) => n.id === id);
     const updated = quickNotes.filter((n) => n.id !== id);
     setQuickNotes(updated);
     localStorage.setItem("financeops_quick_notes", JSON.stringify(updated));
     persistChanges({ quickNotes: updated } as any);
+    if (noteToDelete) pushNoteToSheet(noteToDelete, "clear");
     logAction("Deleted Note", `Removed note ID '${id}'`);
   };
 
@@ -598,16 +625,14 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           if (data.loans) setLoans(data.loans);
           if (data.ar) setArItems(data.ar);
           if (data.statements) setBankStatements(data.statements);
-          if (data.quickNotes) {
-            // Merge: portal-toggled "done" wins over sheet "open" so refreshing
-            // doesn't silently revert notes the user already marked done locally.
-            const localNotes: import("../types").DashboardNote[] = (() => {
+          if (data.quickNotes && Array.isArray(data.quickNotes) && data.quickNotes.length > 0) {
+            // mergeSheetNotes is defined just below in this effect — hoisted via closure
+            const localNotes: DashboardNote[] = (() => {
               try { return JSON.parse(localStorage.getItem("financeops_quick_notes") || "[]"); } catch { return []; }
             })();
-            const localMap = new Map(localNotes.map((n: import("../types").DashboardNote) => [n.id, n]));
-            const merged = (data.quickNotes as import("../types").DashboardNote[]).map((n: import("../types").DashboardNote) => {
+            const localMap = new Map(localNotes.map((n) => [n.id, n]));
+            const merged = (data.quickNotes as DashboardNote[]).map((n) => {
               const local = localMap.get(n.id);
-              // Preserve local "done" if the sheet still shows "open"
               if (local?.status === "done" && n.status !== "done") {
                 return { ...n, status: "done" as const, completedAt: local.completedAt };
               }
@@ -630,14 +655,38 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           if (data.syncLogs) setSyncLogs(data.syncLogs);
         }
 
-        // Only auto-pull-live if AP data is sparse/missing — prevents the sheet from
+        // Helper: merge sheet notes with local "done" state wins over sheet "open"
+        const mergeSheetNotes = (sheetNotes: DashboardNote[]) => {
+          const localNotes: DashboardNote[] = (() => {
+            try { return JSON.parse(localStorage.getItem("financeops_quick_notes") || "[]"); } catch { return []; }
+          })();
+          const localMap = new Map(localNotes.map((n) => [n.id, n]));
+          return sheetNotes.map((n) => {
+            const local = localMap.get(n.id);
+            if (local?.status === "done" && n.status !== "done") {
+              return { ...n, status: "done" as const, completedAt: local.completedAt };
+            }
+            return n;
+          });
+        };
+
+        // Only auto-pull-live for AP data if sparse/missing — prevents the sheet from
         // overwriting portal-side changes that haven't been pushed to the sheet yet.
-        // When data is sufficient, the portal is the source of truth on startup;
-        // users can manually Pull Live from Settings when they know the sheet was edited externally.
+        // Notes are always refreshed from the sheet (lightweight, non-destructive to AP data).
         const hasCalendarData = data.calendarLocalEvents && Array.isArray(data.calendarLocalEvents) && data.calendarLocalEvents.length > 0;
         if (hasSufficientData) {
-          // Data is good; skip auto-pull to preserve portal-side changes
           setIsLoading(false);
+          // Always do a background pull just to refresh notes from the sheet
+          fetch("/api/pull-live", { method: "POST" })
+            .then((res) => res.json())
+            .then((resp) => {
+              if (resp?.data?.quickNotes && Array.isArray(resp.data.quickNotes) && resp.data.quickNotes.length > 0) {
+                const merged = mergeSheetNotes(resp.data.quickNotes as DashboardNote[]);
+                setQuickNotes(merged);
+                localStorage.setItem("financeops_quick_notes", JSON.stringify(merged));
+              }
+            })
+            .catch(() => {}); // silent — notes will still load from backend JSON
         } else {
           setIsSyncing(true);
           fetch("/api/pull-live", { method: "POST" })
@@ -651,18 +700,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 if (live.ar) setArItems(live.ar);
                 if (live.statements) setBankStatements(live.statements);
                 if (live.quickNotes && Array.isArray(live.quickNotes) && live.quickNotes.length > 0) {
-                  // Smart merge: portal "done" status survives a live sheet sync
-                  const localNotes: import("../types").DashboardNote[] = (() => {
-                    try { return JSON.parse(localStorage.getItem("financeops_quick_notes") || "[]"); } catch { return []; }
-                  })();
-                  const localMap = new Map(localNotes.map((n: import("../types").DashboardNote) => [n.id, n]));
-                  const merged = (live.quickNotes as import("../types").DashboardNote[]).map((n: import("../types").DashboardNote) => {
-                    const local = localMap.get(n.id);
-                    if (local?.status === "done" && n.status !== "done") {
-                      return { ...n, status: "done" as const, completedAt: local.completedAt };
-                    }
-                    return n;
-                  });
+                  const merged = mergeSheetNotes(live.quickNotes as DashboardNote[]);
                   setQuickNotes(merged);
                   localStorage.setItem("financeops_quick_notes", JSON.stringify(merged));
                 }
@@ -1135,6 +1173,20 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (live.loans && live.loans.length > 0) setLoans(live.loans);
         if (live.ar && live.ar.length > 0) setArItems(live.ar);
         if (live.statements && live.statements.length > 0) setBankStatements(live.statements);
+        if (live.quickNotes && Array.isArray(live.quickNotes) && live.quickNotes.length > 0) {
+          const mergedNotes = (live.quickNotes as DashboardNote[]).map((n) => {
+            const localNotes: DashboardNote[] = (() => {
+              try { return JSON.parse(localStorage.getItem("financeops_quick_notes") || "[]"); } catch { return []; }
+            })();
+            const local = localNotes.find((ln) => ln.id === n.id);
+            if (local?.status === "done" && n.status !== "done") {
+              return { ...n, status: "done" as const, completedAt: local.completedAt };
+            }
+            return n;
+          });
+          setQuickNotes(mergedNotes);
+          localStorage.setItem("financeops_quick_notes", JSON.stringify(mergedNotes));
+        }
         if (live.lastSyncedAt) setLastSyncedAt(live.lastSyncedAt);
 
         const now = new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" });
