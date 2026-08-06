@@ -440,6 +440,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       company: "Ruby's",
       amount,
       dueDate: finalDueDate,
+      invoiceDate: parseDateVal(row[7]) || undefined,
       method,
       status,
       inQBO,
@@ -481,7 +482,9 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       if (!rowYear || rowYear < 2020) return;
       // Keep historical unpaid/on-hold from all years; only skip confirmed paid historical rows
       const statusRaw13 = String(row[13] || "").trim().toLowerCase();
-      const isOnHoldEarlyTI = statusRaw13.includes("hold") || [10, 11, 12, 13].some(c => String(row[c] || "").toLowerCase().includes("hold"));
+      const isOnHoldEarlyTI = statusRaw13.includes("hold") ||
+        [10, 11, 12, 13, 22].some(c => String(row[c] || "").toLowerCase().includes("hold")) ||
+        row[22] === true || String(row[22] || "").toLowerCase() === "true";
       const isHistoricalPaidTI = ["paid", "yes", "y", "true"].includes(statusRaw13);
       if (rowYear !== CURRENT_YEAR && isHistoricalPaidTI && !isOnHoldEarlyTI) return;
 
@@ -561,7 +564,8 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       // col 13 = status text ("paid" or empty). col 14 = Gmail reference URL (NOT payment confirmation — do not use for paid detection)
       const statusRaw = String(row[13] || "").trim();
       const isOnHold = statusRaw.toLowerCase().includes("hold") ||
-                       [10, 11, 12, 13].some(c => String(row[c] || "").toLowerCase().includes("hold"));
+                       [10, 11, 12, 13, 22].some(c => String(row[c] || "").toLowerCase().includes("hold")) ||
+                       row[22] === true || String(row[22] || "").toLowerCase() === "true";
       const status = detectStatus(statusRaw, rawMethodTI, "", isOnHold);
 
       const inQBO = [14, 15, 13].some(c => row[c] === true || String(row[c] || "").toLowerCase() === "true" || String(row[c] || "").toLowerCase() === "qbo");
@@ -577,6 +581,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
         company: company || currentCompany,
         amount,
         dueDate,
+        invoiceDate: parseDateVal(row[7]) || undefined,
         method,
         status,
         inQBO,
@@ -625,6 +630,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       entity: "MSDx",
       amount,
       dueDate,
+      invoiceDate: parseDateVal(row[7]) || undefined,
       method,
       status,
       inQBO,

@@ -1010,19 +1010,21 @@ export const buildAPBillRow = (b: APBill, entity: string): any[] => {
   row[map.vendor]      = b.vendor;
   if (map.company !== null) row[map.company] = b.company || "";
   if (map.categoryCol !== null) row[map.categoryCol] = b.category || "";
-  if (b.invoiceNo) row[map.invoiceNo] = b.invoiceNo; // leave undefined when empty so writeSingleAPBill can skip overwriting
-  row[map.invoiceDateCol] = b.invoiceDate || "";
+  if (b.invoiceNo) row[map.invoiceNo] = b.invoiceNo;       // skip col G when empty (writeSingleAPBill handles split)
+  if (b.invoiceDate) row[map.invoiceDateCol] = b.invoiceDate; // skip col H when empty to preserve existing sheet value
   row[map.dueDate]        = b.dueDate;
   row[map.amount]         = b.amount;
   row[map.paidDateCol]    = b.paidDate || "";
   if (map.methodCol !== null) row[map.methodCol] = b.method || "";
   // paytypeCol (Manual/Aut.) is formula-driven in the sheet — do not write
-  // Status col: "Paid" when paid; for Layout A (Ruby's/MSDx) status1 content overrides "UNPAID"
-  if (entity !== "TI" && b.status1 && b.status !== "paid") {
+  // Status col: "Paid" when paid; blank for unpaid/hold (never write "UNPAID" — keep sheet clean)
+  // Layout A (Ruby's/MSDx): status1 text can override status col for custom values
+  if (b.status === "paid") {
+    row[map.status] = "Paid";
+  } else if (b.status !== "hold" && entity !== "TI" && b.status1) {
     row[map.status] = b.status1;
-  } else {
-    row[map.status] = b.status === "paid" ? "Paid" : "UNPAID";
   }
+  // unpaid → status col stays blank; hold → status col stays blank (on-hold col set below)
   if (b.inQBO) row[map.inQBO] = "TRUE";
   if (b.status === "hold") row[map.onHold] = "on hold";
 
@@ -1067,19 +1069,31 @@ export const writeSingleAPBill = async (
   const map = getAPColMap(entity);
   const fullRow = buildAPBillRow(bill, entity);
 
-  if (!fullRow[map.invoiceNo]) {
-    // Bill has no invoiceNo — split the write around column G to preserve existing sheet value
-    const tabPart = range.split("!")[0];
-    const rowNum = range.match(/\d+/)?.[0];
-    const gIdx = map.invoiceNo; // always 6
-    const colBefore = String.fromCharCode(64 + gIdx);      // F  (0-indexed gIdx → 1-indexed col letter)
-    const colAfter  = String.fromCharCode(64 + gIdx + 2);  // H
-    const colEnd    = String.fromCharCode(64 + map.totalCols); // S
+  // Skip col G (invoiceNo) and/or col H (invoiceDate) when empty to preserve existing sheet values.
+  // G=index 6, H=index 7 — both are optional; split the write around whichever are blank.
+  const skipG = !fullRow[map.invoiceNo];
+  const skipH = !fullRow[map.invoiceDateCol];
+  const tabPart = range.split("!")[0];
+  const rowNum  = range.match(/\d+/)?.[0];
+  const colEnd  = String.fromCharCode(64 + map.totalCols); // S (Ruby's/MSDx) or W (TI)
+
+  if (skipG && skipH) {
+    // Skip both G and H → write A-F, then I-end
     await Promise.all([
-      updateSheetValues(spreadsheetId, `${tabPart}!A${rowNum}:${colBefore}${rowNum}`,
-        [fullRow.slice(0, gIdx)], accessToken),
-      updateSheetValues(spreadsheetId, `${tabPart}!${colAfter}${rowNum}:${colEnd}${rowNum}`,
-        [fullRow.slice(gIdx + 1)], accessToken),
+      updateSheetValues(spreadsheetId, `${tabPart}!A${rowNum}:F${rowNum}`, [fullRow.slice(0, 6)], accessToken),
+      updateSheetValues(spreadsheetId, `${tabPart}!I${rowNum}:${colEnd}${rowNum}`, [fullRow.slice(8)], accessToken),
+    ]);
+  } else if (skipG) {
+    // Skip G only → write A-F, then H-end
+    await Promise.all([
+      updateSheetValues(spreadsheetId, `${tabPart}!A${rowNum}:F${rowNum}`, [fullRow.slice(0, 6)], accessToken),
+      updateSheetValues(spreadsheetId, `${tabPart}!H${rowNum}:${colEnd}${rowNum}`, [fullRow.slice(7)], accessToken),
+    ]);
+  } else if (skipH) {
+    // Skip H only → write A-G, then I-end
+    await Promise.all([
+      updateSheetValues(spreadsheetId, `${tabPart}!A${rowNum}:G${rowNum}`, [fullRow.slice(0, 7)], accessToken),
+      updateSheetValues(spreadsheetId, `${tabPart}!I${rowNum}:${colEnd}${rowNum}`, [fullRow.slice(8)], accessToken),
     ]);
   } else {
     await updateSheetValues(spreadsheetId, range, [fullRow], accessToken);
