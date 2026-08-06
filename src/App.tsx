@@ -56,7 +56,7 @@ const TOAST_CFG = {
     bar:      "bg-amber-500",
     pill:     "bg-amber-50 border-amber-200 text-amber-900",
     icon:     <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />,
-    label:    "Session Expired",
+    label:    "Google Auth",
     labelCls: "text-amber-600",
   },
 } as const;

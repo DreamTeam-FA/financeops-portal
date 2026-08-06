@@ -701,14 +701,45 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } catch (err: any) {
       console.error("Sign in failed:", err);
       const errCode = err?.code || "";
-      if (errCode === "auth/popup-blocked") {
-        console.warn("Sign-in popup was blocked by browser iframe settings.");
-      } else if (errCode === "auth/cancelled-popup-request") {
-        console.warn("Sign-in popup request cancelled because another authentication popup was opened.");
+      const errMsg: string = err?.message || "";
+      if (errCode === "auth/cancelled-popup-request") {
+        // Another popup was already open — silently ignore
+      } else if (errCode === "auth/popup-blocked") {
+        showToast(
+          "Google sign-in popup was blocked by your browser. Please allow popups for this site, then click Reconnect.",
+          "auth-error",
+          0
+        );
       } else if (errCode === "auth/popup-closed-by-user") {
-        console.log("Sign-in popup closed by user.");
+        // May be intentional, or user closed after seeing an OAuth error page —
+        // show a soft reminder they can reconnect.
+        showToast(
+          "Google sign-in was not completed. Click Reconnect to try again.",
+          "auth-error",
+          8000
+        );
+      } else if (errCode === "auth/unauthorized-domain") {
+        showToast(
+          "This domain isn't authorized in Firebase. Please contact the administrator.",
+          "error",
+          0
+        );
+      } else if (
+        errMsg.toLowerCase().includes("origin") ||
+        errMsg.includes("origin_mismatch") ||
+        errMsg.includes("400")
+      ) {
+        showToast(
+          "Google OAuth error: the app domain isn't authorized yet. Contact your admin to add it to Google Cloud Console.",
+          "auth-error",
+          0
+        );
       } else {
-        console.warn("Sign-in note:", err.message || err);
+        showToast(
+          "Google sign-in failed. Click Reconnect to try again.",
+          "auth-error",
+          0
+        );
       }
     }
   };
