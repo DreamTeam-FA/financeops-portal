@@ -1159,7 +1159,11 @@ export async function fetchFullLiveDataset(accessToken?: string) {
   // survives sheet re-ordering.  Fallback indices match the known layout:
   //   0=ID  1=Created  2=WeekLabel  3=WeekStart  4=Company  5=Vendor
   //   6=NoteText  7=Done(bool)  8=LastUpdated
-  const qnRawRows: any[][] = dataByTab["Quick Notes"] || dataByTab["Meeting Notes"] || dataByTab["Notes"] || [];
+  const qnRawRows: any[][] =
+    (dataByTab["Quick Notes"]?.length   ? dataByTab["Quick Notes"]   : null) ||
+    (dataByTab["Meeting Notes"]?.length ? dataByTab["Meeting Notes"] : null) ||
+    (dataByTab["Notes"]?.length         ? dataByTab["Notes"]         : null) ||
+    [];
   const quickNotes: any[] = [];
   if (qnRawRows.length > 1) {
     // ── detect columns from header ───────────────────────────────────
