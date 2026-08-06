@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { DashboardNote } from "../../types";
@@ -15,21 +15,56 @@ import {
   Clock,
   ChevronDown,
   ChevronRight,
-  Sparkles
 } from "lucide-react";
 
 export const getEntityBadgeColor = (entityStr?: string) => {
   if (!entityStr || entityStr === "ALL") return "bg-slate-500/15 text-slate-500";
-  if (entityStr.includes("Ruby")) return "bg-[#d81b60]/20 text-[#e91e63]";
-  if (entityStr.includes("MSDx")) return "bg-[#00897b]/20 text-[#00897b]";
-  if (entityStr.includes("Curcumin")) return "bg-[#6d4c41]/20 text-[#8d6e63]";
-  if (entityStr.includes("TI")) return "bg-[#1a73e8]/20 text-[#1a73e8]";
+  const e = entityStr.toLowerCase();
+  if (e.includes("ruby")) return "bg-[#d81b60]/20 text-[#e91e63]";
+  if (e.includes("msdx")) return "bg-[#00897b]/20 text-[#00897b]";
+  if (e.includes("curcumin")) return "bg-[#6d4c41]/20 text-[#8d6e63]";
+  // TI umbrella: TI itself + known sub-companies
+  if (e === "ti" || e.includes("4g") || e === "4yr" || e === "e1" || e.includes("corner property") || e.includes("co-alliance") || e.includes("funnels"))
+    return "bg-[#1a73e8]/20 text-[#1a73e8]";
   return "bg-blue-500/20 text-blue-600 dark:text-blue-300";
 };
+
+/** "Week of Aug 4–10, 2026" for a given ISO date string (uses today if omitted) */
+function buildWeekLabel(isoDate?: string): string {
+  const base = isoDate ? new Date(isoDate + "T00:00:00") : new Date();
+  if (isNaN(base.getTime())) return "";
+  const day = base.getDay();
+  const diffToMon = day === 0 ? -6 : 1 - day;
+  const monday = new Date(base);
+  monday.setDate(base.getDate() + diffToMon);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  const monStr = monday.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const sunNum = sunday.getDate();
+  const yr = monday.getFullYear();
+  return `Week of ${monStr}–${sunNum}, ${yr}`;
+}
+
+// Known TI sub-companies (hardcoded + derived from apBills at runtime)
+const STATIC_TI_SUBS = ["4G", "4YR", "E1", "Corner Property Group", "Co-Alliance"];
+
+// Entity options that match the sheet's Company column
+const ENTITY_OPTIONS = [
+  { value: "Ruby's bills",  label: "Ruby's Bills" },
+  { value: "MSDx Bills",    label: "MSDx Bills" },
+  { value: "TI",            label: "TI" },
+  { value: "4G",            label: "4G" },
+  { value: "4YR",           label: "4YR" },
+  { value: "E1",            label: "E1" },
+  { value: "Corner Property Group", label: "Corner Property Group" },
+  { value: "Co-Alliance",   label: "Co-Alliance" },
+  { value: "CurcuminPro",   label: "CurcuminPro" },
+];
 
 export const NotesPage: React.FC = () => {
   const {
     quickNotes,
+    apBills,
     addQuickNote,
     updateQuickNote,
     deleteQuickNote,
@@ -39,7 +74,6 @@ export const NotesPage: React.FC = () => {
   const isLight = theme === "light";
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [selectedEntity, setSelectedEntity] = useState<string>("ALL");
   const [selectedWeekRange, setSelectedWeekRange] = useState<string>("ALL");
   const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
@@ -49,11 +83,11 @@ export const NotesPage: React.FC = () => {
   const [editingNote, setEditingNote] = useState<DashboardNote | null>(null);
 
   // Form inputs
-  const [formTitle, setFormTitle] = useState("");
+  const [formTitle, setFormTitle]     = useState("");
   const [formContent, setFormContent] = useState("");
-  const [formVendor, setFormVendor] = useState("");
-  const [formEntity, setFormEntity] = useState("ALL");
-  const [formDate, setFormDate] = useState(new Date().toISOString().split("T")[0]);
+  const [formVendor, setFormVendor]   = useState("");
+  const [formEntity, setFormEntity]   = useState("ALL");
+  const [formDate, setFormDate]       = useState(new Date().toISOString().split("T")[0]);
 
   // Collapsed state for week groups
   const [collapsedWeeks, setCollapsedWeeks] = useState<{ [key: string]: boolean }>({});
@@ -62,14 +96,48 @@ export const NotesPage: React.FC = () => {
     setCollapsedWeeks((prev) => ({ ...prev, [weekLabel]: !prev[weekLabel] }));
   };
 
+  // ── TI sub-companies derived from AP bills (augments the static list) ─────
+  const tiSubCompanies = useMemo(() => {
+    const set = new Set(STATIC_TI_SUBS);
+    apBills
+      .filter((b) => b.entity === "TI" && b.company && b.company !== "TI")
+      .forEach((b) => set.add(b.company!));
+    return Array.from(set).sort();
+  }, [apBills]);
+
+  // All entity options: static base + any dynamic TI subs not already listed
+  const allEntityOptions = useMemo(() => {
+    const base = [...ENTITY_OPTIONS];
+    tiSubCompanies.forEach((sub) => {
+      if (!base.some((o) => o.value === sub)) {
+        base.splice(base.findIndex((o) => o.value === "CurcuminPro"), 0, { value: sub, label: sub });
+      }
+    });
+    return base;
+  }, [tiSubCompanies]);
+
+  // ── Vendor options filtered by selected entity ─────────────────────────────
+  const vendorOptions = useMemo(() => {
+    const set = new Set<string>();
+    apBills
+      .filter((b) => {
+        if (!formEntity || formEntity === "ALL") return true;
+        const bEnt = (b.entity || "").toLowerCase();
+        const bCom = (b.company || "").toLowerCase();
+        const fEnt = formEntity.toLowerCase();
+        return bEnt.includes(fEnt) || bCom.includes(fEnt) ||
+          (fEnt.includes("ruby") && bEnt.includes("ruby")) ||
+          (fEnt.includes("msdx") && bEnt.includes("msdx")) ||
+          b.company === formEntity || b.entity === formEntity;
+      })
+      .forEach((b) => b.vendor && set.add(b.vendor));
+    return Array.from(set).sort();
+  }, [apBills, formEntity]);
+
   const handleMarkDone = (id: string) => {
     const nowStr = new Date().toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true
+      month: "short", day: "numeric", year: "numeric",
+      hour: "numeric", minute: "2-digit", hour12: true
     });
     updateQuickNote(id, { status: "done", completedAt: nowStr });
   };
@@ -80,9 +148,7 @@ export const NotesPage: React.FC = () => {
 
   const openCreateModal = () => {
     setEditingNote(null);
-    setFormTitle("");
-    setFormContent("");
-    setFormVendor("");
+    setFormTitle(""); setFormContent(""); setFormVendor("");
     setFormEntity("ALL");
     setFormDate(new Date().toISOString().split("T")[0]);
     setIsModalOpen(true);
@@ -102,31 +168,35 @@ export const NotesPage: React.FC = () => {
     e.preventDefault();
     if (!formTitle.trim() && !formContent.trim()) return;
 
+    const weekLabel = buildWeekLabel(formDate);
+
     if (editingNote) {
       updateQuickNote(editingNote.id, {
-        title: formTitle.trim() || "Untitled Note",
-        content: formContent,
-        category: "General",
-        entity: formEntity,
-        vendorName: formVendor.trim(),
-        createdAt: formDate
+        title:      formTitle.trim() || "Untitled Note",
+        content:    formContent,
+        category:   weekLabel || editingNote.category || "General",
+        weekLabel:  weekLabel || editingNote.weekLabel,
+        entity:     formEntity !== "ALL" ? formEntity : undefined,
+        vendorName: formVendor.trim() || undefined,
+        createdAt:  formDate,
       });
     } else {
       addQuickNote({
-        title: formTitle.trim() || "Quick Note",
-        content: formContent,
-        category: "General",
-        entity: formEntity,
-        vendorName: formVendor.trim(),
-        createdAt: formDate,
-        status: "open"
+        title:      formTitle.trim() || "Quick Note",
+        content:    formContent,
+        category:   weekLabel || "General",
+        weekLabel:  weekLabel || undefined,
+        entity:     formEntity !== "ALL" ? formEntity : undefined,
+        vendorName: formVendor.trim() || undefined,
+        createdAt:  formDate,
+        status:     "open",
       });
     }
 
     setIsModalOpen(false);
   };
 
-  // Filtering
+  // ── Filtering ──────────────────────────────────────────────────────────────
   const filteredNotes = quickNotes.filter((note) => {
     const matchesSearch =
       !searchTerm ||
@@ -134,40 +204,37 @@ export const NotesPage: React.FC = () => {
       note.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (note.vendorName && note.vendorName.toLowerCase().includes(searchTerm.toLowerCase()));
 
+    // Entity filter: partial match so "Ruby's" filter catches "Ruby's bills" etc.
     const matchesEntity =
       selectedEntity === "ALL" ||
-      note.entity === selectedEntity ||
+      (note.entity && note.entity.toLowerCase().includes(selectedEntity.toLowerCase())) ||
       (!note.entity && selectedEntity === "ALL");
 
     const noteStatus = note.status || "open";
-    const matchesStatus =
-      selectedStatus === "ALL" || noteStatus === selectedStatus;
+    const matchesStatus = selectedStatus === "ALL" || noteStatus === selectedStatus;
 
     const noteWeekLabel = getNoteWeekLabel(note.createdAt);
-    const matchesWeekRange =
-      selectedWeekRange === "ALL" || noteWeekLabel === selectedWeekRange;
+    const matchesWeekRange = selectedWeekRange === "ALL" || noteWeekLabel === selectedWeekRange;
 
     return matchesSearch && matchesEntity && matchesStatus && matchesWeekRange;
   });
 
-  // Week Grouping Logic
+  // ── Week Grouping ──────────────────────────────────────────────────────────
   function getNoteWeekLabel(dateStr: string): string {
     if (!dateStr) return "Older Notes";
     const noteDate = new Date(dateStr);
     if (isNaN(noteDate.getTime())) return "Older Notes";
 
     const now = new Date();
-    
-    // Normalize to midnight
     const currentMonday = new Date(now);
     const day = currentMonday.getDay();
-    const diffToMon = (day === 0 ? -6 : 1 - day);
+    const diffToMon = day === 0 ? -6 : 1 - day;
     currentMonday.setHours(0, 0, 0, 0);
     currentMonday.setDate(currentMonday.getDate() + diffToMon);
 
     const noteMonday = new Date(noteDate);
     const noteDay = noteMonday.getDay();
-    const noteDiffToMon = (noteDay === 0 ? -6 : 1 - noteDay);
+    const noteDiffToMon = noteDay === 0 ? -6 : 1 - noteDay;
     noteMonday.setHours(0, 0, 0, 0);
     noteMonday.setDate(noteMonday.getDate() + noteDiffToMon);
 
@@ -192,7 +259,6 @@ export const NotesPage: React.FC = () => {
     weekGroupMap[label].push(note);
   });
 
-  // Sorted week keys
   const weekKeys = Object.keys(weekGroupMap).sort((a, b) => {
     const idxA = weekOrderPreference.indexOf(a);
     const idxB = weekOrderPreference.indexOf(b);
@@ -201,6 +267,13 @@ export const NotesPage: React.FC = () => {
     if (idxB !== -1) return 1;
     return b.localeCompare(a);
   });
+
+  const sel = `border rounded-lg px-2.5 py-1.5 text-xs font-medium ${
+    isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#181818] border-[#262626] text-white"
+  }`;
+  const inp = `w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-purple-500 ${
+    isLight ? "bg-white border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"
+  }`;
 
   return (
     <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#0a0a0a] text-[#e8e8e8]"}`}>
@@ -220,33 +293,28 @@ export const NotesPage: React.FC = () => {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search notes by keyword, title, or content..."
+              placeholder="Search notes by keyword, title, or vendor..."
               className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#262626] text-white"} border rounded-lg pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:border-purple-500`}
             />
           </div>
 
           <div className="flex items-center gap-1.5 flex-wrap">
             <Filter className={`w-3.5 h-3.5 ${isLight ? "text-slate-400" : "text-[#666]"}`} />
-            
-            {/* Entity Filter */}
-            <select
-              value={selectedEntity}
-              onChange={(e) => setSelectedEntity(e.target.value)}
-              className={`border rounded-lg px-2.5 py-1.5 text-xs font-medium ${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#181818] border-[#262626] text-white"}`}
-            >
+
+            <select value={selectedEntity} onChange={(e) => setSelectedEntity(e.target.value)} className={sel}>
               <option value="ALL">All Entities</option>
-              <option value="Ruby's">Ruby's</option>
+              <option value="Ruby">Ruby's Bills</option>
+              <option value="MSDx">MSDx Bills</option>
               <option value="TI">TI</option>
-              <option value="MSDx">MSDx</option>
+              <option value="4G">4G</option>
+              <option value="4YR">4YR</option>
+              <option value="E1">E1</option>
+              <option value="Corner Property">Corner Property Group</option>
+              <option value="Co-Alliance">Co-Alliance</option>
               <option value="CurcuminPro">CurcuminPro</option>
             </select>
 
-            {/* Week Range Filter */}
-            <select
-              value={selectedWeekRange}
-              onChange={(e) => setSelectedWeekRange(e.target.value)}
-              className={`border rounded-lg px-2.5 py-1.5 text-xs font-medium ${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#181818] border-[#262626] text-white"}`}
-            >
+            <select value={selectedWeekRange} onChange={(e) => setSelectedWeekRange(e.target.value)} className={sel}>
               <option value="ALL">All Week Ranges</option>
               <option value="This Week">This Week</option>
               <option value="Last Week">Last Week</option>
@@ -255,12 +323,7 @@ export const NotesPage: React.FC = () => {
               <option value="Older Notes">Older Notes</option>
             </select>
 
-            {/* Status Filter */}
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className={`border rounded-lg px-2.5 py-1.5 text-xs font-medium ${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#181818] border-[#262626] text-white"}`}
-            >
+            <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)} className={sel}>
               <option value="ALL">All Statuses</option>
               <option value="open">Open Notes</option>
               <option value="done">Completed (Done)</option>
@@ -297,25 +360,16 @@ export const NotesPage: React.FC = () => {
             return (
               <div
                 key={weekLabel}
-                className={`border rounded-2xl overflow-hidden ${
-                  isLight ? "bg-white border-slate-200 shadow-xs" : "bg-[#111] border-[#262626]"
-                }`}
+                className={`border rounded-2xl overflow-hidden ${isLight ? "bg-white border-slate-200 shadow-xs" : "bg-[#111] border-[#262626]"}`}
               >
-                {/* Week Group Header */}
                 <div
                   onClick={() => toggleWeekGroup(weekLabel)}
                   className={`px-4 py-3 flex items-center justify-between cursor-pointer select-none border-b transition-colors ${
-                    isLight
-                      ? "bg-slate-50 border-slate-200 hover:bg-slate-100/80"
-                      : "bg-[#181818] border-[#262626] hover:bg-[#202020]"
+                    isLight ? "bg-slate-50 border-slate-200 hover:bg-slate-100/80" : "bg-[#181818] border-[#262626] hover:bg-[#202020]"
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    {!isCollapsed ? (
-                      <ChevronDown className="w-4 h-4 text-purple-500" />
-                    ) : (
-                      <ChevronRight className="w-4 h-4 text-purple-500" />
-                    )}
+                    {!isCollapsed ? <ChevronDown className="w-4 h-4 text-purple-500" /> : <ChevronRight className="w-4 h-4 text-purple-500" />}
                     <h3 className={`text-sm font-bold ${isLight ? "text-slate-900" : "text-white"} flex items-center gap-2`}>
                       <Calendar className="w-4 h-4 text-purple-400" />
                       {weekLabel}
@@ -324,13 +378,11 @@ export const NotesPage: React.FC = () => {
                       {notesInWeek.length} {notesInWeek.length === 1 ? "note" : "notes"}
                     </span>
                   </div>
-
                   <span className={`text-[11px] font-medium ${isLight ? "text-slate-400" : "text-[#666]"}`}>
                     {isCollapsed ? "Click to expand" : "Click to collapse"}
                   </span>
                 </div>
 
-                {/* Notes Grid */}
                 {!isCollapsed && (
                   <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {notesInWeek.map((note) => (
@@ -343,7 +395,6 @@ export const NotesPage: React.FC = () => {
                         }`}
                       >
                         <div>
-                          {/* Note Header Badges */}
                           <div className="flex items-center justify-between gap-2 mb-2">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               {/* Status Badge */}
@@ -357,18 +408,14 @@ export const NotesPage: React.FC = () => {
                                 </span>
                               )}
 
-                              {/* Company entity badge with official color coding */}
+                              {/* Entity badge */}
                               {note.entity && (
-                                <span
-                                  className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${getEntityBadgeColor(
-                                    note.entity
-                                  )}`}
-                                >
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${getEntityBadgeColor(note.entity)}`}>
                                   {note.entity}
                                 </span>
                               )}
 
-                              {/* Vendor Name Badge */}
+                              {/* Vendor badge */}
                               {note.vendorName && (
                                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-600 dark:text-purple-300 uppercase tracking-wider">
                                   Vendor: {note.vendorName}
@@ -377,18 +424,12 @@ export const NotesPage: React.FC = () => {
                             </div>
 
                             <div className="flex items-center gap-1 shrink-0">
-                              <button
-                                onClick={() => openEditModal(note)}
-                                className="p-1 text-slate-400 hover:text-purple-500 transition-colors"
-                                title="Edit Note"
-                              >
+                              <button onClick={() => openEditModal(note)} className="p-1 text-slate-400 hover:text-purple-500 transition-colors" title="Edit Note">
                                 <Edit2 className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 onClick={() => {
-                                  if (confirm("Are you sure you want to delete this note?")) {
-                                    deleteQuickNote(note.id);
-                                  }
+                                  if (confirm("Are you sure you want to delete this note?")) deleteQuickNote(note.id);
                                 }}
                                 className="p-1 text-slate-400 hover:text-red-500 transition-colors"
                                 title="Delete Note"
@@ -398,20 +439,24 @@ export const NotesPage: React.FC = () => {
                             </div>
                           </div>
 
-                          {/* Note Title & Body */}
+                          {/* Week label badge (for sheet notes that have it as category) */}
+                          {(note.weekLabel || (note.category && note.category !== "General")) && (
+                            <div className="mb-1.5">
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-500/10 text-slate-500 dark:text-[#888] uppercase tracking-wider">
+                                {note.weekLabel || note.category}
+                              </span>
+                            </div>
+                          )}
+
                           <h4 className={`text-sm font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
                             {note.title}
                           </h4>
-
                           <p className={`text-xs ${isLight ? "text-slate-600" : "text-[#ccc]"} mt-1.5 whitespace-pre-wrap leading-relaxed`}>
                             {note.content}
                           </p>
                         </div>
 
-                        {/* Footer info & Done action */}
-                        <div className={`pt-2.5 border-t text-[10px] flex items-center justify-between gap-2 ${
-                          isLight ? "border-slate-200 text-slate-400" : "border-[#242424] text-[#666]"
-                        }`}>
+                        <div className={`pt-2.5 border-t text-[10px] flex items-center justify-between gap-2 ${isLight ? "border-slate-200 text-slate-400" : "border-[#242424] text-[#666]"}`}>
                           <span className="flex items-center gap-1 font-mono shrink-0">
                             <Calendar className="w-3 h-3 text-purple-400" /> {note.createdAt}
                           </span>
@@ -421,11 +466,7 @@ export const NotesPage: React.FC = () => {
                               <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                                 <Clock className="w-3 h-3" /> {note.completedAt || "Done"}
                               </span>
-                              <button
-                                onClick={() => handleMarkOpen(note.id)}
-                                className="text-[10px] text-slate-400 hover:text-slate-200 underline"
-                                title="Reopen Note"
-                              >
+                              <button onClick={() => handleMarkOpen(note.id)} className="text-[10px] text-slate-400 hover:text-slate-200 underline" title="Reopen Note">
                                 Reopen
                               </button>
                             </div>
@@ -459,94 +500,75 @@ export const NotesPage: React.FC = () => {
                 <StickyNote className="w-4 h-4" />
                 {editingNote ? "Edit Quick Note" : "Create New Quick Note"}
               </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-xs text-slate-400 hover:text-white"
-              >
+              <button onClick={() => setIsModalOpen(false)} className="text-xs text-slate-400 hover:text-white">
                 Cancel
               </button>
             </div>
 
             <form onSubmit={handleSaveNote} className="space-y-3">
+              {/* Entity + Vendor row */}
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 dark:text-[#aaa] mb-1">
-                    Company / Entity
-                  </label>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-[#aaa] mb-1">Company / Entity</label>
                   <select
                     value={formEntity}
-                    onChange={(e) => setFormEntity(e.target.value)}
-                    className={`w-full border rounded-lg p-2 text-xs font-medium ${
-                      isLight ? "bg-white border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"
-                    }`}
+                    onChange={(e) => { setFormEntity(e.target.value); setFormVendor(""); }}
+                    className={inp}
                   >
-                    <option value="ALL">All Entities</option>
-                    <option value="Ruby's">Ruby's</option>
-                    <option value="TI">TI</option>
-                    <option value="MSDx">MSDx</option>
-                    <option value="CurcuminPro">CurcuminPro</option>
+                    <option value="ALL">— Select Entity —</option>
+                    {allEntityOptions.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 dark:text-[#aaa] mb-1">
-                    Vendor Name
-                  </label>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-[#aaa] mb-1">Vendor Name</label>
                   <input
                     type="text"
-                    placeholder="e.g. Sysco, McKesson, Delta"
+                    list="np-vendor-list"
+                    placeholder="e.g. Sysco, US Foods, NSSB Loan"
                     value={formVendor}
                     onChange={(e) => setFormVendor(e.target.value)}
-                    className={`w-full border rounded-lg px-3 py-2 text-xs font-medium ${
-                      isLight ? "bg-white border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"
-                    } focus:outline-none focus:border-purple-500`}
+                    className={inp}
                   />
+                  <datalist id="np-vendor-list">
+                    {vendorOptions.map((v) => <option key={v} value={v} />)}
+                  </datalist>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-500 dark:text-[#aaa] mb-1">
-                  Note Title
-                </label>
+                <label className="block text-xs font-semibold text-slate-500 dark:text-[#aaa] mb-1">Note Title</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Payment Schedule Agreement"
                   value={formTitle}
                   onChange={(e) => setFormTitle(e.target.value)}
-                  className={`w-full border rounded-lg px-3 py-2 text-xs font-medium ${
-                    isLight ? "bg-white border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"
-                  } focus:outline-none focus:border-purple-500`}
+                  className={inp}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-500 dark:text-[#aaa] mb-1">
-                  Notes & Discussion Points
-                </label>
+                <label className="block text-xs font-semibold text-slate-500 dark:text-[#aaa] mb-1">Notes & Discussion Points</label>
                 <textarea
                   rows={4}
                   required
                   placeholder="Enter notes, meeting discussion details, or action steps..."
                   value={formContent}
                   onChange={(e) => setFormContent(e.target.value)}
-                  className={`w-full border rounded-lg px-3 py-2 text-xs font-medium ${
-                    isLight ? "bg-white border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"
-                  } focus:outline-none focus:border-purple-500`}
+                  className={inp}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-500 dark:text-[#aaa] mb-1">
-                  Date
-                </label>
+                <label className="block text-xs font-semibold text-slate-500 dark:text-[#aaa] mb-1">Date</label>
                 <input
                   type="date"
                   value={formDate}
                   onChange={(e) => setFormDate(e.target.value)}
-                  className={`w-full border rounded-lg p-2 text-xs font-medium ${
-                    isLight ? "bg-white border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"
-                  }`}
+                  className={inp}
                 />
               </div>
 

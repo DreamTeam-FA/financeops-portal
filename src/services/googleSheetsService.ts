@@ -1609,10 +1609,16 @@ export const buildNoteRow = (note: DashboardNote): any[] => {
   // Strip the "qn-" prefix to get the raw sheet ID value
   const rawId = note.id.replace(/^qn-/, "");
   const today = new Date().toISOString().split("T")[0];
-  // content field stores "vendor — company"; unpack if set
+  // Use vendorName/entity directly (new form fields); unpack legacy content "vendor — company" as fallback
   const contentParts = (note.content || "").split(" — ");
-  const vendor  = note.vendorName  || (contentParts.length > 1 ? contentParts[0] : "");
-  const company = note.entity      || (contentParts.length > 1 ? contentParts[1] : contentParts[0] || "");
+  const isReconstructed = contentParts.length > 1 &&
+    contentParts[0] === note.vendorName;
+  const vendor  = note.vendorName || (contentParts.length > 1 ? contentParts[0] : "");
+  const company = note.entity     || (contentParts.length > 1 ? contentParts[1] : "");
+  // Column G (NoteText) = the actual note body; fall back to title if no separate content
+  const noteBody = (note.content?.trim() && !isReconstructed)
+    ? note.content.trim()
+    : note.title;
   return [
     rawId,
     note.createdAt  || today,
@@ -1620,7 +1626,7 @@ export const buildNoteRow = (note: DashboardNote): any[] => {
     note.createdAt  || today,
     company,
     vendor,
-    note.title,
+    noteBody,
     note.status === "done" ? "TRUE" : "FALSE",
     note.completedAt || (note.status === "done" ? today : ""),
   ];

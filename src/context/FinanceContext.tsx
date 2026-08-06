@@ -496,7 +496,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Helper: push a note to the Meeting Notes sheet tab (fire-and-forget).
   const pushNoteToSheet = (note: DashboardNote, action: "append" | "write" | "clear") => {
     const token = getAccessToken();
-    if (!token) return; // not connected to sheets — skip silently
+    if (!token) {
+      // No token — note is saved locally but not synced to the sheet
+      showToast("Note saved locally. Reconnect Google Sheets to sync.", "auth-error");
+      return;
+    }
     const apMapping = sheetMappings.find((m) => m.module === "ap");
     const spreadsheetId = apMapping?.spreadsheetIdOrUrl || "";
     if (!spreadsheetId) return;
@@ -506,7 +510,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         else if (action === "write") await writeSingleNote(note, spreadsheetId, token);
         else if (action === "clear" && note.row) await clearNoteRow(note.row, spreadsheetId, token);
       } catch (err: any) {
-        console.warn("Note sheet sync failed:", err?.message || err);
+        const msg = err?.message || String(err);
+        console.warn("Note sheet sync failed:", msg);
+        if (msg.includes("401") || msg.includes("invalid_grant") || msg.includes("unauthorized")) {
+          showToast("Google Sheets token expired. Reconnect to sync notes.", "auth-error");
+        }
       }
     })();
   };
@@ -676,8 +684,13 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const hasCalendarData = data.calendarLocalEvents && Array.isArray(data.calendarLocalEvents) && data.calendarLocalEvents.length > 0;
         if (hasSufficientData) {
           setIsLoading(false);
-          // Always do a background pull just to refresh notes from the sheet
-          fetch("/api/pull-live", { method: "POST" })
+          // Always do a background pull to refresh notes from the sheet (include token so server can reach Sheets)
+          const startupTok = getAccessToken();
+          fetch("/api/pull-live", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ accessToken: startupTok || undefined })
+          })
             .then((res) => res.json())
             .then((resp) => {
               if (resp?.data?.quickNotes && Array.isArray(resp.data.quickNotes) && resp.data.quickNotes.length > 0) {
