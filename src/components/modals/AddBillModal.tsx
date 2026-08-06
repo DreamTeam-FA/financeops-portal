@@ -27,6 +27,7 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
   const [selectedSheet, setSelectedSheet] = useState(`${defaultEntity} Bills`);
   const [subCompany, setSubCompany] = useState("TI");
   const [vendor, setVendor] = useState("");
+  const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
   const [invoiceNo, setInvoiceNo] = useState("");
   const [invoiceDate, setInvoiceDate] = useState("");
@@ -64,6 +65,16 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
     return map;
   }, [apBills]);
 
+  // Most-recent description per vendor (for auto-fill)
+  const vendorDescriptionMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    apBills.forEach((b) => {
+      if (b.vendor && b.description)
+        map[b.vendor.toLowerCase().trim()] = b.description;
+    });
+    return map;
+  }, [apBills]);
+
   const vendorOptions = useMemo(() => {
     const set = new Set<string>();
     apBills.forEach((b) => {
@@ -76,9 +87,16 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
 
   const handleVendorChange = (val: string) => {
     setVendor(val);
-    const cats = vendorCategoriesMap[val.toLowerCase().trim()];
+    const key = val.toLowerCase().trim();
+    // Auto-fill Category from history (Ruby's / MSDx)
+    const cats = vendorCategoriesMap[key];
     if (cats && cats.size >= 1) setCategory(Array.from(cats)[0]);
-    // Auto-fill TI company from existing bills
+    // Auto-fill Description from most recent matching bill (Ruby's / MSDx)
+    if (!isTI) {
+      const desc = vendorDescriptionMap[key];
+      if (desc) setDescription(desc);
+    }
+    // Auto-fill TI sub-company from existing bills
     if (isTI) {
       const match = apBills.find((b) => b.vendor?.toLowerCase() === val.toLowerCase() && b.entity === "TI");
       if (match?.company) setSubCompany(match.company);
@@ -88,6 +106,7 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
   const handleSheetChange = (sheet: string) => {
     setSelectedSheet(sheet);
     setVendor("");
+    setDescription("");
     setCategory("");
     setRemarks("");
     setRemarksTarget(sheet === "TI Bills" ? "payvia" : "instr");
@@ -127,6 +146,7 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
         else billData.remarks = remarks;
       }
     } else {
+      billData.description = description || undefined;
       billData.category = category || undefined;
       if (remarks) {
         if (remarksTarget === "instr") billData.paymentInstructions = remarks;
@@ -137,7 +157,7 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
     addBill(billData);
     onClose();
     setVendor(""); setAmount(""); setRemarks(""); setInvoiceNo("");
-    setInvoiceDate(""); setPaymentDate(""); setCategory("");
+    setInvoiceDate(""); setPaymentDate(""); setDescription(""); setCategory("");
   };
 
   return (
@@ -194,18 +214,34 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
             </datalist>
           </div>
 
-          {/* Category — Ruby's/MSDx only */}
+          {/* Description + Category — Ruby's/MSDx only */}
           {isLayoutA && (
-            <div>
-              <label className={lbl}>Category</label>
-              <input type="text" list="add-cat-list" value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                placeholder="e.g. Utilities, Rent..."
-                autoComplete="new-password" data-lpignore="true" data-form-type="other"
-                className={inp} />
-              <datalist id="add-cat-list">
-                {Array.from(vendorCategoriesMap[vendor.toLowerCase().trim()] || []).map((c) => <option key={c} value={c} />)}
-              </datalist>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={lbl}>Description</label>
+                <input type="text" list="add-desc-list" value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="e.g. Rent, CAM…"
+                  autoComplete="new-password" data-lpignore="true" data-form-type="other"
+                  className={inp} />
+                <datalist id="add-desc-list">
+                  {Array.from(new Set(
+                    apBills.filter(b => b.vendor?.toLowerCase() === vendor.toLowerCase().trim() && b.description)
+                      .map(b => b.description!)
+                  )).map((d) => <option key={d} value={d} />)}
+                </datalist>
+              </div>
+              <div>
+                <label className={lbl}>Category</label>
+                <input type="text" list="add-cat-list" value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  placeholder="e.g. Rent Expense…"
+                  autoComplete="new-password" data-lpignore="true" data-form-type="other"
+                  className={inp} />
+                <datalist id="add-cat-list">
+                  {Array.from(vendorCategoriesMap[vendor.toLowerCase().trim()] || []).map((c) => <option key={c} value={c} />)}
+                </datalist>
+              </div>
             </div>
           )}
 

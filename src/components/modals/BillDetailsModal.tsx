@@ -181,6 +181,18 @@ const BillDetail: React.FC<{
         </div>
       )}
 
+      {/* Description / Category row (Ruby's & MSDx only) */}
+      {(bill.description || bill.category) && (
+        <div className="flex gap-2">
+          {bill.description && (
+            <InfoCard label="Description" value={bill.description} isLight={isLight} />
+          )}
+          {bill.category && (
+            <InfoCard label="Category" value={bill.category} isLight={isLight} />
+          )}
+        </div>
+      )}
+
       {/* Schedule chips */}
       <div className={`rounded-xl border p-3 ${
         isLight ? "bg-white border-slate-200" : "bg-[#161616] border-[#2a2a2a]"

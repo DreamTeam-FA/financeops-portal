@@ -25,6 +25,7 @@ export interface APBill {
   subentity?: string;
   subcategory?: string;
   category?: string;
+  description?: string;  // col E (Ruby's/MSDx only) — short label like "Rent", "CAM"
   invoiceDate?: string;
   status1?: string;
   paidVia?: string;

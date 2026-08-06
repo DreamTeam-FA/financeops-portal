@@ -531,6 +531,8 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       sheet: "Ruby's Bills",
       invoiceNo,
       remarks,
+      description: String(row[4] || "").trim() || undefined, // col E
+      category:    String(row[5] || "").trim() || undefined, // col F
       row: i - 3 // dataStart=5: row 1 = sheet row 5, so bill.row = i+1-(dataStart-1) = i-3
     });
   });
@@ -723,6 +725,8 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       sheet: "MSDx Bills",
       invoiceNo,
       remarks,
+      description: String(row[4] || "").trim() || undefined, // col E
+      category:    String(row[5] || "").trim() || undefined, // col F
       row: i - 4 // dataStart=6: row 1 = sheet row 6, so bill.row = i+1-(dataStart-1) = i-4
     });
   });

@@ -908,7 +908,8 @@ interface APColMap {
   company: number | null;
   invoiceNo: number;
   invoiceDateCol: number;    // idate — invoice date column
-  categoryCol: number | null; // cat — null means entity has no separate category column
+  categoryCol: number | null;    // cat — null means entity has no separate category column
+  descriptionCol: number | null; // description (col E for Ruby's/MSDx) — null if not in sheet
   dueDate: number;
   amount: number;
   paidDateCol: number;       // column that receives the paid date (pdate)
@@ -926,7 +927,7 @@ interface APColMap {
 
 const AP_COL_MAPS: Record<string, APColMap> = {
   "Ruby's": {
-    vendor: 3, company: null, invoiceNo: 6, invoiceDateCol: 7, categoryCol: 5,
+    vendor: 3, company: null, invoiceNo: 6, invoiceDateCol: 7, categoryCol: 5, descriptionCol: 4,
     dueDate: 8, amount: 9,
     paidDateCol: 11, methodCol: null, paytypeCol: 17,
     status: 12, inQBO: 13, onHold: 18,  // col S = On Hold
@@ -934,7 +935,7 @@ const AP_COL_MAPS: Record<string, APColMap> = {
     dataRange: "'Ruby''s Bills'!A5:S1504"   // 1500 data rows starting row 5
   },
   "TI": {
-    vendor: 5, company: 4, invoiceNo: 6, invoiceDateCol: 7, categoryCol: null, // col 5 = vendor for TI
+    vendor: 5, company: 4, invoiceNo: 6, invoiceDateCol: 7, categoryCol: null, descriptionCol: null,
     dueDate: 8, amount: 9,
     paidDateCol: 10, methodCol: 12, paytypeCol: 19,
     status: 13, inQBO: 15, onHold: 22,  // holdCol:22 per CALcode
@@ -942,7 +943,7 @@ const AP_COL_MAPS: Record<string, APColMap> = {
     dataRange: "'TI Bills'!A7:W1506"    // 1500 data rows starting row 7
   },
   "MSDx": {
-    vendor: 3, company: null, invoiceNo: 6, invoiceDateCol: 7, categoryCol: 5,
+    vendor: 3, company: null, invoiceNo: 6, invoiceDateCol: 7, categoryCol: 5, descriptionCol: 4,
     dueDate: 8, amount: 9,
     paidDateCol: 11, methodCol: null, paytypeCol: 17,
     status: 12, inQBO: 13, onHold: 18,  // holdCol:18 per CALcode
@@ -1009,6 +1010,7 @@ export const buildAPBillRow = (b: APBill, entity: string): any[] => {
 
   row[map.vendor]      = b.vendor;
   if (map.company !== null) row[map.company] = b.company || "";
+  if (map.descriptionCol !== null) row[map.descriptionCol] = b.description || "";
   if (map.categoryCol !== null) row[map.categoryCol] = b.category || "";
   if (b.invoiceNo) row[map.invoiceNo] = b.invoiceNo;       // skip col G when empty (writeSingleAPBill handles split)
   if (b.invoiceDate) row[map.invoiceDateCol] = b.invoiceDate; // skip col H when empty to preserve existing sheet value
