@@ -43,11 +43,31 @@ function parseDateVal(val: any, year?: any, month?: any, dayStr?: any): string {
     if (/^\d{4}\.\d{2}\.\d{2}$/.test(str)) return str.replace(/\./g, "-");
     const slashParts = str.split("/");
     if (slashParts.length === 3) {
-      const m = String(parseInt(slashParts[0])).padStart(2, "0");
-      const d = String(parseInt(slashParts[1])).padStart(2, "0");
-      let y = parseInt(slashParts[2]);
-      if (y < 100) y += 2000;
-      if (!isNaN(y) && y >= 2000 && y <= 2030) return `${y}-${m}-${d}`;
+      // Month name → number helper (handles "Jan", "Feb", etc.)
+      const MONTHS: Record<string, number> = {
+        jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12
+      };
+      const toNum = (s: string): number => {
+        const key = s.trim().toLowerCase().slice(0, 3);
+        return (key in MONTHS) ? MONTHS[key] : parseInt(s);
+      };
+      let y: number, mNum: number, dNum: number;
+      if (/^\d{4}$/.test(slashParts[0].trim())) {
+        // YYYY/MM/DD format (first part is a 4-digit year)
+        y = parseInt(slashParts[0]);
+        mNum = toNum(slashParts[1]);
+        dNum = parseInt(slashParts[2]);
+      } else {
+        // MM/DD/YYYY (or Mon/DD/YYYY) format
+        mNum = toNum(slashParts[0]);
+        dNum = parseInt(slashParts[1]);
+        y = parseInt(slashParts[2]);
+        if (!isNaN(y) && y < 100) y += 2000;
+      }
+      if (!isNaN(y) && !isNaN(mNum) && !isNaN(dNum) &&
+          y >= 2000 && y <= 2030 && mNum >= 1 && mNum <= 12) {
+        return `${y}-${String(mNum).padStart(2, "0")}-${String(dNum).padStart(2, "0")}`;
+      }
     }
   }
   if (val && typeof val !== "object") {
