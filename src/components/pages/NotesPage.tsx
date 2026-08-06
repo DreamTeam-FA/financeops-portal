@@ -82,10 +82,9 @@ export const NotesPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<DashboardNote | null>(null);
 
-  // Form inputs
-  const [formTitle, setFormTitle]     = useState("");
-  const [formContent, setFormContent] = useState("");
-  const [formVendor, setFormVendor]   = useState("");
+  // Form inputs — GAS model: formSubject = vendor/subject (Col F), formContent = body (Col G)
+  const [formSubject, setFormSubject] = useState("");   // vendor/subject → note.title + note.vendorName
+  const [formContent, setFormContent] = useState("");   // instructions   → note.content
   const [formEntity, setFormEntity]   = useState("ALL");
   const [formDate, setFormDate]       = useState(new Date().toISOString().split("T")[0]);
 
@@ -148,17 +147,15 @@ export const NotesPage: React.FC = () => {
 
   const openCreateModal = () => {
     setEditingNote(null);
-    setFormTitle(""); setFormContent(""); setFormVendor("");
-    setFormEntity("ALL");
+    setFormSubject(""); setFormContent(""); setFormEntity("ALL");
     setFormDate(new Date().toISOString().split("T")[0]);
     setIsModalOpen(true);
   };
 
   const openEditModal = (note: DashboardNote) => {
     setEditingNote(note);
-    setFormTitle(note.title);
-    setFormContent(note.content);
-    setFormVendor(note.vendorName || "");
+    setFormSubject(note.vendorName || note.title || "");
+    setFormContent(note.content || "");
     setFormEntity(note.entity || "ALL");
     setFormDate(note.createdAt || new Date().toISOString().split("T")[0]);
     setIsModalOpen(true);
@@ -166,28 +163,29 @@ export const NotesPage: React.FC = () => {
 
   const handleSaveNote = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formTitle.trim() && !formContent.trim()) return;
+    if (!formSubject.trim() && !formContent.trim()) return;
 
-    const weekLabel = buildWeekLabel(formDate);
+    const weekLabel  = buildWeekLabel(formDate);
+    const subjectVal = formSubject.trim() || "Quick Note";
 
     if (editingNote) {
       updateQuickNote(editingNote.id, {
-        title:      formTitle.trim() || "Untitled Note",
+        title:      subjectVal,
         content:    formContent,
         category:   weekLabel || editingNote.category || "General",
         weekLabel:  weekLabel || editingNote.weekLabel,
         entity:     formEntity !== "ALL" ? formEntity : undefined,
-        vendorName: formVendor.trim() || undefined,
+        vendorName: subjectVal,
         createdAt:  formDate,
       });
     } else {
       addQuickNote({
-        title:      formTitle.trim() || "Quick Note",
+        title:      subjectVal,
         content:    formContent,
         category:   weekLabel || "General",
         weekLabel:  weekLabel || undefined,
         entity:     formEntity !== "ALL" ? formEntity : undefined,
-        vendorName: formVendor.trim() || undefined,
+        vendorName: subjectVal,
         createdAt:  formDate,
         status:     "open",
       });
@@ -439,21 +437,25 @@ export const NotesPage: React.FC = () => {
                             </div>
                           </div>
 
-                          {/* Week label badge (for sheet notes that have it as category) */}
+                          {/* Week label badge */}
                           {(note.weekLabel || (note.category && note.category !== "General")) && (
                             <div className="mb-1.5">
-                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-500/10 text-slate-500 dark:text-[#888] uppercase tracking-wider">
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-300 uppercase tracking-wider">
                                 {note.weekLabel || note.category}
                               </span>
                             </div>
                           )}
 
+                          {/* Title = vendor/subject (Column F) */}
                           <h4 className={`text-sm font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
                             {note.title}
                           </h4>
-                          <p className={`text-xs ${isLight ? "text-slate-600" : "text-[#ccc]"} mt-1.5 whitespace-pre-wrap leading-relaxed`}>
-                            {note.content}
-                          </p>
+                          {/* Body = instructions (Column G) */}
+                          {note.content && note.content !== note.title && (
+                            <p className={`text-xs ${isLight ? "text-slate-600" : "text-[#ccc]"} mt-1.5 whitespace-pre-wrap leading-relaxed`}>
+                              {note.content}
+                            </p>
+                          )}
                         </div>
 
                         <div className={`pt-2.5 border-t text-[10px] flex items-center justify-between gap-2 ${isLight ? "border-slate-200 text-slate-400" : "border-[#242424] text-[#666]"}`}>
@@ -506,13 +508,13 @@ export const NotesPage: React.FC = () => {
             </div>
 
             <form onSubmit={handleSaveNote} className="space-y-3">
-              {/* Entity + Vendor row */}
+              {/* Entity + Vendor/Subject row */}
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 dark:text-[#aaa] mb-1">Company / Entity</label>
                   <select
                     value={formEntity}
-                    onChange={(e) => { setFormEntity(e.target.value); setFormVendor(""); }}
+                    onChange={(e) => { setFormEntity(e.target.value); setFormSubject(""); }}
                     className={inp}
                   >
                     <option value="ALL">— Select Entity —</option>
@@ -523,13 +525,14 @@ export const NotesPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 dark:text-[#aaa] mb-1">Vendor Name</label>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-[#aaa] mb-1">Vendor / Subject</label>
                   <input
                     type="text"
                     list="np-vendor-list"
-                    placeholder="e.g. Sysco, US Foods, NSSB Loan"
-                    value={formVendor}
-                    onChange={(e) => setFormVendor(e.target.value)}
+                    required
+                    placeholder="e.g. US Foods, NSSB Loan, Payroll"
+                    value={formSubject}
+                    onChange={(e) => setFormSubject(e.target.value)}
                     className={inp}
                   />
                   <datalist id="np-vendor-list">
@@ -539,23 +542,10 @@ export const NotesPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-500 dark:text-[#aaa] mb-1">Note Title</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Payment Schedule Agreement"
-                  value={formTitle}
-                  onChange={(e) => setFormTitle(e.target.value)}
-                  className={inp}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 dark:text-[#aaa] mb-1">Notes & Discussion Points</label>
+                <label className="block text-xs font-semibold text-slate-500 dark:text-[#aaa] mb-1">Instructions / Note Details</label>
                 <textarea
                   rows={4}
-                  required
-                  placeholder="Enter notes, meeting discussion details, or action steps..."
+                  placeholder="Enter payment instructions, meeting discussion details, or action steps..."
                   value={formContent}
                   onChange={(e) => setFormContent(e.target.value)}
                   className={inp}

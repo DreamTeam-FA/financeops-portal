@@ -1220,11 +1220,12 @@ export async function fetchFullLiveDataset(accessToken?: string) {
 
       quickNotes.push({
         id,
-        title: noteText,
-        content: vendor ? `${vendor}${company ? " — " + company : ""}` : company,
-        category: weekLabel || "General",
-        entity: company || undefined,
-        vendorName: vendor || undefined,
+        // GAS convention: Column F (vendor/subject) = display title, Column G = body content
+        title:     vendor || noteText,
+        content:   noteText,
+        category:  weekLabel || "General",
+        entity:    company   || undefined,
+        vendorName: vendor   || undefined,
         status,
         completedAt,
         createdAt: weekStart,

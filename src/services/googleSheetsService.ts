@@ -1609,24 +1609,19 @@ export const buildNoteRow = (note: DashboardNote): any[] => {
   // Strip the "qn-" prefix to get the raw sheet ID value
   const rawId = note.id.replace(/^qn-/, "");
   const today = new Date().toISOString().split("T")[0];
-  // Use vendorName/entity directly (new form fields); unpack legacy content "vendor — company" as fallback
-  const contentParts = (note.content || "").split(" — ");
-  const isReconstructed = contentParts.length > 1 &&
-    contentParts[0] === note.vendorName;
-  const vendor  = note.vendorName || (contentParts.length > 1 ? contentParts[0] : "");
-  const company = note.entity     || (contentParts.length > 1 ? contentParts[1] : "");
-  // Column G (NoteText) = the actual note body; fall back to title if no separate content
-  const noteBody = (note.content?.trim() && !isReconstructed)
-    ? note.content.trim()
-    : note.title;
+  // GAS convention: Column F = vendor/subject (= note title), Column G = body/instructions (= note.content)
+  // note.title holds the vendor/subject; note.content holds the instruction body.
+  const vendor  = note.vendorName || note.title || "";
+  const company = note.entity || "";
+  const noteBody = note.content?.trim() || "";
   return [
     rawId,
     note.createdAt  || today,
     note.weekLabel  || note.category || "",
     note.createdAt  || today,
-    company,
-    vendor,
-    noteBody,
+    company,   // Column E — Company/Entity
+    vendor,    // Column F — Vendor/Subject (= note title)
+    noteBody,  // Column G — NoteText/Instructions body
     note.status === "done" ? "TRUE" : "FALSE",
     note.completedAt || (note.status === "done" ? today : ""),
   ];
