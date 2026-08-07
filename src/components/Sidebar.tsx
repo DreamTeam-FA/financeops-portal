@@ -352,9 +352,9 @@ export const Sidebar: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setCurrentPage("fouryr")}
+          onClick={() => setCurrentPage("fouryr-payroll")}
           className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all ${
-            currentPage === "fouryr"
+            currentPage === "fouryr-payroll"
               ? isLight ? "bg-slate-200/80 border border-slate-300 shadow-xs" : "bg-[#222] border border-[#333] shadow-xs"
               : isLight ? "hover:bg-slate-100" : "hover:bg-[#181818]"
           }`}

@@ -238,4 +238,5 @@ export type PageRoute =
   | "member-workspace"
   | "datasync"
   | "notes"
-  | "headleys";
+  | "headleys"
+  | "fouryr-payroll";

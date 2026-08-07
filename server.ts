@@ -3,6 +3,19 @@ import path from "path";
 import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { fetchFullLiveDataset } from "./src/services/liveSheetsFetcher";
+import {
+  getRawData as fourYrGetRawData,
+  getMasterListWeeks as fourYrGetWeeks,
+  getMasterListEmployees,
+  getDropdownData as fourYrGetDropdowns,
+  getDropdownDataForEntry,
+  getFilteredData as fourYrGetFiltered,
+  getEmployeeYTD,
+  getProjectTotalData,
+  saveRemark, saveTime, saveHours, saveHoursOverride, saveTotal, saveJob,
+  saveRecordEdit, addRawEntry, deleteRawEntry,
+  saveMasterListEmployee, addMasterListEmployee, deleteMasterListEmployee
+} from "./src/services/fourYrPayrollService";
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
@@ -376,6 +389,229 @@ app.post("/api/audit-log", (req, res) => {
   data.auditLog = [newLog, ...(data.auditLog || []).slice(0, 99)];
   saveStoredData(data);
   res.json({ success: true, log: newLog });
+});
+
+// =============================================================================
+// 4YR Payroll API Routes
+// =============================================================================
+
+// GET /api/4yr/dropdown-data
+app.get("/api/4yr/dropdown-data", async (req, res) => {
+  const token = req.headers.authorization?.replace("Bearer ", "") || "";
+  if (!token) return res.status(401).json({ error: "Missing access token" });
+  try {
+    const data = await fourYrGetDropdowns(token);
+    res.json({ ok: true, ...data });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+// GET /api/4yr/dropdown-data-for-entry
+app.get("/api/4yr/dropdown-data-for-entry", async (req, res) => {
+  const token = req.headers.authorization?.replace("Bearer ", "") || "";
+  if (!token) return res.status(401).json({ error: "Missing access token" });
+  try {
+    const data = await getDropdownDataForEntry(token);
+    res.json(data);
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+// POST /api/4yr/filtered-data
+app.post("/api/4yr/filtered-data", async (req, res) => {
+  const token = req.body?.accessToken || "";
+  if (!token) return res.status(401).json({ error: "Missing access token" });
+  try {
+    const filters = req.body?.filters || {};
+    const data = await fourYrGetFiltered(filters, token);
+    res.json({ ok: true, ...data });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+// GET /api/4yr/master-list
+app.get("/api/4yr/master-list", async (req, res) => {
+  const token = req.headers.authorization?.replace("Bearer ", "") || "";
+  if (!token) return res.status(401).json({ error: "Missing access token" });
+  try {
+    const data = await getMasterListEmployees(token);
+    res.json(data);
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+// GET /api/4yr/employee-ytd
+app.get("/api/4yr/employee-ytd", async (req, res) => {
+  const token = req.headers.authorization?.replace("Bearer ", "") || "";
+  if (!token) return res.status(401).json({ error: "Missing access token" });
+  const name = String(req.query.name || "");
+  if (!name) return res.status(400).json({ error: "Missing name" });
+  try {
+    const data = await getEmployeeYTD(name, token);
+    res.json({ ok: true, ...data });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+// POST /api/4yr/project-total
+app.post("/api/4yr/project-total", async (req, res) => {
+  const token = req.body?.accessToken || "";
+  if (!token) return res.status(401).json({ error: "Missing access token" });
+  try {
+    const data = await getProjectTotalData(req.body?.filters || {}, token);
+    res.json({ ok: true, ...data });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+// POST /api/4yr/save-remark
+app.post("/api/4yr/save-remark", async (req, res) => {
+  const { accessToken, rowIndex, remark } = req.body || {};
+  if (!accessToken) return res.status(401).json({ error: "Missing access token" });
+  try {
+    const r = await saveRemark(rowIndex, remark, accessToken);
+    res.json(r);
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+// POST /api/4yr/save-time
+app.post("/api/4yr/save-time", async (req, res) => {
+  const { accessToken, rowIndex, started, finished } = req.body || {};
+  if (!accessToken) return res.status(401).json({ error: "Missing access token" });
+  try {
+    const r = await saveTime(rowIndex, started, finished, accessToken);
+    res.json(r);
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+// POST /api/4yr/save-hours
+app.post("/api/4yr/save-hours", async (req, res) => {
+  const { accessToken, rowIndex, hours } = req.body || {};
+  if (!accessToken) return res.status(401).json({ error: "Missing access token" });
+  try {
+    const r = await saveHours(rowIndex, Number(hours), accessToken);
+    res.json(r);
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+// POST /api/4yr/save-hours-override
+app.post("/api/4yr/save-hours-override", async (req, res) => {
+  const { accessToken, rowIndex, hours } = req.body || {};
+  if (!accessToken) return res.status(401).json({ error: "Missing access token" });
+  try {
+    const r = await saveHoursOverride(rowIndex, Number(hours), accessToken);
+    res.json(r);
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+// POST /api/4yr/save-total
+app.post("/api/4yr/save-total", async (req, res) => {
+  const { accessToken, rowIndex, total } = req.body || {};
+  if (!accessToken) return res.status(401).json({ error: "Missing access token" });
+  try {
+    const r = await saveTotal(rowIndex, Number(total), accessToken);
+    res.json(r);
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+// POST /api/4yr/save-job
+app.post("/api/4yr/save-job", async (req, res) => {
+  const { accessToken, rowIndex, job } = req.body || {};
+  if (!accessToken) return res.status(401).json({ error: "Missing access token" });
+  try {
+    const r = await saveJob(rowIndex, job, accessToken);
+    res.json(r);
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+// POST /api/4yr/save-edit
+app.post("/api/4yr/save-edit", async (req, res) => {
+  const { accessToken, ...params } = req.body || {};
+  if (!accessToken) return res.status(401).json({ error: "Missing access token" });
+  try {
+    const r = await saveRecordEdit(params, accessToken);
+    res.json(r);
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+// POST /api/4yr/add-entry
+app.post("/api/4yr/add-entry", async (req, res) => {
+  const { accessToken, ...params } = req.body || {};
+  if (!accessToken) return res.status(401).json({ error: "Missing access token" });
+  try {
+    const r = await addRawEntry(params, accessToken);
+    res.json(r);
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+// POST /api/4yr/delete-entry
+app.post("/api/4yr/delete-entry", async (req, res) => {
+  const { accessToken, rowIndex } = req.body || {};
+  if (!accessToken) return res.status(401).json({ error: "Missing access token" });
+  try {
+    const r = await deleteRawEntry(Number(rowIndex), accessToken);
+    res.json(r);
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+// POST /api/4yr/save-master-employee
+app.post("/api/4yr/save-master-employee", async (req, res) => {
+  const { accessToken, ...params } = req.body || {};
+  if (!accessToken) return res.status(401).json({ error: "Missing access token" });
+  try {
+    const r = await saveMasterListEmployee(params, accessToken);
+    res.json(r);
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+// POST /api/4yr/add-master-employee
+app.post("/api/4yr/add-master-employee", async (req, res) => {
+  const { accessToken, ...params } = req.body || {};
+  if (!accessToken) return res.status(401).json({ error: "Missing access token" });
+  try {
+    const r = await addMasterListEmployee(params, accessToken);
+    res.json(r);
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+// POST /api/4yr/delete-master-employee
+app.post("/api/4yr/delete-master-employee", async (req, res) => {
+  const { accessToken, sheetRow } = req.body || {};
+  if (!accessToken) return res.status(401).json({ error: "Missing access token" });
+  try {
+    const r = await deleteMasterListEmployee(Number(sheetRow), accessToken);
+    res.json(r);
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
 });
 
 async function startServer() {
