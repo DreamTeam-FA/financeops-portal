@@ -53,10 +53,11 @@ function useToast() {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export function FourYrPayrollPage() {
-  const { theme } = useFinance();
+  const { theme, handleGoogleSignIn } = useFinance() as any;
   const isLight   = theme === "light";
 
   const { toasts, show: showToast } = useToast();
+  const [authError, setAuthError] = useState(false);
 
   // ── Filter state ─────────────────────────────────────────────────────────────
   const [yearFilter,    setYearFilter]    = useState(currentYear());
@@ -112,6 +113,16 @@ export function FourYrPayrollPage() {
   const apiGet = useCallback(async (path: string) => {
     const tok = getAccessToken();
     const res = await fetch(path, { headers: { Authorization: `Bearer ${tok}` } });
+    if (res.status === 500) {
+      // Check if it's an auth error from Google
+      try {
+        const body = await res.clone().json();
+        if (body?.error && /401|token|credential|auth/i.test(String(body.error))) {
+          setAuthError(true);
+          throw new Error("Google token expired — please reconnect");
+        }
+      } catch {}
+    }
     if (!res.ok) throw new Error(`API ${path} failed: ${res.status}`);
     return res.json();
   }, []);
@@ -123,6 +134,15 @@ export function FourYrPayrollPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...body, accessToken: tok })
     });
+    if (res.status === 500) {
+      try {
+        const b = await res.clone().json();
+        if (b?.error && /401|token|credential|auth/i.test(String(b.error))) {
+          setAuthError(true);
+          throw new Error("Google token expired — please reconnect");
+        }
+      } catch {}
+    }
     if (!res.ok) throw new Error(`API ${path} failed: ${res.status}`);
     return res.json();
   }, []);
@@ -131,6 +151,7 @@ export function FourYrPayrollPage() {
   useEffect(() => {
     if (!getAccessToken()) return;
     apiGet("/api/4yr/dropdown-data").then(data => {
+      setAuthError(false);
       setYears(data.years || []);
       setAllWeeks(data.weeks || []);
       setAllNames(data.names || []);
@@ -145,7 +166,11 @@ export function FourYrPayrollPage() {
         return now >= start && now <= end;
       });
       if (todayWeek) setSelectedWeeks([todayWeek.weekNum]);
-    }).catch(e => showToast(`Failed to load dropdowns: ${e.message}`, "error"));
+    }).catch(e => {
+      if (!e.message?.includes("reconnect")) {
+        showToast(`Failed to load dropdowns: ${e.message}`, "error");
+      }
+    });
   }, []); // eslint-disable-line
 
   // ── Load filtered data (debounced) ────────────────────────────────────────────
@@ -173,7 +198,9 @@ export function FourYrPayrollPage() {
         setTotals(data.totals || { hours: 0, amount: 0 });
         setDataLoaded(true);
       } catch (e: any) {
-        showToast(`Failed to load data: ${e.message}`, "error");
+        if (!e.message?.includes("reconnect")) {
+          showToast(`Failed to load data: ${e.message}`, "error");
+        }
       } finally {
         setLoading(false);
       }
@@ -914,6 +941,31 @@ export function FourYrPayrollPage() {
           Open original GAS app ↗
         </a>
       </div>
+
+      {/* ── Auth error banner ── */}
+      {authError && (
+        <div className={`shrink-0 flex items-center justify-between px-4 py-2 border-b text-[12px] font-medium ${
+          isLight
+            ? "bg-red-50 border-red-200 text-red-700"
+            : "bg-red-950/30 border-red-800/40 text-red-400"
+        }`}>
+          <span className="flex items-center gap-2">
+            <span>🔑</span>
+            <span>Google Sheets token expired — data cannot load until you reconnect.</span>
+          </span>
+          <button
+            onClick={async () => {
+              setAuthError(false);
+              await handleGoogleSignIn?.();
+              lastKeyRef.current = "";
+              loadData();
+            }}
+            className="ml-4 flex items-center gap-1.5 px-3 py-1 rounded-lg bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold transition-colors whitespace-nowrap"
+          >
+            🔄 Reconnect Google
+          </button>
+        </div>
+      )}
 
       {/* ── Page header ── */}
       <div className={`shrink-0 flex items-center justify-between px-5 py-3 border-b ${bdr}`}>
