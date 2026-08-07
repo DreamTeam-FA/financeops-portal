@@ -19225,6 +19225,12 @@
   },
   "auditLog": [
     {
+      "timestamp": "8/8/2026, 12:23:21 AM",
+      "user": "accounting@marktimm.com",
+      "action": "Google OAuth Authenticated",
+      "details": "Connected as accounting@marktimm.com"
+    },
+    {
       "timestamp": "8/7/2026, 10:38:50 PM",
       "user": "accounting@marktimm.com",
       "action": "Google OAuth Authenticated",
@@ -20545,9 +20551,9 @@
     }
   ],
   "gasUrls": {
-    "curcumin": "",
-    "fouryr": "",
-    "ziglar": ""
+    "curcumin": "https://script.google.com/macros/s/AKfycbx8Atk7ajk80WseNyVBuSJBjhyg8RABC5_DmeSZ2adRjkdplu0Bu5zx7yObbLrP4uT_/exec",
+    "fouryr": "https://script.google.com/a/macros/marktimm.com/s/AKfycbxvL1T_dHYg7s2tQmlfen7Y-eeYT6cU-L3vjv8RJ51pJWu7CydOFt9YyUy0MUJesyFi/exec",
+    "ziglar": "https://script.google.com/a/macros/marktimm.com/s/AKfycbwDAqUr0x8hvkVN1m3vn4CCBLw6B0AHrGQYizSAY02RSHYgxH7zCQYSy7lhfSWPcrH3/exec"
   },
   "calendarLocalEvents": [
     {
@@ -51075,6 +51081,5 @@
       "row": 1868,
       "time": "22:00"
     }
-  ],
-  "lastSyncedAt": "2026-08-07T16:19:46.963Z"
+  ]
 }
