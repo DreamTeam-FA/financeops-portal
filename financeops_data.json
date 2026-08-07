@@ -19175,26 +19175,50 @@
   ],
   "payrollPivot": {
     "Ruby's": {
-      "Payroll Line Items": {
-        "Payroll": {
-          "hours": 1040,
-          "amount": 87907762.54
+      "Operations": {
+        "Warehouse & Packing": {
+          "hours": 160,
+          "amount": 4800
+        },
+        "Quality Control": {
+          "hours": 80,
+          "amount": 2800
+        }
+      },
+      "Administration": {
+        "Accounting & Admin": {
+          "hours": 40,
+          "amount": 2200
         }
       }
     },
     "TI": {
-      "Payroll Line Items": {
-        "Payroll": {
-          "hours": 720,
-          "amount": 66328.45
+      "Engineering": {
+        "Software Devs": {
+          "hours": 240,
+          "amount": 14400
+        },
+        "DevOps & Cloud": {
+          "hours": 120,
+          "amount": 7800
+        }
+      },
+      "Management": {
+        "Exec & Operations": {
+          "hours": 80,
+          "amount": 6500
         }
       }
     },
     "MSDx": {
-      "Payroll Line Items": {
-        "Payroll": {
-          "hours": 440,
-          "amount": 95800
+      "Laboratory": {
+        "Research Scientists": {
+          "hours": 160,
+          "amount": 9600
+        },
+        "Lab Technicians": {
+          "hours": 120,
+          "amount": 5400
         }
       }
     }
@@ -51052,5 +51076,5 @@
       "time": "22:00"
     }
   ],
-  "lastSyncedAt": "2026-08-07T15:24:03.346Z"
+  "lastSyncedAt": "2026-08-07T15:42:24.148Z"
 }
