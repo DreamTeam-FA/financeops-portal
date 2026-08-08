@@ -12,6 +12,40 @@ const fmt2   = (n: number) => n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")
 const fmtAmt = (n: number) => `$${fmt2(n)}`;
 const fmtHrs = (n: number) => fmt2(n);
 
+/** GAS parseAmPmToSecs — parses "H:MM[:SS] [AM/PM]" → total seconds */
+function parseAmPmSecs(s: string): number | null {
+  if (!s) return null;
+  const m = s.trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AaPp][Mm])?$/);
+  if (!m) return null;
+  let h = parseInt(m[1], 10);
+  const min = parseInt(m[2], 10), sec = m[3] ? parseInt(m[3], 10) : 0;
+  const ap = m[4] ? m[4].toUpperCase() : null;
+  if (ap === 'PM' && h !== 12) h += 12;
+  if (ap === 'AM' && h === 12) h = 0;
+  return h * 3600 + min * 60 + sec;
+}
+
+/** GAS toAmPmWithSecs — converts "H:MM AM/PM" → "H:MM:SS AM/PM" (appends :00) */
+function toAmPmWithSecs(s: string): string {
+  if (!s) return '';
+  if (/^\d{1,2}:\d{2}:\d{2}\s*[AaPp][Mm]$/.test(s.trim())) return s.trim();
+  const m = s.trim().match(/^(\d{1,2}:\d{2})\s*([AaPp][Mm])$/);
+  if (m) return `${m[1]}:00 ${m[2].toUpperCase()}`;
+  return s;
+}
+
+/** GAS autoFillEditHours — compute HH:MM[:SS] from two AM/PM time strings */
+function editHoursFromAmPm(startStr: string, endStr: string): string {
+  const ss = parseAmPmSecs(startStr), es = parseAmPmSecs(endStr);
+  if (ss === null || es === null) return '';
+  let diff = es - ss;
+  if (diff < 0) diff += 86400;
+  const hh = Math.floor(diff / 3600);
+  const mm = Math.floor((diff % 3600) / 60);
+  const sx = diff % 60;
+  return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}${sx ? ':' + String(sx).padStart(2,'0') : ''}`;
+}
+
 function today() {
   const d = new Date();
   return `${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}/${d.getFullYear()}`;
@@ -413,19 +447,9 @@ export function FourYrPayrollPage() {
       const hh   = Math.floor(hDec);
       const hm   = Math.round((hDec - hh) * 60);
       const hoursHHMM = hDec ? `${String(hh).padStart(2,'0')}:${String(hm).padStart(2,'0')}` : "";
-      // Convert "HH:MM AM/PM" → "HH:MM" (24h) for <input type="time">
-      const amPmTo24h = (s: string) => {
-        if (!s) return "";
-        const m = s.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-        if (!m) return s;
-        let h = parseInt(m[1], 10);
-        const min = m[2], ap = m[3].toUpperCase();
-        if (ap === "PM" && h !== 12) h += 12;
-        if (ap === "AM" && h === 12) h = 0;
-        return `${String(h).padStart(2,'0')}:${min}`;
-      };
+      // Populate times as "H:MM:SS AM/PM" text — matches GAS toAmPmWithSecs / text input
       setForm({ name:row.name, job:row.job, subCat:row.subCat, date:row.date,
-        started: amPmTo24h(row.started), finished: amPmTo24h(row.finished),
+        started: toAmPmWithSecs(row.started), finished: toAmPmWithSecs(row.finished),
         hours:hoursHHMM, remarks:row.remarks,
         amount:String(Math.abs(row.total||0)), company:row.company,
         recordType: isDed ? "deduction" : isNonPay ? "nonpayroll" : "payroll" });
@@ -1041,42 +1065,60 @@ export function FourYrPayrollPage() {
       {/* Time fields (payroll only) */}
       {!isNoTime && (<>
         <div>
-          <label className={`block text-[10px] font-bold mb-1 uppercase tracking-widest ${txt2}`}>Started (Time)</label>
-          <input type="time" value={form.started}
-            onChange={e => {
-              const started = e.target.value;
-              setForm(f => {
-                let hours = f.hours;
-                if (started && f.finished) {
-                  const [sh,sm] = started.split(':').map(Number);
-                  const [eh,em] = f.finished.split(':').map(Number);
-                  let mins = (eh*60+em) - (sh*60+sm);
-                  if (mins < 0) mins += 24*60;
-                  hours = `${String(Math.floor(mins/60)).padStart(2,'0')}:${String(mins%60).padStart(2,'0')}`;
-                }
-                return { ...f, started, hours };
-              });
-            }}
-            className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${inp}`} />
+          <label className={`block text-[10px] font-bold mb-1 uppercase tracking-widest ${txt2}`}>
+            Started (Time){isEditMode && <span className={`ml-1 normal-case font-normal ${txt2}`}>HH:MM:SS AM/PM</span>}
+          </label>
+          {isEditMode
+            ? <input type="text" value={form.started} placeholder="e.g. 01:59:00 PM" autoComplete="off"
+                onChange={e => {
+                  const started = e.target.value;
+                  setForm(f => ({ ...f, started, hours: editHoursFromAmPm(started, f.finished) || f.hours }));
+                }}
+                className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${inp}`} />
+            : <input type="time" value={form.started}
+                onChange={e => {
+                  const started = e.target.value;
+                  setForm(f => {
+                    let hours = f.hours;
+                    if (started && f.finished) {
+                      const [sh,sm] = started.split(':').map(Number);
+                      const [eh,em] = f.finished.split(':').map(Number);
+                      let mins = (eh*60+em)-(sh*60+sm); if(mins<0) mins+=24*60;
+                      hours = `${String(Math.floor(mins/60)).padStart(2,'0')}:${String(mins%60).padStart(2,'0')}`;
+                    }
+                    return { ...f, started, hours };
+                  });
+                }}
+                className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${inp}`} />
+          }
         </div>
         <div>
-          <label className={`block text-[10px] font-bold mb-1 uppercase tracking-widest ${txt2}`}>End (Time)</label>
-          <input type="time" value={form.finished}
-            onChange={e => {
-              const finished = e.target.value;
-              setForm(f => {
-                let hours = f.hours;
-                if (f.started && finished) {
-                  const [sh,sm] = f.started.split(':').map(Number);
-                  const [eh,em] = finished.split(':').map(Number);
-                  let mins = (eh*60+em) - (sh*60+sm);
-                  if (mins < 0) mins += 24*60;
-                  hours = `${String(Math.floor(mins/60)).padStart(2,'0')}:${String(mins%60).padStart(2,'0')}`;
-                }
-                return { ...f, finished, hours };
-              });
-            }}
-            className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${inp}`} />
+          <label className={`block text-[10px] font-bold mb-1 uppercase tracking-widest ${txt2}`}>
+            End (Time){isEditMode && <span className={`ml-1 normal-case font-normal ${txt2}`}>HH:MM:SS AM/PM</span>}
+          </label>
+          {isEditMode
+            ? <input type="text" value={form.finished} placeholder="e.g. 04:24:00 PM" autoComplete="off"
+                onChange={e => {
+                  const finished = e.target.value;
+                  setForm(f => ({ ...f, finished, hours: editHoursFromAmPm(f.started, finished) || f.hours }));
+                }}
+                className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${inp}`} />
+            : <input type="time" value={form.finished}
+                onChange={e => {
+                  const finished = e.target.value;
+                  setForm(f => {
+                    let hours = f.hours;
+                    if (f.started && finished) {
+                      const [sh,sm] = f.started.split(':').map(Number);
+                      const [eh,em] = finished.split(':').map(Number);
+                      let mins = (eh*60+em)-(sh*60+sm); if(mins<0) mins+=24*60;
+                      hours = `${String(Math.floor(mins/60)).padStart(2,'0')}:${String(mins%60).padStart(2,'0')}`;
+                    }
+                    return { ...f, finished, hours };
+                  });
+                }}
+                className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${inp}`} />
+          }
         </div>
         <div className="col-span-2">
           <label className={`block text-[10px] font-bold mb-1 uppercase tracking-widest ${txt2}`}>Hours (HH:MM)</label>
