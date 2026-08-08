@@ -1376,19 +1376,20 @@ export function FourYrPayrollPage() {
         <div className="flex items-center gap-2 ml-auto flex-shrink-0">
           {/* Screenshot button — lives here next to Add/Delete */}
           <div className="relative flex-shrink-0">
-            {/* Refresh button — force-reloads data from Sheets */}
+            {/* Refresh — icon only */}
             <button onClick={() => { lastKeyRef.current = ""; doLoad(); }}
               disabled={loading}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold whitespace-nowrap"
-              style={{ background:isLight?"#e3f2fd":"#1a2433", border:`1px solid ${isLight?"#90caf9":"#2e5c8a"}`, color:isLight?"#1565c0":"#90caf9", opacity: loading ? 0.6 : 1 }}
+              className="flex items-center justify-center w-8 h-8 rounded"
+              style={{ background:isLight?"#e3f2fd":"#1a2433", border:`1px solid ${isLight?"#90caf9":"#2e5c8a"}`, color:isLight?"#1565c0":"#90caf9", opacity: loading ? 0.6 : 1, fontSize:16 }}
               title="Refresh data from Google Sheets">
-              {loading ? "⏳" : "🔄"} Refresh
+              {loading ? "⏳" : "🔄"}
             </button>
+            {/* Screenshot — icon only */}
             <button onClick={() => setSsMenuOpen(o=>!o)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold whitespace-nowrap"
-              style={{ background:isLight?"#e8f5e9":"#1a2a1f", border:`1px solid ${isLight?"#8cb89a":"#2e6a3f"}`, color:isLight?"#1a6b36":"#7fd99a" }}
+              className="flex items-center justify-center w-8 h-8 rounded"
+              style={{ background:isLight?"#e8f5e9":"#1a2a1f", border:`1px solid ${isLight?"#8cb89a":"#2e6a3f"}`, color:isLight?"#1a6b36":"#7fd99a", fontSize:16 }}
               title="Take screenshot">
-              {ssCapturing ? "⏳" : "📷"} Screenshot
+              {ssCapturing ? "⏳" : "📷"}
             </button>
             {ssMenuOpen && (
               <div className="absolute top-full right-0 mt-1 rounded-xl overflow-hidden z-[600]"
