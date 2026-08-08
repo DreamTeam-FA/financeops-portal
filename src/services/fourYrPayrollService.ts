@@ -985,11 +985,13 @@ export async function saveRecordEdit(params: {
       // 4-decimal precision preserves seconds (e.g. 1h 44m 15s = 1.7375)
       const jHours = Math.round(diff * 24 * 10000) / 10000;
       await sheetsRawPut(`'raw'!J${sheetRow}`, [[jHours]], token);
+      // ALWAYS write Col O (displayed hours) from start/end diff so the
+      // portal reflects updated seconds even when hours wasn't manually edited
+      await sheetsRawPut(`'raw'!O${sheetRow}`, [[jHours]], token);
     }
 
     if (params.hoursExplicitlyEdited && params.hours !== undefined) {
-      // parseHoursToDecimal handles HH:MM:SS correctly (was bare parseFloat which
-      // stops at the first colon and returns the integer hour part only)
+      // User manually overrode the hours field — their value takes priority
       const hrsDecimal = parseHoursToDecimal(params.hours);
       const hrs = hrsDecimal !== '' ? hrsDecimal : 0;
       await sheetsRawPut(`'raw'!O${sheetRow}`, [[hrs]], token);
