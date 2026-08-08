@@ -1405,14 +1405,16 @@ export function FourYrPayrollPage() {
             )}
           </div>
           <button onClick={openAddModal}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded text-xs font-bold text-white whitespace-nowrap"
-            style={{ background:"#2d8a52", border:"1px solid #1a6b36" }}>
-            ➕ Add Record
+            className="flex items-center justify-center w-8 h-8 rounded"
+            style={{ background:"#2d8a52", border:"1px solid #1a6b36", fontSize:16 }}
+            title="Add Record">
+            ➕
           </button>
           <button onClick={() => { setActiveTab("detail"); setMainTab("payroll"); }}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded text-xs font-bold text-white whitespace-nowrap"
-            style={{ background:"#e53935", border:"1px solid #b71c1c" }}>
-            🗑️ Delete Record
+            className="flex items-center justify-center w-8 h-8 rounded"
+            style={{ background:"#e53935", border:"1px solid #b71c1c", fontSize:16 }}
+            title="Delete Record">
+            🗑️
           </button>
         </div>
       </div>
