@@ -159,8 +159,9 @@ export function FourYrPayrollPage() {
   const [entryDropdowns,setEntryDropdowns]= useState<any>(null);
   const [form, setForm] = useState({ name:"", job:"", subCat:"", date:"", started:"", finished:"", hours:"", remarks:"", amount:"", company:"", recordType:"payroll" });
 
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
-  const lastKeyRef  = useRef("");
+  const debounceRef  = useRef<ReturnType<typeof setTimeout>>();
+  const lastKeyRef   = useRef("");
+  const weekListRef  = useRef<HTMLDivElement>(null);
 
   // ── API helpers ───────────────────────────────────────────────────────────
   const apiGet = useCallback(async (path: string) => {
@@ -187,6 +188,13 @@ export function FourYrPayrollPage() {
     if (!res.ok) throw new Error(`${path} → ${res.status}`);
     return res.json();
   }, []);
+
+  // ── Scroll week dropdown list to first selected item when it opens ─────────
+  useEffect(() => {
+    if (!weekDropOpen || !weekListRef.current) return;
+    const firstSelected = weekListRef.current.querySelector("[data-selected='true']") as HTMLElement | null;
+    if (firstSelected) firstSelected.scrollIntoView({ block: "center" });
+  }, [weekDropOpen]);
 
   // ── doLoad — reads from filtersRef (GAS pattern: always uses current values)
   const doLoad = useCallback(() => {
@@ -784,7 +792,7 @@ export function FourYrPayrollPage() {
             <tr style={{ background:TH1 }}>
               {["Date","Name","Job","Sub Cat","Start","End","Hrs","Rate","Amount","Co","Remarks",""].map((h,i) => (
                 <th key={h||i} className="py-2 px-2 text-[10px] font-bold text-white uppercase tracking-wide text-left"
-                  style={{ minWidth:[100,130,130,110,75,75,65,80,90,50,110,56][i], position:"sticky", top:0, background:TH1, zIndex:2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                  style={{ minWidth:[100,130,130,110,75,75,65,80,90,50,145,56][i], position:"sticky", top:0, background:TH1, zIndex:2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
                   {h}
                 </th>
               ))}
@@ -1064,9 +1072,11 @@ export function FourYrPayrollPage() {
 
       {/* ── Top bar (GAS: .topbar) ── */}
       <div className="shrink-0 flex items-center gap-3 px-4 py-0" style={{ background:"#1a6b36", height:54, boxShadow:"0 2px 8px rgba(0,0,0,.18)" }}>
-        {/* Logo — same component as sidebar */}
-        <div className="flex items-center gap-2 shrink-0">
-          <FourYrLogo isLight={false} />
+        {/* Logo on white pill — same pattern as GAS .topbar-logo-fallback */}
+        <div className="flex items-center gap-2.5 shrink-0">
+          <div style={{ height:38, display:"flex", alignItems:"center", padding:"2px 10px", background:"#fff", borderRadius:5, flexShrink:0 }}>
+            <img src="/logos/4yr.png" alt="4YouPros" style={{ maxHeight:30, maxWidth:130, objectFit:"contain", display:"block" }} />
+          </div>
           <div className="w-px h-7" style={{ background:"rgba(255,255,255,.25)" }} />
           <span className="text-white font-bold text-[15px] tracking-tight whitespace-nowrap">Payroll Dashboard</span>
         </div>
@@ -1077,38 +1087,14 @@ export function FourYrPayrollPage() {
         )}
         {loading && <span className="text-[11px] text-green-200 animate-pulse ml-1">Refreshing…</span>}
 
-        {/* Right side controls */}
+        {/* Right side: Open Dashboard link + trademark */}
         <div className="ml-auto flex flex-col items-end gap-0.5">
-          <div className="flex items-center gap-2">
-            {/* Screenshot button — prominent, matches GAS */}
-            <div className="relative">
-              <button onClick={() => setSsMenuOpen(o=>!o)}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-semibold transition-all"
-                style={{ background:"rgba(255,255,255,.18)", border:"1px solid rgba(255,255,255,.35)", color:"#fff", height:28 }}
-                title="Take screenshot">
-                {ssCapturing ? "⏳" : "📷"} <span>Screenshot</span>
-              </button>
-              {ssMenuOpen && (
-                <div className="absolute top-full right-0 mt-2 rounded-xl overflow-hidden z-[600]"
-                  style={{ background:"#fff", border:"1px solid #e4e8f0", boxShadow:"0 4px 18px rgba(26,73,140,.13)", minWidth:170 }}>
-                  <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide" style={{ color:"#b0b8c9" }}>Screenshot</div>
-                  {[["visible","🖥 Visible Area"],["full","📄 Full Content"]].map(([m,l]) => (
-                    <div key={m} className="flex items-center gap-2.5 px-3 py-2 text-xs cursor-pointer transition-all hover:bg-[#f0f5ff]"
-                      style={{ color:"#333" }} onClick={() => takeScreenshot(m as any)}>
-                      {l}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            {/* Open GAS link */}
-            <a href="https://script.google.com/macros/s/AKfycbxa-kql1pMbkZzKjdqcc0t2S7_TgJG-A6dWHmlz2z4xIfLmPTaWpMAO3rmB5CmeDG00/exec"
-              target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-semibold text-white no-underline transition-all"
-              style={{ background:"rgba(255,255,255,.18)", border:"1px solid rgba(255,255,255,.35)", height:28 }}>
-              Open GAS ↗
-            </a>
-          </div>
+          <a href="https://script.google.com/macros/s/AKfycbxa-kql1pMbkZzKjdqcc0t2S7_TgJG-A6dWHmlz2z4xIfLmPTaWpMAO3rmB5CmeDG00/exec"
+            target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1 rounded text-[11px] font-semibold text-white no-underline transition-all"
+            style={{ background:"rgba(255,255,255,.18)", border:"1px solid rgba(255,255,255,.3)", height:28 }}>
+            Open Dashboard ↗
+          </a>
           <span className="text-[9px] font-light opacity-50 tracking-wide text-white pr-0.5">® Made by Finance Team</span>
         </div>
       </div>
@@ -1172,9 +1158,12 @@ export function FourYrPayrollPage() {
                   <button onClick={() => { setWeekDropOpen(false); doLoad(); }} className="text-[11px] px-2 py-0.5 rounded text-white font-bold" style={{ background:TH1 }}>Apply</button>
                 </div>
               </div>
-              <div className="overflow-y-auto" style={{ maxHeight:280 }}>
+              <div className="overflow-y-auto" style={{ maxHeight:280 }} ref={weekListRef}>
                 {filteredWeeks.map(w => (
-                  <label key={w.weekNum} className={`flex items-center gap-2.5 px-3 py-2 cursor-pointer text-xs border-b ${tbBdr} ${tbRow}`}>
+                  <label key={w.weekNum}
+                    data-selected={selectedWeeks.includes(w.weekNum) ? "true" : "false"}
+                    className={`flex items-center gap-2.5 px-3 py-2 cursor-pointer text-xs border-b ${tbBdr} ${tbRow}`}
+                    onClick={() => onWeekToggle(w.weekNum)}>
                     <div style={{
                       width:13, height:13, borderRadius:3, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9,
                       background: selectedWeeks.includes(w.weekNum) ? TH1 : "transparent",
@@ -1234,15 +1223,36 @@ export function FourYrPayrollPage() {
           </div>
         </div>
 
-        {/* Action buttons — right-aligned, flex-shrink-0 prevents wrapping */}
+        {/* Right-side action cluster: Screenshot + Add + Delete */}
         <div className="flex items-center gap-2 ml-auto flex-shrink-0">
+          {/* Screenshot button — lives here next to Add/Delete */}
+          <div className="relative flex-shrink-0">
+            <button onClick={() => setSsMenuOpen(o=>!o)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold whitespace-nowrap"
+              style={{ background:isLight?"#e8f5e9":"#1a2a1f", border:`1px solid ${isLight?"#8cb89a":"#2e6a3f"}`, color:isLight?"#1a6b36":"#7fd99a" }}
+              title="Take screenshot">
+              {ssCapturing ? "⏳" : "📷"} Screenshot
+            </button>
+            {ssMenuOpen && (
+              <div className="absolute top-full right-0 mt-1 rounded-xl overflow-hidden z-[600]"
+                style={{ background:"#fff", border:"1px solid #e4e8f0", boxShadow:"0 4px 18px rgba(26,73,140,.13)", minWidth:170 }}>
+                <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide" style={{ color:"#b0b8c9" }}>Screenshot</div>
+                {[["visible","🖥 Visible Area"],["full","📄 Full Content"]].map(([m,l]) => (
+                  <div key={m} className="flex items-center gap-2.5 px-3 py-2 text-xs cursor-pointer transition-all hover:bg-[#f0f5ff]"
+                    style={{ color:"#333" }} onClick={() => takeScreenshot(m as any)}>
+                    {l}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           <button onClick={openAddModal}
-            className="flex items-center gap-1.5 px-4 py-2 rounded text-xs font-bold text-white whitespace-nowrap shadow-sm"
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded text-xs font-bold text-white whitespace-nowrap"
             style={{ background:"#2d8a52", border:"1px solid #1a6b36" }}>
             ➕ Add Record
           </button>
           <button onClick={() => { setActiveTab("detail"); setMainTab("payroll"); }}
-            className="flex items-center gap-1.5 px-4 py-2 rounded text-xs font-bold text-white whitespace-nowrap shadow-sm"
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded text-xs font-bold text-white whitespace-nowrap"
             style={{ background:"#e53935", border:"1px solid #b71c1c" }}>
             🗑️ Delete Record
           </button>
