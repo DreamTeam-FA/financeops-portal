@@ -144,7 +144,9 @@ function parseTimeStr(str: string): number | null {
 
 function fractionToTimeStr(frac: number | null): string {
   if (frac === null || frac === undefined) return '';
-  const totalSec = Math.round(frac * 86400);
+  // If cell has a datetime value (serial > 1), extract only the time fraction
+  const timeFrac = frac > 1 ? frac % 1 : (frac < 0 ? 0 : frac);
+  const totalSec = Math.round(timeFrac * 86400);
   const h = Math.floor(totalSec / 3600) % 24;
   const m = Math.floor((totalSec % 3600) / 60);
   const s = totalSec % 60; // preserve seconds
@@ -226,22 +228,27 @@ export interface WeekMeta {
 // ── getRawData ────────────────────────────────────────────────────────────────
 
 export async function getRawData(token: string): Promise<RawRow[]> {
-  // Fetch formatted (for display) and unformatted (for numbers) in one batchGet
-  const [fmtRanges, rawRanges] = await Promise.all([
-    sheetsBatchGet(["'raw'!A4:S", "'raw'!G4:I"], token, 'FORMATTED_VALUE'),
+  // Run both batchGet calls in parallel. FORMATTED_VALUE is required (throws on
+  // failure); UNFORMATTED_VALUE is best-effort for seconds precision — if it
+  // fails we fall back gracefully to FORMATTED_VALUE strings only.
+  const [fmtResult, unfmtResult] = await Promise.allSettled([
+    sheetsBatchGet(["'raw'!A4:S"], token, 'FORMATTED_VALUE'),
     sheetsBatchGet(["'raw'!A4:S"], token, 'UNFORMATTED_VALUE')
   ]);
+  if (fmtResult.status === 'rejected') throw (fmtResult as PromiseRejectedResult).reason;
+  const fmtRanges: any[] = (fmtResult as PromiseFulfilledResult<any>).value;
+  const unfmtRanges: any[] = unfmtResult.status === 'fulfilled'
+    ? (unfmtResult as PromiseFulfilledResult<any>).value
+    : [];
 
   const fmtValues: any[][] = fmtRanges[0]?.values || [];
-  const timeDisp: any[][] = fmtRanges[1]?.values || [];
-  const rawValues: any[][] = rawRanges[0]?.values || [];
+  const rawValues: any[][] = unfmtRanges[0]?.values || [];
 
   const rows: RawRow[] = [];
 
   for (let i = 0; i < fmtValues.length; i++) {
     const f = fmtValues[i] || [];
     const u = rawValues[i] || [];
-    const t = timeDisp[i] || [];
 
     const name = String(f[2] || u[2] || '').trim();
     if (!name) continue;
@@ -256,26 +263,25 @@ export async function getRawData(token: string): Promise<RawRow[]> {
     }
     const date = dateISO ? isoToMmDdYyyy(dateISO) : '';
 
-    // Time display: use FORMATTED_VALUE (t[0]=G, t[2]=I)
-    const startedDisp = String(t[0] || '').trim();
-    const finishedDisp = String(t[2] || '').trim();
-    // Prefer UNFORMATTED_VALUE fractions for times (full seconds precision).
-    // Google Sheets cell format may strip seconds from FORMATTED_VALUE, so we
-    // derive the display string from the raw fraction when available.
+    // Columns G (index 6) = started, I (index 8) = finished.
+    // Prefer UNFORMATTED_VALUE fractions for full seconds precision.
+    // When UNFORMATTED_VALUE is unavailable or cell is text, fall back to
+    // the FORMATTED_VALUE string (f[6]/f[8]) with AM/PM normalization.
     const startedFrac  = typeof u[6] === 'number' ? u[6] : null;
     const finishedFrac = typeof u[8] === 'number' ? u[8] : null;
-    // Normalize time string: preserve seconds (HH:MM:SS AM/PM or HH:MM AM/PM)
     const normalizeTime = (s: string) => {
+      // Accept "H:MM AM/PM" or "H:MM:SS AM/PM" → padded "HH:MM:SS AM/PM" / "HH:MM AM/PM"
       const m = s.match(/(\d+):(\d{2})(?::(\d{2}))?\s*(AM|PM)/i);
       if (!m) return s;
       const h = parseInt(m[1], 10);
       const min = m[2];
-      const sec = m[3]; // may be undefined
+      const sec = m[3]; // may be undefined when no seconds in string
       const ap = m[4].toUpperCase();
       const base = `${String(h).padStart(2,'0')}:${min}`;
       return sec ? `${base}:${sec} ${ap}` : `${base} ${ap}`;
     };
-    // Use fraction → string (with seconds) when available; fall back to FORMATTED_VALUE string
+    const startedDisp  = String(f[6] || '').trim();
+    const finishedDisp = String(f[8] || '').trim();
     const started  = startedFrac  !== null ? fractionToTimeStr(startedFrac)  : (startedDisp  ? normalizeTime(startedDisp)  : '');
     const finished = finishedFrac !== null ? fractionToTimeStr(finishedFrac) : (finishedDisp ? normalizeTime(finishedDisp) : '');
 
