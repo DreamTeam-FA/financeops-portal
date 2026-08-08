@@ -1372,19 +1372,18 @@ export function FourYrPayrollPage() {
           </div>
         </div>
 
-        {/* Right-side action cluster: Screenshot + Add + Delete */}
+        {/* Right-side action cluster: Refresh + Screenshot + Add + Delete */}
         <div className="flex items-center gap-2 ml-auto flex-shrink-0">
-          {/* Screenshot button — lives here next to Add/Delete */}
+          {/* Refresh — icon only */}
+          <button onClick={() => { lastKeyRef.current = ""; doLoad(); }}
+            disabled={loading}
+            className="flex items-center justify-center w-8 h-8 rounded"
+            style={{ background:isLight?"#e3f2fd":"#1a2433", border:`1px solid ${isLight?"#90caf9":"#2e5c8a"}`, color:isLight?"#1565c0":"#90caf9", opacity: loading ? 0.6 : 1, fontSize:16 }}
+            title="Refresh data from Google Sheets">
+            {loading ? "⏳" : "🔄"}
+          </button>
+          {/* Screenshot — icon only, with dropdown */}
           <div className="relative flex-shrink-0">
-            {/* Refresh — icon only */}
-            <button onClick={() => { lastKeyRef.current = ""; doLoad(); }}
-              disabled={loading}
-              className="flex items-center justify-center w-8 h-8 rounded"
-              style={{ background:isLight?"#e3f2fd":"#1a2433", border:`1px solid ${isLight?"#90caf9":"#2e5c8a"}`, color:isLight?"#1565c0":"#90caf9", opacity: loading ? 0.6 : 1, fontSize:16 }}
-              title="Refresh data from Google Sheets">
-              {loading ? "⏳" : "🔄"}
-            </button>
-            {/* Screenshot — icon only */}
             <button onClick={() => setSsMenuOpen(o=>!o)}
               className="flex items-center justify-center w-8 h-8 rounded"
               style={{ background:isLight?"#e8f5e9":"#1a2a1f", border:`1px solid ${isLight?"#8cb89a":"#2e6a3f"}`, color:isLight?"#1a6b36":"#7fd99a", fontSize:16 }}
@@ -1404,17 +1403,17 @@ export function FourYrPayrollPage() {
               </div>
             )}
           </div>
+          {/* Add Record — with text */}
           <button onClick={openAddModal}
-            className="flex items-center justify-center w-8 h-8 rounded"
-            style={{ background:"#2d8a52", border:"1px solid #1a6b36", fontSize:16 }}
-            title="Add Record">
-            ➕
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded text-xs font-bold text-white whitespace-nowrap"
+            style={{ background:"#2d8a52", border:"1px solid #1a6b36" }}>
+            ➕ Add Record
           </button>
+          {/* Delete Record — with text */}
           <button onClick={() => { setActiveTab("detail"); setMainTab("payroll"); }}
-            className="flex items-center justify-center w-8 h-8 rounded"
-            style={{ background:"#e53935", border:"1px solid #b71c1c", fontSize:16 }}
-            title="Delete Record">
-            🗑️
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded text-xs font-bold text-white whitespace-nowrap"
+            style={{ background:"#e53935", border:"1px solid #b71c1c" }}>
+            🗑️ Delete Record
           </button>
         </div>
       </div>
