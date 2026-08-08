@@ -285,6 +285,24 @@ export async function getRawData(token: string): Promise<RawRow[]> {
     const started  = startedFrac  !== null ? fractionToTimeStr(startedFrac)  : (startedDisp  ? normalizeTime(startedDisp)  : '');
     const finished = finishedFrac !== null ? fractionToTimeStr(finishedFrac) : (finishedDisp ? normalizeTime(finishedDisp) : '');
 
+    // If both time fractions are available, compute hours from them directly —
+    // this ensures the portal always reflects the actual start/end diff even
+    // when Col O (index 14) was set to a stale or manually-overridden value
+    // (e.g. via inline HRS cell edit or a pre-fix save).
+    let computedHours: number;
+    if (startedFrac !== null && finishedFrac !== null) {
+      let diff = finishedFrac - startedFrac;
+      if (diff < 0) diff += 1;
+      // extract time-only portion in case values are datetime serials (> 1)
+      const sf = startedFrac  > 1 ? startedFrac  % 1 : startedFrac;
+      const ef = finishedFrac > 1 ? finishedFrac % 1 : finishedFrac;
+      diff = ef - sf;
+      if (diff < 0) diff += 1;
+      computedHours = Math.round(diff * 24 * 10000) / 10000;
+    } else {
+      computedHours = typeof u[14] === 'number' ? u[14] : parseFloat(String(f[14] || '0')) || 0;
+    }
+
     rows.push({
       rowIndex : i,
       first    : String(u[0]  || f[0]  || ''),
@@ -302,7 +320,7 @@ export async function getRawData(token: string): Promise<RawRow[]> {
       totalRaw : typeof u[11] === 'number' ? u[11] : parseFloat(String(f[11] || '0')) || 0,
       remarks  : String(f[12] || '').trim(),
       company  : String(f[13] || '').trim(),
-      hours    : typeof u[14] === 'number' ? u[14] : parseFloat(String(f[14] || '0')) || 0,
+      hours    : computedHours,
       total    : typeof u[15] === 'number' ? u[15] : parseFloat(String(f[15] || '0')) || 0,
       variance : typeof u[16] === 'number' ? u[16] : parseFloat(String(f[16] || '0')) || 0,
       weekNum  : String(f[17] || u[17] || '').trim(),
