@@ -177,6 +177,7 @@ export function FourYrPayrollPage() {
   const [editingRow,    setEditingRow]    = useState<RawRow|null>(null);
   const [entryDropdowns,setEntryDropdowns]= useState<any>(null);
   const [form, setForm] = useState({ name:"", job:"", subCat:"", date:"", started:"", finished:"", hours:"", remarks:"", amount:"", company:"", recordType:"payroll" });
+  const [hoursExplicit, setHoursExplicit] = useState(false); // mirrors GAS _editHoursExplicit
 
   const debounceRef  = useRef<ReturnType<typeof setTimeout>>();
   const lastKeyRef   = useRef("");
@@ -448,11 +449,17 @@ export function FourYrPayrollPage() {
       const hm   = Math.round((hDec - hh) * 60);
       const hoursHHMM = hDec ? `${String(hh).padStart(2,'0')}:${String(hm).padStart(2,'0')}` : "";
       // Populate times as "H:MM:SS AM/PM" text — matches GAS toAmPmWithSecs / text input
-      setForm({ name:row.name, job:row.job, subCat:row.subCat, date:row.date,
+      const recType = isDed ? "deduction" : isNonPay ? "nonpayroll" : "payroll";
+      setForm({ name:row.name,
+        // GAS onEditRecordTypeChange: deduction → job is always "Deductions"
+        job: recType === "deduction" ? "Deductions" : (row.job || ""),
+        subCat: (row.subCat && row.subCat !== "(none)") ? row.subCat : "",
+        date:row.date,
         started: toAmPmWithSecs(row.started), finished: toAmPmWithSecs(row.finished),
         hours:hoursHHMM, remarks:row.remarks,
         amount:String(Math.abs(row.total||0)), company:row.company,
-        recordType: isDed ? "deduction" : isNonPay ? "nonpayroll" : "payroll" });
+        recordType: recType });
+      setHoursExplicit(false); // GAS: _editHoursExplicit = false on modal open
       setEditModalOpen(true);
     } catch(e:any) { showToast(`Edit form failed: ${e.message}`, "error"); }
   };
@@ -464,9 +471,38 @@ export function FourYrPayrollPage() {
   };
 
   const submitEdit = async () => {
-    if (!editingRow||!form.name||!form.job) { showToast("Name and Job are required","error"); return; }
-    try { await apiPost("/api/4yr/save-edit", {...form, rowIndex:editingRow.rowIndex, hoursExplicitlyEdited:true}); showToast("Entry updated", "success"); setEditModalOpen(false); lastKeyRef.current=""; doLoad(); }
-    catch(e:any) { showToast(`Edit failed: ${e.message}`,"error"); }
+    if (!editingRow) return;
+    // Mirror GAS doSaveEdit: collect missing fields, show "Save anyway?" if any
+    const noTime = form.recordType === "deduction" || form.recordType === "nonpayroll";
+    const missing: string[] = [];
+    if (!form.name)                                                    missing.push("Name");
+    if (!form.job)                                                     missing.push("Job / Location");
+    if (!form.date)                                                    missing.push("Date");
+    if ((form.recordType === "deduction" || form.recordType === "nonpayroll") && !form.subCat)
+                                                                       missing.push("Sub Cat");
+    if (!noTime && !form.started)  missing.push("Started");
+    if (!noTime && !form.finished) missing.push("End");
+    if (!noTime && !form.hours)    missing.push("Hours");
+    if (noTime  && !form.amount)   missing.push("Amount");
+    if (missing.length) {
+      const ok = window.confirm(`⚠️ Missing Fields\n\nThe following fields are empty: ${missing.join(", ")}.\n\nSave anyway?`);
+      if (!ok) return;
+    }
+    // Mirror GAS _doSaveEditCommit: negate amount for deductions
+    let finalAmount: number | null = noTime ? parseFloat(form.amount) || null : null;
+    if (form.recordType === "deduction" && finalAmount !== null && finalAmount > 0) finalAmount = -finalAmount;
+    try {
+      await apiPost("/api/4yr/save-edit", {
+        ...form,
+        amount:               finalAmount,
+        rowIndex:             editingRow.rowIndex,
+        hoursExplicitlyEdited: noTime ? false : hoursExplicit, // GAS: noTime ? false : _editHoursExplicit
+      });
+      showToast("Entry updated", "success");
+      setEditModalOpen(false);
+      lastKeyRef.current = "";
+      doLoad();
+    } catch(e:any) { showToast(`Edit failed: ${e.message}`, "error"); }
   };
 
   const confirmDelete = async () => {
@@ -992,7 +1028,22 @@ export function FourYrPayrollPage() {
       {/* Row 1: Record Type + Date */}
       <div>
         <label className={`block text-[10px] font-bold mb-1 uppercase tracking-widest ${txt2}`}>Record Type</label>
-        <select value={form.recordType} onChange={e=>setForm(f=>({...f,recordType:e.target.value}))}
+        <select value={form.recordType} onChange={e => {
+          const recordType = e.target.value;
+          setForm(f => {
+            // GAS onEditRecordTypeChange: if switching to deduction, auto-set job to "Deductions" (readonly)
+            // If switching away from deduction (and job is still "Deductions"), clear it
+            let job = f.job;
+            if (isEditMode) {
+              if (recordType === "deduction") {
+                job = "Deductions";
+              } else if (f.recordType === "deduction" && f.job === "Deductions") {
+                job = "";
+              }
+            }
+            return { ...f, recordType, job };
+          });
+        }}
           className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${inp}`}>
           <option value="payroll">Payroll (regular time entry)</option>
           <option value="deduction">Deduction</option>
@@ -1042,8 +1093,11 @@ export function FourYrPayrollPage() {
       {/* Row 3: Job + Sub Cat */}
       <div>
         <label className={`block text-[10px] font-bold mb-1 uppercase tracking-widest ${txt2}`}>Job / Location <span style={{color:"#c62828"}}>*</span></label>
+        {/* GAS onEditRecordTypeChange: deduction → job is "Deductions", readonly + muted */}
         <input list="en-jobs" value={form.job}
+          readOnly={isEditMode && form.recordType === "deduction"}
           onChange={e => {
+            if (isEditMode && form.recordType === "deduction") return; // readonly in edit+deduction
             const job = e.target.value;
             const jl = job.trim().toLowerCase();
             // Mirror GAS autoFillCompanyPreview: TI for Timm Barn / Skating Rink, else 4YR
@@ -1052,11 +1106,19 @@ export function FourYrPayrollPage() {
               : form.company; // edit mode keeps manual override
             setForm(f => ({ ...f, job, company: co }));
           }}
-          className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${inp}`} placeholder="Job / location" />
+          className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${
+            isEditMode && form.recordType === "deduction"
+              ? (isLight ? "bg-[#f5faf6] text-slate-400 border-slate-200" : "bg-[#1a1a1a] text-slate-500 border-[#272727]")
+              : inp
+          }`} placeholder="Job / location" />
         <datalist id="en-jobs">{(entryDropdowns?.jobs||[]).map((j:string)=><option key={j} value={j}/>)}</datalist>
       </div>
       <div>
-        <label className={`block text-[10px] font-bold mb-1 uppercase tracking-widest ${txt2}`}>Sub Cat / Function</label>
+        {/* GAS: subcat is required (*) for deduction and non-payroll */}
+        <label className={`block text-[10px] font-bold mb-1 uppercase tracking-widest ${txt2}`}>
+          Sub Cat / Function
+          {(form.recordType === "deduction" || form.recordType === "nonpayroll") && <span style={{color:"#c62828"}}> *</span>}
+        </label>
         <input list="en-subs" value={form.subCat} onChange={e=>setForm(f=>({...f,subCat:e.target.value}))}
           className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${inp}`} placeholder="Optional" />
         <datalist id="en-subs">{(entryDropdowns?.subCats||[]).map((s:string)=><option key={s} value={s}/>)}</datalist>
@@ -1122,7 +1184,12 @@ export function FourYrPayrollPage() {
         </div>
         <div className="col-span-2">
           <label className={`block text-[10px] font-bold mb-1 uppercase tracking-widest ${txt2}`}>Hours (HH:MM)</label>
-          <input type="text" value={form.hours} onChange={e=>setForm(f=>({...f,hours:e.target.value}))}
+          <input type="text" value={form.hours}
+            onChange={e => {
+              // GAS _editHoursExplicit: one-time flag — if user types here, mark as explicitly edited
+              if (isEditMode && !hoursExplicit) setHoursExplicit(true);
+              setForm(f => ({...f, hours: e.target.value}));
+            }}
             className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${inp}`} placeholder="e.g. 06:00" />
           <p className={`text-[10px] italic mt-0.5 ${txt2}`}>Stored in Col J as decimal (06:00 → 6.00). Auto-fills from Start / End — edit to override.</p>
         </div>
