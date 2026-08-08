@@ -408,8 +408,13 @@ export function FourYrPayrollPage() {
       setEntryDropdowns(d); setEditingRow(row);
       const isDed    = row.total < 0 || /deduct|loan|rent|penalty|withhold/i.test(row.job+row.subCat);
       const isNonPay = !isDed && /reimburse|reimbursement|adjustment|allowance|bonus|incentive|extra|misc/i.test(row.subCat);
+      // Convert decimal hours (e.g. 8.85) → HH:MM (08:51) — matches GAS openEditRecord
+      const hDec = Number(row.hours) || 0;
+      const hh   = Math.floor(hDec);
+      const hm   = Math.round((hDec - hh) * 60);
+      const hoursHHMM = hDec ? `${String(hh).padStart(2,'0')}:${String(hm).padStart(2,'0')}` : "";
       setForm({ name:row.name, job:row.job, subCat:row.subCat, date:row.date, started:row.started,
-        finished:row.finished, hours:String(row.hours||""), remarks:row.remarks,
+        finished:row.finished, hours:hoursHHMM, remarks:row.remarks,
         amount:String(Math.abs(row.total||0)), company:row.company,
         recordType: isDed ? "deduction" : isNonPay ? "nonpayroll" : "payroll" });
       setEditModalOpen(true);
@@ -1022,12 +1027,40 @@ export function FourYrPayrollPage() {
       {!isNoTime && (<>
         <div>
           <label className={`block text-[10px] font-bold mb-1 uppercase tracking-widest ${txt2}`}>Started (Time)</label>
-          <input type="time" value={form.started} onChange={e=>setForm(f=>({...f,started:e.target.value}))}
+          <input type="time" value={form.started}
+            onChange={e => {
+              const started = e.target.value;
+              setForm(f => {
+                let hours = f.hours;
+                if (started && f.finished) {
+                  const [sh,sm] = started.split(':').map(Number);
+                  const [eh,em] = f.finished.split(':').map(Number);
+                  let mins = (eh*60+em) - (sh*60+sm);
+                  if (mins < 0) mins += 24*60;
+                  hours = `${String(Math.floor(mins/60)).padStart(2,'0')}:${String(mins%60).padStart(2,'0')}`;
+                }
+                return { ...f, started, hours };
+              });
+            }}
             className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${inp}`} />
         </div>
         <div>
           <label className={`block text-[10px] font-bold mb-1 uppercase tracking-widest ${txt2}`}>End (Time)</label>
-          <input type="time" value={form.finished} onChange={e=>setForm(f=>({...f,finished:e.target.value}))}
+          <input type="time" value={form.finished}
+            onChange={e => {
+              const finished = e.target.value;
+              setForm(f => {
+                let hours = f.hours;
+                if (f.started && finished) {
+                  const [sh,sm] = f.started.split(':').map(Number);
+                  const [eh,em] = finished.split(':').map(Number);
+                  let mins = (eh*60+em) - (sh*60+sm);
+                  if (mins < 0) mins += 24*60;
+                  hours = `${String(Math.floor(mins/60)).padStart(2,'0')}:${String(mins%60).padStart(2,'0')}`;
+                }
+                return { ...f, finished, hours };
+              });
+            }}
             className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${inp}`} />
         </div>
         <div className="col-span-2">

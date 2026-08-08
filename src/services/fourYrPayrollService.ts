@@ -976,8 +976,18 @@ export async function saveRecordEdit(params: {
     }
   }
 
-  // Col M — Remarks
+  // Col M — Remarks + apply red foreground color if non-empty
   await sheetsPut(`'raw'!M${sheetRow}`, [[params.remarks || '']], token);
+  if (params.remarks && params.remarks.trim()) {
+    try {
+      const rawSheetId = await getSheetId('raw', token);
+      await sheetsBatchUpdate([{ repeatCell: {
+        range: { sheetId: rawSheetId, startRowIndex: sheetRow - 1, endRowIndex: sheetRow, startColumnIndex: 12, endColumnIndex: 13 },
+        cell:  { userEnteredFormat: { textFormat: { foregroundColor: { red: 0.776, green: 0.157, blue: 0.157 } } } },
+        fields: 'userEnteredFormat.textFormat.foregroundColor'
+      }}], token);
+    } catch { /* formatting is best-effort */ }
+  }
 
   // Col N — Company (if explicitly overridden)
   if (params.company && String(params.company).trim()) {
@@ -1103,7 +1113,26 @@ export async function addRawEntry(params: {
     mo                    // S: month
   ];
 
-  await sheetsAppend("'raw'!A:S", [row], token);
+  const appendResult = await sheetsAppend("'raw'!A:S", [row], token);
+
+  // Apply red foreground to remarks cell (col M) if remark was provided
+  if (params.remarks && params.remarks.trim()) {
+    try {
+      // Parse row number from updatedRange e.g. "'raw'!A102:S102" → 102
+      const updatedRange: string = appendResult?.updates?.updatedRange || '';
+      const rowMatch = updatedRange.match(/(\d+)$/);
+      if (rowMatch) {
+        const appendedRow = parseInt(rowMatch[1], 10);
+        const rawSheetId = await getSheetId('raw', token);
+        await sheetsBatchUpdate([{ repeatCell: {
+          range: { sheetId: rawSheetId, startRowIndex: appendedRow - 1, endRowIndex: appendedRow, startColumnIndex: 12, endColumnIndex: 13 },
+          cell:  { userEnteredFormat: { textFormat: { foregroundColor: { red: 0.776, green: 0.157, blue: 0.157 } } } },
+          fields: 'userEnteredFormat.textFormat.foregroundColor'
+        }}], token);
+      }
+    } catch { /* formatting is best-effort */ }
+  }
+
   return { ok: true };
 }
 
