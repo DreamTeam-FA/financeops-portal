@@ -147,9 +147,11 @@ function fractionToTimeStr(frac: number | null): string {
   const totalSec = Math.round(frac * 86400);
   const h = Math.floor(totalSec / 3600) % 24;
   const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60; // preserve seconds
   const ampm = h >= 12 ? 'PM' : 'AM';
   const hDisp = h % 12 === 0 ? 12 : h % 12;
-  return `${String(hDisp).padStart(2,'0')}:${String(m).padStart(2,'0')} ${ampm}`;
+  const base = `${String(hDisp).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+  return s ? `${base}:${String(s).padStart(2,'0')} ${ampm}` : `${base} ${ampm}`;
 }
 
 /** Sheets serial date to YYYY-MM-DD (days since Dec 30, 1899 with Lotus bug) */
@@ -257,17 +259,25 @@ export async function getRawData(token: string): Promise<RawRow[]> {
     // Time display: use FORMATTED_VALUE (t[0]=G, t[2]=I)
     const startedDisp = String(t[0] || '').trim();
     const finishedDisp = String(t[2] || '').trim();
-    // Normalize time to HH:MM AM/PM format
+    // Prefer UNFORMATTED_VALUE fractions for times (full seconds precision).
+    // Google Sheets cell format may strip seconds from FORMATTED_VALUE, so we
+    // derive the display string from the raw fraction when available.
+    const startedFrac  = typeof u[6] === 'number' ? u[6] : null;
+    const finishedFrac = typeof u[8] === 'number' ? u[8] : null;
+    // Normalize time string: preserve seconds (HH:MM:SS AM/PM or HH:MM AM/PM)
     const normalizeTime = (s: string) => {
-      const m = s.match(/(\d+):(\d+)(?::\d+)?\s*(AM|PM)/i);
+      const m = s.match(/(\d+):(\d{2})(?::(\d{2}))?\s*(AM|PM)/i);
       if (!m) return s;
       const h = parseInt(m[1], 10);
       const min = m[2];
-      const ap = m[3].toUpperCase();
-      return `${String(h).padStart(2,'0')}:${min} ${ap}`;
+      const sec = m[3]; // may be undefined
+      const ap = m[4].toUpperCase();
+      const base = `${String(h).padStart(2,'0')}:${min}`;
+      return sec ? `${base}:${sec} ${ap}` : `${base} ${ap}`;
     };
-    const started = startedDisp ? normalizeTime(startedDisp) : '';
-    const finished = finishedDisp ? normalizeTime(finishedDisp) : '';
+    // Use fraction → string (with seconds) when available; fall back to FORMATTED_VALUE string
+    const started  = startedFrac  !== null ? fractionToTimeStr(startedFrac)  : (startedDisp  ? normalizeTime(startedDisp)  : '');
+    const finished = finishedFrac !== null ? fractionToTimeStr(finishedFrac) : (finishedDisp ? normalizeTime(finishedDisp) : '');
 
     rows.push({
       rowIndex : i,
@@ -966,12 +976,16 @@ export async function saveRecordEdit(params: {
     if (hasTimesOnEdit && gFrac !== null && iFrac !== null) {
       let diff = iFrac - gFrac;
       if (diff < 0) diff += 1;
-      const jHours = Math.round(diff * 24 * 100) / 100;
+      // 4-decimal precision preserves seconds (e.g. 1h 44m 15s = 1.7375)
+      const jHours = Math.round(diff * 24 * 10000) / 10000;
       await sheetsRawPut(`'raw'!J${sheetRow}`, [[jHours]], token);
     }
 
     if (params.hoursExplicitlyEdited && params.hours !== undefined) {
-      const hrs = typeof params.hours === 'number' ? params.hours : parseFloat(String(params.hours)) || 0;
+      // parseHoursToDecimal handles HH:MM:SS correctly (was bare parseFloat which
+      // stops at the first colon and returns the integer hour part only)
+      const hrsDecimal = parseHoursToDecimal(params.hours);
+      const hrs = hrsDecimal !== '' ? hrsDecimal : 0;
       await sheetsRawPut(`'raw'!O${sheetRow}`, [[hrs]], token);
     }
   }
@@ -1007,8 +1021,12 @@ function parseHoursToDecimal(str: string | number, startFrac?: number | null, fi
   if (str !== null && str !== undefined && String(str).trim() !== '') {
     const s = String(str).trim();
     if (s.includes(':')) {
-      const [h, m] = s.split(':').map(Number);
-      return Math.round(((h || 0) + (m || 0) / 60) * 100) / 100;
+      // Handle HH:MM or HH:MM:SS — preserve seconds precision
+      const parts = s.split(':').map(Number);
+      const h = parts[0] || 0;
+      const m = parts[1] || 0;
+      const sec = parts[2] || 0; // seconds — was previously ignored!
+      return Math.round(((h + m / 60 + sec / 3600)) * 10000) / 10000;
     }
     const n = parseFloat(s);
     if (!isNaN(n)) return Math.round(n * 100) / 100;
@@ -1067,7 +1085,7 @@ export async function addRawEntry(params: {
     if (startFrac !== null && finishFrac !== null) {
       let diff = finishFrac - startFrac;
       if (diff < 0) diff += 1;
-      hoursDecJ = Math.round(diff * 24 * 100) / 100;
+      hoursDecJ = Math.round(diff * 24 * 10000) / 10000; // 4 decimals preserves seconds
     } else {
       hoursDecJ = parseHoursToDecimal(params.hours || '', startFrac, finishFrac);
     }
