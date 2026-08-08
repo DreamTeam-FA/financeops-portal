@@ -789,12 +789,15 @@ export function FourYrPayrollPage() {
         <table className="text-xs border-collapse" style={{ minWidth:"100%", tableLayout:"fixed" }}>
           <thead>
             <tr style={{ background:TH1 }}>
-              {["Date","Name","Job","Sub Cat","Start","End","Hrs","Rate","Amount","Co","Remarks",""].map((h,i) => (
-                <th key={h||i} className="py-2 px-2 text-[10px] font-bold text-white uppercase tracking-wide text-left"
-                  style={{ minWidth:[100,130,130,110,75,75,65,80,90,50,145,56][i], position:"sticky", top:0, background:TH1, zIndex:2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
-                  {h}
-                </th>
-              ))}
+              {(["Date","Name","Job","Sub Cat","Start","End","Hrs","Rate","Amount","Co","Remarks",""] as const).map((h,i) => {
+                const align = ["text-left","text-left","text-left","text-left","text-left","text-left","text-right","text-right","text-right","text-center","text-left","text-center"][i];
+                return (
+                  <th key={h||i} className={`py-2 px-2 text-[10px] font-bold text-white uppercase tracking-wide ${align}`}
+                    style={{ minWidth:[100,130,130,110,75,75,65,80,90,50,145,56][i], position:"sticky", top:0, background:TH1, zIndex:2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                    {h}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
