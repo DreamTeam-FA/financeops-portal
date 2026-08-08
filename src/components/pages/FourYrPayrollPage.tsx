@@ -899,8 +899,8 @@ export function FourYrPayrollPage() {
                         : <span className={`cursor-text hover:underline decoration-dashed ${txt3}`} onClick={()=>startEdit(row.rowIndex,"job",row.job)}>{row.job}</span>}
                     </td>
                     <td className={`px-2 py-1.5 ${txt2}`} style={{ whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{(!row.subCat || row.subCat==="(none)") ? "" : row.subCat}</td>
-                    <td className={`px-2 py-1.5 tabular-nums ${txt2}`} style={{ whiteSpace:"nowrap" }}>{row.started}</td>
-                    <td className={`px-2 py-1.5 tabular-nums ${txt2}`} style={{ whiteSpace:"nowrap" }}>{row.finished}</td>
+                    <td className={`px-2 py-1.5 tabular-nums ${txt2}`} style={{ whiteSpace:"nowrap" }}>{row.started.replace(/:\d{2}(\s*[AP]M)$/i, '$1')}</td>
+                    <td className={`px-2 py-1.5 tabular-nums ${txt2}`} style={{ whiteSpace:"nowrap" }}>{row.finished.replace(/:\d{2}(\s*[AP]M)$/i, '$1')}</td>
                     <td className="text-right px-2 py-1.5">
                       {isEJ && editingCell?.field==="hours"
                         ? <input ref={editInputRef} value={editVal} className={`w-14 rounded border text-xs px-1 py-0.5 text-right outline-none ${inp}`}
