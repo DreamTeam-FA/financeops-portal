@@ -12,10 +12,11 @@ const fmt2   = (n: number) => n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")
 const fmtAmt = (n: number) => `$${fmt2(n)}`;
 const fmtHrs = (n: number) => fmt2(n);
 
-/** GAS parseAmPmToSecs — parses "H:MM[:SS] [AM/PM]" → total seconds */
+/** GAS parseAmPmToSecs — parses "H:MM[:SS] [AM/PM]" → total seconds.
+ *  Accepts 1 or 2 digit seconds so hours updates on first digit typed. */
 function parseAmPmSecs(s: string): number | null {
   if (!s) return null;
-  const m = s.trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AaPp][Mm])?$/);
+  const m = s.trim().match(/^(\d{1,2}):(\d{2})(?::(\d{1,2}))?\s*([AaPp][Mm])?$/);
   if (!m) return null;
   let h = parseInt(m[1], 10);
   const min = parseInt(m[2], 10), sec = m[3] ? parseInt(m[3], 10) : 0;
@@ -331,6 +332,16 @@ export function FourYrPayrollPage() {
       doLoad();
     }).catch(e => { if (!e.message?.includes("reconnect")) showToast(`Dropdown load failed: ${e.message}`, "error"); });
   }, []); // eslint-disable-line
+
+  // ── GAS autoFillEditHours: recompute hours whenever started/finished changes ──
+  // Mirrors `oninput="autoFillEditHours()"` on ed-start / ed-end in GAS.
+  // Belt-and-suspenders on top of the onChange inline computation.
+  useEffect(() => {
+    if (!editModalOpen) return;
+    if (form.recordType === 'deduction' || form.recordType === 'nonpayroll') return;
+    const computed = editHoursFromAmPm(form.started, form.finished);
+    if (computed) setForm(f => ({ ...f, hours: computed }));
+  }, [form.started, form.finished, form.recordType, editModalOpen]);
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const filteredWeeks = useMemo(() =>
@@ -1183,7 +1194,9 @@ export function FourYrPayrollPage() {
           }
         </div>
         <div className="col-span-2">
-          <label className={`block text-[10px] font-bold mb-1 uppercase tracking-widest ${txt2}`}>Hours (HH:MM)</label>
+          <label className={`block text-[10px] font-bold mb-1 uppercase tracking-widest ${txt2}`}>
+            Hours{isEditMode && <span className={`ml-1 normal-case font-normal ${txt2}`}>HH:MM:SS</span>}
+          </label>
           <input type="text" value={form.hours}
             onChange={e => {
               // GAS _editHoursExplicit: one-time flag — if user types here, mark as explicitly edited
@@ -1191,7 +1204,7 @@ export function FourYrPayrollPage() {
               setForm(f => ({...f, hours: e.target.value}));
             }}
             className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${inp}`} placeholder="e.g. 06:00" />
-          <p className={`text-[10px] italic mt-0.5 ${txt2}`}>Stored in Col J as decimal (06:00 → 6.00). Auto-fills from Start / End — edit to override.</p>
+          <p className={`text-[10px] italic mt-0.5 ${txt2}`}>Auto-fills from Start / End — edit to override.</p>
         </div>
       </>)}
 
