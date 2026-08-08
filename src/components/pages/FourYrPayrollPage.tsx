@@ -413,8 +413,20 @@ export function FourYrPayrollPage() {
       const hh   = Math.floor(hDec);
       const hm   = Math.round((hDec - hh) * 60);
       const hoursHHMM = hDec ? `${String(hh).padStart(2,'0')}:${String(hm).padStart(2,'0')}` : "";
-      setForm({ name:row.name, job:row.job, subCat:row.subCat, date:row.date, started:row.started,
-        finished:row.finished, hours:hoursHHMM, remarks:row.remarks,
+      // Convert "HH:MM AM/PM" → "HH:MM" (24h) for <input type="time">
+      const amPmTo24h = (s: string) => {
+        if (!s) return "";
+        const m = s.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+        if (!m) return s;
+        let h = parseInt(m[1], 10);
+        const min = m[2], ap = m[3].toUpperCase();
+        if (ap === "PM" && h !== 12) h += 12;
+        if (ap === "AM" && h === 12) h = 0;
+        return `${String(h).padStart(2,'0')}:${min}`;
+      };
+      setForm({ name:row.name, job:row.job, subCat:row.subCat, date:row.date,
+        started: amPmTo24h(row.started), finished: amPmTo24h(row.finished),
+        hours:hoursHHMM, remarks:row.remarks,
         amount:String(Math.abs(row.total||0)), company:row.company,
         recordType: isDed ? "deduction" : isNonPay ? "nonpayroll" : "payroll" });
       setEditModalOpen(true);

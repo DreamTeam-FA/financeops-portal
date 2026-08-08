@@ -1,2 +1,18 @@
 @import "tailwindcss";
 @custom-variant dark (&:is(.dark, .dark *));
+
+/* ── Global button press animation ──────────────────────────────────────────
+   Applies to every <button> and <a role="button"> across the entire portal.
+   Slight scale-down on press + eased transition = tactile click feel.
+   pointer-events:none and disabled buttons are excluded.
+   ─────────────────────────────────────────────────────────────────────────── */
+button:not([disabled]),
+a[role="button"]:not([disabled]) {
+  transition: transform 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
+}
+
+button:not([disabled]):active,
+a[role="button"]:not([disabled]):active {
+  transform: scale(0.95);
+  opacity: 0.88;
+}
