@@ -1376,6 +1376,14 @@ export function FourYrPayrollPage() {
         <div className="flex items-center gap-2 ml-auto flex-shrink-0">
           {/* Screenshot button — lives here next to Add/Delete */}
           <div className="relative flex-shrink-0">
+            {/* Refresh button — force-reloads data from Sheets */}
+            <button onClick={() => { lastKeyRef.current = ""; doLoad(); }}
+              disabled={loading}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold whitespace-nowrap"
+              style={{ background:isLight?"#e3f2fd":"#1a2433", border:`1px solid ${isLight?"#90caf9":"#2e5c8a"}`, color:isLight?"#1565c0":"#90caf9", opacity: loading ? 0.6 : 1 }}
+              title="Refresh data from Google Sheets">
+              {loading ? "⏳" : "🔄"} Refresh
+            </button>
             <button onClick={() => setSsMenuOpen(o=>!o)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold whitespace-nowrap"
               style={{ background:isLight?"#e8f5e9":"#1a2a1f", border:`1px solid ${isLight?"#8cb89a":"#2e6a3f"}`, color:isLight?"#1a6b36":"#7fd99a" }}
