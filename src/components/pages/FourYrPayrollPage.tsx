@@ -84,25 +84,10 @@ interface RawRow {
   started:string; finished:string; hoursRaw:number; hrsRed:boolean; rate:number;
   remarks:string; company:string; hours:number; total:number; variance:number; weekNum:string; mo:string;
 }
-type ToastType = "success"|"error"|"info";
-interface Toast { id:number; msg:string; type:ToastType }
-
-function useToast() {
-  const [toasts, setToasts] = useState<Toast[]>([]);
-  const idRef = useRef(0);
-  const show = useCallback((msg:string, type:ToastType="success") => {
-    const id = ++idRef.current;
-    setToasts(t => [...t, { id, msg, type }]);
-    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3500);
-  }, []);
-  return { toasts, show };
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 export function FourYrPayrollPage() {
-  const { theme, handleGoogleSignIn } = useFinance() as any;
+  const { theme, handleGoogleSignIn, showToast } = useFinance() as any;
   const isLight = theme === "light";
-  const { toasts, show: showToast } = useToast();
   const pageRef = useRef<HTMLDivElement>(null);
 
   const [authError,     setAuthError]     = useState(false);
@@ -403,7 +388,7 @@ export function FourYrPayrollPage() {
       else if (field==="hours")  await apiPost("/api/4yr/save-hours",  {rowIndex, hours:parseFloat(editVal)||0});
       else if (field==="total")  await apiPost("/api/4yr/save-total",  {rowIndex, total:parseFloat(editVal)||0});
       else if (field==="job")    await apiPost("/api/4yr/save-job",    {rowIndex, job:editVal});
-      showToast("Saved"); lastKeyRef.current = ""; doLoad();
+      showToast("Saved", "success"); lastKeyRef.current = ""; doLoad();
     } catch(e:any) { showToast(`Save failed: ${e.message}`, "error"); }
   };
 
@@ -433,19 +418,19 @@ export function FourYrPayrollPage() {
 
   const submitAdd = async () => {
     if (!form.name||!form.job) { showToast("Name and Job are required","error"); return; }
-    try { await apiPost("/api/4yr/add-entry", form); showToast("Entry added"); setAddModalOpen(false); lastKeyRef.current=""; doLoad(); }
+    try { await apiPost("/api/4yr/add-entry", form); showToast("Entry added", "success"); setAddModalOpen(false); lastKeyRef.current=""; doLoad(); }
     catch(e:any) { showToast(`Add failed: ${e.message}`,"error"); }
   };
 
   const submitEdit = async () => {
     if (!editingRow||!form.name||!form.job) { showToast("Name and Job are required","error"); return; }
-    try { await apiPost("/api/4yr/save-edit", {...form, rowIndex:editingRow.rowIndex, hoursExplicitlyEdited:true}); showToast("Entry updated"); setEditModalOpen(false); lastKeyRef.current=""; doLoad(); }
+    try { await apiPost("/api/4yr/save-edit", {...form, rowIndex:editingRow.rowIndex, hoursExplicitlyEdited:true}); showToast("Entry updated", "success"); setEditModalOpen(false); lastKeyRef.current=""; doLoad(); }
     catch(e:any) { showToast(`Edit failed: ${e.message}`,"error"); }
   };
 
   const confirmDelete = async () => {
     if (!deleteConfirm) return;
-    try { await apiPost("/api/4yr/delete-entry", {rowIndex:deleteConfirm.rowIndex}); showToast("Deleted"); setDeleteConfirm(null); lastKeyRef.current=""; doLoad(); }
+    try { await apiPost("/api/4yr/delete-entry", {rowIndex:deleteConfirm.rowIndex}); showToast("Deleted", "success"); setDeleteConfirm(null); lastKeyRef.current=""; doLoad(); }
     catch(e:any) { showToast(`Delete failed: ${e.message}`,"error"); setDeleteConfirm(null); }
   };
 
@@ -1311,16 +1296,6 @@ export function FourYrPayrollPage() {
           {renderProjectTotal()}
         </div>
       )}
-
-      {/* ── Toasts ── */}
-      <div className="fixed bottom-5 right-5 z-[9999] flex flex-col gap-2 pointer-events-none">
-        {toasts.map(t => (
-          <div key={t.id} className="px-4 py-2.5 rounded-lg shadow-xl text-xs font-semibold flex items-center gap-2 pointer-events-auto"
-            style={{ background: t.type==="success"?"#1a6b36":t.type==="error"?"#c62828":"#374151", color:"#fff" }}>
-            {t.type==="success"?"✓":t.type==="error"?"✕":"ℹ"} {t.msg}
-          </div>
-        ))}
-      </div>
 
       {/* ── Add Modal ── */}
       {addModalOpen && (
