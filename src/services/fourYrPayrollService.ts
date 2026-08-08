@@ -809,7 +809,19 @@ export async function getProjectTotalData(filters: {
 
 export async function saveRemark(rowIndex: number, remark: string, token: string) {
   const sheetRow = rowIndex + 4;
+  // Write value
   await sheetsPut(`'raw'!M${sheetRow}`, [[remark]], token);
+  // Apply red foreground color to M column cell (matches GAS remark styling)
+  try {
+    const rawSheetId = await getSheetId('raw', token);
+    await sheetsBatchUpdate([{
+      repeatCell: {
+        range: { sheetId: rawSheetId, startRowIndex: sheetRow - 1, endRowIndex: sheetRow, startColumnIndex: 12, endColumnIndex: 13 },
+        cell: { userEnteredFormat: { textFormat: { foregroundColor: { red: 0.776, green: 0.157, blue: 0.157 } } } },
+        fields: 'userEnteredFormat.textFormat.foregroundColor'
+      }
+    }], token);
+  } catch { /* formatting is best-effort */ }
   return { ok: true, row: sheetRow };
 }
 

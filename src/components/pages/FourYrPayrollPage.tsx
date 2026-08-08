@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { getAccessToken } from "../../services/googleAuth";
+import { FourYrLogo } from "../EntityLogos";
 import html2canvas from "html2canvas";
 
 const fmt2   = (n: number) => n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -141,6 +142,12 @@ export function FourYrPayrollPage() {
   // ── Project Total state ───────────────────────────────────────────────────
   const [projSearch,   setProjSearch]   = useState("");
 
+  // ── Employee history modal ────────────────────────────────────────────────
+  const [empModalOpen,    setEmpModalOpen]    = useState(false);
+  const [empModalName,    setEmpModalName]    = useState("");
+  const [empModalData,    setEmpModalData]    = useState<any>(null);
+  const [empModalLoading, setEmpModalLoading] = useState(false);
+
   // ── Edit / modal state ────────────────────────────────────────────────────
   const [editingCell,   setEditingCell]   = useState<{ rowIndex:number; field:string }|null>(null);
   const [editVal,       setEditVal]       = useState("");
@@ -262,6 +269,16 @@ export function FourYrPayrollPage() {
     setYearFilter(y); setSelectedWeeks([]); setNameFilter(""); setJobFilter(""); setDateFilter("");
     doLoad();
   };
+
+  // ── Employee YTD modal ────────────────────────────────────────────────────
+  const openEmpModal = useCallback(async (name: string) => {
+    setEmpModalName(name); setEmpModalData(null); setEmpModalLoading(true); setEmpModalOpen(true);
+    try {
+      const data = await apiGet(`/api/4yr/employee-ytd?name=${encodeURIComponent(name)}`);
+      setEmpModalData(data);
+    } catch(e:any) { setEmpModalData({ error: e.message }); }
+    finally { setEmpModalLoading(false); }
+  }, [apiGet]);
 
   // ── Init: load dropdown data, set current week, then load data ────────────
   useEffect(() => {
@@ -527,7 +544,12 @@ export function FourYrPayrollPage() {
               <tr style={{ background: TH1 }}>
                 <th colSpan={3} className="text-left px-3 py-2 font-bold text-[11px] text-white uppercase tracking-wide" style={{ minWidth:370, background:isLight?"#c6dfc8":"#1e4a2a", color:isLight?"#1b3a22":"#d8f3dc" }}>Name</th>
                 {names.map((n:string) => (
-                  <th key={n} colSpan={2} className="text-center px-2 py-2 font-bold text-[11px] text-white border-l border-white/20" style={{ minWidth:160, background:TH1 }}>{n}</th>
+                  <th key={n} colSpan={2} className="text-center px-2 py-2 font-bold text-[11px] text-white border-l border-white/20 cursor-pointer select-none"
+                    style={{ minWidth:160, background:TH1 }}
+                    onClick={() => openEmpModal(n)}
+                    title={`Click to view ${n}'s YTD history`}>
+                    <span className="border-b border-dotted border-white/60 hover:border-white">{n}</span>
+                  </th>
                 ))}
                 <th colSpan={2} className="text-center px-2 py-2 font-bold text-[11px] text-white border-l border-white/20" style={{ minWidth:160, background:TH1 }}>Grand Total</th>
               </tr>
@@ -571,9 +593,9 @@ export function FourYrPayrollPage() {
                       {/* Sub Cat cell — click to expand/collapse */}
                       <td className="px-2 py-1.5 cursor-pointer select-none" style={{ background:rowBg, minWidth:180 }}
                         onClick={() => setCollapsed(c => ({...c, [row.scKey]: !c[row.scKey]}))}>
-                        <span style={{ color:scFg }} className={`text-[11px] ${row.scCollapsed ? "font-semibold" : "font-semibold"}`}>
+                        <span style={{ color:scFg }} className="text-[11px] font-semibold">
                           <span className="text-[10px] mr-1.5 inline-block w-3 text-center">{row.scCollapsed ? "▶" : "▼"}</span>
-                          {row.subCat}
+                          {(!row.subCat || row.subCat === "—" || row.subCat === "(none)") ? row.job : row.subCat}
                         </span>
                       </td>
                       {names.map((n:string) => (
@@ -762,7 +784,7 @@ export function FourYrPayrollPage() {
             <tr style={{ background:TH1 }}>
               {["Date","Name","Job","Sub Cat","Start","End","Hrs","Rate","Amount","Co","Remarks",""].map((h,i) => (
                 <th key={h||i} className="py-2 px-2 text-[10px] font-bold text-white uppercase tracking-wide text-left"
-                  style={{ minWidth:[100,130,130,110,75,75,65,80,90,50,160,56][i], position:"sticky", top:0, background:TH1, zIndex:2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                  style={{ minWidth:[100,130,130,110,75,75,65,80,90,50,110,56][i], position:"sticky", top:0, background:TH1, zIndex:2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
                   {h}
                 </th>
               ))}
@@ -795,7 +817,7 @@ export function FourYrPayrollPage() {
                             onKeyDown={e=>{if(e.key==="Enter")commitEdit();if(e.key==="Escape")cancelEdit();}} />
                         : <span className={`cursor-text hover:underline decoration-dashed ${txt3}`} onClick={()=>startEdit(row.rowIndex,"job",row.job)}>{row.job}</span>}
                     </td>
-                    <td className={`px-2 py-1.5 ${txt2}`} style={{ whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{row.subCat}</td>
+                    <td className={`px-2 py-1.5 ${txt2}`} style={{ whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{(!row.subCat || row.subCat==="(none)") ? row.job : row.subCat}</td>
                     <td className={`px-2 py-1.5 tabular-nums ${txt2}`} style={{ whiteSpace:"nowrap" }}>{row.started}</td>
                     <td className={`px-2 py-1.5 tabular-nums ${txt2}`} style={{ whiteSpace:"nowrap" }}>{row.finished}</td>
                     <td className="text-right px-2 py-1.5">
@@ -816,7 +838,7 @@ export function FourYrPayrollPage() {
                             onClick={()=>startEdit(row.rowIndex,"total",String(row.total))}>{fmtAmt(row.total)}</span>}
                     </td>
                     <td className="text-center px-2 py-1.5">{row.company && <CoChip co={row.company} isLight={isLight} />}</td>
-                    <td className="px-2 py-1.5" style={{ whiteSpace:"normal", overflow:"visible", minWidth:160 }}>
+                    <td className="px-2 py-1.5" style={{ whiteSpace:"normal", overflow:"visible", minWidth:110, maxWidth:180 }}>
                       {isEJ && editingCell?.field==="remark"
                         ? <input ref={editInputRef} value={editVal} className={`w-full rounded border text-xs px-1.5 py-0.5 outline-none ${inp}`}
                             onChange={e=>setEditVal(e.target.value)} onBlur={commitEdit}
@@ -930,75 +952,108 @@ export function FourYrPayrollPage() {
     );
   };
 
-  // ── Entry form ─────────────────────────────────────────────────────────────
-  const renderForm = () => (
-    <div className="grid grid-cols-2 gap-3">
-      <div className="col-span-2">
-        <label className={`block text-[11px] font-bold mb-1.5 ${txt2} uppercase tracking-wide`}>Record Type</label>
-        <div className={`flex gap-1 p-1 rounded-lg ${bg3}`}>
-          {[{v:"payroll",l:"Payroll"},{v:"deduction",l:"Deduction"},{v:"nonpayroll",l:"Non-Payroll"}].map(rt => (
-            <label key={rt.v} className="flex-1">
-              <input type="radio" name="recordType" value={rt.v} checked={form.recordType===rt.v} onChange={()=>setForm(f=>({...f,recordType:rt.v}))} className="sr-only" />
-              <span className={`flex items-center justify-center px-3 py-1.5 rounded-md text-xs font-semibold cursor-pointer transition-all ${form.recordType===rt.v?"text-white shadow-sm":txt2}`}
-                style={form.recordType===rt.v?{background:TH1}:{}}>
-                {rt.l}
-              </span>
-            </label>
-          ))}
-        </div>
+  // ── Entry form (matches GAS entry modal layout) ────────────────────────────
+  const renderForm = (isEditMode = false) => (
+    <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+      {/* Row 1: Record Type + Date */}
+      <div>
+        <label className={`block text-[10px] font-bold mb-1 uppercase tracking-widest ${txt2}`}>Record Type</label>
+        <select value={form.recordType} onChange={e=>setForm(f=>({...f,recordType:e.target.value}))}
+          className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${inp}`}>
+          <option value="payroll">Payroll (regular time entry)</option>
+          <option value="deduction">Deduction</option>
+          <option value="nonpayroll">Non-Payroll / Adjustment</option>
+        </select>
       </div>
       <div>
-        <label className={`block text-[11px] font-bold mb-1 ${txt2}`}>Employee Name *</label>
-        <input list="en-names" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}
-          className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${inp}`} placeholder="Employee name" />
+        <label className={`block text-[10px] font-bold mb-1 uppercase tracking-widest ${txt2}`}>Date</label>
+        <input type="date" value={form.date.replace(/(\d{2})\/(\d{2})\/(\d{4})/,"$3-$1-$2")}
+          onChange={e=>{const v=e.target.value;if(v){const[y,m,d]=v.split("-");setForm(f=>({...f,date:`${m}/${d}/${y}`}));}else setForm(f=>({...f,date:""}));}}
+          className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${inp}`} />
+      </div>
+
+      {/* Row 2: Name + Company */}
+      <div>
+        <label className={`block text-[10px] font-bold mb-1 uppercase tracking-widest ${txt2}`}>Name <span style={{color:"#c62828"}}>*</span></label>
+        <div className="flex gap-1">
+          <input list="en-names" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}
+            className={`flex-1 rounded border text-xs px-2.5 py-2 outline-none ${inp}`} placeholder="Worker name" />
+          {isEditMode && (
+            <button type="button" className="px-2 py-1 rounded text-xs font-bold text-white flex-shrink-0"
+              style={{ background:"#c62828" }}
+              onClick={()=>{const n=prompt("Select name:",form.name);if(n)setForm(f=>({...f,name:n.trim()}));}}>
+              ···
+            </button>
+          )}
+        </div>
         <datalist id="en-names">{(entryDropdowns?.names||[]).map((n:string)=><option key={n} value={n}/>)}</datalist>
       </div>
       <div>
-        <label className={`block text-[11px] font-bold mb-1 ${txt2}`}>Job / Location *</label>
+        <label className={`block text-[10px] font-bold mb-1 uppercase tracking-widest ${txt2}`}>
+          Company {isEditMode && form.company && <span className="ml-1 text-[9px] font-bold px-1.5 py-px rounded" style={{background:"#d8f3dc",color:"#1a6b36"}}>OVERRIDE</span>}
+        </label>
+        {isEditMode
+          ? <>
+              <input value={form.company} onChange={e=>setForm(f=>({...f,company:e.target.value}))}
+                className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${inp}`} placeholder="e.g. 4YR or TI" />
+              <p className={`text-[10px] italic mt-0.5 ${txt2}`}>Company is auto-derived from Job / Location. Enter a value here only to override that logic for this row.</p>
+            </>
+          : <div className={`w-full rounded border text-xs px-2.5 py-2 ${isLight?"bg-slate-50 border-slate-200 text-slate-400":"bg-[#1a1a1a] border-[#2a2a2a] text-slate-500"}`}>
+              📎 Auto-set from Job / Location — No input needed.
+            </div>
+        }
+      </div>
+
+      {/* Row 3: Job + Sub Cat */}
+      <div>
+        <label className={`block text-[10px] font-bold mb-1 uppercase tracking-widest ${txt2}`}>Job / Location <span style={{color:"#c62828"}}>*</span></label>
         <input list="en-jobs" value={form.job} onChange={e=>setForm(f=>({...f,job:e.target.value}))}
           className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${inp}`} placeholder="Job / location" />
         <datalist id="en-jobs">{(entryDropdowns?.jobs||[]).map((j:string)=><option key={j} value={j}/>)}</datalist>
       </div>
       <div>
-        <label className={`block text-[11px] font-bold mb-1 ${txt2}`}>Sub Cat / Function</label>
+        <label className={`block text-[10px] font-bold mb-1 uppercase tracking-widest ${txt2}`}>Sub Cat / Function</label>
         <input list="en-subs" value={form.subCat} onChange={e=>setForm(f=>({...f,subCat:e.target.value}))}
           className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${inp}`} placeholder="Optional" />
         <datalist id="en-subs">{(entryDropdowns?.subCats||[]).map((s:string)=><option key={s} value={s}/>)}</datalist>
       </div>
-      <div>
-        <label className={`block text-[11px] font-bold mb-1 ${txt2}`}>Date</label>
-        <input type="date" value={form.date.replace(/(\d{2})\/(\d{2})\/(\d{4})/,"$3-$1-$2")}
-          onChange={e=>{const v=e.target.value;if(v){const[y,m,d]=v.split("-");setForm(f=>({...f,date:`${m}/${d}/${y}`}));}else setForm(f=>({...f,date:""}));}}
-          className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${inp}`} />
-      </div>
+
+      {/* Time fields (payroll only) */}
       {!isNoTime && (<>
         <div>
-          <label className={`block text-[11px] font-bold mb-1 ${txt2}`}>Started</label>
+          <label className={`block text-[10px] font-bold mb-1 uppercase tracking-widest ${txt2}`}>Started (Time)</label>
           <input type="time" value={form.started} onChange={e=>setForm(f=>({...f,started:e.target.value}))}
             className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${inp}`} />
         </div>
         <div>
-          <label className={`block text-[11px] font-bold mb-1 ${txt2}`}>End</label>
+          <label className={`block text-[10px] font-bold mb-1 uppercase tracking-widest ${txt2}`}>End (Time)</label>
           <input type="time" value={form.finished} onChange={e=>setForm(f=>({...f,finished:e.target.value}))}
             className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${inp}`} />
         </div>
         <div className="col-span-2">
-          <label className={`block text-[11px] font-bold mb-1 ${txt2}`}>Hours (override)</label>
+          <label className={`block text-[10px] font-bold mb-1 uppercase tracking-widest ${txt2}`}>Hours (HH:MM)</label>
           <input type="text" value={form.hours} onChange={e=>setForm(f=>({...f,hours:e.target.value}))}
-            className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${inp}`} placeholder="e.g. 06:00 — auto-fills from Start/End" />
+            className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${inp}`} placeholder="e.g. 06:00" />
+          <p className={`text-[10px] italic mt-0.5 ${txt2}`}>Stored in Col J as decimal (06:00 → 6.00). Auto-fills from Start / End — edit to override.</p>
         </div>
       </>)}
+
+      {/* Amount (deduction / non-payroll) */}
       {isNoTime && (
         <div className="col-span-2">
-          <label className={`block text-[11px] font-bold mb-1 ${txt2}`}>Amount ($)</label>
+          <label className={`block text-[10px] font-bold mb-1 uppercase tracking-widest ${txt2}`}>Amount ($)</label>
           <input type="number" value={form.amount} step="0.01" onChange={e=>setForm(f=>({...f,amount:e.target.value}))}
             className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${inp}`} placeholder="0.00" />
+          <p className={`text-[10px] italic mt-0.5 ${txt2}`}>Enter the dollar amount (positive — will be saved as negative automatically).</p>
         </div>
       )}
+
+      {/* Remarks */}
       <div className="col-span-2">
-        <label className={`block text-[11px] font-bold mb-1 ${txt2}`}>Remarks <span style={{color:"#c62828",fontWeight:700}}>(shown in red)</span></label>
+        <label className={`block text-[10px] font-bold mb-1 uppercase tracking-widest ${txt2}`}>Remarks <span style={{color:"#c62828",fontWeight:800}}>(SHOWN IN RED)</span></label>
         <textarea value={form.remarks} onChange={e=>setForm(f=>({...f,remarks:e.target.value}))}
-          className={`w-full rounded border text-xs px-2.5 py-2 outline-none resize-y min-h-[54px] ${inp}`} placeholder="Optional notes…" />
+          className={`w-full rounded border text-xs px-2.5 py-2 outline-none resize-y min-h-[54px] ${inp}`}
+          style={{color:form.remarks?"#c62828":undefined}} placeholder="Optional notes…" />
       </div>
     </div>
   );
@@ -1009,12 +1064,10 @@ export function FourYrPayrollPage() {
 
       {/* ── Top bar (GAS: .topbar) ── */}
       <div className="shrink-0 flex items-center gap-3 px-4 py-0" style={{ background:"#1a6b36", height:54, boxShadow:"0 2px 8px rgba(0,0,0,.18)" }}>
-        {/* Logo */}
+        {/* Logo — same component as sidebar */}
         <div className="flex items-center gap-2 shrink-0">
-          <div className="w-9 h-9 rounded flex items-center justify-center font-black text-[11px] leading-tight" style={{ background:"#fff", color:"#1a6b36" }}>
-            <span>4YR</span>
-          </div>
-          <div className="topbar-divider w-px h-7 mx-1" style={{ background:"rgba(255,255,255,.25)" }} />
+          <FourYrLogo isLight={false} />
+          <div className="w-px h-7" style={{ background:"rgba(255,255,255,.25)" }} />
           <span className="text-white font-bold text-[15px] tracking-tight whitespace-nowrap">Payroll Dashboard</span>
         </div>
         {selectedWeeks.length > 0 && (
@@ -1026,18 +1079,18 @@ export function FourYrPayrollPage() {
 
         {/* Right side controls */}
         <div className="ml-auto flex flex-col items-end gap-0.5">
-          <div className="flex items-center gap-1.5">
-            {/* Screenshot button */}
+          <div className="flex items-center gap-2">
+            {/* Screenshot button — prominent, matches GAS */}
             <div className="relative">
               <button onClick={() => setSsMenuOpen(o=>!o)}
-                className="flex items-center justify-center text-sm px-2 py-1 rounded transition-all"
-                style={{ background:"rgba(255,255,255,.15)", border:"1px solid rgba(255,255,255,.3)", color:"#fff", height:28 }}
-                title="Screenshot">
-                {ssCapturing ? "⏳" : "📷"}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-semibold transition-all"
+                style={{ background:"rgba(255,255,255,.18)", border:"1px solid rgba(255,255,255,.35)", color:"#fff", height:28 }}
+                title="Take screenshot">
+                {ssCapturing ? "⏳" : "📷"} <span>Screenshot</span>
               </button>
               {ssMenuOpen && (
                 <div className="absolute top-full right-0 mt-2 rounded-xl overflow-hidden z-[600]"
-                  style={{ background:"#fff", border:"1px solid #e4e8f0", boxShadow:"0 4px 18px rgba(26,73,140,.13)", minWidth:160 }}>
+                  style={{ background:"#fff", border:"1px solid #e4e8f0", boxShadow:"0 4px 18px rgba(26,73,140,.13)", minWidth:170 }}>
                   <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide" style={{ color:"#b0b8c9" }}>Screenshot</div>
                   {[["visible","🖥 Visible Area"],["full","📄 Full Content"]].map(([m,l]) => (
                     <div key={m} className="flex items-center gap-2.5 px-3 py-2 text-xs cursor-pointer transition-all hover:bg-[#f0f5ff]"
@@ -1051,9 +1104,9 @@ export function FourYrPayrollPage() {
             {/* Open GAS link */}
             <a href="https://script.google.com/macros/s/AKfycbxa-kql1pMbkZzKjdqcc0t2S7_TgJG-A6dWHmlz2z4xIfLmPTaWpMAO3rmB5CmeDG00/exec"
               target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-white no-underline transition-all"
-              style={{ background:"rgba(255,255,255,.15)", border:"1px solid rgba(255,255,255,.3)", height:28 }}>
-              🏠︎
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-semibold text-white no-underline transition-all"
+              style={{ background:"rgba(255,255,255,.18)", border:"1px solid rgba(255,255,255,.35)", height:28 }}>
+              Open GAS ↗
             </a>
           </div>
           <span className="text-[9px] font-light opacity-50 tracking-wide text-white pr-0.5">® Made by Finance Team</span>
@@ -1181,20 +1234,18 @@ export function FourYrPayrollPage() {
           </div>
         </div>
 
-        {/* Action buttons */}
-        <div className="flex flex-col gap-0.5 ml-auto">
-          <label className="text-[10px] invisible">·</label>
-          <div className="flex items-center gap-1.5">
-            <button onClick={openAddModal} className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold text-white whitespace-nowrap"
-              style={{ background:"#52b788", color:"#08331a" }}>
-              ➕ Add Record
-            </button>
-            <button onClick={() => { setActiveTab("detail"); setMainTab("payroll"); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold text-white whitespace-nowrap"
-              style={{ background:"#e53935" }}>
-              🗑️ Delete Record
-            </button>
-          </div>
+        {/* Action buttons — right-aligned, flex-shrink-0 prevents wrapping */}
+        <div className="flex items-center gap-2 ml-auto flex-shrink-0">
+          <button onClick={openAddModal}
+            className="flex items-center gap-1.5 px-4 py-2 rounded text-xs font-bold text-white whitespace-nowrap shadow-sm"
+            style={{ background:"#2d8a52", border:"1px solid #1a6b36" }}>
+            ➕ Add Record
+          </button>
+          <button onClick={() => { setActiveTab("detail"); setMainTab("payroll"); }}
+            className="flex items-center gap-1.5 px-4 py-2 rounded text-xs font-bold text-white whitespace-nowrap shadow-sm"
+            style={{ background:"#e53935", border:"1px solid #b71c1c" }}>
+            🗑️ Delete Record
+          </button>
         </div>
       </div>
 
@@ -1270,7 +1321,7 @@ export function FourYrPayrollPage() {
               <div><h2 className="font-bold text-sm text-white">➕ Add Record</h2><p className="text-[11px] text-green-200 mt-0.5">Payroll, deduction, or non-payroll entry</p></div>
               <button onClick={()=>setAddModalOpen(false)} className="w-7 h-7 flex items-center justify-center rounded text-white/70 hover:text-white text-xl" style={{ background:"rgba(255,255,255,.1)" }}>×</button>
             </div>
-            <div className="px-5 py-4 overflow-y-auto" style={{ maxHeight:"65vh" }}>{renderForm()}</div>
+            <div className="px-5 py-4 overflow-y-auto" style={{ maxHeight:"65vh" }}>{renderForm(false)}</div>
             <div className={`flex items-center justify-end gap-2 px-5 py-3 border-t ${bdr} ${bg3}`}>
               <button onClick={()=>setAddModalOpen(false)} className={`text-xs px-4 py-2 rounded border ${bdr} ${txt2}`}>Cancel</button>
               <button onClick={submitAdd} className="text-xs px-5 py-2 rounded text-white font-semibold" style={{ background:TH1 }}>💾 Add to Sheet</button>
@@ -1288,10 +1339,96 @@ export function FourYrPayrollPage() {
               <div><h2 className="font-bold text-sm text-blue-500">✏️ Edit Record</h2><p className={`text-[11px] ${txt2} mt-0.5`}>{editingRow.name} · {editingRow.date}</p></div>
               <button onClick={()=>setEditModalOpen(false)} className={`w-7 h-7 flex items-center justify-center rounded ${bg3} ${txt2} text-xl`}>×</button>
             </div>
-            <div className="px-5 py-4 overflow-y-auto" style={{ maxHeight:"65vh" }}>{renderForm()}</div>
+            <div className="px-5 py-4 overflow-y-auto" style={{ maxHeight:"65vh" }}>{renderForm(true)}</div>
             <div className={`flex items-center justify-end gap-2 px-5 py-3 border-t ${bdr} ${bg3}`}>
               <button onClick={()=>setEditModalOpen(false)} className={`text-xs px-4 py-2 rounded border ${bdr} ${txt2}`}>Cancel</button>
-              <button onClick={submitEdit} className="text-xs px-5 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold">💾 Save to Sheet</button>
+              <button onClick={submitEdit} className="text-xs px-5 py-2 rounded text-white font-semibold" style={{ background:TH1 }}>💾 Save Changes</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Employee YTD History Modal ── */}
+      {empModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setEmpModalOpen(false)} />
+          <div className={`relative z-10 rounded-xl shadow-2xl border ${bdr} ${bg} w-full overflow-hidden flex flex-col`}
+            style={{ maxWidth:720, maxHeight:"88vh" }}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 shrink-0" style={{ background:TH1 }}>
+              <h2 className="font-bold text-sm text-white">👤 {empModalName} — YTD History</h2>
+              <button onClick={() => setEmpModalOpen(false)}
+                className="w-7 h-7 flex items-center justify-center rounded text-white/70 hover:text-white text-xl"
+                style={{ background:"rgba(255,255,255,.1)" }}>×</button>
+            </div>
+            {/* Body */}
+            <div className="overflow-y-auto p-5 flex-1">
+              {empModalLoading && (
+                <div className={`text-center py-10 text-sm ${txt2}`}>⏳ Loading history…</div>
+              )}
+              {empModalData?.error && (
+                <div className="text-center py-10 text-sm" style={{ color:"#c62828" }}>⚠ {empModalData.error}</div>
+              )}
+              {empModalData && !empModalData.error && !empModalLoading && (() => {
+                const { payroll=[], deductions=[], nonPayroll=[], totals={} } = empModalData;
+                const buildEmpTable = (rows: any[], type: string) => {
+                  const isDeduct = type==="deduct", isNonPay = type==="nonpay";
+                  const footBg = isDeduct?"#c62828":isNonPay?"#7a4f00":TH1;
+                  let tHrs=0, tAmt=0; rows.forEach(r=>{ tHrs+=r.hours||0; tAmt+=r.amount||0; });
+                  return (
+                    <table key={type} className="text-xs border-collapse w-full mb-1">
+                      <thead><tr style={{ background:TH1 }}>
+                        {["Job / Location","Sub Category","Hours","Amount"].map((h,i) => (
+                          <th key={h} className={`py-2 px-3 text-[11px] font-bold text-white whitespace-nowrap ${i>=2?"text-right":""}`}>{h}</th>
+                        ))}
+                      </tr></thead>
+                      <tbody>
+                        {rows.map((r:any, i:number) => {
+                          const isNeg = r.amount < 0;
+                          const rBg = i%2===0 ? (isLight?"#fff":"#22262f") : (isLight?"#f5faf6":"#262b35");
+                          return (
+                            <tr key={i} className={`border-b ${tbBdr}`} style={{ background:rBg }}>
+                              <td className={`px-3 py-1.5 ${txt3}`}>{r.job||"—"}</td>
+                              <td className={`px-3 py-1.5 ${txt2}`}>{r.subCat&&r.subCat!=="(none)"?r.subCat:"—"}</td>
+                              <td className={`text-right px-3 py-1.5 tabular-nums ${isNeg?"text-red-500":txt3}`}>{r.hours?fmtHrs(r.hours):"—"}</td>
+                              <td className="text-right px-3 py-1.5 tabular-nums font-semibold" style={{ color:isNeg?DED_FG:isLight?"#1a5c2a":"#7fd99a" }}>{r.amount?fmtAmt(r.amount):"—"}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot><tr style={{ background:footBg }}>
+                        <td colSpan={2} className="px-3 py-2 text-[11px] font-bold text-white">Total</td>
+                        <td className="text-right px-3 py-2 tabular-nums font-bold text-white">{tHrs?fmtHrs(tHrs):"—"}</td>
+                        <td className="text-right px-3 py-2 tabular-nums font-bold text-white">{tAmt<0?`-${fmtAmt(Math.abs(tAmt))}`:fmtAmt(tAmt)}</td>
+                      </tr></tfoot>
+                    </table>
+                  );
+                };
+                return (
+                  <div className="flex flex-col gap-4">
+                    {/* KPI row */}
+                    <div className="flex gap-2 flex-wrap">
+                      {[
+                        { l:"YTD Hours", v:fmtHrs(totals.hours||0), cls:"bg-[#f0faf2] border-[#cde0d3]", vc:isLight?"#1a6b36":"#52b788", dark:"bg-[#1e2530] border-[#2e3340]" },
+                        { l:"YTD Payroll", v:fmtAmt(totals.amount||0), cls:"bg-[#f0faf2] border-[#cde0d3]", vc:isLight?"#1a6b36":"#52b788", dark:"bg-[#1e2530] border-[#2e3340]" },
+                        ...(totals.deductionAmt?[{ l:"YTD Deductions", v:`-${fmtAmt(Math.abs(totals.deductionAmt))}`, cls:"bg-[#fff5f5] border-[#e8a0a0]", vc:"#c62828", dark:"bg-[#3a1f22] border-[#6a2020]" }]:[]),
+                        ...(totals.nonPayrollAmt?[{ l:"YTD Non-Payroll", v:fmtAmt(totals.nonPayrollAmt), cls:"bg-[#fff8e6] border-[#f4c26a]", vc:"#7a4f00", dark:"bg-[#3a3320] border-[#6a5a20]" }]:[]),
+                      ].map(k => (
+                        <div key={k.l} className={`rounded-lg border px-4 py-2 ${isLight?k.cls:k.dark}`}>
+                          <div className={`text-[9px] font-bold uppercase tracking-wide mb-1 ${txt2}`}>{k.l}</div>
+                          <div className="text-[18px] font-bold" style={{ color:k.vc }}>{k.v}</div>
+                        </div>
+                      ))}
+                    </div>
+                    {payroll.length>0 && <div><div className={`text-[11px] font-bold uppercase tracking-wide mb-2 pb-1 border-b-2 ${isLight?"border-[#d8f3dc] text-[#6b8f71]":"border-[#2e3340] text-[#8b96ab]"}`}>Payroll — by Job</div>{buildEmpTable(payroll,"normal")}</div>}
+                    {deductions.length>0 && <div><div className="text-[11px] font-bold uppercase tracking-wide mb-2 pb-1 border-b-2 border-[#ffd0d0] text-red-500">Deductions</div>{buildEmpTable(deductions,"deduct")}</div>}
+                    {nonPayroll.length>0 && <div><div className="text-[11px] font-bold uppercase tracking-wide mb-2 pb-1 border-b-2 border-[#ffe8a0]" style={{color:"#7a4f00"}}>Non-Payroll / Adjustments</div>{buildEmpTable(nonPayroll,"nonpay")}</div>}
+                    {!payroll.length&&!deductions.length&&!nonPayroll.length && (
+                      <div className={`text-center py-10 text-sm italic ${txt2}`}>No YTD records found for {empModalName}.</div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
