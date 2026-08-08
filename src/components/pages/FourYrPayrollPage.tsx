@@ -6,7 +6,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { useFinance } from "../../context/FinanceContext";
 import { getAccessToken } from "../../services/googleAuth";
 import { FourYrLogo } from "../EntityLogos";
-import html2canvas from "html2canvas";
+import { toPng } from "html-to-image";
 
 const fmt2   = (n: number) => n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 const fmtAmt = (n: number) => `$${fmt2(n)}`;
@@ -439,21 +439,18 @@ export function FourYrPayrollPage() {
     setSsMenuOpen(false); setSsCapturing(true);
     const target = pageRef.current || document.body;
     try {
-      const VW = target.clientWidth;
-      const canvas = await html2canvas(target, {
-        useCORS: true, allowTaint: true, scrollX: 0,
-        scrollY: mode === "visible" ? 0 : 0,
-        width: VW,
-        height: mode === "visible" ? target.clientHeight : target.scrollHeight,
-        windowWidth: VW,
-        windowHeight: mode === "visible" ? target.clientHeight : target.scrollHeight,
-        scale: 2,
+      const h = mode === "visible" ? target.clientHeight : target.scrollHeight;
+      const dataUrl = await toPng(target, {
+        pixelRatio: 2,
+        width: target.clientWidth,
+        height: h,
+        style: { maxHeight: `${h}px`, overflow: "hidden" },
       });
       const link = document.createElement("a");
       const now = new Date();
       const ts = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}_${String(now.getHours()).padStart(2,"0")}${String(now.getMinutes()).padStart(2,"0")}`;
       link.download = `4YR_Payroll_${ts}.png`;
-      link.href = canvas.toDataURL("image/png");
+      link.href = dataUrl;
       link.click();
       showToast("Screenshot saved", "success");
     } catch(e:any) { showToast(`Screenshot failed: ${e.message}`, "error"); }
@@ -588,7 +585,7 @@ export function FourYrPayrollPage() {
                         onClick={() => setCollapsed(c => ({...c, [row.scKey]: !c[row.scKey]}))}>
                         <span style={{ color:scFg }} className="text-[11px] font-semibold">
                           <span className="text-[10px] mr-1.5 inline-block w-3 text-center">{row.scCollapsed ? "▶" : "▼"}</span>
-                          {(!row.subCat || row.subCat === "—" || row.subCat === "(none)") ? row.job : row.subCat}
+                          {(!row.subCat || row.subCat === "—" || row.subCat === "(none)") ? "" : row.subCat}
                         </span>
                       </td>
                       {names.map((n:string) => (
@@ -810,7 +807,7 @@ export function FourYrPayrollPage() {
                             onKeyDown={e=>{if(e.key==="Enter")commitEdit();if(e.key==="Escape")cancelEdit();}} />
                         : <span className={`cursor-text hover:underline decoration-dashed ${txt3}`} onClick={()=>startEdit(row.rowIndex,"job",row.job)}>{row.job}</span>}
                     </td>
-                    <td className={`px-2 py-1.5 ${txt2}`} style={{ whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{(!row.subCat || row.subCat==="(none)") ? row.job : row.subCat}</td>
+                    <td className={`px-2 py-1.5 ${txt2}`} style={{ whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{(!row.subCat || row.subCat==="(none)") ? "" : row.subCat}</td>
                     <td className={`px-2 py-1.5 tabular-nums ${txt2}`} style={{ whiteSpace:"nowrap" }}>{row.started}</td>
                     <td className={`px-2 py-1.5 tabular-nums ${txt2}`} style={{ whiteSpace:"nowrap" }}>{row.finished}</td>
                     <td className="text-right px-2 py-1.5">
@@ -991,8 +988,9 @@ export function FourYrPayrollPage() {
                 className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${inp}`} placeholder="e.g. 4YR or TI" />
               <p className={`text-[10px] italic mt-0.5 ${txt2}`}>Company is auto-derived from Job / Location. Enter a value here only to override that logic for this row.</p>
             </>
-          : <div className={`w-full rounded border text-xs px-2.5 py-2 ${isLight?"bg-slate-50 border-slate-200 text-slate-400":"bg-[#1a1a1a] border-[#2a2a2a] text-slate-500"}`}>
-              📎 Auto-set from Job / Location — No input needed.
+          : <div className={`w-full rounded border text-xs px-2.5 py-2 flex items-center justify-between gap-2 ${isLight?"bg-slate-50 border-slate-200 text-slate-400":"bg-[#1a1a1a] border-[#2a2a2a] text-slate-500"}`}>
+              <span>🔗 Auto-set from Job / Location — No input needed.</span>
+              {form.company && <span className="font-bold shrink-0" style={{color:"#1a6b36",fontSize:13}}>→ {form.company}</span>}
             </div>
         }
       </div>
@@ -1000,7 +998,16 @@ export function FourYrPayrollPage() {
       {/* Row 3: Job + Sub Cat */}
       <div>
         <label className={`block text-[10px] font-bold mb-1 uppercase tracking-widest ${txt2}`}>Job / Location <span style={{color:"#c62828"}}>*</span></label>
-        <input list="en-jobs" value={form.job} onChange={e=>setForm(f=>({...f,job:e.target.value}))}
+        <input list="en-jobs" value={form.job}
+          onChange={e => {
+            const job = e.target.value;
+            const jl = job.trim().toLowerCase();
+            // Mirror GAS autoFillCompanyPreview: TI for Timm Barn / Skating Rink, else 4YR
+            const co = !isEditMode
+              ? ((jl === "timm barn" || jl === "skating rink") ? "TI" : job.trim() ? "4YR" : "")
+              : form.company; // edit mode keeps manual override
+            setForm(f => ({ ...f, job, company: co }));
+          }}
           className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${inp}`} placeholder="Job / location" />
         <datalist id="en-jobs">{(entryDropdowns?.jobs||[]).map((j:string)=><option key={j} value={j}/>)}</datalist>
       </div>
