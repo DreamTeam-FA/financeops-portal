@@ -327,7 +327,7 @@ const AccordionItem: React.FC<{
   onEdit: () => void;
   onClose: () => void;
 }> = ({ bill, index, isOpen, onToggle, isLight, onEdit, onClose }) => {
-  const { toggleBillStatus, deleteBill } = useFinance();
+  const { toggleBillStatus, deleteBill, showConfirm } = useFinance();
   const accentColor = getEntityColor(bill.entity);
   const overdue = bill.status === "unpaid" && isOverdue(bill.dueDate);
 
@@ -339,7 +339,7 @@ const AccordionItem: React.FC<{
     toggleBillStatus(bill.id, bill.status === "hold" ? "unpaid" : "hold");
 
   const handleDelete = () => {
-    if (confirm(`Delete this bill for ${bill.vendor}?`)) deleteBill(bill.id);
+    showConfirm(`Delete this bill for ${bill.vendor}?`, () => deleteBill(bill.id));
   };
 
   return (
@@ -480,7 +480,7 @@ export const BillDetailsModal: React.FC<BillDetailsModalProps> = ({
   onClose,
   onEdit,
 }) => {
-  const { theme, toggleBillStatus, deleteBill } = useFinance();
+  const { theme, toggleBillStatus, deleteBill, showConfirm } = useFinance();
   const isLight = theme === "light";
   // For multi-bill: which accordion item is open (-1 = none, auto-open first)
   const [expandedIdx, setExpandedIdx] = useState<number>(-1);
@@ -496,10 +496,7 @@ export const BillDetailsModal: React.FC<BillDetailsModalProps> = ({
   const singleBill = vendorBills[0];
   const handleSingleEdit = () => { onClose(); onEdit(singleBill); };
   const handleSingleDelete = () => {
-    if (confirm(`Delete bill for ${singleBill.vendor}?`)) {
-      deleteBill(singleBill.id);
-      onClose();
-    }
+    showConfirm(`Delete bill for ${singleBill.vendor}?`, () => { deleteBill(singleBill.id); onClose(); });
   };
   const handleSingleMarkPaid = () =>
     toggleBillStatus(singleBill.id, singleBill.status === "paid" ? "unpaid" : "paid",

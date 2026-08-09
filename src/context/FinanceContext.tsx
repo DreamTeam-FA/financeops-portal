@@ -188,6 +188,11 @@ interface FinanceContextType {
   clearSyncToast: () => void;
   showToast: (message: string, type?: "success" | "error" | "info" | "auth-error", duration?: number) => void;
 
+  // Global confirm modal (replaces all window.confirm/alert/prompt native dialogs)
+  confirmModal: { message: string; onConfirm: () => void } | null;
+  showConfirm: (message: string, onConfirm: () => void) => void;
+  clearConfirmModal: () => void;
+
   importSheetData: (data: any) => void;
   logAction: (action: string, details: string) => void;
 }
@@ -395,6 +400,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (duration > 0) setTimeout(() => setSyncToast(null), duration);
     // duration=0 → persistent until user dismisses or action resolves
   };
+
+  // Global confirm modal — replaces all window.confirm/alert native dialogs
+  const [confirmModal, setConfirmModal] = useState<{ message: string; onConfirm: () => void } | null>(null);
+  const showConfirm = (message: string, onConfirm: () => void) => setConfirmModal({ message, onConfirm });
+  const clearConfirmModal = () => setConfirmModal(null);
   const [localCalendarEvents, setLocalCalendarEvents] = useState<PortalCalendarEvent[]>([]);
 
   // Sidebar Fold State
@@ -1106,10 +1116,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!mapping) return;
 
     if (confirmFirst) {
-      const confirmed = window.confirm(
-        `Are you sure you want to write and sync the current portal data to Google Sheet tab '${mapping.tabName}'? This will update the contents of your source spreadsheet.`
-      );
-      if (!confirmed) return;
+      setConfirmModal({
+        message: `Sync to Google Sheet tab "${mapping.tabName}"? This will overwrite the contents of your source spreadsheet.`,
+        onConfirm: () => { setConfirmModal(null); syncModuleToGoogleSheet(moduleId, false); }
+      });
+      return;
     }
 
     setIsSyncing(true);
@@ -1232,10 +1243,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const syncAllToGoogleSheets = async (confirmFirst = true) => {
     if (confirmFirst) {
-      const confirmed = window.confirm(
-        "Are you sure you want to push all current portal records across AP, AR, Banks, Loans, and Statements to their respective Google Sheet tabs?"
-      );
-      if (!confirmed) return;
+      setConfirmModal({
+        message: "Push all current portal records across AP, AR, Banks, Loans, and Statements to their respective Google Sheet tabs?",
+        onConfirm: () => { setConfirmModal(null); syncAllToGoogleSheets(false); }
+      });
+      return;
     }
     for (const mapping of sheetMappings) {
       await syncModuleToGoogleSheet(mapping.module, false);
@@ -1876,6 +1888,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         syncToast,
         clearSyncToast,
         showToast,
+        confirmModal,
+        showConfirm,
+        clearConfirmModal,
         importSheetData,
         logAction
       }}

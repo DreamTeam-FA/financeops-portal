@@ -6,7 +6,7 @@ import { AddStatementModal } from "../modals/AddBankModal";
 import { formatTimestampLocal } from "../../utils/formatters";
 
 export const BankStatementsPage: React.FC = () => {
-  const { bankStatements, selectedEntities, toggleStatementDownload, deleteBankStatement, theme } = useFinance();
+  const { bankStatements, selectedEntities, toggleStatementDownload, deleteBankStatement, theme, showConfirm } = useFinance() as any;
   const currentMonthYear = new Date().toLocaleString("en-US", { month: "long", year: "numeric" });
 
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -255,11 +255,7 @@ export const BankStatementsPage: React.FC = () => {
                           {s.downloaded ? "Mark Pending" : "Mark Downloaded"}
                         </button>
                         <button
-                          onClick={() => {
-                            if (confirm("Are you sure you want to delete this statement record?")) {
-                              deleteBankStatement(s.id);
-                            }
-                          }}
+                          onClick={() => showConfirm("Delete this statement record?", () => deleteBankStatement(s.id))}
                           className="p-1 text-red-500 hover:text-red-600 transition-colors"
                           title="Delete Statement"
                         >

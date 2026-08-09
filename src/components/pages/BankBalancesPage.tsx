@@ -17,7 +17,7 @@ import {
 } from "recharts";
 
 export const BankBalancesPage: React.FC = () => {
-  const { bankAccounts, selectedEntities, updateBankBalance, deleteBankAccount, theme } = useFinance();
+  const { bankAccounts, selectedEntities, updateBankBalance, deleteBankAccount, theme, showConfirm } = useFinance() as any;
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newVal, setNewVal] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -316,11 +316,7 @@ export const BankBalancesPage: React.FC = () => {
                             </button>
                           )}
                           <button
-                            onClick={() => {
-                              if (confirm("Are you sure you want to delete this bank account?")) {
-                                deleteBankAccount(b.id);
-                              }
-                            }}
+                            onClick={() => showConfirm("Delete this bank account?", () => deleteBankAccount(b.id))}
                             className="p-1 text-red-500 hover:text-red-600 transition-colors"
                             title="Delete Bank Account"
                           >

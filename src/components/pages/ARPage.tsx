@@ -14,8 +14,9 @@ export const ARPage: React.FC = () => {
     addARItem,
     updateARItem,
     deleteARItem,
-    theme
-  } = useFinance();
+    theme,
+    showConfirm
+  } = useFinance() as any;
 
   const isLight = theme === "light";
 
@@ -355,11 +356,7 @@ export const ARPage: React.FC = () => {
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={() => {
-                              if (confirm("Are you sure you want to delete this invoice?")) {
-                                deleteARItem(a.id);
-                              }
-                            }}
+                            onClick={() => showConfirm("Delete this invoice?", () => deleteARItem(a.id))}
                             className="text-red-500 hover:text-red-400"
                             title="Delete Invoice"
                           >

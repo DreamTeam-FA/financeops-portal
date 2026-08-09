@@ -121,7 +121,7 @@ interface RawRow {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 export function FourYrPayrollPage() {
-  const { theme, handleGoogleSignIn, showToast } = useFinance() as any;
+  const { theme, handleGoogleSignIn, showToast, showConfirm } = useFinance() as any;
   const isLight = theme === "light";
   const pageRef = useRef<HTMLDivElement>(null);
 
@@ -179,6 +179,7 @@ export function FourYrPayrollPage() {
   const [entryDropdowns,setEntryDropdowns]= useState<any>(null);
   const [form, setForm] = useState({ name:"", job:"", subCat:"", date:"", started:"", finished:"", hours:"", remarks:"", amount:"", company:"", recordType:"payroll" });
   const [hoursExplicit, setHoursExplicit] = useState(false); // mirrors GAS _editHoursExplicit
+  const [namePickerOpen, setNamePickerOpen] = useState(false);
 
   const debounceRef  = useRef<ReturnType<typeof setTimeout>>();
   const lastKeyRef   = useRef("");
@@ -495,25 +496,28 @@ export function FourYrPayrollPage() {
     if (!noTime && !form.finished) missing.push("End");
     if (!noTime && !form.hours)    missing.push("Hours");
     if (noTime  && !form.amount)   missing.push("Amount");
+    const doSave = async () => {
+      // Mirror GAS _doSaveEditCommit: negate amount for deductions
+      let finalAmount: number | null = noTime ? parseFloat(form.amount) || null : null;
+      if (form.recordType === "deduction" && finalAmount !== null && finalAmount > 0) finalAmount = -finalAmount;
+      try {
+        await apiPost("/api/4yr/save-edit", {
+          ...form,
+          amount:               finalAmount,
+          rowIndex:             editingRow!.rowIndex,
+          hoursExplicitlyEdited: noTime ? false : hoursExplicit, // GAS: noTime ? false : _editHoursExplicit
+        });
+        showToast("Entry updated", "success");
+        setEditModalOpen(false);
+        lastKeyRef.current = "";
+        doLoad();
+      } catch(e:any) { showToast(`Edit failed: ${e.message}`, "error"); }
+    };
     if (missing.length) {
-      const ok = window.confirm(`⚠️ Missing Fields\n\nThe following fields are empty: ${missing.join(", ")}.\n\nSave anyway?`);
-      if (!ok) return;
+      showConfirm(`Missing fields: ${missing.join(", ")}. Save anyway?`, doSave);
+      return;
     }
-    // Mirror GAS _doSaveEditCommit: negate amount for deductions
-    let finalAmount: number | null = noTime ? parseFloat(form.amount) || null : null;
-    if (form.recordType === "deduction" && finalAmount !== null && finalAmount > 0) finalAmount = -finalAmount;
-    try {
-      await apiPost("/api/4yr/save-edit", {
-        ...form,
-        amount:               finalAmount,
-        rowIndex:             editingRow.rowIndex,
-        hoursExplicitlyEdited: noTime ? false : hoursExplicit, // GAS: noTime ? false : _editHoursExplicit
-      });
-      showToast("Entry updated", "success");
-      setEditModalOpen(false);
-      lastKeyRef.current = "";
-      doLoad();
-    } catch(e:any) { showToast(`Edit failed: ${e.message}`, "error"); }
+    doSave();
   };
 
   const confirmDelete = async () => {
@@ -1077,7 +1081,7 @@ export function FourYrPayrollPage() {
           {isEditMode && (
             <button type="button" className="px-2 py-1 rounded text-xs font-bold text-white flex-shrink-0"
               style={{ background:"#c62828" }}
-              onClick={()=>{const n=prompt("Select name:",form.name);if(n)setForm(f=>({...f,name:n.trim()}));}}>
+              onClick={()=>setNamePickerOpen(true)}>
               ···
             </button>
           )}
@@ -1601,6 +1605,27 @@ export function FourYrPayrollPage() {
                   </div>
                 );
               })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Name Picker (replaces native prompt) ── */}
+      {namePickerOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={()=>setNamePickerOpen(false)} />
+          <div className={`relative z-10 rounded-xl shadow-2xl border ${bdr} ${bg} w-full max-w-xs p-5`}>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className={`font-bold text-sm ${txt}`}>Select Name</h2>
+              <button onClick={()=>setNamePickerOpen(false)} className={`w-7 h-7 flex items-center justify-center rounded ${bg3} ${txt2} text-xl`}>×</button>
+            </div>
+            <div className="flex flex-col gap-1 max-h-60 overflow-y-auto">
+              {(entryDropdowns?.names||[]).map((n:string)=>(
+                <button key={n} onClick={()=>{ setForm(f=>({...f,name:n})); setNamePickerOpen(false); }}
+                  className={`text-left text-xs px-3 py-2 rounded transition-colors ${form.name===n?(isLight?"bg-blue-100 text-blue-800 font-semibold":"bg-blue-900/40 text-blue-300 font-semibold"):(isLight?"hover:bg-slate-100 text-slate-700":"hover:bg-white/5 text-slate-300")}`}>
+                  {n}
+                </button>
+              ))}
             </div>
           </div>
         </div>

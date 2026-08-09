@@ -468,6 +468,7 @@ const DEBIT_MANUAL_OPTS = ["AutoDebit","Manual",""];
 
 const MetadataModal: React.FC<{ isLight: boolean; onClose: () => void }> = ({ isLight, onClose }) => {
   const s = styles(isLight);
+  const { showToast, showConfirm } = useFinance() as any;
   const [rows, setRows]           = useState<MetaRow[]>([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState("");
@@ -512,24 +513,25 @@ const MetadataModal: React.FC<{ isLight: boolean; onClose: () => void }> = ({ is
       await saveMetaRow(draft as MetaRow, token);
       setRows(prev => prev.map(r => r.rowNum===draft.rowNum&&r.section===draft.section ? {...r,...draft} as MetaRow : r));
       setEditKey(null);
-    } catch (e: any) { alert("Save error: "+e.message); }
+    } catch (e: any) { showToast("Save error: "+e.message, "error"); }
     finally { setSaving(false); }
   };
 
-  const deleteRow = async (r: MetaRow) => {
-    if (!confirm(`Delete metadata for "${r.vendor}" (${ENTITY_NAME[r.section]})?`)) return;
-    setSaving(true);
-    try {
-      const token = getAccessToken();
-      if (!token) throw new Error("No Google token.");
-      await deleteMetaRow(r, token);
-      setRows(prev => prev.filter(x => !(x.rowNum===r.rowNum&&x.section===r.section)));
-    } catch (e: any) { alert("Delete error: "+e.message); }
-    finally { setSaving(false); }
+  const deleteRow = (r: MetaRow) => {
+    showConfirm(`Delete metadata for "${r.vendor}" (${ENTITY_NAME[r.section]})?`, async () => {
+      setSaving(true);
+      try {
+        const token = getAccessToken();
+        if (!token) throw new Error("No Google token.");
+        await deleteMetaRow(r, token);
+        setRows(prev => prev.filter(x => !(x.rowNum===r.rowNum&&x.section===r.section)));
+      } catch (e: any) { showToast("Delete error: "+e.message, "error"); }
+      finally { setSaving(false); }
+    });
   };
 
   const addRow = async () => {
-    if (!addFor || !nv.trim()) { alert("Vendor name is required."); return; }
+    if (!addFor || !nv.trim()) { showToast("Vendor name is required.", "error"); return; }
     setSaving(true);
     try {
       const token = getAccessToken();
@@ -538,7 +540,7 @@ const MetadataModal: React.FC<{ isLight: boolean; onClose: () => void }> = ({ is
       await addMetaRow(addFor, company, nv.trim(), nd, nr, nf, nm, rows, token);
       setAddFor(null); setNv(""); setNc("TI"); setNd(""); setNr(""); setNf(""); setNm("");
       await load();
-    } catch (e: any) { alert("Add error: "+e.message); }
+    } catch (e: any) { showToast("Add error: "+e.message, "error"); }
     finally { setSaving(false); }
   };
 
