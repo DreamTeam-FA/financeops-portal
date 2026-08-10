@@ -117,6 +117,12 @@ export const CALENDAR_SHEET_IDS = [
 export const CALENDAR_SPREADSHEET_ID = "1ChoHr7dsfai0Unl-Gk-HyPmgrpWOYu07gllY9PA8epo";
 const SHEET_TAB_CANDIDATES = ["Calendar", "Events", "Schedule", "Tasks", "Sheet1"];
 
+// The Google Apps Script stores epoch-ms timestamps that originate from Manila
+// timezone (the user's Google account timezone). We must format dates and times
+// in this timezone — using the browser's local clock (getHours()) would be wrong
+// on machines whose OS is set to UTC or any other timezone.
+const CALENDAR_TIMEZONE = "Asia/Manila";
+
 export interface CalSheetRow {
   id: string;
   date: string;
@@ -180,23 +186,34 @@ function rawToDate(raw: string): Date | null {
   return null;
 }
 
+// Format a Date in CALENDAR_TIMEZONE and return named parts.
+function tzParts(d: Date): Record<string, string> {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: CALENDAR_TIMEZONE,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  }).formatToParts(d);
+  const map: Record<string, string> = {};
+  parts.forEach(p => { map[p.type] = p.value; });
+  return map;
+}
+
 function parseMsOrDateString(raw: string): string {
   const d = rawToDate(raw);
   if (!d) return "";
-  // Use local date parts so the date shown matches the user's timezone
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  const p = tzParts(d);
+  // formatToParts gives month/day as MM/DD; build YYYY-MM-DD
+  return `${p.year}-${p.month}-${p.day}`;
 }
 
 function parseMsToTime(raw: string): string | undefined {
   const d = rawToDate(raw);
   if (!d) return undefined;
-  const h = d.getHours();
-  const m = d.getMinutes();
-  if (h === 0 && m === 0) return undefined; // treat midnight as "no time"
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  const p = tzParts(d);
+  const h = p.hour === "24" ? "00" : p.hour; // hour12:false can return "24" for midnight
+  const m = p.minute;
+  if ((h === "00" || h === "24") && m === "00") return undefined; // all-day → no time
+  return `${h}:${m}`;
 }
 
 function detectColMap(header: string[]): ColMap {
