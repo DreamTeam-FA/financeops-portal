@@ -145,29 +145,58 @@ const DEFAULT_COL_MAP: ColMap = {
   entity: 7, urgency: 8, type: 9, assignee: 11
 };
 
-function parseMsOrDateString(raw: string): string {
-  if (!raw) return "";
-  if (/^\d{12,13}$/.test(raw.trim())) {
-    const d = new Date(parseInt(raw, 10));
-    if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
+// Convert a raw cell value (epoch ms string, Sheets date serial, or date string)
+// to a New Date. Returns null if unparseable.
+function rawToDate(raw: string): Date | null {
+  if (!raw || raw === "0") return null;
+  const trimmed = raw.trim();
+
+  // 12–13 digit epoch ms (e.g. 1720000000000)
+  if (/^\d{12,13}$/.test(trimmed)) {
+    const d = new Date(parseInt(trimmed, 10));
+    if (!isNaN(d.getTime())) return d;
   }
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+
+  // Pure integer that's too small to be epoch ms — treat as Google Sheets
+  // date serial (days since Dec 30 1899). e.g. 45477.4375 = a day + fraction.
+  const num = Number(trimmed);
+  if (!isNaN(num) && num > 0 && num < 100000) {
+    // Convert Sheets serial to epoch ms
+    const MS_PER_DAY = 86400000;
+    const SHEETS_EPOCH = new Date(Date.UTC(1899, 11, 30)).getTime();
+    const d = new Date(SHEETS_EPOCH + num * MS_PER_DAY);
+    if (!isNaN(d.getTime())) return d;
+  }
+
+  // ISO / locale date strings like "2024-07-03" or "7/3/2024 10:30 AM"
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    // Plain date, no time — parse as local midnight to avoid UTC offset shifting the date
+    const [y, m, day] = trimmed.split("-").map(Number);
+    return new Date(y, m - 1, day);
+  }
   const d = new Date(raw);
-  if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
-  return "";
+  if (!isNaN(d.getTime())) return d;
+
+  return null;
+}
+
+function parseMsOrDateString(raw: string): string {
+  const d = rawToDate(raw);
+  if (!d) return "";
+  // Use local date parts so the date shown matches the user's timezone
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 function parseMsToTime(raw: string): string | undefined {
-  if (!raw) return undefined;
-  if (/^\d{12,13}$/.test(raw.trim())) {
-    const d = new Date(parseInt(raw, 10));
-    if (!isNaN(d.getTime())) {
-      const h = String(d.getHours()).padStart(2, "0");
-      const m = String(d.getMinutes()).padStart(2, "0");
-      return h === "00" && m === "00" ? undefined : `${h}:${m}`;
-    }
-  }
-  return undefined;
+  const d = rawToDate(raw);
+  if (!d) return undefined;
+  const h = d.getHours();
+  const m = d.getMinutes();
+  if (h === 0 && m === 0) return undefined; // treat midnight as "no time"
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
 function detectColMap(header: string[]): ColMap {
@@ -198,7 +227,9 @@ export async function loadCalendarSheet(token: string): Promise<{
 
   for (const candidate of SHEET_TAB_CANDIDATES) {
     try {
-      const url = `https://sheets.googleapis.com/v4/spreadsheets/${CALENDAR_SPREADSHEET_ID}/values/${encodeURIComponent(candidate)}!A1:Z500`;
+      // UNFORMATTED_VALUE so epoch-ms numbers come back as raw integers,
+      // not as Sheets-formatted date strings that lose the time component.
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${CALENDAR_SPREADSHEET_ID}/values/${encodeURIComponent(candidate)}!A1:Z500?valueRenderOption=UNFORMATTED_VALUE`;
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (res.status === 401) {
         const err = new Error("Google token expired");
