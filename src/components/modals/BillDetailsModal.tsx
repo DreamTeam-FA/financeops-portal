@@ -327,13 +327,23 @@ const AccordionItem: React.FC<{
   onEdit: () => void;
   onClose: () => void;
 }> = ({ bill, index, isOpen, onToggle, isLight, onEdit, onClose }) => {
-  const { toggleBillStatus, deleteBill, showConfirm } = useFinance();
+  const { toggleBillStatus, deleteBill, showConfirm, showDatePicker } = useFinance() as any;
   const accentColor = getEntityColor(bill.entity);
   const overdue = bill.status === "unpaid" && isOverdue(bill.dueDate);
 
-  const handleMarkPaid = () =>
-    toggleBillStatus(bill.id, bill.status === "paid" ? "unpaid" : "paid",
-      bill.paidDate || new Date().toISOString().split("T")[0]);
+  const handleMarkPaid = () => {
+    if (bill.status === "paid") {
+      // Unmark — no date needed
+      toggleBillStatus(bill.id, "unpaid");
+    } else {
+      const today = new Date().toISOString().split("T")[0];
+      showDatePicker(
+        `Enter payment date for ${bill.vendor}:`,
+        bill.paidDate || today,
+        (date: string) => toggleBillStatus(bill.id, "paid", date)
+      );
+    }
+  };
 
   const handleHold = () =>
     toggleBillStatus(bill.id, bill.status === "hold" ? "unpaid" : "hold");
@@ -480,7 +490,7 @@ export const BillDetailsModal: React.FC<BillDetailsModalProps> = ({
   onClose,
   onEdit,
 }) => {
-  const { theme, toggleBillStatus, deleteBill, showConfirm } = useFinance();
+  const { theme, toggleBillStatus, deleteBill, showConfirm, showDatePicker } = useFinance() as any;
   const isLight = theme === "light";
   // For multi-bill: which accordion item is open (-1 = none, auto-open first)
   const [expandedIdx, setExpandedIdx] = useState<number>(-1);
@@ -498,9 +508,18 @@ export const BillDetailsModal: React.FC<BillDetailsModalProps> = ({
   const handleSingleDelete = () => {
     showConfirm(`Delete bill for ${singleBill.vendor}?`, () => { deleteBill(singleBill.id); onClose(); });
   };
-  const handleSingleMarkPaid = () =>
-    toggleBillStatus(singleBill.id, singleBill.status === "paid" ? "unpaid" : "paid",
-      singleBill.paidDate || new Date().toISOString().split("T")[0]);
+  const handleSingleMarkPaid = () => {
+    if (singleBill.status === "paid") {
+      toggleBillStatus(singleBill.id, "unpaid");
+    } else {
+      const today = new Date().toISOString().split("T")[0];
+      showDatePicker(
+        `Enter payment date for ${singleBill.vendor}:`,
+        singleBill.paidDate || today,
+        (date: string) => toggleBillStatus(singleBill.id, "paid", date)
+      );
+    }
+  };
   const handleSingleHold = () =>
     toggleBillStatus(singleBill.id, singleBill.status === "hold" ? "unpaid" : "hold");
 

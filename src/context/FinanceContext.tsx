@@ -193,6 +193,11 @@ interface FinanceContextType {
   showConfirm: (message: string, onConfirm: () => void) => void;
   clearConfirmModal: () => void;
 
+  // Global date-picker modal — used e.g. to ask payment date when marking a bill paid
+  datePickerModal: { message: string; defaultDate: string; onConfirm: (date: string) => void } | null;
+  showDatePicker: (message: string, defaultDate: string, onConfirm: (date: string) => void) => void;
+  clearDatePickerModal: () => void;
+
   importSheetData: (data: any) => void;
   logAction: (action: string, details: string) => void;
 }
@@ -405,6 +410,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [confirmModal, setConfirmModal] = useState<{ message: string; onConfirm: () => void } | null>(null);
   const showConfirm = (message: string, onConfirm: () => void) => setConfirmModal({ message, onConfirm });
   const clearConfirmModal = () => setConfirmModal(null);
+
+  const [datePickerModal, setDatePickerModal] = useState<{ message: string; defaultDate: string; onConfirm: (date: string) => void } | null>(null);
+  const showDatePicker = (message: string, defaultDate: string, onConfirm: (date: string) => void) => setDatePickerModal({ message, defaultDate, onConfirm });
+  const clearDatePickerModal = () => setDatePickerModal(null);
   const [localCalendarEvents, setLocalCalendarEvents] = useState<PortalCalendarEvent[]>([]);
 
   // Sidebar Fold State
@@ -1891,6 +1900,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         confirmModal,
         showConfirm,
         clearConfirmModal,
+        datePickerModal,
+        showDatePicker,
+        clearDatePickerModal,
         importSheetData,
         logAction
       }}

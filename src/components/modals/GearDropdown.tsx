@@ -212,9 +212,14 @@ async function addMetaRow(
   const sectionRows = existing.filter(r => r.section === section);
   const nextRow = sectionRows.length > 0 ? Math.max(...sectionRows.map(r => r.rowNum)) + 1 : 4;
   const c = META_WRITE[section];
+  // ruby has a blank col D between vendor(C=3) and dueDate(E=5); ti and msdx are contiguous
+  const hasGap = c.dueDate - c.vendor > 1;
+  const rowValues = hasGap
+    ? [company, vendor, "", dueDate, recurring, fixedEst, debitManual]
+    : [company, vendor, dueDate, recurring, fixedEst, debitManual];
   await sheetsBatchUpdate([{
     range: `${METADATA_TAB}!${colLetter(c.company)}${nextRow}:${colLetter(c.debitManual)}${nextRow}`,
-    values: [[company, vendor, "", dueDate, recurring, fixedEst, debitManual]]
+    values: [rowValues],
   }], token);
 }
 

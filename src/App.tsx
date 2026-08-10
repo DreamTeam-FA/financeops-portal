@@ -138,6 +138,55 @@ const GlobalConfirmModal: React.FC = () => {
   );
 };
 
+const GlobalDatePickerModal: React.FC = () => {
+  const { datePickerModal, clearDatePickerModal, theme } = useFinance() as any;
+  const [picked, setPicked] = React.useState<string>("");
+
+  React.useEffect(() => {
+    if (datePickerModal) setPicked(datePickerModal.defaultDate);
+  }, [datePickerModal]);
+
+  if (!datePickerModal) return null;
+  const isLight = theme === "light";
+  const bg   = isLight ? "bg-white"   : "bg-[#181c24]";
+  const bdr  = isLight ? "border-slate-200" : "border-[#2a3140]";
+  const txt  = isLight ? "text-slate-800" : "text-slate-100";
+  const txt2 = isLight ? "text-slate-500" : "text-slate-400";
+  const inp  = isLight
+    ? "bg-slate-50 border-slate-300 text-slate-800"
+    : "bg-[#1e1e1e] border-[#333] text-white";
+
+  const handleConfirm = () => {
+    datePickerModal.onConfirm(picked || datePickerModal.defaultDate);
+    clearDatePickerModal();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={clearDatePickerModal} />
+      <div className={`relative z-10 rounded-xl shadow-2xl border ${bdr} ${bg} w-full max-w-sm p-6`}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className={`font-bold text-sm ${txt}`}>📅 Payment Date</h2>
+          <button onClick={clearDatePickerModal} className={`w-7 h-7 flex items-center justify-center rounded text-lg ${txt2} hover:opacity-70`}>×</button>
+        </div>
+        <p className={`text-xs leading-relaxed mb-4 ${txt2}`}>{datePickerModal.message}</p>
+        <input
+          type="date"
+          value={picked}
+          onChange={e => setPicked(e.target.value)}
+          className={`w-full px-3 py-2 rounded-lg border text-sm font-medium focus:outline-none mb-5 ${inp}`}
+        />
+        <div className="flex items-center justify-end gap-2">
+          <button onClick={clearDatePickerModal} className={`text-xs px-4 py-2 rounded border ${bdr} ${txt2} hover:opacity-70`}>Cancel</button>
+          <button onClick={handleConfirm} className="text-xs px-5 py-2 rounded text-white font-semibold hover:opacity-90" style={{ background:"#1a6b36" }}>
+            ✓ Mark Paid
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const PortalContent: React.FC = () => {
   const { currentPage, setCurrentPage, isLoading, theme, activeMember, needsAuth } = useFinance();
 
@@ -227,6 +276,7 @@ const PortalContent: React.FC = () => {
 
       {/* Sync Toast Notification */}
       <SyncToastBanner />
+      <GlobalDatePickerModal />
 
       {/* Global Confirm Modal — replaces all window.confirm native dialogs */}
       <GlobalConfirmModal />
