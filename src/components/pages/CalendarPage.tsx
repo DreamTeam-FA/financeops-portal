@@ -59,8 +59,9 @@ export const CalendarPage: React.FC = () => {
     toggleCalendarLocalEventDone,
     googleUser,
     handleGoogleSignIn,
-    theme
-  } = useFinance();
+    theme,
+    showToast
+  } = useFinance() as any;
 
   const isLight = theme === "light";
 
@@ -1318,15 +1319,28 @@ export const CalendarPage: React.FC = () => {
                       <button
                         onClick={() => {
                           const newDone = !selectedEvent.done;
-                          if (selectedEvent.id) {
-                            setSheetEvents(prev => prev.map(e => e.id === selectedEvent.id ? { ...e, done: newDone } : e));
-                            setDoneOverrides(prev => ({ ...prev, [selectedEvent.id!]: newDone }));
+                          const prevDone = selectedEvent.done;
+                          const eventId = selectedEvent.id;
+                          // Optimistic update
+                          if (eventId) {
+                            setSheetEvents(prev => prev.map(e => e.id === eventId ? { ...e, done: newDone } : e));
+                            setDoneOverrides(prev => ({ ...prev, [eventId]: newDone }));
                           }
                           setSelectedEvent(prev => prev ? { ...prev, done: newDone } : null);
                           const token = getAccessToken();
                           if (token && selectedEvent.sheetRow && selectedEvent.sheetRow > 0) {
                             updateCalendarDone(token, sheetTab, selectedEvent.sheetRow, sheetColMap.done, newDone)
-                              .catch(err => console.warn("Done toggle write failed:", err));
+                              .catch((err: Error) => {
+                                // Revert optimistic update on failure
+                                if (eventId) {
+                                  setSheetEvents(prev => prev.map(e => e.id === eventId ? { ...e, done: prevDone } : e));
+                                  setDoneOverrides(prev => ({ ...prev, [eventId]: prevDone }));
+                                }
+                                setSelectedEvent(prev => prev ? { ...prev, done: prevDone } : null);
+                                showToast?.(`Mark Done failed: ${err.message}`, "error");
+                              });
+                          } else if (!token) {
+                            showToast?.("Not signed in to Google — done status was not saved to sheet.", "error");
                           }
                         }}
                         className={`px-[14px] py-[7px] rounded-lg text-xs font-bold flex items-center gap-1.5 border transition-all ${

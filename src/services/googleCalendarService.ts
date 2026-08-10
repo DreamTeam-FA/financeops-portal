@@ -258,6 +258,19 @@ export async function loadCalendarSheet(token: string): Promise<{
   return { events, tab, colMap };
 }
 
+/** Throw a meaningful error if a Sheets API response is not OK. */
+async function assertOk(res: Response): Promise<void> {
+  if (res.ok) return;
+  let msg = `HTTP ${res.status}`;
+  try {
+    const body = await res.json();
+    if (body?.error?.message) msg = body.error.message;
+  } catch { /* ignore parse error */ }
+  const err = new Error(`Google Sheets write failed: ${msg}`);
+  (err as any).status = res.status;
+  throw err;
+}
+
 // Append a new row to the calendar sheet
 export async function appendCalendarRow(
   token: string,
@@ -270,7 +283,7 @@ export async function appendCalendarRow(
     "FALSE", event.id
   ]];
   const range = `${tab}!A:I`;
-  await fetch(
+  const res = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${CALENDAR_SPREADSHEET_ID}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED`,
     {
       method: "POST",
@@ -278,6 +291,7 @@ export async function appendCalendarRow(
       body: JSON.stringify({ majorDimension: "ROWS", values })
     }
   );
+  await assertOk(res);
 }
 
 // Update the Done cell for a specific row
@@ -290,7 +304,7 @@ export async function updateCalendarDone(
 ): Promise<void> {
   const col = String.fromCharCode(65 + doneColIndex);
   const range = `${tab}!${col}${sheetRow}`;
-  await fetch(
+  const res = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${CALENDAR_SPREADSHEET_ID}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,
     {
       method: "PUT",
@@ -298,6 +312,7 @@ export async function updateCalendarDone(
       body: JSON.stringify({ range, majorDimension: "ROWS", values: [[done ? "TRUE" : "FALSE"]] })
     }
   );
+  await assertOk(res);
 }
 
 // Clear a row in the calendar sheet (soft-delete)
@@ -307,7 +322,7 @@ export async function clearCalendarRow(
   sheetRow: number
 ): Promise<void> {
   const range = `${tab}!A${sheetRow}:Z${sheetRow}`;
-  await fetch(
+  const res = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${CALENDAR_SPREADSHEET_ID}/values/${encodeURIComponent(range)}:clear`,
     {
       method: "POST",
@@ -315,6 +330,7 @@ export async function clearCalendarRow(
       body: JSON.stringify({})
     }
   );
+  await assertOk(res);
 }
 
 /**
