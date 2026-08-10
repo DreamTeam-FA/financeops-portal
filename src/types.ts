@@ -156,6 +156,9 @@ export interface PortalCalendarEvent {
   description?: string;
   entity?: EntityName | "ALL";
   isGoogleEvent?: boolean;
+  done?: boolean;
+  urgency?: string;
+  assignee?: string;
 }
 
 export interface CalendarLocalEvent {

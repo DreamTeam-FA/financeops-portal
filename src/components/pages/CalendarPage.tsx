@@ -469,7 +469,10 @@ export const CalendarPage: React.FC = () => {
         type: "task",
         time: ev.time,
         isLocalTask: true,
-        description: ev.description
+        description: ev.description,
+        done: ev.done ?? false,
+        urgency: (ev.urgency as any) || "normal",
+        assignee: ev.assignee,
       });
     });
   }
@@ -1328,19 +1331,25 @@ export const CalendarPage: React.FC = () => {
                           }
                           setSelectedEvent(prev => prev ? { ...prev, done: newDone } : null);
                           const token = getAccessToken();
-                          if (token && selectedEvent.sheetRow && selectedEvent.sheetRow > 0) {
-                            updateCalendarDone(token, sheetTab, selectedEvent.sheetRow, sheetColMap.done, newDone)
-                              .catch((err: Error) => {
-                                // Revert optimistic update on failure
-                                if (eventId) {
-                                  setSheetEvents(prev => prev.map(e => e.id === eventId ? { ...e, done: prevDone } : e));
-                                  setDoneOverrides(prev => ({ ...prev, [eventId]: prevDone }));
-                                }
-                                setSelectedEvent(prev => prev ? { ...prev, done: prevDone } : null);
-                                showToast?.(`Mark Done failed: ${err.message}`, "error");
-                              });
-                          } else if (!token) {
-                            showToast?.("Not signed in to Google — done status was not saved to sheet.", "error");
+                          if (selectedEvent.sheetRow && selectedEvent.sheetRow > 0) {
+                            // Sheet-backed event — write done flag to Google Sheet
+                            if (!token) {
+                              showToast?.("Not signed in to Google — done status was not saved to sheet.", "error");
+                            } else {
+                              updateCalendarDone(token, sheetTab, selectedEvent.sheetRow, sheetColMap.done, newDone)
+                                .catch((err: Error) => {
+                                  // Revert optimistic update on failure
+                                  if (eventId) {
+                                    setSheetEvents(prev => prev.map(e => e.id === eventId ? { ...e, done: prevDone } : e));
+                                    setDoneOverrides(prev => ({ ...prev, [eventId]: prevDone }));
+                                  }
+                                  setSelectedEvent(prev => prev ? { ...prev, done: prevDone } : null);
+                                  showToast?.(`Mark Done failed: ${err.message}`, "error");
+                                });
+                            }
+                          } else if (eventId) {
+                            // Local portal event — persist done via updateCalendarEvent
+                            updateCalendarEvent(eventId, { done: newDone } as any);
                           }
                         }}
                         className={`px-[14px] py-[7px] rounded-lg text-xs font-bold flex items-center gap-1.5 border transition-all ${
