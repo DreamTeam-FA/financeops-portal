@@ -193,9 +193,9 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
         if (!isNaN(d.getTime()) && String(d.getFullYear()) !== yearFilter) return false;
       }
 
-      // Type filter
-      if (typeFilter === "Auto" && b.method !== "Autodebit") return false;
-      if (typeFilter === "Manual" && b.method === "Autodebit") return false;
+      // Type filter — uses paymentType from metadata (Auto-Debit / Manual)
+      if (typeFilter === "Auto" && b.paymentType !== "Auto-Debit") return false;
+      if (typeFilter === "Manual" && b.paymentType === "Auto-Debit") return false;
 
       // QBO filter
       if (qboFilter === "In QBO" && !b.inQBO) return false;
