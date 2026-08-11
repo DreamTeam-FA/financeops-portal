@@ -44,11 +44,17 @@ function parseDateVal(val: any, year?: any, month?: any, dayStr?: any): string {
     }
   }
   // JavaScript ms epoch (large number > 1e12)
+  // Interpret in Manila timezone (UTC+8, no DST) so late-night events land on the correct date.
   if (typeof val === "number" && val > 1e12) {
-    const d = new Date(val);
+    const MANILA_OFFSET_MS = 8 * 60 * 60 * 1000;
+    const d = new Date(val + MANILA_OFFSET_MS);
     if (!isNaN(d.getTime())) {
-      const y = d.getFullYear();
-      if (y >= 2000 && y <= 2035) return d.toISOString().split("T")[0];
+      const y = d.getUTCFullYear();
+      if (y >= 2000 && y <= 2035) {
+        const mo = String(d.getUTCMonth() + 1).padStart(2, "0");
+        const da = String(d.getUTCDate()).padStart(2, "0");
+        return `${y}-${mo}-${da}`;
+      }
     }
   }
   // Excel / Google Sheets date serial (30 000 – 80 000 covers ~1982–2119)
@@ -403,13 +409,15 @@ export async function fetchFullLiveDataset(accessToken?: string) {
     const date = parseDateVal(dateMs) || parseDateVal(row[4]) || parseDateVal(row[5]) || "";
     if (!date) return; // skip rows without a valid date
 
-    // Extract time from start_ms; if midnight try end_ms
+    // Extract time from start_ms; if midnight try end_ms.
+    // Manila is UTC+8, no DST — shift by +8h and read UTC components.
+    const MANILA_OFFSET_MS = 8 * 60 * 60 * 1000;
     let timeStr: string | undefined;
     for (const ms of [ms4, ms5]) {
       if (ms && !isNaN(ms) && ms > 0) {
-        const d = new Date(ms);
-        const h = d.getHours();
-        const m = d.getMinutes();
+        const d = new Date(ms + MANILA_OFFSET_MS);
+        const h = d.getUTCHours();
+        const m = d.getUTCMinutes();
         if (h !== 0 || m !== 0) { timeStr = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`; break; }
       }
     }
