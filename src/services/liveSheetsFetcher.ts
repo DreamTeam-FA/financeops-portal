@@ -656,9 +656,11 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       if (!vendor) return;
       if (HEADER_WORDS.test(vendor)) return;
 
-      // Amount: try multiple positions
+      // Amount: try col J (9) first, then cols K/L (10, 11) as layout fallbacks.
+      // Col I (8) is the Due Date — never use it for amount (date strings like "1/9/2026"
+      // strip to "192026" and produce a fake $192,026 amount when the amount cell is blank).
       let amount = 0;
-      for (const col of [9, 10, 8, 11]) {
+      for (const col of [9, 10, 11]) {
         const v = row[col];
         if (typeof v === "number" && Math.abs(v) < 10000000) { amount = v; break; }
         const parsed = parseFloat(String(v || "").replace(/[^0-9.-]+/g, ""));
