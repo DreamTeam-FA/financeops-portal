@@ -287,12 +287,22 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
             vendorMap[vName].push(b);
           });
 
-          // Sort vendors by most recent due/paid date first (descending)
+          // Sort vendors — matches GAS vendorRowsHTML logic:
+          //   Paid tab:    latest paid/due date DESC (most recently paid first)
+          //   Past-due:   earliest due date DESC (least overdue first — all dates are past)
+          //   Other unpaid: earliest due date ASC (most urgent / soonest-due first)
+          const isPastDue = bucketId === "past-due";
           const vendorNames = Object.keys(vendorMap).sort((a, bk) => {
-            const pickDate = (bill: APBill) => (isPaidTab ? bill.paidDate || bill.dueDate : bill.dueDate) || "";
-            const maxA = vendorMap[a].reduce((mx, bill) => { const d = pickDate(bill); return d > mx ? d : mx; }, "0000-00-00");
-            const maxB = vendorMap[bk].reduce((mx, bill) => { const d = pickDate(bill); return d > mx ? d : mx; }, "0000-00-00");
-            return maxB.localeCompare(maxA);
+            if (isPaidTab) {
+              const latestA = vendorMap[a].reduce((mx, b) => { const d = b.paidDate || b.dueDate || ""; return d > mx ? d : mx; }, "");
+              const latestB = vendorMap[bk].reduce((mx, b) => { const d = b.paidDate || b.dueDate || ""; return d > mx ? d : mx; }, "");
+              return latestB.localeCompare(latestA); // DESC
+            }
+            const earliestA = vendorMap[a].reduce((mn, b) => { const d = b.dueDate || ""; return (d && d < mn) ? d : mn; }, "9999-99-99");
+            const earliestB = vendorMap[bk].reduce((mn, b) => { const d = b.dueDate || ""; return (d && d < mn) ? d : mn; }, "9999-99-99");
+            return isPastDue
+              ? earliestB.localeCompare(earliestA) // DESC — least overdue first
+              : earliestA.localeCompare(earliestB); // ASC  — most urgent first
           });
 
           return (
@@ -325,10 +335,15 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                   {/* Vendor rows */}
                   <div className={`divide-y ${isLight ? "divide-slate-100" : "divide-[#222]"}`}>
                     {vendorNames.map((vName) => {
+                      // GAS bill sort: payment date DESC → due date DESC
+                      // (payment date takes priority; falls through to due date when unpaid)
                       const vBills = [...vendorMap[vName]].sort((a, b) => {
-                        const dA = (isPaidTab ? a.paidDate || a.dueDate : a.dueDate) || "";
-                        const dB = (isPaidTab ? b.paidDate || b.dueDate : b.dueDate) || "";
-                        return dA.localeCompare(dB);
+                        const pA = a.paidDate || "", pB = b.paidDate || "";
+                        if (pA && pB) return pB.localeCompare(pA);
+                        if (pA) return -1;
+                        if (pB) return 1;
+                        const dA = a.dueDate || "", dB = b.dueDate || "";
+                        return dB.localeCompare(dA); // due date DESC
                       });
                       const vTotal = vBills.reduce((s, b) => s + b.amount, 0);
 
