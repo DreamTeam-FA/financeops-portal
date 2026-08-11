@@ -510,7 +510,10 @@ export async function fetchFullLiveDataset(accessToken?: string) {
     if (rowYear !== CURRENT_YEAR && isHistoricalPaid && !isOnHold) return;
     // GAS Layout A: vendor is col D (index 3) only — never fall back to col C (Wk#)
     const rawVendor = String(row[3] || "").trim();
-    let amount = typeof row[9] === "number" ? row[9] : typeof row[8] === "number" ? row[8] : parseFloat(String(row[9] || row[8] || "0").replace(/[^0-9.-]+/g, "")) || 0;
+    // Amount is always col J (index 9). Never fall back to col I (index 8) which is the Due Date —
+    // a date string like "1/9/2026" would strip to "192026" and become a fake $192,026 amount.
+    const amountRaw = row[9];
+    let amount = typeof amountRaw === "number" ? amountRaw : parseFloat(String(amountRaw || "0").replace(/[^0-9.-]+/g, "")) || 0;
     if (amount >= 10000000) amount = 0;
     const dueDate = parseDateVal(row[8]) || parseDateVal(row[7]);
 
@@ -716,7 +719,9 @@ export async function fetchFullLiveDataset(accessToken?: string) {
     if (rowYear !== CURRENT_YEAR && isHistoricalPaidMSDx && !isOnHoldEarlyMSDx) return;
     const vendor = String(row[3] || row[2] || row[4] || "").trim();
     if (!vendor || !isNaN(Number(vendor)) || /^(vendor|payee|company|total|summary|due date|invoice)$/i.test(vendor) || vendor.length > 90) return;
-    let amount = typeof row[9] === "number" ? row[9] : typeof row[8] === "number" ? row[8] : parseFloat(String(row[9] || row[8] || "0").replace(/[^0-9.-]+/g, "")) || 0;
+    // Amount is always col J (index 9). Never fall back to col I (index 8) which is the Due Date.
+    const amountRawMSDx = row[9];
+    let amount = typeof amountRawMSDx === "number" ? amountRawMSDx : parseFloat(String(amountRawMSDx || "0").replace(/[^0-9.-]+/g, "")) || 0;
     if (amount >= 10000000) amount = 0;
     const dueDate = parseDateVal(row[8]) || parseDateVal(row[7]) || parseDateVal("", row[0], row[1], row[19]) || new Date().toISOString().split("T")[0];
     const invoiceNo = String(row[6] || "").trim();
