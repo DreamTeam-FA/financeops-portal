@@ -127,11 +127,15 @@ export interface CalSheetRow {
   id: string;
   date: string;
   time?: string;
+  endTime?: string;
   title: string;
   notes: string;
   entity: string;
   type: string;
   assignee: string;
+  assigneeId?: string;
+  assigneeColor?: string;
+  assigneeIds?: string[];
   urgency: string;
   done: boolean;
   sheetRow: number; // 1-indexed row number in the spreadsheet
@@ -285,6 +289,23 @@ export async function loadCalendarSheet(token: string): Promise<{
     // Try start_ms (col E) first; if midnight, fall back to end_ms (col F)
     const time = parseMsToTime(dateRaw) || parseMsToTime((row[5] || "").trim());
 
+    // End time from col F (always include even if midnight)
+    const endRaw = (row[5] || "").trim();
+    const endDate = endRaw ? rawToDate(endRaw) : null;
+    let endTime: string | undefined;
+    if (endDate) {
+      const ep = tzParts(endDate);
+      const eh = ep.hour === "24" ? "00" : ep.hour;
+      endTime = `${eh}:${ep.minute}`;
+    }
+
+    // Assignee fields from fixed cols K(10), M(12), N(13)
+    const assigneeId = (row[10] || "").trim();
+    const assigneeColor = (row[12] || "").trim();
+    const assigneeIdsRaw = (row[13] || "").trim();
+    let assigneeIds: string[] = [];
+    try { if (assigneeIdsRaw) assigneeIds = JSON.parse(assigneeIdsRaw); } catch {}
+
     const doneRaw = (row[colMap.done] || "").toLowerCase().trim();
     const done = doneRaw === "true" || doneRaw === "yes" || doneRaw === "1" || doneRaw === "done" || doneRaw === "✓";
 
@@ -292,11 +313,15 @@ export async function loadCalendarSheet(token: string): Promise<{
       id: row[colMap.id]?.trim() || `calsheet-${rowOffset + i}`,
       date: date || new Date().toISOString().split("T")[0],
       time,
+      endTime,
       title,
       notes: row[colMap.notes] || "",
       entity: row[colMap.entity] || "Ruby's",
       type: row[colMap.type] || "task",
       assignee: row[colMap.assignee] || "",
+      assigneeId,
+      assigneeColor,
+      assigneeIds,
       urgency: row[colMap.urgency] || "normal",
       done,
       sheetRow: rowOffset + i,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import {
@@ -136,6 +136,7 @@ export const CalendarPage: React.FC = () => {
     type: string;
     date: string;
     time?: string;
+    endTime?: string;
     description?: string;
     vendor?: string;
     amount?: number;
@@ -143,6 +144,8 @@ export const CalendarPage: React.FC = () => {
     isLocalTask?: boolean;
     urgency?: string;
     assignee?: string;
+    assigneeColor?: string;
+    assigneeIds?: string[];
     done?: boolean;
     sheetRow?: number;
     category?: string;
@@ -288,6 +291,46 @@ export const CalendarPage: React.FC = () => {
   };
 
   // Event chip color style helper
+  // Convert 24h "23:30" → "11:30 PM" (matches GAS fmtT function)
+  const to12h = (t: string): string => {
+    const [hStr, mStr] = t.split(":");
+    let h = parseInt(hStr, 10);
+    const m = String(mStr || "00").padStart(2, "0");
+    const ap = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    return `${h}:${m} ${ap}`;
+  };
+
+  const urgencyDisplay = (u?: string): string => {
+    if (u === "critical") return "🔴 Critical";
+    if (u === "high") return "🟠 High priority";
+    if (u === "normal") return "🔵 Normal";
+    if (u === "low") return "🟢 Low";
+    return "";
+  };
+
+  // Build assigneeId → color map by scanning all events (mirrors GAS calAssignees lookup)
+  const assigneeColorMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    calendarLocalEvents.forEach((ev: any) => {
+      if (ev.assigneeId && ev.assigneeColor) map[ev.assigneeId] = ev.assigneeColor;
+    });
+    sheetEvents.forEach((ev) => {
+      if ((ev as any).assigneeId && (ev as any).assigneeColor) {
+        map[(ev as any).assigneeId] = (ev as any).assigneeColor;
+      }
+    });
+    return map;
+  }, [calendarLocalEvents, sheetEvents]);
+
+  // Get colored bar array for an event chip (one per assignee, like GAS eventPillBars)
+  const getEventColorBars = (ev: { assigneeIds?: string[]; assigneeColor?: string }): string[] => {
+    if (ev.assigneeIds && ev.assigneeIds.length > 0) {
+      return ev.assigneeIds.map(id => assigneeColorMap[id] || ev.assigneeColor || "").filter(Boolean);
+    }
+    return ev.assigneeColor ? [ev.assigneeColor] : [];
+  };
+
   const getChipStyle = (type: string, category?: string, urgency?: string) => {
     if (type === "loan")    return { border: "border-l-2 border-purple-500", bg: "bg-purple-500/10", text: isLight ? "text-purple-900" : "text-purple-300" };
     if (type === "ar")      return { border: "border-l-2 border-emerald-500", bg: "bg-emerald-500/10", text: isLight ? "text-emerald-900" : "text-emerald-300" };
@@ -359,11 +402,14 @@ export const CalendarPage: React.FC = () => {
       label: string;
       type: "ap" | "loan" | "ar" | "payroll" | "task" | "google";
       time?: string;
+      endTime?: string;
       isGoogleEvent?: boolean;
       isLocalTask?: boolean;
       urgency?: "critical" | "high" | "normal" | "low";
       description?: string;
       assignee?: string;
+      assigneeColor?: string;
+      assigneeIds?: string[];
       done?: boolean;
       sheetRow?: number;
       category?: string;
@@ -408,11 +454,16 @@ export const CalendarPage: React.FC = () => {
           label,
           type: "task",
           time: ev.time,
+          endTime: ev.endTime,
           isLocalTask: true,
           entity: ev.entity || "",
           description: ev.description && ev.description !== ev.vendor ? ev.description : "",
-          urgency: (doneOverrides[ev.id] ?? ev.done) ? "low" : "high",
+          urgency: (ev.urgency || "normal") as "critical" | "high" | "normal" | "low",
           done: doneOverrides[ev.id] ?? ev.done,
+          assignee: ev.assignee,
+          assigneeColor: ev.assigneeColor,
+          assigneeIds: ev.assigneeIds,
+          category: (ev.type || "").toLowerCase(),
         });
       }
     });
@@ -501,10 +552,13 @@ export const CalendarPage: React.FC = () => {
         label: ev.title,
         type: calType,
         time: ev.time,
+        endTime: ev.endTime,
         isLocalTask: true,
         description: ev.notes || ev.title,
         urgency: (ev.urgency || "normal") as "critical" | "high" | "normal" | "low",
         assignee: ev.assignee,
+        assigneeColor: ev.assigneeColor,
+        assigneeIds: ev.assigneeIds,
         done: evDone,
         sheetRow: ev.sheetRow,
         category,
@@ -983,11 +1037,14 @@ export const CalendarPage: React.FC = () => {
                                     type: ev.type,
                                     date: dateKey,
                                     time: ev.time,
+                                    endTime: ev.endTime,
                                     description: ev.description || "",
                                     id: ev.id,
                                     isLocalTask: ev.isLocalTask,
                                     urgency: ev.urgency,
                                     assignee: ev.assignee,
+                                    assigneeColor: ev.assigneeColor,
+                                    assigneeIds: ev.assigneeIds,
                                     done: ev.done,
                                     sheetRow: ev.sheetRow,
                                     category: ev.category,
@@ -1004,10 +1061,21 @@ export const CalendarPage: React.FC = () => {
                                   setIsEditingEvent(false);
                                 }}
                                 title={`${ev.label.replace(/^\[[^\]]+\]\s*/, "")} — Click to view`}
-                                className={`text-[10px] px-1.5 py-[3px] rounded cursor-pointer hover:brightness-95 transition-all flex items-center gap-1 ${style.border} ${style.bg} ${ev.done ? "opacity-50" : ""} group/chip overflow-hidden`}
+                                className={`text-[10px] px-1.5 py-[3px] rounded cursor-pointer hover:brightness-95 transition-all flex items-center gap-1 ${style.bg} ${ev.done ? "opacity-50" : ""} group/chip overflow-hidden border ${isLight ? "border-slate-200/60" : "border-white/5"}`}
                               >
+                                {/* Assignee color bars (like GAS pill-color-bars) */}
+                                {(() => {
+                                  const bars = getEventColorBars(ev);
+                                  return bars.length > 0 ? (
+                                    <span className="flex gap-[2px] shrink-0 self-stretch items-stretch py-[1px]">
+                                      {bars.map((c, bi) => (
+                                        <span key={bi} className="rounded-[1px]" style={{ background: c, width: 3, display: "block" }} />
+                                      ))}
+                                    </span>
+                                  ) : null;
+                                })()}
                                 {icon && <span className="shrink-0 text-[10px] leading-none">{icon}</span>}
-                                {ev.time && <span className={`font-mono text-[8px] shrink-0 ${isLight ? "text-slate-400" : "text-slate-500"}`}>{ev.time}</span>}
+                                {ev.time && <span className={`font-mono text-[8px] shrink-0 ${isLight ? "text-slate-400" : "text-slate-500"}`}>{to12h(ev.time)}</span>}
                                 <span className={`truncate font-medium ${style.text} ${ev.done ? "line-through" : ""} leading-tight`}>
                                   {ev.label.replace(/^\[[^\]]+\]\s*/, "")}
                                 </span>
@@ -1113,11 +1181,14 @@ export const CalendarPage: React.FC = () => {
                                 type: ev.type,
                                 date: dateKey,
                                 time: ev.time,
+                                endTime: ev.endTime,
                                 description: ev.description || "",
                                 id: ev.id,
                                 isLocalTask: ev.isLocalTask,
                                 urgency: ev.urgency,
                                 assignee: ev.assignee,
+                                assigneeColor: ev.assigneeColor,
+                                assigneeIds: ev.assigneeIds,
                                 done: ev.done,
                                 sheetRow: ev.sheetRow,
                                 category: ev.category,
@@ -1134,10 +1205,21 @@ export const CalendarPage: React.FC = () => {
                               setIsEditingEvent(false);
                             }}
                             title={`${ev.label.replace(/^\[[^\]]+\]\s*/, "")} — Click to view`}
-                            className={`text-[10px] px-1.5 py-[3px] rounded cursor-pointer hover:brightness-95 transition-all flex items-center gap-1 ${style.border} ${style.bg} ${ev.done ? "opacity-50" : ""} overflow-hidden group/chip`}
+                            className={`text-[10px] px-1.5 py-[3px] rounded cursor-pointer hover:brightness-95 transition-all flex items-center gap-1 ${style.bg} ${ev.done ? "opacity-50" : ""} overflow-hidden group/chip border ${isLight ? "border-slate-200/60" : "border-white/5"}`}
                           >
+                            {/* Assignee color bars (like GAS pill-color-bars) */}
+                            {(() => {
+                              const bars = getEventColorBars(ev);
+                              return bars.length > 0 ? (
+                                <span className="flex gap-[2px] shrink-0 self-stretch items-stretch py-[1px]">
+                                  {bars.map((c, bi) => (
+                                    <span key={bi} className="rounded-[1px]" style={{ background: c, width: 3, display: "block" }} />
+                                  ))}
+                                </span>
+                              ) : null;
+                            })()}
                             {icon && <span className="shrink-0 text-[10px] leading-none">{icon}</span>}
-                            {ev.time && <span className={`font-mono shrink-0 text-[8px] ${isLight ? "text-slate-400" : "text-slate-500"}`}>{ev.time}</span>}
+                            {ev.time && <span className={`font-mono shrink-0 text-[8px] ${isLight ? "text-slate-400" : "text-slate-500"}`}>{to12h(ev.time)}</span>}
                             <span className={`truncate font-medium ${style.text} ${ev.done ? "line-through" : ""} leading-tight`}>
                               {ev.label.replace(/^\[[^\]]+\]\s*/, "")}
                             </span>
@@ -1215,7 +1297,12 @@ export const CalendarPage: React.FC = () => {
                     <span className="w-[18px] text-center shrink-0 opacity-55 mt-px">🕐</span>
                     <span>
                       {new Date(selectedEvent.date + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "long", day: "numeric" })}
-                      {selectedEvent.time && <span className="ml-1 font-mono">{selectedEvent.time}</span>}
+                      {selectedEvent.time && (
+                        <span className="ml-1 font-mono font-semibold">
+                          {to12h(selectedEvent.time)}
+                          {selectedEvent.endTime && ` – ${to12h(selectedEvent.endTime)}`}
+                        </span>
+                      )}
                     </span>
                   </div>
                   {/* Entity / source */}
@@ -1230,6 +1317,13 @@ export const CalendarPage: React.FC = () => {
                     <div className="flex gap-2.5 items-start">
                       <span className="w-[18px] text-center shrink-0 opacity-55 mt-px">{typeIcon || "📅"}</span>
                       <span>{typeLabel}</span>
+                    </div>
+                  )}
+                  {/* Urgency */}
+                  {selectedEvent.urgency && urgencyDisplay(selectedEvent.urgency) && (
+                    <div className="flex gap-2.5 items-start">
+                      <span className="w-[18px] text-center shrink-0 opacity-55 mt-px">⚡</span>
+                      <span className="font-semibold">{urgencyDisplay(selectedEvent.urgency)}</span>
                     </div>
                   )}
                   {/* Assignee */}

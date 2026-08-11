@@ -428,16 +428,32 @@ export async function fetchFullLiveDataset(accessToken?: string) {
     const urgency = String(row[8] || "normal").trim();
     const category = String(row[9] || "task").trim();
     const assigneeName = String(row[11] || "").trim();
+    const assigneeColor = String(row[12] || "").trim();
+    const assigneeIdsRaw = String(row[13] || "").trim();
+    let assigneeIds: string[] = [];
+    try { if (assigneeIdsRaw) assigneeIds = JSON.parse(assigneeIdsRaw); } catch {}
+    const assigneeId = String(row[10] || "").trim();
+
+    // Compute endTime from ms5 (always include even if midnight)
+    let endTimeStr: string | undefined;
+    if (ms5 && !isNaN(ms5) && ms5 > 0) {
+      const ed = new Date(ms5 + MANILA_OFFSET_MS);
+      endTimeStr = `${String(ed.getUTCHours()).padStart(2, "0")}:${String(ed.getUTCMinutes()).padStart(2, "0")}`;
+    }
 
     calendarLocalEvents.push({
       id,
       date,
       time: timeStr,
+      endTime: endTimeStr,
       title,
       notes: description,
       entity: calName || "Ruby's",
       type: category,
       assignee: assigneeName,
+      assigneeId,
+      assigneeColor,
+      assigneeIds,
       urgency,
       done: isDone,
       vendor: title,
