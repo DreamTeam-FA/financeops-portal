@@ -317,17 +317,28 @@ function fetchPublicTab(sheetName: string, spreadsheetId?: string): Promise<any[
 
 const SPREADSPREAD_ID_REPLACE = SPREADSHEET_ID;
 
-function fetchSheetsV4Tab(sheetName: string, accessToken: string, spreadsheetId: string): Promise<any[][]> {
+// Fetch a sheet tab via Sheets API v4 — bypasses active sheet filters (GViz respects them).
+// Supports two auth modes:
+//   1. Bearer token  — pass accessToken (user OAuth token)
+//   2. API key       — pass apiKey (server env var GOOGLE_SHEETS_API_KEY); no OAuth needed
+//      The sheet must be shared publicly (view access) for the API key mode to work.
+function fetchSheetsV4Tab(
+  sheetName: string,
+  auth: { bearerToken: string } | { apiKey: string },
+  spreadsheetId: string
+): Promise<any[][]> {
   return new Promise((resolve) => {
-    // Wrap sheet name in single quotes for A1 notation (required for names with spaces/apostrophes).
-    // Escape internal apostrophes by doubling them.
     const a1Name = "'" + sheetName.replace(/'/g, "''") + "'";
-    const reqPath = `/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(a1Name)}?valueRenderOption=FORMATTED_VALUE&majorDimension=ROWS`;
+    const isBearerAuth = "bearerToken" in auth;
+    const keyParam = isBearerAuth ? "" : `&key=${encodeURIComponent((auth as any).apiKey)}`;
+    const reqPath = `/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(a1Name)}?valueRenderOption=FORMATTED_VALUE&majorDimension=ROWS${keyParam}`;
+    const headers: Record<string, string> = {};
+    if (isBearerAuth) headers["Authorization"] = `Bearer ${(auth as any).bearerToken}`;
     const req = https.request({
       hostname: "sheets.googleapis.com",
       path: reqPath,
       method: "GET",
-      headers: { "Authorization": `Bearer ${accessToken}` }
+      headers
     }, (res) => {
       let data = "";
       res.on("data", (chunk: any) => data += chunk);
@@ -375,9 +386,18 @@ export async function fetchFullLiveDataset(accessToken?: string) {
   // Fetch from both main spreadsheet tabs AND the dedicated calendar spreadsheet in parallel.
   // Try multiple tab name candidates for the calendar sheet (Events, Sheet1, Calendar, Tasks).
   const CAL_TAB_CANDIDATES = ["Events", "Sheet1", "Calendar", "Tasks", "Schedule"];
+
+  // Auth priority for the main spreadsheet:
+  //   1. Bearer token (user OAuth — most permissive, includes private sheets)
+  //   2. GOOGLE_SHEETS_API_KEY env var (server-side API key — works on public sheets, BYPASSES
+  //      active sheet filters that GViz would respect)
+  //   3. GViz public API fallback (no key — respects filters, returns only visible rows)
+  const serverApiKey = process.env.GOOGLE_SHEETS_API_KEY || process.env.GOOGLE_API_KEY || "";
   const fetchTab = accessToken
-    ? (t: string) => fetchSheetsV4Tab(t, accessToken, SPREADSHEET_ID)
-    : (t: string) => fetchPublicTab(t);
+    ? (t: string) => fetchSheetsV4Tab(t, { bearerToken: accessToken }, SPREADSHEET_ID)
+    : serverApiKey
+      ? (t: string) => fetchSheetsV4Tab(t, { apiKey: serverApiKey }, SPREADSHEET_ID)
+      : (t: string) => fetchPublicTab(t);
   const [results, calSheetRowsArr] = await Promise.all([
     Promise.all(tabs.map(async (t) => ({ sheetName: t, rows: await fetchTab(t) }))),
     Promise.all(CAL_TAB_CANDIDATES.map(t => fetchPublicTab(t, CALENDAR_SPREADSHEET_ID)))
