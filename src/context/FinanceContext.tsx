@@ -719,6 +719,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 setQuickNotes(merged);
                 localStorage.setItem("financeops_quick_notes", JSON.stringify(merged));
               }
+              // Always refresh calendar events so timezone fixes apply without a manual force-sync
+              if (resp?.data?.calendarLocalEvents && Array.isArray(resp.data.calendarLocalEvents)) {
+                setCalendarLocalEvents(resp.data.calendarLocalEvents);
+              }
             })
             .catch(() => {}); // silent — notes will still load from backend JSON
         } else {
