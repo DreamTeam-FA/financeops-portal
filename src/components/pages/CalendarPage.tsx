@@ -102,6 +102,25 @@ export const CalendarPage: React.FC = () => {
   const [deletedEventIds, setDeletedEventIds] = useState<Set<string>>(new Set());
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
+  // On mount: load server-stored calendar overrides to seed doneOverrides + deletedEventIds
+  // so they survive page refresh (server is source of truth, not React state)
+  useEffect(() => {
+    fetch("/api/data")
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return;
+        const overrides = data.calendarOverrides;
+        if (!overrides) return;
+        if (overrides.done && Object.keys(overrides.done).length > 0) {
+          setDoneOverrides(overrides.done);
+        }
+        if (overrides.deleted && overrides.deleted.length > 0) {
+          setDeletedEventIds(new Set(overrides.deleted));
+        }
+      })
+      .catch(() => {}); // non-fatal
+  }, []);
+
   // Load events from the calendar sheet — runs on mount, on auth change, and after silent token refresh
   const loadSheetEvents = () => {
     const token = getAccessToken();
