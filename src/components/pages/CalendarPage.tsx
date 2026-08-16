@@ -244,7 +244,10 @@ export const CalendarPage: React.FC = () => {
     setLoadingGoogleCal(true);
     Promise.all([
       token ? fetchGoogleCalendarEvents(token, timeMin, timeMax) : Promise.resolve([]),
-      fetchCalendarSheetEvents(token || undefined)
+      // Only fetch sheet events via GViz fallback when NOT authenticated —
+      // when authenticated, sheetEvents (loaded via loadSheetEvents/OAuth) covers it
+      // and avoids returning unstructured bank-calendar junk entries
+      token ? Promise.resolve([]) : fetchCalendarSheetEvents(undefined)
     ])
       .then(([gCalEvs, sheetEvs]) => {
         setGoogleEvents([...gCalEvs, ...sheetEvs]);
