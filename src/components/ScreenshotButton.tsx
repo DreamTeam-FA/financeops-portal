@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Camera } from "lucide-react";
-import { toPng } from "html-to-image";
+import { capturePage } from "../lib/pageScreenshot";
 
 /**
  * Inline screenshot button — lives in the PageHeader bar between Refresh and Dark toggle.
@@ -30,26 +30,7 @@ export const ScreenshotButton: React.FC = () => {
     try {
       const target = document.querySelector("main") as HTMLElement;
       if (!target) throw new Error("No <main> element");
-      const pixelRatio = window.devicePixelRatio || 1;
-      let dataUrl: string;
-      if (fullPage) {
-        const prevOvf = target.style.overflow, prevH = target.style.height;
-        target.style.overflow = "visible";
-        target.style.height   = target.scrollHeight + "px";
-        dataUrl = await toPng(target, {
-          quality: 1, pixelRatio,
-          width: target.scrollWidth, height: target.scrollHeight,
-          filter: n => !(n instanceof HTMLElement && n.tagName === "IFRAME"),
-        });
-        target.style.overflow = prevOvf;
-        target.style.height   = prevH;
-      } else {
-        dataUrl = await toPng(target, {
-          quality: 1, pixelRatio,
-          width: target.clientWidth, height: target.clientHeight,
-          filter: n => !(n instanceof HTMLElement && n.tagName === "IFRAME"),
-        });
-      }
+      const dataUrl = await capturePage(target, fullPage);
       const a = document.createElement("a");
       a.href = dataUrl;
       a.download = `financeops-${fullPage ? "full" : "view"}-${timestamp()}.png`;

@@ -6,7 +6,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { useFinance } from "../../context/FinanceContext";
 import { getAccessToken } from "../../services/googleAuth";
 import { FourYrLogo } from "../EntityLogos";
-import { toPng } from "html-to-image";
+import { capturePage } from "../../lib/pageScreenshot";
 
 const fmt2   = (n: number) => n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 const fmtAmt = (n: number) => `$${fmt2(n)}`;
@@ -531,13 +531,7 @@ export function FourYrPayrollPage() {
     setSsMenuOpen(false); setSsCapturing(true);
     const target = pageRef.current || document.body;
     try {
-      const h = mode === "visible" ? target.clientHeight : target.scrollHeight;
-      const dataUrl = await toPng(target, {
-        pixelRatio: 2,
-        width: target.clientWidth,
-        height: h,
-        style: { maxHeight: `${h}px`, overflow: "hidden" },
-      });
+      const dataUrl = await capturePage(target, mode === "full");
       const link = document.createElement("a");
       const now = new Date();
       const ts = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}_${String(now.getHours()).padStart(2,"0")}${String(now.getMinutes()).padStart(2,"0")}`;
