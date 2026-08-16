@@ -421,6 +421,10 @@ export async function fetchFullLiveDataset(accessToken?: string) {
 
     const title = String(row[2] || "").trim();
     if (!title) return;
+    // Skip entries with purely numeric titles (e.g. stray amount values in the sheet)
+    if (/^\d+\.?\d*$/.test(title)) return;
+    // Skip bank-calendar entries (e.g. "Cal: Ruby's - Zions") — not meaningful in portal
+    if (/^cal\s*:/i.test(title)) return;
 
     // Date and time: prefer start_ms (E/col4); fall back to end_ms (F/col5)
     const ms4 = typeof row[4] === "number" ? row[4] : parseFloat(String(row[4] || "0"));

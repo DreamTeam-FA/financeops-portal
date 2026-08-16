@@ -157,7 +157,12 @@ async function syncLiveDataFromSheets(accessToken?: string) {
       ar: mergeDatasets(liveData.ar, current.ar, "id"),
       statements: mergeDatasets(liveData.statements, current.statements, "id"),
       quickNotes: mergeNotes(liveData.quickNotes, current.quickNotes),
-      calendarLocalEvents: mergeDatasets(liveData.calendarLocalEvents, current.calendarLocalEvents, "id"),
+      // Calendar events: live sheet data is the source of truth.
+      // Do NOT merge with current — that would resurrect deleted events.
+      // Fall back to current only if the live fetch returned nothing (network failure).
+      calendarLocalEvents: (liveData.calendarLocalEvents && liveData.calendarLocalEvents.length > 0)
+        ? liveData.calendarLocalEvents
+        : current.calendarLocalEvents,
       payrollPivot: liveData.payrollPivot && Object.keys(liveData.payrollPivot).length > 0 ? liveData.payrollPivot : current.payrollPivot,
       lastSyncedAt: liveData.lastSyncedAt
     };

@@ -31,8 +31,10 @@ import {
   loadCalendarSheet,
   appendCalendarRow,
   updateCalendarDone,
+  updateCalendarRow,
   clearCalendarRow,
   CalSheetRow,
+  ColMap,
   GoogleCalendarEvent
 } from "../../services/googleCalendarService";
 import { PortalCalendarEvent } from "../../types";
@@ -94,7 +96,7 @@ export const CalendarPage: React.FC = () => {
   const [sheetEvents, setSheetEvents] = useState<CalSheetRow[]>([]);
   const [doneOverrides, setDoneOverrides] = useState<Record<string, boolean>>({});
   const [sheetTab, setSheetTab] = useState("Calendar");
-  const [sheetColMap, setSheetColMap] = useState<{ done: number }>({ done: 7 });
+  const [sheetColMap, setSheetColMap] = useState<ColMap>({ date: 4, title: 2, notes: 3, entity: 7, type: 9, assignee: 11, urgency: 8, done: 15, id: 0 });
   const [sheetLoading, setSheetLoading] = useState(false);
   // IDs of events deleted this session — suppresses them even if still in calendarLocalEvents
   const [deletedEventIds, setDeletedEventIds] = useState<Set<string>>(new Set());
@@ -109,7 +111,7 @@ export const CalendarPage: React.FC = () => {
       .then(({ events, tab, colMap }) => {
         setSheetEvents(events);
         setSheetTab(tab);
-        setSheetColMap({ done: colMap.done });
+        setSheetColMap(colMap);
         setHasGoogleToken(true);
       })
       .catch(err => {
@@ -372,19 +374,34 @@ export const CalendarPage: React.FC = () => {
       urgency: editUrgency,
       assignee: editAssignee || undefined,
     };
-    // Update sheet events (local state + sheet write)
+
     if (selectedEvent.sheetRow && selectedEvent.sheetRow > 0) {
+      // Sheet-backed event — update local state optimistically
       setSheetEvents(prev => prev.map(e =>
         e.id === selectedEvent.id
-          ? { ...e, title: editTitle, date: editDate, notes: editDesc, urgency: editUrgency, assignee: editAssignee, type: editCategory }
+          ? { ...e, title: editTitle, notes: editDesc, urgency: editUrgency, assignee: editAssignee, type: editCategory }
           : e
       ));
-    }
-    // Update portal local events
-    if (selectedEvent.id && selectedEvent.isLocalTask && !selectedEvent.sheetRow) {
+      // Write changes to Google Sheet via API
+      const token = getAccessToken();
+      if (!token) {
+        showToast?.("Not signed in to Google — changes were not saved to sheet.", "error");
+      } else {
+        updateCalendarRow(token, sheetTab, selectedEvent.sheetRow, sheetColMap, {
+          title: editTitle,
+          notes: editDesc || "",
+          urgency: editUrgency,
+          type: editCategory,
+          assignee: editAssignee || "",
+        }).catch((err: Error) => {
+          showToast?.(`Edit failed to save: ${err.message}`, "error");
+        });
+      }
+    } else if (selectedEvent.id && selectedEvent.isLocalTask) {
+      // Portal-only local task — persist via FinanceContext
       updateCalendarEvent(selectedEvent.id, updates as any);
     }
-    // Update the displayed selected event
+
     setSelectedEvent(prev => prev ? { ...prev, ...updates } : null);
     setIsEditingEvent(false);
   };
@@ -663,7 +680,7 @@ export const CalendarPage: React.FC = () => {
           loadCalendarSheet(token).then(({ events, tab, colMap }) => {
             setSheetEvents(events);
             setSheetTab(tab);
-            setSheetColMap({ done: colMap.done });
+            setSheetColMap(colMap);
           }).catch(() => {});
         }).catch(err => console.warn("Sheet append failed:", err));
       }

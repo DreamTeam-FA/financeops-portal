@@ -141,7 +141,7 @@ export interface CalSheetRow {
   sheetRow: number; // 1-indexed row number in the spreadsheet
 }
 
-interface ColMap {
+export interface ColMap {
   date: number; title: number; notes: number; entity: number;
   type: number; assignee: number; urgency: number; done: number; id: number;
 }
@@ -283,6 +283,8 @@ export async function loadCalendarSheet(token: string): Promise<{
   dataRows.forEach((row, i) => {
     const title = row[colMap.title]?.trim() || "";
     if (!title) return; // skip blank rows
+    if (/^\d+\.?\d*$/.test(title)) return; // skip pure-number titles (stray amounts)
+    if (/^cal\s*:/i.test(title)) return; // skip bank-calendar entries like "Cal: Ruby's - Zions"
 
     const dateRaw = row[colMap.date]?.trim() || ""; // col E (start_ms)
     const date = parseMsOrDateString(dateRaw);
@@ -383,6 +385,44 @@ export async function updateCalendarDone(
       method: "PUT",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ range, majorDimension: "ROWS", values: [[done ? "TRUE" : "FALSE"]] })
+    }
+  );
+  await assertOk(res);
+}
+
+// Update specific fields of an existing calendar row (edit without overwriting other columns)
+export async function updateCalendarRow(
+  token: string,
+  tab: string,
+  sheetRow: number,
+  colMap: ColMap,
+  fields: { title?: string; notes?: string; urgency?: string; type?: string; assignee?: string; done?: boolean }
+): Promise<void> {
+  const updates: { range: string; values: any[][] }[] = [];
+  const col = (i: number) => String.fromCharCode(65 + i);
+  const base = `${tab}!`;
+
+  if (fields.title !== undefined && colMap.title >= 0)
+    updates.push({ range: `${base}${col(colMap.title)}${sheetRow}`, values: [[fields.title]] });
+  if (fields.notes !== undefined && colMap.notes >= 0)
+    updates.push({ range: `${base}${col(colMap.notes)}${sheetRow}`, values: [[fields.notes]] });
+  if (fields.urgency !== undefined && colMap.urgency >= 0)
+    updates.push({ range: `${base}${col(colMap.urgency)}${sheetRow}`, values: [[fields.urgency]] });
+  if (fields.type !== undefined && colMap.type >= 0)
+    updates.push({ range: `${base}${col(colMap.type)}${sheetRow}`, values: [[fields.type]] });
+  if (fields.assignee !== undefined && colMap.assignee >= 0)
+    updates.push({ range: `${base}${col(colMap.assignee)}${sheetRow}`, values: [[fields.assignee]] });
+  if (fields.done !== undefined && colMap.done >= 0)
+    updates.push({ range: `${base}${col(colMap.done)}${sheetRow}`, values: [[fields.done ? "TRUE" : "FALSE"]] });
+
+  if (updates.length === 0) return;
+
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${CALENDAR_SPREADSHEET_ID}/values:batchUpdate`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ valueInputOption: "USER_ENTERED", data: updates })
     }
   );
   await assertOk(res);
