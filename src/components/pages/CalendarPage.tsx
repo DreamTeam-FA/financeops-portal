@@ -96,6 +96,9 @@ export const CalendarPage: React.FC = () => {
   const [sheetTab, setSheetTab] = useState("Calendar");
   const [sheetColMap, setSheetColMap] = useState<{ done: number }>({ done: 7 });
   const [sheetLoading, setSheetLoading] = useState(false);
+  // IDs of events deleted this session — suppresses them even if still in calendarLocalEvents
+  const [deletedEventIds, setDeletedEventIds] = useState<Set<string>>(new Set());
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // Load events from the calendar sheet — runs on mount, on auth change, and after silent token refresh
   const loadSheetEvents = () => {
@@ -420,6 +423,7 @@ export const CalendarPage: React.FC = () => {
   // Local Events & Schedules from Calendar Dashboard sheet
   if (showNotesFilter && calendarLocalEvents) {
     calendarLocalEvents.forEach((ev) => {
+      if (ev.id && deletedEventIds.has(ev.id)) return; // suppressed this session
       const key = normalizeDateToYYYYMMDD(ev.date);
       if (!key) return;
       const vendorLower = (ev.vendor || "").toLowerCase();
@@ -511,6 +515,7 @@ export const CalendarPage: React.FC = () => {
   // Local Tasks
   if (showTasksFilter) {
     localCalendarEvents.forEach((ev) => {
+      if (ev.id && deletedEventIds.has(ev.id)) return; // suppressed this session
       const key = normalizeDateToYYYYMMDD(ev.date);
       if (!key) return;
       if (!eventsByDate[key]) eventsByDate[key] = [];
@@ -1486,20 +1491,7 @@ export const CalendarPage: React.FC = () => {
                     )}
                     {!selectedEvent.billsList && selectedEvent.isLocalTask && (
                       <button
-                        onClick={() => {
-                          const evId = selectedEvent.id;
-                          if (evId) {
-                            const sheetEv = sheetEvents.find(e => e.id === evId);
-                            setSheetEvents(prev => prev.filter(e => e.id !== evId));
-                            const token = getAccessToken();
-                            if (token && sheetEv?.sheetRow && sheetEv.sheetRow > 0) {
-                              clearCalendarRow(token, sheetTab, sheetEv.sheetRow)
-                                .catch(err => console.warn("Sheet row clear failed:", err));
-                            }
-                            deleteCalendarEvent(evId);
-                          }
-                          setSelectedEvent(null);
-                        }}
+                        onClick={() => setConfirmDeleteId(selectedEvent.id || "__pending__")}
                         className="px-[14px] py-[7px] rounded-lg text-xs font-bold flex items-center gap-1.5 border border-[#FFC9C9] text-[#D92D20] bg-[#FFF0F0] hover:brightness-95 transition-all ml-auto">
                         🗑 Delete
                       </button>
@@ -1542,6 +1534,52 @@ export const CalendarPage: React.FC = () => {
             <div className="flex justify-end">
               <button onClick={() => setSelectedEvent(null)} className={`px-4 py-1.5 rounded text-xs font-semibold ${isLight ? "bg-slate-200 hover:bg-slate-300 text-slate-800" : "bg-[#262626] hover:bg-[#333] text-white"}`}>
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Delete Dialog */}
+      {confirmDeleteId && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-[60]">
+          <div className={`${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#141414] border-[#333] text-white"} border rounded-xl max-w-sm w-full p-5 shadow-2xl space-y-4`}>
+            <h3 className="text-sm font-bold text-[#D92D20]">🗑 Delete Event?</h3>
+            <p className="text-xs text-slate-500">
+              This will permanently remove <span className="font-semibold text-slate-700 dark:text-slate-200">{selectedEvent?.title}</span> from the calendar. This cannot be undone.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setConfirmDeleteId(null)}
+                className={`px-4 py-1.5 rounded text-xs font-semibold ${isLight ? "bg-slate-100 hover:bg-slate-200 text-slate-700" : "bg-[#222] hover:bg-[#333] text-slate-300"}`}>
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const evId = confirmDeleteId === "__pending__" ? selectedEvent?.id : confirmDeleteId;
+                  if (evId) {
+                    // Use sheetRow from selectedEvent directly (already merged from eventsByDate)
+                    const sheetRow = selectedEvent?.sheetRow && selectedEvent.sheetRow > 0
+                      ? selectedEvent.sheetRow
+                      : sheetEvents.find(e => e.id === evId)?.sheetRow;
+                    // Remove from sheetEvents local state
+                    setSheetEvents(prev => prev.filter(e => e.id !== evId));
+                    // Suppress from calendarLocalEvents display this session
+                    setDeletedEventIds(prev => new Set([...prev, evId]));
+                    // Clear the sheet row via Google OAuth if available
+                    const token = getAccessToken();
+                    if (token && sheetRow && sheetRow > 0) {
+                      clearCalendarRow(token, sheetTab, sheetRow)
+                        .catch(err => console.warn("Sheet row clear failed:", err));
+                    }
+                    // Remove from FinanceContext local tasks (portal-created)
+                    deleteCalendarEvent(evId);
+                  }
+                  setConfirmDeleteId(null);
+                  setSelectedEvent(null);
+                }}
+                className="px-4 py-1.5 rounded text-xs font-bold bg-[#D92D20] hover:bg-[#b91c1c] text-white">
+                Yes, Delete
               </button>
             </div>
           </div>
