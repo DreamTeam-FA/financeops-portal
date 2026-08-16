@@ -47,6 +47,17 @@ const INITIAL_TEAM_ASSIGNEES = [
   { id: "a5", name: "Mark", color: "#F09300" }
 ];
 
+const CALENDAR_OVERRIDES_KEY = "financeops_calendar_overrides";
+
+function readCalendarOverrides(): { done: Record<string, boolean>; deleted: string[] } {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CALENDAR_OVERRIDES_KEY) || "{}");
+    return { done: saved.done || {}, deleted: Array.isArray(saved.deleted) ? saved.deleted : [] };
+  } catch {
+    return { done: {}, deleted: [] };
+  }
+}
+
 export const CalendarPage: React.FC = () => {
   const {
     apBills,
@@ -94,12 +105,12 @@ export const CalendarPage: React.FC = () => {
 
   // Calendar Sheet Sync State
   const [sheetEvents, setSheetEvents] = useState<CalSheetRow[]>([]);
-  const [doneOverrides, setDoneOverrides] = useState<Record<string, boolean>>({});
+  const [doneOverrides, setDoneOverrides] = useState<Record<string, boolean>>(() => readCalendarOverrides().done);
   const [sheetTab, setSheetTab] = useState("Calendar");
   const [sheetColMap, setSheetColMap] = useState<ColMap>({ date: 4, end: 5, allDay: 6, title: 2, notes: 3, entity: 7, type: 9, assignee: 11, urgency: 8, done: 15, id: 0 });
   const [sheetLoading, setSheetLoading] = useState(false);
   // IDs of events deleted this session — suppresses them even if still in calendarLocalEvents
-  const [deletedEventIds, setDeletedEventIds] = useState<Set<string>>(new Set());
+  const [deletedEventIds, setDeletedEventIds] = useState<Set<string>>(() => new Set(readCalendarOverrides().deleted));
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // On mount: load server-stored calendar overrides to seed doneOverrides + deletedEventIds
@@ -112,14 +123,25 @@ export const CalendarPage: React.FC = () => {
         const overrides = data.calendarOverrides;
         if (!overrides) return;
         if (overrides.done && Object.keys(overrides.done).length > 0) {
-          setDoneOverrides(overrides.done);
+          // Client cache covers a refresh immediately after a click, before the
+          // background API request has reached the server.
+          setDoneOverrides(current => ({ ...overrides.done, ...current }));
         }
         if (overrides.deleted && overrides.deleted.length > 0) {
-          setDeletedEventIds(new Set(overrides.deleted));
+          setDeletedEventIds(current => new Set([...overrides.deleted, ...current]));
         }
       })
       .catch(() => {}); // non-fatal
   }, []);
+
+  // Keep a synchronous browser-side copy as a safety net for in-flight writes;
+  // the source sheet and server remain the shared persistence layers.
+  useEffect(() => {
+    localStorage.setItem(CALENDAR_OVERRIDES_KEY, JSON.stringify({
+      done: doneOverrides,
+      deleted: Array.from(deletedEventIds),
+    }));
+  }, [doneOverrides, deletedEventIds]);
 
   // Load events from the calendar sheet — runs on mount, on auth change, and after silent token refresh
   const loadSheetEvents = () => {
@@ -592,6 +614,7 @@ export const CalendarPage: React.FC = () => {
 
   // Calendar Sheet Events (meetings, tasks, events) — render on calendar day cells
   sheetEvents.forEach((ev) => {
+    if (deletedEventIds.has(ev.id)) return;
     if (!ev.date) return;
     const key = normalizeDateToYYYYMMDD(ev.date);
     if (!key) return;
