@@ -530,9 +530,14 @@ export const CalendarPage: React.FC = () => {
     loans.forEach((l) => {
       const key = normalizeDateToYYYYMMDD(l.nextPay);
       if (!key) return;
+      // Skip placeholder/empty lender names and $0 monthly payments
+      const lenderName = (l.lender || "").trim();
+      if (!lenderName) return;
+      if (/^(lender|card|n\/a|placeholder|tbd)$/i.test(lenderName)) return;
+      if ((l.monthly || 0) <= 0) return;
       if (!eventsByDate[key]) eventsByDate[key] = [];
       eventsByDate[key].push({
-        label: `Loan: ${l.lender} ($${l.monthly.toLocaleString("en-US", { minimumFractionDigits: 2 })})`,
+        label: `Loan: ${lenderName} ($${(l.monthly || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })})`,
         type: "loan"
       });
     });
@@ -1487,13 +1492,18 @@ export const CalendarPage: React.FC = () => {
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ type: "done", id: eventId, value: newDone })
                           }).catch(err => console.warn("calendar-action done failed:", err));
-                          // Write to Google Sheet, then re-read immediately so state is fresh
+                          // Write to Google Sheet — use sheetRow from selectedEvent or fall back
+                          // to sheetEvents (covers the case where event was clicked before sheet loaded)
                           const token = getAccessToken();
-                          if (token && selectedEvent.sheetRow && selectedEvent.sheetRow > 0) {
-                            updateCalendarDone(token, sheetTab, selectedEvent.sheetRow, sheetColMap.done, newDone)
+                          const resolvedSheetRow = (selectedEvent.sheetRow && selectedEvent.sheetRow > 0)
+                            ? selectedEvent.sheetRow
+                            : sheetEvents.find(e => e.id === eventId)?.sheetRow;
+                          if (token && resolvedSheetRow && resolvedSheetRow > 0) {
+                            updateCalendarDone(token, sheetTab, resolvedSheetRow, sheetColMap.done, newDone)
                               .then(() => loadSheetEvents())
                               .catch(err => console.warn("Sheet done write failed:", err));
-                          } else if (!selectedEvent.sheetRow) {
+                          } else {
+                            // No sheet row — update via context (portal-created events)
                             updateCalendarEvent(eventId, { done: newDone } as any);
                           }
                         }}
