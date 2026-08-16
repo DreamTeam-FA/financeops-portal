@@ -395,13 +395,13 @@ export const CalendarPage: React.FC = () => {
           }})
         }).catch(err => console.warn("calendar-action edit failed:", err));
       }
-      // Also write to Google Sheet as background best-effort
+      // Write to Google Sheet, then re-read immediately so state is fresh
       const token = getAccessToken();
       if (token) {
         updateCalendarRow(token, sheetTab, selectedEvent.sheetRow, sheetColMap, {
           title: editTitle, notes: editDesc || "", urgency: editUrgency,
           type: editCategory, assignee: editAssignee || "",
-        }).catch((err: Error) => {
+        }).then(() => loadSheetEvents()).catch((err: Error) => {
           console.warn("Sheet edit write failed:", err.message);
         });
       }
@@ -617,6 +617,8 @@ export const CalendarPage: React.FC = () => {
         /^memo[-_:\s]/i.test(cleanSum) ||
         /^task[-_:\s]/i.test(cleanSum) ||
         /^map[-_]/i.test(cleanSum) ||
+        /^cal\s*:/i.test(cleanSum) ||      // bank-calendar junk like "Cal: Ruby's - Zions"
+        /^\d+\.?\d*$/.test(cleanSum) ||    // pure numeric amounts like "693.57"
         ["title", "vendor", "event title", "date", "id", "remarks", "amount", "status", "company", "description"].includes(lowerSum)
       ) {
         return;
@@ -1463,10 +1465,11 @@ export const CalendarPage: React.FC = () => {
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ type: "done", id: eventId, value: newDone })
                           }).catch(err => console.warn("calendar-action done failed:", err));
-                          // Also write to Google Sheet as background best-effort
+                          // Write to Google Sheet, then re-read immediately so state is fresh
                           const token = getAccessToken();
                           if (token && selectedEvent.sheetRow && selectedEvent.sheetRow > 0) {
                             updateCalendarDone(token, sheetTab, selectedEvent.sheetRow, sheetColMap.done, newDone)
+                              .then(() => loadSheetEvents())
                               .catch(err => console.warn("Sheet done write failed:", err));
                           } else if (!selectedEvent.sheetRow) {
                             updateCalendarEvent(eventId, { done: newDone } as any);
@@ -1602,10 +1605,11 @@ export const CalendarPage: React.FC = () => {
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({ type: "delete", id: evId })
                     }).catch(err => console.warn("calendar-action delete failed:", err));
-                    // Also clear the sheet row via Google OAuth as background best-effort
+                    // Clear the sheet row, then re-read so deletion is confirmed fresh
                     const token = getAccessToken();
                     if (token && sheetRow && sheetRow > 0) {
                       clearCalendarRow(token, sheetTab, sheetRow)
+                        .then(() => loadSheetEvents())
                         .catch(err => console.warn("Sheet row clear failed:", err));
                     }
                     // Remove from FinanceContext local tasks (portal-created)
