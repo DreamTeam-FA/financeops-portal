@@ -106,7 +106,7 @@ export const CalendarPage: React.FC = () => {
   // Calendar Sheet Sync State
   const [sheetEvents, setSheetEvents] = useState<CalSheetRow[]>([]);
   const [doneOverrides, setDoneOverrides] = useState<Record<string, boolean>>(() => readCalendarOverrides().done);
-  const [sheetTab, setSheetTab] = useState("Calendar");
+  const [sheetTab, setSheetTab] = useState("Events"); // actual tab name — "Events" not "Calendar"
   const [sheetColMap, setSheetColMap] = useState<ColMap>({ date: 4, end: 5, allDay: 6, title: 2, notes: 3, entity: 7, type: 9, assignee: 11, urgency: 8, done: 15, id: 0 });
   const [sheetLoading, setSheetLoading] = useState(false);
   // IDs of events deleted this session — suppresses them even if still in calendarLocalEvents
@@ -542,6 +542,7 @@ export const CalendarPage: React.FC = () => {
           assigneeColor: ev.assigneeColor,
           assigneeIds: ev.assigneeIds,
           category: (ev.type || "").toLowerCase(),
+          sheetRow: (ev as any).row, // row from server = actual sheet row number
         });
       }
     });
