@@ -144,6 +144,7 @@ export interface CalSheetRow {
 export interface ColMap {
   date: number; title: number; notes: number; entity: number;
   type: number; assignee: number; urgency: number; done: number; id: number;
+  end: number; allDay: number;
 }
 
 // Column map based on actual calendar sheet structure:
@@ -151,7 +152,7 @@ export interface ColMap {
 // G(6)=allDay, H(7)=calName, I(8)=urgency, J(9)=category, K(10)=assigneeId,
 // L(11)=assigneeName, M(12)=assigneeColor, N(13)=assigneeIds, O(14)=seriesId, P(15)=done
 const DEFAULT_COL_MAP: ColMap = {
-  id: 0, title: 2, notes: 3, date: 4, done: 15,
+  id: 0, title: 2, notes: 3, date: 4, end: 5, allDay: 6, done: 15,
   entity: 7, urgency: 8, type: 9, assignee: 11
 };
 
@@ -225,6 +226,8 @@ function detectColMap(header: string[]): ColMap {
   header.forEach((h, i) => {
     const s = h.toLowerCase().trim();
     if (/^date|^day|^when|^start/.test(s)) map.date = i;
+    else if (/^end/.test(s)) map.end = i;
+    else if (/^all.?day/.test(s)) map.allDay = i;
     else if (/^title|^event|^task|^vendor|^summary/.test(s)) map.title = i;
     else if (/^note|^detail|^remark|^description/.test(s)) map.notes = i;
     else if (/^entity|^company|^calname/.test(s)) map.entity = i;
@@ -350,14 +353,17 @@ async function assertOk(res: Response): Promise<void> {
 export async function appendCalendarRow(
   token: string,
   tab: string,
-  event: { date: string; title: string; notes?: string; entity?: string; type?: string; assignee?: string; urgency?: string; id: string }
+  event: { date: string; time?: string; title: string; notes?: string; entity?: string; type?: string; assignee?: string; urgency?: string; id: string }
 ): Promise<void> {
+  const { start, end, allDay } = calendarTimestamps(event.date, event.time);
+  // The Calendar source is a structured A:P sheet.  Keep the fixed columns used
+  // by its Apps Script so that a row written here can be read back unchanged.
   const values = [[
-    event.date, event.title, event.notes || "", event.entity || "Ruby's",
-    event.type || "task", event.assignee || "", event.urgency || "normal",
-    "FALSE", event.id
+    event.id, "portal", event.title, event.notes || "", start, end, allDay,
+    event.entity || "Ruby's", event.urgency || "normal", event.type || "task",
+    "", event.assignee || "", "", "", "", "FALSE"
   ]];
-  const range = `${tab}!A:I`;
+  const range = `${tab}!A:P`;
   const res = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${CALENDAR_SPREADSHEET_ID}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED`,
     {
@@ -396,7 +402,7 @@ export async function updateCalendarRow(
   tab: string,
   sheetRow: number,
   colMap: ColMap,
-  fields: { title?: string; notes?: string; urgency?: string; type?: string; assignee?: string; done?: boolean }
+  fields: { title?: string; notes?: string; urgency?: string; type?: string; assignee?: string; done?: boolean; date?: string; time?: string; endTime?: string }
 ): Promise<void> {
   const updates: { range: string; values: any[][] }[] = [];
   const col = (i: number) => String.fromCharCode(65 + i);
@@ -415,6 +421,13 @@ export async function updateCalendarRow(
   if (fields.done !== undefined && colMap.done >= 0)
     updates.push({ range: `${base}${col(colMap.done)}${sheetRow}`, values: [[fields.done ? "TRUE" : "FALSE"]] });
 
+  if (fields.date !== undefined) {
+    const { start, end, allDay } = calendarTimestamps(fields.date, fields.time, fields.endTime);
+    if (colMap.date >= 0) updates.push({ range: `${base}${col(colMap.date)}${sheetRow}`, values: [[start]] });
+    if (colMap.end >= 0) updates.push({ range: `${base}${col(colMap.end)}${sheetRow}`, values: [[end]] });
+    if (colMap.allDay >= 0) updates.push({ range: `${base}${col(colMap.allDay)}${sheetRow}`, values: [[allDay]] });
+  }
+
   if (updates.length === 0) return;
 
   const res = await fetch(
@@ -426,6 +439,26 @@ export async function updateCalendarRow(
     }
   );
   await assertOk(res);
+}
+
+/** Convert a Manila calendar date/time to the epoch-ms values stored by the source sheet. */
+function calendarTimestamps(date: string, time?: string, endTime?: string): { start: number; end: number; allDay: boolean } {
+  const match = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) throw new Error(`Invalid calendar date: ${date}`);
+  const [, y, m, d] = match.map(Number);
+  const toMs = (value?: string) => {
+    const timeMatch = value?.match(/^(\d{1,2}):(\d{2})$/);
+    const hours = timeMatch ? Number(timeMatch[1]) : 0;
+    const minutes = timeMatch ? Number(timeMatch[2]) : 0;
+    // Asia/Manila has no DST; UTC+08:00 makes this independent of the browser clock.
+    return Date.UTC(y, m - 1, d, hours - 8, minutes);
+  };
+  const allDay = !time;
+  const start = toMs(time);
+  let end = allDay ? start + 24 * 60 * 60 * 1000 : endTime ? toMs(endTime) : start + 60 * 60 * 1000;
+  // A changed start time can otherwise leave an old end time before the event.
+  if (end <= start) end = start + 60 * 60 * 1000;
+  return { start, end, allDay };
 }
 
 // Clear a row in the calendar sheet (soft-delete)

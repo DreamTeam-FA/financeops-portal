@@ -96,7 +96,7 @@ export const CalendarPage: React.FC = () => {
   const [sheetEvents, setSheetEvents] = useState<CalSheetRow[]>([]);
   const [doneOverrides, setDoneOverrides] = useState<Record<string, boolean>>({});
   const [sheetTab, setSheetTab] = useState("Calendar");
-  const [sheetColMap, setSheetColMap] = useState<ColMap>({ date: 4, title: 2, notes: 3, entity: 7, type: 9, assignee: 11, urgency: 8, done: 15, id: 0 });
+  const [sheetColMap, setSheetColMap] = useState<ColMap>({ date: 4, end: 5, allDay: 6, title: 2, notes: 3, entity: 7, type: 9, assignee: 11, urgency: 8, done: 15, id: 0 });
   const [sheetLoading, setSheetLoading] = useState(false);
   // IDs of events deleted this session — suppresses them even if still in calendarLocalEvents
   const [deletedEventIds, setDeletedEventIds] = useState<Set<string>>(new Set());
@@ -403,7 +403,7 @@ export const CalendarPage: React.FC = () => {
       // Sheet-backed event — update local state optimistically
       setSheetEvents(prev => prev.map(e =>
         e.id === eventId
-          ? { ...e, title: editTitle, notes: editDesc, urgency: editUrgency, assignee: editAssignee, type: editCategory }
+          ? { ...e, title: editTitle, date: editDate, time: editTime || undefined, notes: editDesc, urgency: editUrgency, assignee: editAssignee, type: editCategory }
           : e
       ));
       // Persist to portal server (survives GViz cache and page refresh)
@@ -412,7 +412,7 @@ export const CalendarPage: React.FC = () => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ type: "edit", id: eventId, value: {
-            title: editTitle, notes: editDesc || "", urgency: editUrgency,
+            title: editTitle, date: editDate, time: editTime || undefined, notes: editDesc || "", urgency: editUrgency,
             type: editCategory, assignee: editAssignee || ""
           }})
         }).catch(err => console.warn("calendar-action edit failed:", err));
@@ -421,7 +421,7 @@ export const CalendarPage: React.FC = () => {
       const token = getAccessToken();
       if (token) {
         updateCalendarRow(token, sheetTab, selectedEvent.sheetRow, sheetColMap, {
-          title: editTitle, notes: editDesc || "", urgency: editUrgency,
+          title: editTitle, date: editDate, time: editTime || undefined, endTime: selectedEvent.endTime, notes: editDesc || "", urgency: editUrgency,
           type: editCategory, assignee: editAssignee || "",
         }).then(() => loadSheetEvents()).catch((err: Error) => {
           console.warn("Sheet edit write failed:", err.message);
@@ -710,6 +710,7 @@ export const CalendarPage: React.FC = () => {
       if (token) {
         appendCalendarRow(token, sheetTab, {
           date: taskDate,
+          time: taskTime,
           title: fullTitle,
           notes: taskDesc,
           entity: "Ruby's",
@@ -1535,6 +1536,15 @@ export const CalendarPage: React.FC = () => {
                                     headers: { "Content-Type": "application/json" },
                                     body: JSON.stringify({ type: "edit", id: eventId, value: { urgency: u } })
                                   }).catch(err => console.warn("calendar-action urgency failed:", err));
+                                  const token = getAccessToken();
+                                  const sheetRow = (selectedEvent.sheetRow && selectedEvent.sheetRow > 0)
+                                    ? selectedEvent.sheetRow
+                                    : sheetEvents.find(e => e.id === eventId)?.sheetRow;
+                                  if (token && sheetRow && sheetRow > 0) {
+                                    updateCalendarRow(token, sheetTab, sheetRow, sheetColMap, { urgency: u })
+                                      .then(() => loadSheetEvents())
+                                      .catch(err => console.warn("Sheet urgency write failed:", err));
+                                  }
                                   updateCalendarEvent(eventId, { urgency: u } as any);
                                 }
                                 setShowUrgencyPicker(false);
