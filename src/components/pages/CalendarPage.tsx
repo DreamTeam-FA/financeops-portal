@@ -375,31 +375,44 @@ export const CalendarPage: React.FC = () => {
       assignee: editAssignee || undefined,
     };
 
+    const eventId = selectedEvent.id;
+
     if (selectedEvent.sheetRow && selectedEvent.sheetRow > 0) {
       // Sheet-backed event — update local state optimistically
       setSheetEvents(prev => prev.map(e =>
-        e.id === selectedEvent.id
+        e.id === eventId
           ? { ...e, title: editTitle, notes: editDesc, urgency: editUrgency, assignee: editAssignee, type: editCategory }
           : e
       ));
-      // Write changes to Google Sheet via API
+      // Persist to portal server (survives GViz cache and page refresh)
+      if (eventId) {
+        fetch("/api/calendar-action", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "edit", id: eventId, value: {
+            title: editTitle, notes: editDesc || "", urgency: editUrgency,
+            type: editCategory, assignee: editAssignee || ""
+          }})
+        }).catch(err => console.warn("calendar-action edit failed:", err));
+      }
+      // Also write to Google Sheet as background best-effort
       const token = getAccessToken();
-      if (!token) {
-        showToast?.("Not signed in to Google — changes were not saved to sheet.", "error");
-      } else {
+      if (token) {
         updateCalendarRow(token, sheetTab, selectedEvent.sheetRow, sheetColMap, {
-          title: editTitle,
-          notes: editDesc || "",
-          urgency: editUrgency,
-          type: editCategory,
-          assignee: editAssignee || "",
+          title: editTitle, notes: editDesc || "", urgency: editUrgency,
+          type: editCategory, assignee: editAssignee || "",
         }).catch((err: Error) => {
-          showToast?.(`Edit failed to save: ${err.message}`, "error");
+          console.warn("Sheet edit write failed:", err.message);
         });
       }
-    } else if (selectedEvent.id && selectedEvent.isLocalTask) {
-      // Portal-only local task — persist via FinanceContext
-      updateCalendarEvent(selectedEvent.id, updates as any);
+    } else if (eventId && selectedEvent.isLocalTask) {
+      // Portal-only local task — persist to server overrides + FinanceContext
+      fetch("/api/calendar-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "edit", id: eventId, value: updates })
+      }).catch(err => console.warn("calendar-action edit failed:", err));
+      updateCalendarEvent(eventId, updates as any);
     }
 
     setSelectedEvent(prev => prev ? { ...prev, ...updates } : null);
@@ -1438,33 +1451,24 @@ export const CalendarPage: React.FC = () => {
                       <button
                         onClick={() => {
                           const newDone = !selectedEvent.done;
-                          const prevDone = selectedEvent.done;
                           const eventId = selectedEvent.id;
-                          // Optimistic update
-                          if (eventId) {
-                            setSheetEvents(prev => prev.map(e => e.id === eventId ? { ...e, done: newDone } : e));
-                            setDoneOverrides(prev => ({ ...prev, [eventId]: newDone }));
-                          }
+                          if (!eventId) return;
+                          // Optimistic UI update
+                          setSheetEvents(prev => prev.map(e => e.id === eventId ? { ...e, done: newDone } : e));
+                          setDoneOverrides(prev => ({ ...prev, [eventId]: newDone }));
                           setSelectedEvent(prev => prev ? { ...prev, done: newDone } : null);
+                          // Persist to portal server (survives GViz cache and page refresh)
+                          fetch("/api/calendar-action", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ type: "done", id: eventId, value: newDone })
+                          }).catch(err => console.warn("calendar-action done failed:", err));
+                          // Also write to Google Sheet as background best-effort
                           const token = getAccessToken();
-                          if (selectedEvent.sheetRow && selectedEvent.sheetRow > 0) {
-                            // Sheet-backed event — write done flag to Google Sheet
-                            if (!token) {
-                              showToast?.("Not signed in to Google — done status was not saved to sheet.", "error");
-                            } else {
-                              updateCalendarDone(token, sheetTab, selectedEvent.sheetRow, sheetColMap.done, newDone)
-                                .catch((err: Error) => {
-                                  // Revert optimistic update on failure
-                                  if (eventId) {
-                                    setSheetEvents(prev => prev.map(e => e.id === eventId ? { ...e, done: prevDone } : e));
-                                    setDoneOverrides(prev => ({ ...prev, [eventId]: prevDone }));
-                                  }
-                                  setSelectedEvent(prev => prev ? { ...prev, done: prevDone } : null);
-                                  showToast?.(`Mark Done failed: ${err.message}`, "error");
-                                });
-                            }
-                          } else if (eventId) {
-                            // Local portal event — persist done via updateCalendarEvent
+                          if (token && selectedEvent.sheetRow && selectedEvent.sheetRow > 0) {
+                            updateCalendarDone(token, sheetTab, selectedEvent.sheetRow, sheetColMap.done, newDone)
+                              .catch(err => console.warn("Sheet done write failed:", err));
+                          } else if (!selectedEvent.sheetRow) {
                             updateCalendarEvent(eventId, { done: newDone } as any);
                           }
                         }}
@@ -1487,8 +1491,17 @@ export const CalendarPage: React.FC = () => {
                           <div className={`absolute bottom-full mb-1 left-0 rounded-lg shadow-xl border overflow-hidden z-10 ${isLight ? "bg-white border-slate-200" : "bg-[#20242E] border-[#2E3340]"}`}>
                             {(["critical","high","normal","low"] as const).map(u => (
                               <button key={u} onClick={() => {
+                                const eventId = selectedEvent.id;
                                 setSelectedEvent(prev => prev ? { ...prev, urgency: u } : null);
-                                if (selectedEvent.id) updateCalendarEvent(selectedEvent.id, { urgency: u } as any);
+                                // Persist urgency to portal server
+                                if (eventId) {
+                                  fetch("/api/calendar-action", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ type: "edit", id: eventId, value: { urgency: u } })
+                                  }).catch(err => console.warn("calendar-action urgency failed:", err));
+                                  updateCalendarEvent(eventId, { urgency: u } as any);
+                                }
                                 setShowUrgencyPicker(false);
                               }}
                               className={`w-full text-left px-4 py-2 text-xs font-bold transition-colors capitalize ${isLight ? "hover:bg-slate-50" : "hover:bg-white/5"} ${selectedEvent.urgency === u ? "font-black" : ""}`}
@@ -1583,7 +1596,13 @@ export const CalendarPage: React.FC = () => {
                     setSheetEvents(prev => prev.filter(e => e.id !== evId));
                     // Suppress from calendarLocalEvents display this session
                     setDeletedEventIds(prev => new Set([...prev, evId]));
-                    // Clear the sheet row via Google OAuth if available
+                    // Persist delete to portal server — PRIMARY persistence (survives GViz cache)
+                    fetch("/api/calendar-action", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ type: "delete", id: evId })
+                    }).catch(err => console.warn("calendar-action delete failed:", err));
+                    // Also clear the sheet row via Google OAuth as background best-effort
                     const token = getAccessToken();
                     if (token && sheetRow && sheetRow > 0) {
                       clearCalendarRow(token, sheetTab, sheetRow)

@@ -34,6 +34,13 @@ const DEFAULT_DATA = {
   loans: [],
   ar: [],
   statements: [],
+  // Calendar change overrides — applied on top of live sheet data on every sync/load.
+  // Survives GViz cache staleness. Writes to Google Sheet are best-effort background ops.
+  calendarOverrides: {
+    deleted: [] as string[],                          // event IDs to hide
+    done: {} as Record<string, boolean>,              // id → done state
+    edits: {} as Record<string, Record<string, any>>  // id → {title, notes, urgency, type, assignee}
+  },
   payrollWeeks: [
     { weekNum: "W28", year: 2026, label: "Jul 6 – Jul 10", startDate: "2026-07-06", endDate: "2026-07-10", sheetName: "Payroll_Jul_W28" },
     { weekNum: "W29", year: 2026, label: "Jul 13 – Jul 17", startDate: "2026-07-13", endDate: "2026-07-17", sheetName: "Payroll_Jul_W29" },
@@ -140,6 +147,24 @@ function mergeDatasets(liveList: any[], currentList: any[], idKey = "id") {
   return merged;
 }
 
+// Apply stored overrides (done/edit/delete) to a list of calendar events
+function applyCalendarOverrides(events: any[], overrides: { deleted: string[]; done: Record<string, boolean>; edits: Record<string, Record<string, any>> }): any[] {
+  if (!events) return [];
+  const deletedSet = new Set(overrides.deleted || []);
+  return events
+    .filter(ev => !deletedSet.has(ev.id))
+    .map(ev => {
+      let result = { ...ev };
+      if (overrides.done && overrides.done[ev.id] !== undefined) {
+        result.done = overrides.done[ev.id];
+      }
+      if (overrides.edits && overrides.edits[ev.id]) {
+        result = { ...result, ...overrides.edits[ev.id] };
+      }
+      return result;
+    });
+}
+
 async function syncLiveDataFromSheets(accessToken?: string) {
   try {
     const method = accessToken ? "Sheets API v4 (FORMATTED_VALUE)" : "GViz public API";
@@ -157,12 +182,14 @@ async function syncLiveDataFromSheets(accessToken?: string) {
       ar: mergeDatasets(liveData.ar, current.ar, "id"),
       statements: mergeDatasets(liveData.statements, current.statements, "id"),
       quickNotes: mergeNotes(liveData.quickNotes, current.quickNotes),
-      // Calendar events: live sheet data is the source of truth.
-      // Do NOT merge with current — that would resurrect deleted events.
-      // Fall back to current only if the live fetch returned nothing (network failure).
-      calendarLocalEvents: (liveData.calendarLocalEvents && liveData.calendarLocalEvents.length > 0)
-        ? liveData.calendarLocalEvents
-        : current.calendarLocalEvents,
+      // Calendar events: use live sheet data, then apply stored overrides on top.
+      // This makes done/edit/delete survive GViz cache and server restarts.
+      calendarLocalEvents: applyCalendarOverrides(
+        (liveData.calendarLocalEvents && liveData.calendarLocalEvents.length > 0)
+          ? liveData.calendarLocalEvents
+          : current.calendarLocalEvents,
+        current.calendarOverrides || { deleted: [], done: {}, edits: {} }
+      ),
       payrollPivot: liveData.payrollPivot && Object.keys(liveData.payrollPivot).length > 0 ? liveData.payrollPivot : current.payrollPivot,
       lastSyncedAt: liveData.lastSyncedAt
     };
@@ -268,6 +295,8 @@ app.get("/api/calendar-sheet-events", async (_req, res) => {
                 /^memo[-_:\s]/i.test(titleStr) ||
                 /^task[-_:\s]/i.test(titleStr) ||
                 /^map[-_]/i.test(titleStr) ||
+                /^cal\s*:/i.test(titleStr) ||           // e.g. "Cal: Ruby's - Zions" bank-calendar entries
+                /^\d+\.?\d*$/.test(titleStr) ||         // pure numeric titles (stray amounts)
                 ["title", "vendor", "event title", "date", "id", "remarks", "amount", "status", "company", "description"].includes(lowerTitle)
               ) {
                 return;
@@ -328,6 +357,50 @@ app.get("/api/calendar-sheet-events", async (_req, res) => {
 
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// POST /api/calendar-action — persist calendar changes server-side so they survive GViz cache
+// type: "delete" | "done" | "edit"
+// id: event ID
+// value: boolean (for done) | {title?, notes?, urgency?, type?, assignee?} (for edit) | undefined (for delete)
+app.post("/api/calendar-action", (req, res) => {
+  try {
+    const { type, id, value } = req.body || {};
+    if (!type || !id) return res.status(400).json({ error: "type and id required" });
+
+    const data = getStoredData();
+    const overrides = data.calendarOverrides || { deleted: [], done: {}, edits: {} };
+
+    if (type === "delete") {
+      if (!overrides.deleted.includes(id)) overrides.deleted.push(id);
+      // Remove any done/edit overrides for this event (no longer needed)
+      delete overrides.done[id];
+      delete overrides.edits[id];
+      // Also remove from calendarLocalEvents immediately
+      data.calendarLocalEvents = (data.calendarLocalEvents || []).filter((e: any) => e.id !== id);
+    } else if (type === "done") {
+      overrides.done[id] = !!value;
+      // Apply immediately to stored calendarLocalEvents
+      data.calendarLocalEvents = (data.calendarLocalEvents || []).map((e: any) =>
+        e.id === id ? { ...e, done: !!value } : e
+      );
+    } else if (type === "edit") {
+      overrides.edits[id] = { ...(overrides.edits[id] || {}), ...value };
+      // Apply immediately to stored calendarLocalEvents
+      data.calendarLocalEvents = (data.calendarLocalEvents || []).map((e: any) =>
+        e.id === id ? { ...e, ...value } : e
+      );
+    } else {
+      return res.status(400).json({ error: "unknown type" });
+    }
+
+    data.calendarOverrides = overrides;
+    saveStoredData(data);
+    res.json({ ok: true });
+  } catch (err: any) {
+    console.error("Error in /api/calendar-action:", err);
+    res.status(500).json({ error: err?.message || "Failed" });
+  }
 });
 
 app.get("/api/data", (_req, res) => {
