@@ -45,46 +45,23 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
     setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // Duplicate detection:
-  //  1. Same vendor + same invoiceNo (invoice# is vendor-specific; different vendors share numbers naturally)
-  //  2. Same vendor + same amount + same dueDate (likely double-entry)
+  // Duplicate detection: same vendor + same invoiceNo + same amount
+  // All three must match — different amounts on the same invoice# = legitimate line items;
+  // different invoice#s on same amount+date = separate orders from the same vendor.
   const duplicateGroups = useMemo((): APBill[][] => {
     const groups: APBill[][] = [];
-    const seen = new Set<string>();
-
-    // Group by vendor+invoiceNo
-    const byVendorInvoice: Record<string, APBill[]> = {};
+    const byKey: Record<string, APBill[]> = {};
     apBills.forEach((b) => {
       const inv = (b.invoiceNo || "").trim();
       const vendor = (b.vendor || "").trim();
       if (!inv || !vendor) return;
-      const k = `${vendor}|||${inv}`;
-      if (!byVendorInvoice[k]) byVendorInvoice[k] = [];
-      byVendorInvoice[k].push(b);
+      const k = `${vendor}|||${inv}|||${b.amount}`;
+      if (!byKey[k]) byKey[k] = [];
+      byKey[k].push(b);
     });
-    Object.values(byVendorInvoice).forEach((group) => {
-      if (group.length > 1) {
-        const key = group.map((b) => b.id).sort().join("|");
-        if (!seen.has(key)) { seen.add(key); groups.push(group); }
-      }
+    Object.values(byKey).forEach((group) => {
+      if (group.length > 1) groups.push(group);
     });
-
-    // Group by vendor+amount+dueDate
-    const byVAD: Record<string, APBill[]> = {};
-    apBills.forEach((b) => {
-      const vendor = (b.vendor || "").trim();
-      if (!vendor) return;
-      const k = `${vendor}|${b.amount}|${b.dueDate || ""}`;
-      if (!byVAD[k]) byVAD[k] = [];
-      byVAD[k].push(b);
-    });
-    Object.values(byVAD).forEach((group) => {
-      if (group.length > 1) {
-        const key = group.map((b) => b.id).sort().join("|");
-        if (!seen.has(key)) { seen.add(key); groups.push(group); }
-      }
-    });
-
     return groups;
   }, [apBills]);
 
@@ -783,10 +760,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                 // Determine duplicate reason
                 const inv = (group[0].invoiceNo || "").trim();
                 const vendor0 = (group[0].vendor || "").trim();
-                const sameInvoice = inv && group.every((b) => (b.invoiceNo || "").trim() === inv && (b.vendor || "").trim() === vendor0);
-                const reason = sameInvoice
-                  ? `${vendor0} — duplicate invoice #${inv}`
-                  : `${vendor0} — same amount ${formatCurrency(group[0].amount)} · due ${formatDateStr(group[0].dueDate)}`;
+                const reason = `${vendor0} — duplicate invoice #${inv} · ${formatCurrency(group[0].amount)}`;
 
                 return (
                   <div key={gi} className={`rounded-lg border overflow-hidden ${isLight ? "border-slate-200 bg-slate-50" : "border-[#262626] bg-[#1a1a1a]"}`}>
