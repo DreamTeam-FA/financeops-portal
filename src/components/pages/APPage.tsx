@@ -55,7 +55,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
       const inv = (b.invoiceNo || "").trim();
       const vendor = (b.vendor || "").trim();
       if (!inv || !vendor) return;
-      const k = `${vendor}|||${inv}|||${b.amount}`;
+      const k = `${vendor}|||${inv}|||${b.amount}|||${b.dueDate || ""}`;
       if (!byKey[k]) byKey[k] = [];
       byKey[k].push(b);
     });
