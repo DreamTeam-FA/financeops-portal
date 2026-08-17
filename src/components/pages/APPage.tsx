@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { APBill, EntityName } from "../../types";
 import { normalizeEntityName } from "../../services/googleSheetsService";
 import { formatCurrency } from "../../utils/formatters";
-import { Search, ChevronDown, ChevronRight, PauseCircle, Eye } from "lucide-react";
+import { Search, ChevronDown, ChevronRight, PauseCircle, Eye, AlertTriangle, X, Pencil, Trash2 } from "lucide-react";
 import { AddBillModal } from "../modals/AddBillModal";
 import { EditBillModal } from "../modals/EditBillModal";
 import { BillDetailsModal } from "../modals/BillDetailsModal";
@@ -14,7 +14,10 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
     apBills,
     selectedEntities,
     paymentMethodFilter,
-    theme
+    theme,
+    showToast,
+    updateBill,
+    deleteBill,
   } = useFinance();
 
   const isLight = theme === "light";
@@ -32,6 +35,8 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
   const [editingBill, setEditingBill] = useState<APBill | null>(null);
   // Store IDs at click time (preserves bucket filter); derive from live apBills (handles deletes)
   const [viewingVendorBillIds, setViewingVendorBillIds] = useState<string[]>([]);
+  const [duplicatesModalOpen, setDuplicatesModalOpen] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const viewingVendorBills = apBills.filter((b) => viewingVendorBillIds.includes(b.id));
 
   // Collapsed state for sub-entity banners
@@ -39,6 +44,55 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
   const toggleSection = (key: string) => {
     setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
+
+  // Duplicate detection: group by same invoiceNo OR same vendor+amount+dueDate
+  const duplicateGroups = useMemo((): APBill[][] => {
+    const groups: APBill[][] = [];
+    const seen = new Set<string>();
+
+    // Group by invoiceNo
+    const byInvoice: Record<string, APBill[]> = {};
+    apBills.forEach((b) => {
+      const inv = (b.invoiceNo || "").trim();
+      if (!inv) return;
+      if (!byInvoice[inv]) byInvoice[inv] = [];
+      byInvoice[inv].push(b);
+    });
+    Object.values(byInvoice).forEach((group) => {
+      if (group.length > 1) {
+        const key = group.map((b) => b.id).sort().join("|");
+        if (!seen.has(key)) { seen.add(key); groups.push(group); }
+      }
+    });
+
+    // Group by vendor+amount+dueDate
+    const byVAD: Record<string, APBill[]> = {};
+    apBills.forEach((b) => {
+      const k = `${(b.vendor || "").trim()}|${b.amount}|${b.dueDate || ""}`;
+      if (!byVAD[k]) byVAD[k] = [];
+      byVAD[k].push(b);
+    });
+    Object.values(byVAD).forEach((group) => {
+      if (group.length > 1) {
+        const key = group.map((b) => b.id).sort().join("|");
+        if (!seen.has(key)) { seen.add(key); groups.push(group); }
+      }
+    });
+
+    return groups;
+  }, [apBills]);
+
+  // Toast once on load if duplicates found
+  useEffect(() => {
+    if (duplicateGroups.length > 0) {
+      showToast(
+        `⚠️ ${duplicateGroups.length} duplicate bill group${duplicateGroups.length > 1 ? "s" : ""} detected`,
+        "error",
+        6000
+      );
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // only on mount
 
   const ENTITY_CONFIG_FALLBACK = {
     bg: "bg-[#546e7a]",
@@ -516,6 +570,17 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
           <option value="In QBO">In QBO</option>
           <option value="Not in QBO">Not in QBO</option>
         </select>
+
+        {/* Duplicates alert button */}
+        {duplicateGroups.length > 0 && (
+          <button
+            onClick={() => setDuplicatesModalOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500/20 transition-colors text-xs font-semibold"
+          >
+            <AlertTriangle className="w-3.5 h-3.5" />
+            {duplicateGroups.length} Duplicate{duplicateGroups.length > 1 ? "s" : ""}
+          </button>
+        )}
       </div>
 
       {/* Main Content */}
@@ -682,6 +747,128 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
         onClose={() => setViewingVendorBillIds([])}
         onEdit={(b) => setEditingBill(b)}
       />
+
+      {/* Duplicate Bills Modal */}
+      {duplicatesModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
+          <div className={`w-full max-w-2xl max-h-[85vh] flex flex-col rounded-xl shadow-2xl border ${isLight ? "bg-white border-slate-200" : "bg-[#141414] border-[#2a2a2a]"}`}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-inherit shrink-0">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-500" />
+                <h2 className={`text-sm font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
+                  Duplicate Bills Detected
+                </h2>
+                <span className="text-xs bg-red-500/15 text-red-500 font-semibold px-2 py-0.5 rounded-full">
+                  {duplicateGroups.length} group{duplicateGroups.length > 1 ? "s" : ""}
+                </span>
+              </div>
+              <button
+                onClick={() => setDuplicatesModalOpen(false)}
+                className={`p-1 rounded hover:bg-white/10 transition-colors ${isLight ? "text-slate-500 hover:bg-slate-100" : "text-gray-400"}`}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body — scrollable */}
+            <div className="overflow-y-auto flex-1 p-4 space-y-4">
+              {duplicateGroups.map((group, gi) => {
+                // Determine duplicate reason
+                const inv = (group[0].invoiceNo || "").trim();
+                const sameInvoice = inv && group.every((b) => (b.invoiceNo || "").trim() === inv);
+                const reason = sameInvoice
+                  ? `Same invoice #: ${inv}`
+                  : `Same vendor + amount + due date: ${group[0].vendor} · ${formatCurrency(group[0].amount)} · ${formatDateStr(group[0].dueDate)}`;
+
+                return (
+                  <div key={gi} className={`rounded-lg border overflow-hidden ${isLight ? "border-slate-200 bg-slate-50" : "border-[#262626] bg-[#1a1a1a]"}`}>
+                    {/* Group header */}
+                    <div className={`px-3 py-2 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${isLight ? "bg-red-50 text-red-600 border-b border-red-100" : "bg-red-900/20 text-red-400 border-b border-red-900/30"}`}>
+                      <AlertTriangle className="w-3 h-3" />
+                      {reason}
+                    </div>
+
+                    {/* Column headers */}
+                    <div className={`grid grid-cols-12 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider border-b ${isLight ? "bg-slate-100 text-slate-500 border-slate-200" : "bg-[#222] text-gray-500 border-[#2a2a2a]"}`}>
+                      <div className="col-span-3">Vendor</div>
+                      <div className="col-span-2 text-right">Amount</div>
+                      <div className="col-span-2 text-center">Due Date</div>
+                      <div className="col-span-2 text-center">Invoice #</div>
+                      <div className="col-span-1 text-center">Status</div>
+                      <div className="col-span-2 text-right">Actions</div>
+                    </div>
+
+                    {/* Bill rows */}
+                    {group.map((bill) => (
+                      <div key={bill.id} className={`grid grid-cols-12 items-center px-3 py-2 text-[11px] border-b last:border-0 ${isLight ? "border-slate-100 text-slate-800" : "border-[#222] text-gray-200"}`}>
+                        <div className="col-span-3 truncate font-semibold">{bill.vendor || "—"}</div>
+                        <div className="col-span-2 text-right font-bold text-blue-500">{formatCurrency(bill.amount)}</div>
+                        <div className={`col-span-2 text-center ${isLight ? "text-slate-500" : "text-gray-400"}`}>{formatDateStr(bill.dueDate)}</div>
+                        <div className={`col-span-2 text-center font-mono text-[10px] ${isLight ? "text-slate-600" : "text-gray-400"}`}>{bill.invoiceNo || "—"}</div>
+                        <div className="col-span-1 text-center">
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                            bill.status === "paid" ? "bg-green-500/20 text-green-500"
+                            : bill.status === "hold" ? "bg-orange-500/20 text-orange-500"
+                            : "bg-blue-500/20 text-blue-400"
+                          }`}>
+                            {bill.status || "unpaid"}
+                          </span>
+                        </div>
+                        <div className="col-span-2 flex items-center justify-end gap-1.5">
+                          {/* Edit */}
+                          <button
+                            onClick={() => { setDuplicatesModalOpen(false); setEditingBill(bill); }}
+                            title="Edit bill"
+                            className={`p-1 rounded transition-colors ${isLight ? "text-slate-500 hover:bg-slate-200 hover:text-slate-700" : "text-gray-500 hover:bg-white/10 hover:text-gray-200"}`}
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          {/* Delete */}
+                          {deleteConfirmId === bill.id ? (
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => { deleteBill(bill.id); setDeleteConfirmId(null); showToast("Bill deleted", "success", 2500); }}
+                                className="px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-bold hover:bg-red-600 transition-colors"
+                              >
+                                Confirm
+                              </button>
+                              <button
+                                onClick={() => setDeleteConfirmId(null)}
+                                className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition-colors ${isLight ? "bg-slate-200 text-slate-700 hover:bg-slate-300" : "bg-white/10 text-gray-300 hover:bg-white/20"}`}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setDeleteConfirmId(bill.id)}
+                              title="Delete bill"
+                              className="p-1 rounded text-gray-500 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer */}
+            <div className={`px-5 py-3 border-t shrink-0 flex justify-end ${isLight ? "border-slate-200" : "border-[#2a2a2a]"}`}>
+              <button
+                onClick={() => setDuplicatesModalOpen(false)}
+                className={`px-4 py-1.5 rounded-md text-xs font-semibold transition-colors ${isLight ? "bg-slate-100 text-slate-700 hover:bg-slate-200" : "bg-white/10 text-gray-300 hover:bg-white/15"}`}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
