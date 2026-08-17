@@ -45,23 +45,51 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
     setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // Duplicate detection: same vendor + same invoiceNo + same amount
-  // All three must match — different amounts on the same invoice# = legitimate line items;
-  // different invoice#s on same amount+date = separate orders from the same vendor.
+  // Duplicate detection — two rules, both require an exact due-date match:
+  //  1. Same vendor + invoiceNo + amount + dueDate  (same bill entered twice, different invoice# won't save it)
+  //  2. Same vendor + amount + dueDate (with DIFFERENT invoice#s)  — catches batch-import duplicates like
+  //     Arcadia Publishing where 14 identical bills land on the same date under different order numbers
   const duplicateGroups = useMemo((): APBill[][] => {
     const groups: APBill[][] = [];
-    const byKey: Record<string, APBill[]> = {};
+    const seen = new Set<string>();
+
+    // Rule 1: vendor + invoiceNo + amount + dueDate
+    const byInvoice: Record<string, APBill[]> = {};
     apBills.forEach((b) => {
       const inv = (b.invoiceNo || "").trim();
       const vendor = (b.vendor || "").trim();
       if (!inv || !vendor) return;
-      const k = `${vendor}|||${inv}|||${b.amount}|||${b.dueDate || ""}`;
-      if (!byKey[k]) byKey[k] = [];
-      byKey[k].push(b);
+      const k = `inv|||${vendor}|||${inv}|||${b.amount}|||${b.dueDate || ""}`;
+      if (!byInvoice[k]) byInvoice[k] = [];
+      byInvoice[k].push(b);
     });
-    Object.values(byKey).forEach((group) => {
-      if (group.length > 1) groups.push(group);
+    Object.values(byInvoice).forEach((group) => {
+      if (group.length > 1) {
+        const key = group.map((b) => b.id).sort().join("|");
+        if (!seen.has(key)) { seen.add(key); groups.push(group); }
+      }
     });
+
+    // Rule 2: vendor + amount + dueDate (different invoice#s — bulk import duplicates)
+    const byVAD: Record<string, APBill[]> = {};
+    apBills.forEach((b) => {
+      const vendor = (b.vendor || "").trim();
+      const dueDate = (b.dueDate || "").trim();
+      if (!vendor || !dueDate) return;
+      const k = `vad|||${vendor}|||${b.amount}|||${dueDate}`;
+      if (!byVAD[k]) byVAD[k] = [];
+      byVAD[k].push(b);
+    });
+    Object.values(byVAD).forEach((group) => {
+      // Only flag if all invoice#s are distinct (otherwise rule 1 already covers it)
+      const invNos = group.map((b) => (b.invoiceNo || "").trim());
+      const allDistinct = new Set(invNos).size === group.length;
+      if (group.length > 1 && allDistinct) {
+        const key = group.map((b) => b.id).sort().join("|");
+        if (!seen.has(key)) { seen.add(key); groups.push(group); }
+      }
+    });
+
     return groups;
   }, [apBills]);
 
@@ -760,7 +788,10 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                 // Determine duplicate reason
                 const inv = (group[0].invoiceNo || "").trim();
                 const vendor0 = (group[0].vendor || "").trim();
-                const reason = `${vendor0} — duplicate invoice #${inv} · ${formatCurrency(group[0].amount)}`;
+                const allSameInvoice = group.every((b) => (b.invoiceNo || "").trim() === inv);
+                const reason = allSameInvoice
+                  ? `${vendor0} — duplicate invoice #${inv} · ${formatCurrency(group[0].amount)}`
+                  : `${vendor0} — ${group.length}× ${formatCurrency(group[0].amount)} all due ${formatDateStr(group[0].dueDate)}`;
 
                 return (
                   <div key={gi} className={`rounded-lg border overflow-hidden ${isLight ? "border-slate-200 bg-slate-50" : "border-[#262626] bg-[#1a1a1a]"}`}>
