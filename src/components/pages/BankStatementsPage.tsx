@@ -67,14 +67,17 @@ export const BankStatementsPage: React.FC = () => {
     new Set(bankStatements.map((s) => cleanBankName(s.bankName, s.entity)).filter(Boolean))
   );
 
-  const filtered = bankStatements.filter((s) => {
-    const isEntityMatch = selectedEntities.has("ALL") || selectedEntities.has(s.entity);
-    const stmtMonth = getStatementMonth(s);
-    const isMonthMatch = selectedMonth === "ALL" || stmtMonth.toLowerCase().includes(selectedMonth.toLowerCase());
-    const bankName = cleanBankName(s.bankName, s.entity);
-    const isBankMatch = selectedBank === "ALL" || bankName.toLowerCase() === selectedBank.toLowerCase();
-    return isEntityMatch && isMonthMatch && isBankMatch;
-  });
+  const filtered = bankStatements
+    .filter((s) => {
+      const isEntityMatch = selectedEntities.has("ALL") || selectedEntities.has(s.entity);
+      const stmtMonth = getStatementMonth(s);
+      const isMonthMatch = selectedMonth === "ALL" || stmtMonth.toLowerCase().includes(selectedMonth.toLowerCase());
+      const bankName = cleanBankName(s.bankName, s.entity);
+      const isBankMatch = selectedBank === "ALL" || bankName.toLowerCase() === selectedBank.toLowerCase();
+      return isEntityMatch && isMonthMatch && isBankMatch;
+    })
+    // Pending (not downloaded) always on top
+    .sort((a, b) => (a.downloaded === b.downloaded ? 0 : a.downloaded ? 1 : -1));
 
   const totalTracked = filtered.length;
   const downloadedCount = filtered.filter((s) => s.downloaded).length;
