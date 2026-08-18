@@ -1252,3 +1252,112 @@ export async function deleteMasterListEmployee(sheetRow: number, token: string) 
   await sheetsPut(`'Master List'!J${sheetRow}:P${sheetRow}`, [['', '', '', '', '', '', '']], token);
   return { ok: true };
 }
+
+// =============================================================================
+// START NEW WEEK  —  port of GAS startNewWeek() / startNewWeekFromMenu()
+// Duplicates the TEMPLATE sheet, renames it "Week N Mon D - D", writes C2.
+// =============================================================================
+
+const WEEK_TAB_REGEX = /^Week\s+(\d+)\s+(.+?)\s*-\s*(.+)$/i;
+
+async function sheetsMetaGet(token: string) {
+  const url = `${BASE}?fields=sheets(properties(sheetId,title))`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new Error(`Sheets metadata error ${res.status}: ${await res.text()}`);
+  return (await res.json()).sheets as Array<{ properties: { sheetId: number; title: string } }>;
+}
+
+async function sheetsBatchUpdate(requests: any[], token: string) {
+  const url = `${BASE}:batchUpdate`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: authHdr(token),
+    body: JSON.stringify({ requests })
+  });
+  if (!res.ok) throw new Error(`batchUpdate error ${res.status}: ${await res.text()}`);
+  return res.json();
+}
+
+export async function startNewWeek(token: string): Promise<{
+  ok: boolean; newSheetName?: string; c2?: string;
+  startDate?: string; endDate?: string; error?: string;
+}> {
+  // 1. List all sheets to find TEMPLATE and the latest Week tab
+  const sheets = await sheetsMetaGet(token);
+
+  const templateSheet = sheets.find(s => s.properties.title === 'TEMPLATE');
+  if (!templateSheet) return { ok: false, error: 'No tab named "TEMPLATE" found.' };
+
+  // 2. Find latest "Week N ..." tab by reading each one's C2 ("YY-WW")
+  const weekSheets = sheets.filter(s => WEEK_TAB_REGEX.test(s.properties.title));
+  if (!weekSheets.length) return { ok: false, error: 'No existing "Week N ..." tabs found.' };
+
+  // Batch-read C2 of all week tabs
+  const c2Ranges = weekSheets.map(s => `'${s.properties.title}'!C2`);
+  const c2Results = await sheetsBatchGet(c2Ranges, token);
+
+  let best: { sheetId: number; title: string; yy: number; wk: number } | null = null;
+  weekSheets.forEach((sh, i) => {
+    const c2Val = String(((c2Results[i]?.values || [])[0] || [])[0] || '').trim();
+    const m = c2Val.match(/^(\d+)\s*-\s*(\d+)$/);
+    if (!m) return;
+    const yy = parseInt(m[1], 10), wk = parseInt(m[2], 10);
+    if (isNaN(yy) || isNaN(wk)) return;
+    if (!best || yy > best.yy || (yy === best.yy && wk > best.wk)) {
+      best = { sheetId: sh.properties.sheetId, title: sh.properties.title, yy, wk };
+    }
+  });
+
+  if (!best) return { ok: false, error: 'Could not read a valid "YY-WW" from any Week tab.' };
+
+  // 3. Read C3 of the latest tab to get its start date
+  const c3Val = ((await sheetsGet(`'${best.title}'!C3`, token, 'FORMATTED_VALUE'))[0] || [])[0];
+  if (!c3Val) return { ok: false, error: `Could not read start date from C3 of "${best.title}".` };
+
+  // Parse MM/DD/YYYY or date string
+  let startDate: Date;
+  const dateParts = String(c3Val).match(/(\d+)\/(\d+)\/(\d+)/);
+  if (dateParts) {
+    startDate = new Date(Number(dateParts[3]), Number(dateParts[1]) - 1, Number(dateParts[2]));
+  } else {
+    startDate = new Date(c3Val);
+  }
+  if (isNaN(startDate.getTime())) return { ok: false, error: `C3 value "${c3Val}" is not a valid date.` };
+
+  // 4. Compute next week dates (+7 days)
+  const nextStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + 7);
+  const nextEnd   = new Date(nextStart.getFullYear(), nextStart.getMonth(), nextStart.getDate() + 6);
+
+  let nextWk = best.wk + 1;
+  let nextYY = best.yy;
+  if (nextWk > 52) { nextWk -= 52; nextYY += 1; }
+
+  // 5. Build the new tab name: "Week N Mon D - D" (matching GAS buildWeekTabName)
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const startLabel = `${MONTHS[nextStart.getMonth()]} ${nextStart.getDate()}`;
+  const endLabel   = nextEnd.getMonth() === nextStart.getMonth()
+    ? String(nextEnd.getDate())
+    : `${MONTHS[nextEnd.getMonth()]} ${nextEnd.getDate()}`;
+  const newName = `Week ${nextWk} ${startLabel} - ${endLabel}`;
+  const newC2   = `${nextYY}-${nextWk}`;
+
+  // 6. Check for existing tab with that name
+  if (sheets.some(s => s.properties.title === newName)) {
+    return { ok: false, error: `A tab named "${newName}" already exists.` };
+  }
+
+  // 7. Duplicate TEMPLATE sheet → rename → write C2
+  const dupeResp = await sheetsBatchUpdate([{
+    duplicateSheet: {
+      sourceSheetId: templateSheet.properties.sheetId,
+      insertSheetIndex: sheets.length,
+      newSheetName: newName
+    }
+  }], token);
+
+  // Write C2 of the new sheet (RAW so "26-35" stays a string, not parsed as a date)
+  await sheetsRawPut(`'${newName}'!C2`, [[newC2]], token);
+
+  const fmt = (d: Date) => `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}/${d.getFullYear()}`;
+  return { ok: true, newSheetName: newName, c2: newC2, startDate: fmt(nextStart), endDate: fmt(nextEnd) };
+}

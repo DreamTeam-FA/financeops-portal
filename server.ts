@@ -14,7 +14,8 @@ import {
   getProjectTotalData,
   saveRemark, saveTime, saveHours, saveHoursOverride, saveTotal, saveJob,
   saveRecordEdit, addRawEntry, deleteRawEntry,
-  saveMasterListEmployee, addMasterListEmployee, deleteMasterListEmployee
+  saveMasterListEmployee, addMasterListEmployee, deleteMasterListEmployee,
+  startNewWeek
 } from "./src/services/fourYrPayrollService";
 
 const app = express();
@@ -687,6 +688,18 @@ app.post("/api/4yr/delete-master-employee", async (req, res) => {
   try {
     const r = await deleteMasterListEmployee(Number(sheetRow), accessToken);
     res.json(r);
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+// POST /api/4yr/start-new-week
+app.post("/api/4yr/start-new-week", async (req, res) => {
+  const token = req.body?.accessToken || "";
+  if (!token) return res.status(401).json({ error: "Missing access token" });
+  try {
+    const result = await startNewWeek(token);
+    res.json(result);
   } catch (e: any) {
     res.status(500).json({ ok: false, error: e?.message || String(e) });
   }

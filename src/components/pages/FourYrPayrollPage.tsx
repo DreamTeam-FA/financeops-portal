@@ -180,6 +180,7 @@ export function FourYrPayrollPage() {
   const [form, setForm] = useState({ name:"", job:"", subCat:"", date:"", started:"", finished:"", hours:"", remarks:"", amount:"", company:"", recordType:"payroll" });
   const [hoursExplicit, setHoursExplicit] = useState(false); // mirrors GAS _editHoursExplicit
   const [namePickerOpen, setNamePickerOpen] = useState(false);
+  const [startingWeek,   setStartingWeek]   = useState(false);
 
   const debounceRef  = useRef<ReturnType<typeof setTimeout>>();
   const lastKeyRef   = useRef("");
@@ -524,6 +525,35 @@ export function FourYrPayrollPage() {
     if (!deleteConfirm) return;
     try { await apiPost("/api/4yr/delete-entry", {rowIndex:deleteConfirm.rowIndex}); showToast("Deleted", "success"); setDeleteConfirm(null); lastKeyRef.current=""; doLoad(); }
     catch(e:any) { showToast(`Delete failed: ${e.message}`,"error"); setDeleteConfirm(null); }
+  };
+
+  // ── Start New Week ────────────────────────────────────────────────────────
+  const handleStartNewWeek = async () => {
+    const tok = getAccessToken();
+    if (!tok) { showToast("Sign in to Google Sheets first", "error"); return; }
+    showConfirm(
+      "This will copy the TEMPLATE sheet into a new week tab on the Google Spreadsheet. Continue?",
+      async () => {
+        setStartingWeek(true);
+        try {
+          const res = await apiPost("/api/4yr/start-new-week", {});
+          if (res.ok) {
+            showToast(`✅ New week created: "${res.newSheetName}" (${res.startDate} – ${res.endDate})`, "success", 6000);
+            // Refresh dropdowns so the new week appears in the selector
+            apiGet("/api/4yr/dropdown-data").then(data => {
+              setAllWeeks(data.weeks || []);
+              setYears(data.years || []);
+            }).catch(() => {});
+          } else {
+            showToast(`Could not start new week: ${res.error}`, "error", 6000);
+          }
+        } catch(e: any) {
+          showToast(`Start new week failed: ${e.message}`, "error");
+        } finally {
+          setStartingWeek(false);
+        }
+      }
+    );
   };
 
   // ── Screenshot ────────────────────────────────────────────────────────────
@@ -1414,6 +1444,14 @@ export function FourYrPayrollPage() {
               </div>
             )}
           </div>
+          {/* Start New Week */}
+          <button onClick={handleStartNewWeek}
+            disabled={startingWeek}
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded text-xs font-bold text-white whitespace-nowrap"
+            style={{ background: startingWeek ? "#555" : "#1565c0", border:"1px solid #0d47a1", opacity: startingWeek ? 0.7 : 1 }}
+            title="Duplicate the TEMPLATE sheet into a new week tab">
+            {startingWeek ? "⏳ Creating…" : "🗓️ Start New Week"}
+          </button>
           {/* Add Record — with text */}
           <button onClick={openAddModal}
             className="flex items-center gap-1.5 px-4 py-1.5 rounded text-xs font-bold text-white whitespace-nowrap"
