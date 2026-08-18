@@ -57,6 +57,8 @@ export const HubPage: React.FC = () => {
   const openNotes = (quickNotes || []).filter(n => n.status !== "done" && n.itemType !== "folder");
   const totalNotes = (quickNotes || []).filter(n => n.itemType !== "folder").length;
   const recentOpenNote = openNotes[0];
+  const todayStr = today.toISOString().slice(0, 10);
+  const todayEvents = (calendarLocalEvents || []).filter(e => e.date === todayStr && !e.done);
   const upcomingEvents = (calendarLocalEvents || []).filter(e => {
     const d = e.date ? new Date(e.date + "T00:00:00") : null;
     return d && d >= today && d <= nextMonth && !e.done;
@@ -379,17 +381,29 @@ export const HubPage: React.FC = () => {
             </div>
             <div className="space-y-2">
               <div className="flex justify-between text-xs">
+                <span className={isLight ? "text-slate-500" : "text-[#888]"}>Today</span>
+                <span className={`font-bold ${todayEvents.length > 0 ? "text-blue-400" : isLight ? "text-slate-700" : "text-white"}`}>
+                  {todayEvents.length > 0 ? `${todayEvents.length} event${todayEvents.length > 1 ? "s" : ""}` : "None"}
+                </span>
+              </div>
+              {todayEvents.length > 0 && (
+                <div className="flex justify-between text-xs">
+                  <span className={isLight ? "text-slate-500" : "text-[#888]"}></span>
+                  <span className={`font-medium truncate max-w-[180px] text-blue-400`}>
+                    {todayEvents.map((e: any) => e.description || e.vendor || e.title || "Event").join(" · ")}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between text-xs">
                 <span className={isLight ? "text-slate-500" : "text-[#888]"}>Upcoming (30 days)</span>
                 <span className={`font-bold ${upcomingEvents.length > 0 ? "text-blue-500" : isLight ? "text-slate-700" : "text-white"}`}>{upcomingEvents.length}</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className={isLight ? "text-slate-500" : "text-[#888]"}>Total events</span>
-                <span className={`font-bold ${isLight ? "text-slate-800" : "text-white"}`}>{calendarLocalEvents?.length || 0}</span>
               </div>
               {upcomingEvents[0] && (
                 <div className="flex justify-between text-xs">
                   <span className={isLight ? "text-slate-500" : "text-[#888]"}>Next</span>
-                  <span className={`font-bold truncate max-w-[140px] ${isLight ? "text-slate-800" : "text-white"}`}>{upcomingEvents[0].title}</span>
+                  <span className={`font-bold truncate max-w-[140px] ${isLight ? "text-slate-800" : "text-white"}`}>
+                    {(upcomingEvents[0] as any).description || (upcomingEvents[0] as any).vendor || (upcomingEvents[0] as any).title}
+                  </span>
                 </div>
               )}
             </div>
