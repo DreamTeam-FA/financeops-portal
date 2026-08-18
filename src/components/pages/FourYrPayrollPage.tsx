@@ -1461,14 +1461,6 @@ export function FourYrPayrollPage() {
               </div>
             )}
           </div>
-          {/* Start New Week */}
-          <button onClick={handleStartNewWeek}
-            disabled={startingWeek}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded text-xs font-bold text-white whitespace-nowrap"
-            style={{ background: startingWeek ? "#555" : "#1565c0", border:"1px solid #0d47a1", opacity: startingWeek ? 0.7 : 1 }}
-            title="Duplicate the TEMPLATE sheet into a new week tab">
-            {startingWeek ? "⏳ Creating…" : "🗓️ Start New Week"}
-          </button>
           {/* Add Record — with text */}
           <button onClick={openAddModal}
             className="flex items-center gap-1.5 px-4 py-1.5 rounded text-xs font-bold text-white whitespace-nowrap"
@@ -1480,6 +1472,14 @@ export function FourYrPayrollPage() {
             className="flex items-center gap-1.5 px-4 py-1.5 rounded text-xs font-bold text-white whitespace-nowrap"
             style={{ background:"#e53935", border:"1px solid #b71c1c" }}>
             🗑️ Delete Record
+          </button>
+          {/* Start New Week — icon-only square */}
+          <button onClick={handleStartNewWeek}
+            disabled={startingWeek}
+            className="flex items-center justify-center w-8 h-8 rounded"
+            style={{ background: startingWeek ? "#555" : "#1565c0", border:"1px solid #0d47a1", opacity: startingWeek ? 0.7 : 1, fontSize:16 }}
+            title="Start New Week — duplicates TEMPLATE sheet into a new week tab">
+            {startingWeek ? "⏳" : "🗓️"}
           </button>
         </div>
       </div>
