@@ -129,7 +129,7 @@ const GlobalConfirmModal: React.FC = () => {
         <p className={`text-xs leading-relaxed mb-5 ${txt2}`}>{confirmModal.message}</p>
         <div className="flex items-center justify-end gap-2">
           <button onClick={clearConfirmModal} className={`text-xs px-4 py-2 rounded border ${bdr} ${txt2} hover:opacity-70`}>Cancel</button>
-          <button onClick={confirmModal.onConfirm} className="text-xs px-5 py-2 rounded text-white font-semibold hover:opacity-90" style={{ background:"#1a6b36" }}>
+          <button onClick={() => { clearConfirmModal(); confirmModal.onConfirm(); }} className="text-xs px-5 py-2 rounded text-white font-semibold hover:opacity-90" style={{ background:"#1a6b36" }}>
             ✓ Confirm
           </button>
         </div>
