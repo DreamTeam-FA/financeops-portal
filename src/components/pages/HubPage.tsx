@@ -358,8 +358,10 @@ export const HubPage: React.FC = () => {
                 <span className={`font-bold ${isLight ? "text-slate-800" : "text-white"}`}>{bankStatements?.length || 0}</span>
               </div>
               <div className="flex justify-between text-xs">
-                <span className={isLight ? "text-slate-500" : "text-[#888]"}>Latest</span>
-                <span className={`font-bold ${isLight ? "text-slate-800" : "text-white"}`}>{bankStatements?.[0]?.month || "—"}</span>
+                <span className={isLight ? "text-slate-500" : "text-[#888]"}>Pending download</span>
+                {(() => { const p = (bankStatements || []).filter((s: any) => !s.downloaded).length; return (
+                  <span className={`font-bold ${p > 0 ? "text-[#fb923c]" : isLight ? "text-slate-800" : "text-white"}`}>{p}</span>
+                ); })()}
               </div>
             </div>
           </div>
