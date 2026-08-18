@@ -220,7 +220,9 @@ export function FourYrPayrollPage() {
   }, [weekDropOpen]);
 
   // ── doLoad — reads from filtersRef (GAS pattern: always uses current values)
-  const doLoad = useCallback(() => {
+  // force=true: skips dedup check and uses a longer delay so Sheets has time
+  // to commit a just-written row before we re-read (post-add / post-edit).
+  const doLoad = useCallback((force = false) => {
     if (!getAccessToken()) return;
     const f = filtersRef.current;
     const filters: any = {};
@@ -230,7 +232,7 @@ export function FourYrPayrollPage() {
     if (f.job)             filters.job      = f.job;
     if (f.date)            filters.date     = f.date;
     const key = JSON.stringify(filters);
-    if (key === lastKeyRef.current) return;
+    if (!force && key === lastKeyRef.current) return;
     lastKeyRef.current = key;
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
@@ -242,7 +244,7 @@ export function FourYrPayrollPage() {
         setDataLoaded(true);
       } catch(e:any) { if (!e.message?.includes("reconnect")) showToast(`Load failed: ${e.message}`, "error"); }
       finally { setLoading(false); }
-    }, 280);
+    }, force ? 1200 : 280); // post-write: 1.2 s lets Sheets commit before re-read
   }, [apiPost, showToast]);
 
   // ── Filter change handlers (GAS pattern: update ref, update state, call doLoad directly) ──
@@ -496,8 +498,7 @@ export function FourYrPayrollPage() {
       await apiPost("/api/4yr/add-entry", { ...form, amount: finalAmount });
       showToast("Entry added", "success");
       setAddModalOpen(false);
-      lastKeyRef.current = "";
-      doLoad();
+      doLoad(true); // force: skip dedup + wait 1.2 s for Sheets to commit
     } catch(e:any) { showToast(`Add failed: ${e.message}`,"error"); }
   };
 
@@ -528,8 +529,7 @@ export function FourYrPayrollPage() {
         });
         showToast("Entry updated", "success");
         setEditModalOpen(false);
-        lastKeyRef.current = "";
-        doLoad();
+        doLoad(true); // force: skip dedup + wait 1.2 s for Sheets to commit
       } catch(e:any) { showToast(`Edit failed: ${e.message}`, "error"); }
     };
     if (missing.length) {
@@ -541,7 +541,7 @@ export function FourYrPayrollPage() {
 
   const confirmDelete = async () => {
     if (!deleteConfirm) return;
-    try { await apiPost("/api/4yr/delete-entry", {rowIndex:deleteConfirm.rowIndex}); showToast("Deleted", "success"); setDeleteConfirm(null); lastKeyRef.current=""; doLoad(); }
+    try { await apiPost("/api/4yr/delete-entry", {rowIndex:deleteConfirm.rowIndex}); showToast("Deleted", "success"); setDeleteConfirm(null); doLoad(true); }
     catch(e:any) { showToast(`Delete failed: ${e.message}`,"error"); setDeleteConfirm(null); }
   };
 
