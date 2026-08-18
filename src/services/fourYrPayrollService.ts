@@ -1267,17 +1267,6 @@ async function sheetsMetaGet(token: string) {
   return (await res.json()).sheets as Array<{ properties: { sheetId: number; title: string } }>;
 }
 
-async function sheetsBatchUpdate(requests: any[], token: string) {
-  const url = `${BASE}:batchUpdate`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: authHdr(token),
-    body: JSON.stringify({ requests })
-  });
-  if (!res.ok) throw new Error(`batchUpdate error ${res.status}: ${await res.text()}`);
-  return res.json();
-}
-
 export async function startNewWeek(token: string): Promise<{
   ok: boolean; newSheetName?: string; c2?: string;
   startDate?: string; endDate?: string; error?: string;
