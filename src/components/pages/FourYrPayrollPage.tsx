@@ -478,9 +478,27 @@ export function FourYrPayrollPage() {
   };
 
   const submitAdd = async () => {
-    if (!form.name||!form.job) { showToast("Name and Job are required","error"); return; }
-    try { await apiPost("/api/4yr/add-entry", form); showToast("Entry added", "success"); setAddModalOpen(false); lastKeyRef.current=""; doLoad(); }
-    catch(e:any) { showToast(`Add failed: ${e.message}`,"error"); }
+    const noTime = form.recordType === "deduction" || form.recordType === "nonpayroll";
+    const missing: string[] = [];
+    if (!form.name)               missing.push("Name");
+    if (!form.job)                missing.push("Job / Location");
+    if (!form.date)               missing.push("Date");
+    if (noTime  && !form.subCat)  missing.push("Sub Cat");
+    if (!noTime && !form.started) missing.push("Started");
+    if (!noTime && !form.finished)missing.push("End");
+    if (!noTime && !form.hours)   missing.push("Hours");
+    if (noTime  && !form.amount)  missing.push("Amount");
+    if (missing.length) { showToast(`Missing: ${missing.join(", ")}`, "error"); return; }
+    // Mirror submitEdit: negate amount for deductions so they subtract from totals
+    let finalAmount: number | null = noTime ? parseFloat(form.amount) || null : null;
+    if (form.recordType === "deduction" && finalAmount !== null && finalAmount > 0) finalAmount = -finalAmount;
+    try {
+      await apiPost("/api/4yr/add-entry", { ...form, amount: finalAmount });
+      showToast("Entry added", "success");
+      setAddModalOpen(false);
+      lastKeyRef.current = "";
+      doLoad();
+    } catch(e:any) { showToast(`Add failed: ${e.message}`,"error"); }
   };
 
   const submitEdit = async () => {
@@ -1072,13 +1090,12 @@ export function FourYrPayrollPage() {
           setForm(f => {
             // GAS onEditRecordTypeChange: if switching to deduction, auto-set job to "Deductions" (readonly)
             // If switching away from deduction (and job is still "Deductions"), clear it
+            // Applies in both add and edit mode
             let job = f.job;
-            if (isEditMode) {
-              if (recordType === "deduction") {
-                job = "Deductions";
-              } else if (f.recordType === "deduction" && f.job === "Deductions") {
-                job = "";
-              }
+            if (recordType === "deduction") {
+              job = "Deductions";
+            } else if (f.recordType === "deduction" && f.job === "Deductions") {
+              job = "";
             }
             return { ...f, recordType, job };
           });
@@ -1132,11 +1149,11 @@ export function FourYrPayrollPage() {
       {/* Row 3: Job + Sub Cat */}
       <div>
         <label className={`block text-[10px] font-bold mb-1 uppercase tracking-widest ${txt2}`}>Job / Location <span style={{color:"#c62828"}}>*</span></label>
-        {/* GAS onEditRecordTypeChange: deduction → job is "Deductions", readonly + muted */}
+        {/* GAS onEditRecordTypeChange: deduction → job is "Deductions", readonly + muted (add + edit) */}
         <input list="en-jobs" value={form.job}
-          readOnly={isEditMode && form.recordType === "deduction"}
+          readOnly={form.recordType === "deduction"}
           onChange={e => {
-            if (isEditMode && form.recordType === "deduction") return; // readonly in edit+deduction
+            if (form.recordType === "deduction") return; // readonly in deduction mode
             const job = e.target.value;
             const jl = job.trim().toLowerCase();
             // Mirror GAS autoFillCompanyPreview: TI for Timm Barn / Skating Rink, else 4YR
@@ -1146,7 +1163,7 @@ export function FourYrPayrollPage() {
             setForm(f => ({ ...f, job, company: co }));
           }}
           className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${
-            isEditMode && form.recordType === "deduction"
+            form.recordType === "deduction"
               ? (isLight ? "bg-[#f5faf6] text-slate-400 border-slate-200" : "bg-[#1a1a1a] text-slate-500 border-[#272727]")
               : inp
           }`} placeholder="Job / location" />
