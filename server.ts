@@ -449,8 +449,8 @@ app.post("/api/data", (req, res) => {
       calendarLocalEvents: updated.calendarLocalEvents?.length
         ? updated.calendarLocalEvents
         : existing.calendarLocalEvents,
-      // Never let a client save-data call wipe the login log or activity log —
-      // those are append-only via their own dedicated endpoints.
+      // Never let a client save-data call wipe logs or the sheet ID reference
+      logsSheetId: existing.logsSheetId || updated.logsSheetId || null,
       loginLog: existing.loginLog || [],
       auditLog: (updated.auditLog?.length ?? 0) >= (existing.auditLog?.length ?? 0)
         ? updated.auditLog
@@ -475,6 +475,23 @@ app.post("/api/audit-log", (req, res) => {
   data.auditLog = [newLog, ...(data.auditLog || []).slice(0, 499)];
   saveStoredData(data);
   res.json({ success: true, log: newLog });
+});
+
+// Logs sheet ID — persists the ID of the Google Sheet used as the permanent log store
+app.get("/api/logs-sheet-id", (_req, res) => {
+  const data = getStoredData();
+  res.json({ logsSheetId: data.logsSheetId || null });
+});
+
+app.post("/api/logs-sheet-id", (req, res) => {
+  const { logsSheetId } = req.body || {};
+  if (!logsSheetId || typeof logsSheetId !== "string") {
+    return res.status(400).json({ error: "logsSheetId required" });
+  }
+  const data = getStoredData();
+  data.logsSheetId = logsSheetId;
+  saveStoredData(data);
+  res.json({ success: true, logsSheetId });
 });
 
 // Login log — records who signed in, from where, on what device

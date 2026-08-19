@@ -1,26 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useFinance } from "../../context/FinanceContext";
-import { LoginLogEntry, AuditLog } from "../../types";
-import { Download } from "lucide-react";
+import { readLogsSheet, LOGS_SHEET_TITLE } from "../../services/logsSheetService";
+import { getAccessToken } from "../../services/googleAuth";
+import { ExternalLink, RefreshCw } from "lucide-react";
 
 const TABS = [
   { id: "login",    label: "🔐 Login History" },
   { id: "activity", label: "📋 Activity Log" },
 ] as const;
 type Tab = typeof TABS[number]["id"];
-
-/* ── CSV download helper ─────────────────────────────── */
-function downloadCSV(filename: string, headers: string[], rows: string[][]) {
-  const escape = (v: string) => `"${(v ?? "").replace(/"/g, '""')}"`;
-  const lines  = [headers.map(escape).join(","), ...rows.map(r => r.map(escape).join(","))];
-  const blob   = new Blob([lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
-  const url    = URL.createObjectURL(blob);
-  const a      = document.createElement("a");
-  a.href       = url;
-  a.download   = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
 
 /* ── helpers ─────────────────────────────────────────── */
 const badge = (text: string, color: string) => (
@@ -41,16 +29,15 @@ const actionColor = (action: string) => {
   return "#94a3b8";
 };
 
-/* ── empty state ─────────────────────────────────────── */
 const Empty: React.FC<{ msg: string }> = ({ msg }) => (
   <div className="flex flex-col items-center justify-center py-20 opacity-40 gap-2 text-sm">
     <span className="text-3xl">🗂️</span>
-    {msg}
+    <span>{msg}</span>
   </div>
 );
 
 /* ── Login History table ─────────────────────────────── */
-const LoginTable: React.FC<{ rows: LoginLogEntry[]; isLight: boolean }> = ({ rows, isLight }) => {
+const LoginTable: React.FC<{ rows: string[][]; isLight: boolean }> = ({ rows, isLight }) => {
   const hdr = isLight ? "bg-slate-100 text-slate-500" : "bg-[#1a1e27] text-[#888]";
   const row = isLight ? "border-slate-100 text-slate-700" : "border-[#1e2433] text-slate-300";
   const sub = isLight ? "text-slate-400" : "text-slate-500";
@@ -69,18 +56,14 @@ const LoginTable: React.FC<{ rows: LoginLogEntry[]; isLight: boolean }> = ({ row
           </tr>
         </thead>
         <tbody>
-          {rows.map((r, i) => (
-            <tr key={r.id} className={`border-b ${row} hover:opacity-80 transition-opacity`}>
+          {[...rows].reverse().map((r, i) => (
+            <tr key={i} className={`border-b ${row} hover:opacity-80`}>
               <td className={`px-4 py-2.5 ${sub}`}>{i + 1}</td>
-              <td className="px-4 py-2.5 whitespace-nowrap font-mono text-[11px]">{r.timestamp}</td>
-              <td className="px-4 py-2.5 font-medium">{r.user}</td>
-              <td className="px-4 py-2.5">{r.device}</td>
-              <td className="px-4 py-2.5">
-                {r.city || r.region || r.country
-                  ? [r.city, r.region, r.country].filter(Boolean).join(", ")
-                  : <span className={sub}>—</span>}
-              </td>
-              <td className={`px-4 py-2.5 font-mono ${sub}`}>{r.ip || "—"}</td>
+              <td className="px-4 py-2.5 whitespace-nowrap font-mono text-[11px]">{r[0] || "—"}</td>
+              <td className="px-4 py-2.5 font-medium">{r[1] || "—"}</td>
+              <td className="px-4 py-2.5">{r[2] || "—"}</td>
+              <td className="px-4 py-2.5">{[r[3], r[4], r[5]].filter(Boolean).join(", ") || <span className={sub}>—</span>}</td>
+              <td className={`px-4 py-2.5 font-mono ${sub}`}>{r[6] || "—"}</td>
             </tr>
           ))}
         </tbody>
@@ -90,7 +73,7 @@ const LoginTable: React.FC<{ rows: LoginLogEntry[]; isLight: boolean }> = ({ row
 };
 
 /* ── Activity Log table ──────────────────────────────── */
-const ActivityTable: React.FC<{ rows: AuditLog[]; isLight: boolean }> = ({ rows, isLight }) => {
+const ActivityTable: React.FC<{ rows: string[][]; isLight: boolean }> = ({ rows, isLight }) => {
   const hdr = isLight ? "bg-slate-100 text-slate-500" : "bg-[#1a1e27] text-[#888]";
   const row = isLight ? "border-slate-100 text-slate-700" : "border-[#1e2433] text-slate-300";
   const sub = isLight ? "text-slate-400" : "text-slate-500";
@@ -108,13 +91,13 @@ const ActivityTable: React.FC<{ rows: AuditLog[]; isLight: boolean }> = ({ rows,
           </tr>
         </thead>
         <tbody>
-          {rows.map((r, i) => (
-            <tr key={i} className={`border-b ${row} hover:opacity-80 transition-opacity`}>
+          {[...rows].reverse().map((r, i) => (
+            <tr key={i} className={`border-b ${row} hover:opacity-80`}>
               <td className={`px-4 py-2.5 ${sub}`}>{i + 1}</td>
-              <td className="px-4 py-2.5 whitespace-nowrap font-mono text-[11px]">{r.timestamp}</td>
-              <td className={`px-4 py-2.5 ${sub}`}>{r.user}</td>
-              <td className="px-4 py-2.5">{badge(r.action, actionColor(r.action))}</td>
-              <td className={`px-4 py-2.5 ${sub}`} title={r.details}>{r.details || "—"}</td>
+              <td className="px-4 py-2.5 whitespace-nowrap font-mono text-[11px]">{r[0] || "—"}</td>
+              <td className={`px-4 py-2.5 ${sub}`}>{r[1] || "—"}</td>
+              <td className="px-4 py-2.5">{badge(r[2] || "—", actionColor(r[2] || ""))}</td>
+              <td className={`px-4 py-2.5 ${sub}`}>{r[3] || "—"}</td>
             </tr>
           ))}
         </tbody>
@@ -125,10 +108,15 @@ const ActivityTable: React.FC<{ rows: AuditLog[]; isLight: boolean }> = ({ rows,
 
 /* ── Main page ───────────────────────────────────────── */
 export const LogsPage: React.FC = () => {
-  const { theme, auditLogs, loginLogs } = useFinance();
+  const { theme, logsSheetId } = useFinance();
   const isLight = theme === "light";
-  const [tab, setTab]       = useState<Tab>("login");
-  const [search, setSearch] = useState("");
+  const [tab, setTab]           = useState<Tab>("login");
+  const [search, setSearch]     = useState("");
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState<string | null>(null);
+  const [loginRows, setLoginRows]       = useState<string[][]>([]);
+  const [activityRows, setActivityRows] = useState<string[][]>([]);
+  const [sheetUrl, setSheetUrl]         = useState<string>("");
 
   const bg   = isLight ? "bg-slate-100"  : "bg-[#0a0a0a]";
   const card = isLight ? "bg-white border-slate-200" : "bg-[#111318] border-[#1e2433]";
@@ -138,36 +126,33 @@ export const LogsPage: React.FC = () => {
     ? "bg-white border-slate-300 text-slate-800 placeholder-slate-400"
     : "bg-[#181c24] border-[#2a3140] text-white placeholder-slate-500";
 
-  const q = search.toLowerCase();
-  const filteredLogin = loginLogs.filter(r =>
-    !q || [r.user, r.device, r.city, r.region, r.country, r.ip].some(v => v?.toLowerCase().includes(q))
-  );
-  const filteredActivity = auditLogs.filter(r =>
-    !q || [r.user, r.action, r.details].some(v => v?.toLowerCase().includes(q))
-  );
-
-  const handleDownload = () => {
-    const ts = new Date().toISOString().slice(0, 10);
-    if (tab === "login") {
-      downloadCSV(
-        `login-history-${ts}.csv`,
-        ["#", "Timestamp", "User", "Device", "City", "Region", "Country", "IP"],
-        filteredLogin.map((r, i) => [
-          String(i + 1), r.timestamp, r.user, r.device,
-          r.city, r.region, r.country, r.ip
-        ])
-      );
-    } else {
-      downloadCSV(
-        `activity-log-${ts}.csv`,
-        ["#", "Timestamp", "User", "Action", "Details"],
-        filteredActivity.map((r, i) => [
-          String(i + 1), r.timestamp, r.user, r.action, r.details
-        ])
-      );
+  const loadSheet = useCallback(async () => {
+    if (!logsSheetId) return;
+    const token = getAccessToken();
+    if (!token) { setError("Google token not available — sign in to view logs."); return; }
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await readLogsSheet(token, logsSheetId);
+      setLoginRows(data.loginRows);
+      setActivityRows(data.activityRows);
+      setSheetUrl(data.sheetUrl);
+    } catch (e: any) {
+      setError(`Could not load logs: ${e.message}`);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [logsSheetId]);
 
+  useEffect(() => { loadSheet(); }, [loadSheet]);
+
+  const q = search.toLowerCase();
+  const filteredLogin = loginRows.filter(r =>
+    !q || r.some(v => v?.toLowerCase().includes(q))
+  );
+  const filteredActivity = activityRows.filter(r =>
+    !q || r.some(v => v?.toLowerCase().includes(q))
+  );
   const count = tab === "login" ? filteredLogin.length : filteredActivity.length;
 
   return (
@@ -178,8 +163,9 @@ export const LogsPage: React.FC = () => {
         <div>
           <h1 className="font-bold text-base">Portal Logs</h1>
           <p className={`text-xs mt-0.5 ${txt2}`}>
-            {loginLogs.length} login events &nbsp;·&nbsp; {auditLogs.length} activity entries
-            &nbsp;·&nbsp; all users
+            {logsSheetId
+              ? <>Stored permanently in Google Drive · {loginRows.length} logins · {activityRows.length} activities</>
+              : "Logs sheet will be created on your next sign-in"}
           </p>
         </div>
 
@@ -193,17 +179,30 @@ export const LogsPage: React.FC = () => {
             className={`w-44 text-xs px-3 py-1.5 rounded-lg border focus:outline-none ${inp}`}
           />
 
-          {/* Download button */}
+          {/* Refresh */}
           <button
-            onClick={handleDownload}
-            disabled={count === 0}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-opacity disabled:opacity-40"
-            style={{ background: "#1a73e8" }}
-            title={`Download current view as CSV (${count} rows)`}
+            onClick={loadSheet}
+            disabled={loading || !logsSheetId}
+            className={`p-1.5 rounded-lg border ${isLight ? "border-slate-300 hover:bg-slate-50" : "border-[#2a3140] hover:bg-[#1a1e27]"} disabled:opacity-40 transition-colors`}
+            title="Refresh from Google Sheets"
           >
-            <Download className="w-3.5 h-3.5" />
-            Export CSV
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""} ${txt2}`} />
           </button>
+
+          {/* Open in Google Sheets */}
+          {sheetUrl && (
+            <a
+              href={sheetUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-opacity hover:opacity-90"
+              style={{ background: "#1a6b36" }}
+              title={LOGS_SHEET_TITLE}
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              Open Sheet
+            </a>
+          )}
         </div>
       </div>
 
@@ -227,12 +226,28 @@ export const LogsPage: React.FC = () => {
         ))}
       </div>
 
-      {/* ── Table ── */}
+      {/* ── Body ── */}
       <div className="flex-1 overflow-y-auto">
+        {error && (
+          <div className="mx-4 mt-4 px-4 py-3 rounded-lg text-xs text-red-400 bg-red-950/30 border border-red-800/40">
+            ⚠️ {error}
+          </div>
+        )}
+
+        {!logsSheetId && !error && (
+          <div className="mx-4 mt-4 px-4 py-3 rounded-lg text-xs bg-amber-950/30 border border-amber-800/40 text-amber-400">
+            🔐 Sign out and sign back in — the logs Google Sheet will be created automatically on your next login.
+          </div>
+        )}
+
         <div className={`border ${card} rounded-xl m-4 overflow-hidden`}>
-          {tab === "login" ? (
+          {loading ? (
+            <div className="flex items-center justify-center py-20 gap-2 text-xs opacity-50">
+              <RefreshCw className="w-4 h-4 animate-spin" /> Loading from Google Sheets…
+            </div>
+          ) : tab === "login" ? (
             filteredLogin.length === 0
-              ? <Empty msg={search ? "No matching login entries" : "No login history yet — entries appear after the first sign-in"} />
+              ? <Empty msg={search ? "No matching login entries" : "No login history yet"} />
               : <LoginTable rows={filteredLogin} isLight={isLight} />
           ) : (
             filteredActivity.length === 0

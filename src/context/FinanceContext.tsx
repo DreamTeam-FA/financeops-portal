@@ -30,6 +30,10 @@ import {
   stopAutoTokenRefresh
 } from "../services/googleAuth";
 import {
+  createLogsSheet,
+  appendLogRow,
+} from "../services/logsSheetService";
+import {
   fetchSheetValues,
   updateSheetValues,
   fetchSpreadsheetTabs,
@@ -204,6 +208,7 @@ interface FinanceContextType {
 
   // Logs
   loginLogs: LoginLogEntry[];
+  logsSheetId: string | null;
 }
 
 const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit?usp=sharing";
@@ -599,6 +604,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [payrollPivot, setPayrollPivot] = useState<PayrollPivot>({});
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [loginLogs, setLoginLogs] = useState<LoginLogEntry[]>([]);
+  const [logsSheetId, setLogsSheetId] = useState<string | null>(null);
   const [calendarLocalEvents, setCalendarLocalEvents] = useState<CalendarLocalEvent[]>([]);
   const [headleys, setHeadleys] = useState<HeadleysItem[]>([]);
 
@@ -681,8 +687,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           if (data.payrollWeeks) setPayrollWeeks(data.payrollWeeks);
           if (data.payrollPivot) setPayrollPivot(data.payrollPivot);
           if (data.auditLog) setAuditLogs(data.auditLog);
-          // Fetch login log separately (not part of main data payload)
+          // Fetch login log + logs sheet ID separately
           fetch("/api/login-log").then(r => r.json()).then(ll => { if (Array.isArray(ll)) setLoginLogs(ll); }).catch(() => {});
+          fetch("/api/logs-sheet-id").then(r => r.json()).then(({ logsSheetId: id }) => { if (id) setLogsSheetId(id); }).catch(() => {});
           if (data.headleys) setHeadleys(data.headleys);
           if (data.lastSyncedAt) setLastSyncedAt(data.lastSyncedAt);
           if (data.sheetMappings && Array.isArray(data.sheetMappings)) {
@@ -867,9 +874,40 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         startAutoTokenRefresh();
         logAction("Google OAuth Authenticated", `Connected as ${res.user.email}`);
         window.dispatchEvent(new Event("google-token-refreshed"));
-        // Capture device + location and persist login log entry (fire-and-forget)
-        captureLoginMetadata().then(meta => {
-          const entry = { user: res.user.email || userEmail, ...meta };
+        // Capture device + location, then ensure the logs sheet exists and append the login entry
+        captureLoginMetadata().then(async (meta) => {
+          const token = getAccessToken();
+          if (!token) return;
+
+          const email = res.user.email || userEmail;
+          const ts    = new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" });
+
+          // Ensure the logs Google Sheet exists
+          let sheetId = logsSheetId;
+          if (!sheetId) {
+            try {
+              sheetId = await createLogsSheet(token);
+              setLogsSheetId(sheetId);
+              // Persist the sheet ID on the server so it survives restarts
+              await fetch("/api/logs-sheet-id", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ logsSheetId: sheetId })
+              });
+            } catch (e) {
+              console.warn("[LogsSheet] Could not create logs sheet:", e);
+            }
+          }
+
+          // Append login entry to the Google Sheet
+          if (sheetId) {
+            appendLogRow(token, sheetId, "Login History", [
+              ts, email, meta.device, meta.city, meta.region, meta.country, meta.ip
+            ]).catch(() => {});
+          }
+
+          // Also persist to server JSON as backup
+          const entry = { user: email, ...meta };
           fetch("/api/login-log", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -983,15 +1021,17 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const logAction = (action: string, details: string) => {
-    const newLog: AuditLog = {
-      timestamp: new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }),
-      user: userEmail,
-      action,
-      details
-    };
-    const nextLogs = [newLog, ...auditLogs.slice(0, 99)];
+    const ts = new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" });
+    const newLog: AuditLog = { timestamp: ts, user: userEmail, action, details };
+    const nextLogs = [newLog, ...auditLogs.slice(0, 499)];
     setAuditLogs(nextLogs);
     persistChanges({ auditLog: nextLogs });
+
+    // Fire-and-forget: append to the permanent Google Sheet log
+    const token = getAccessToken();
+    if (token && logsSheetId) {
+      appendLogRow(token, logsSheetId, "Activity Log", [ts, userEmail, action, details]).catch(() => {});
+    }
   };
 
   const addSyncLog = (entry: Omit<SyncLogEntry, "id">) => {
@@ -2024,7 +2064,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         clearDatePickerModal,
         importSheetData,
         logAction,
-        loginLogs
+        loginLogs,
+        logsSheetId
       }}
     >
       {children}
