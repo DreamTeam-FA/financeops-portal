@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
-  Settings, X, FileSpreadsheet, Tag, Database,
+  Settings, X, FileSpreadsheet, Tag, Database, ScrollText,
   Plus, Pencil, Trash2, Check
 } from "lucide-react";
 import { useFinance } from "../../context/FinanceContext";
@@ -818,6 +818,12 @@ export const GearDropdown: React.FC<GearDropdownProps> = ({ variant="wide" }) =>
 
           <button onClick={() => { setCurrentPage("datasync"); setOpen(false); }} className={menuItem}>
             <Database className="w-3.5 h-3.5 text-[#1a73e8]" /> Settings & Data Sync
+          </button>
+
+          <div className={divLine} />
+
+          <button onClick={() => { setCurrentPage("logs"); setOpen(false); }} className={menuItem}>
+            <ScrollText className="w-3.5 h-3.5 text-slate-400" /> Portal Logs
           </button>
         </div>
       )}
