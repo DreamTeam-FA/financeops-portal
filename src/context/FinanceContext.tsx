@@ -9,6 +9,7 @@ import {
   PayrollWeek,
   PayrollPivot,
   AuditLog,
+  LoginLogEntry,
   PageRoute,
   EntityName,
   SheetMappingConfig,
@@ -200,6 +201,9 @@ interface FinanceContextType {
 
   importSheetData: (data: any) => void;
   logAction: (action: string, details: string) => void;
+
+  // Logs
+  loginLogs: LoginLogEntry[];
 }
 
 const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit?usp=sharing";
@@ -594,6 +598,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [payrollWeeks, setPayrollWeeks] = useState<PayrollWeek[]>([]);
   const [payrollPivot, setPayrollPivot] = useState<PayrollPivot>({});
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [loginLogs, setLoginLogs] = useState<LoginLogEntry[]>([]);
   const [calendarLocalEvents, setCalendarLocalEvents] = useState<CalendarLocalEvent[]>([]);
   const [headleys, setHeadleys] = useState<HeadleysItem[]>([]);
 
@@ -676,6 +681,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           if (data.payrollWeeks) setPayrollWeeks(data.payrollWeeks);
           if (data.payrollPivot) setPayrollPivot(data.payrollPivot);
           if (data.auditLog) setAuditLogs(data.auditLog);
+          // Fetch login log separately (not part of main data payload)
+          fetch("/api/login-log").then(r => r.json()).then(ll => { if (Array.isArray(ll)) setLoginLogs(ll); }).catch(() => {});
           if (data.headleys) setHeadleys(data.headleys);
           if (data.lastSyncedAt) setLastSyncedAt(data.lastSyncedAt);
           if (data.sheetMappings && Array.isArray(data.sheetMappings)) {
@@ -818,6 +825,30 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return () => window.removeEventListener("google-token-expired", onTokenExpired);
   }, [needsAuth]);
 
+  // Collect device + approximate location metadata for the login log
+  const captureLoginMetadata = async (): Promise<{
+    device: string; ip: string; city: string; region: string; country: string;
+  }> => {
+    const ua = navigator.userAgent;
+    const os = /Windows/.test(ua) ? "Windows"
+      : /Macintosh|Mac OS/.test(ua) ? "macOS"
+      : /Android/.test(ua) ? "Android"
+      : /iPhone|iPad/.test(ua) ? "iOS"
+      : /Linux/.test(ua) ? "Linux" : "Unknown OS";
+    const browser = /Edg\//.test(ua) ? "Edge"
+      : /OPR\//.test(ua) ? "Opera"
+      : /Chrome\//.test(ua) ? "Chrome"
+      : /Firefox\//.test(ua) ? "Firefox"
+      : /Safari\//.test(ua) ? "Safari" : "Unknown Browser";
+    const device = `${os} / ${browser}`;
+    try {
+      const geo = await fetch("https://ipapi.co/json/").then(r => r.json());
+      return { device, ip: geo.ip || "—", city: geo.city || "—", region: geo.region || "", country: geo.country_name || "—" };
+    } catch {
+      return { device, ip: "—", city: "—", region: "", country: "—" };
+    }
+  };
+
   // Google Sign In / Out Handlers
   const handleGoogleSignIn = async () => {
     try {
@@ -836,6 +867,20 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         startAutoTokenRefresh();
         logAction("Google OAuth Authenticated", `Connected as ${res.user.email}`);
         window.dispatchEvent(new Event("google-token-refreshed"));
+        // Capture device + location and persist login log entry (fire-and-forget)
+        captureLoginMetadata().then(meta => {
+          const entry = { user: res.user.email || userEmail, ...meta };
+          fetch("/api/login-log", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(entry)
+          })
+            .then(r => r.json())
+            .then(({ entry: saved }) => {
+              if (saved) setLoginLogs(prev => [saved, ...prev.slice(0, 499)]);
+            })
+            .catch(() => {});
+        });
       }
     } catch (err: any) {
       console.error("Sign in failed:", err);
@@ -1978,7 +2023,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         showDatePicker,
         clearDatePickerModal,
         importSheetData,
-        logAction
+        logAction,
+        loginLogs
       }}
     >
       {children}

@@ -63,6 +63,7 @@ const DEFAULT_DATA = {
   auditLog: [
     { timestamp: new Date().toISOString(), user: "accounting@marktimm.com", action: "System Init", details: "Connected to Google Sheet 15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs" }
   ],
+  loginLog: [] as any[],
   sheetMappings: [
     { id: "map-ap", module: "ap", name: "Accounts Payable (Bills)", spreadsheetIdOrUrl: "https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit?usp=sharing", tabName: "Ruby's Bills, TI Bills, MSDX Bills", range: "'Ruby''s Bills'!A1:Z500, 'TI Bills'!A1:Z500, 'MSDX Bills'!A1:Z500", status: "connected" },
     { id: "map-banks", module: "banks", name: "Bank Account Balances", spreadsheetIdOrUrl: "https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit?usp=sharing", tabName: "Bank Balances", range: "'Bank Balances'!A1:Z50", status: "connected" },
@@ -465,9 +466,27 @@ app.post("/api/audit-log", (req, res) => {
     action: action || "User Action",
     details: details || ""
   };
-  data.auditLog = [newLog, ...(data.auditLog || []).slice(0, 99)];
+  data.auditLog = [newLog, ...(data.auditLog || []).slice(0, 499)];
   saveStoredData(data);
   res.json({ success: true, log: newLog });
+});
+
+// Login log — records who signed in, from where, on what device
+app.post("/api/login-log", (req, res) => {
+  const data = getStoredData();
+  const entry = {
+    id: `ll-${Date.now()}`,
+    timestamp: new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }),
+    ...req.body
+  };
+  data.loginLog = [entry, ...(data.loginLog || []).slice(0, 499)];
+  saveStoredData(data);
+  res.json({ success: true, entry });
+});
+
+app.get("/api/login-log", (_req, res) => {
+  const data = getStoredData();
+  res.json(data.loginLog || []);
 });
 
 // =============================================================================

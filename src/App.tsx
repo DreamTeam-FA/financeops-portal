@@ -16,6 +16,7 @@ import { MemberWorkspacePage } from "./components/pages/MemberWorkspacePage";
 import { GasDashboardView } from "./components/pages/GasDashboardView";
 import { HeadleysPage } from "./components/pages/HeadleysPage";
 import { FourYrPayrollPage } from "./components/pages/FourYrPayrollPage";
+import { LogsPage } from "./components/pages/LogsPage";
 import { NotesFloatingWidget } from "./components/modals/NotesFloatingWidget";
 import { LoginModal } from "./components/modals/LoginModal";
 import {
@@ -251,6 +252,8 @@ const PortalContent: React.FC = () => {
         return <HeadleysPage />;
       case "fouryr-payroll":
         return <FourYrPayrollPage />;
+      case "logs":
+        return <LogsPage />;
       default:
         return <HubPage />;
     }

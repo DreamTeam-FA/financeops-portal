@@ -126,6 +126,17 @@ export interface AuditLog {
   details: string;
 }
 
+export interface LoginLogEntry {
+  id: string;
+  timestamp: string;
+  user: string;        // email
+  device: string;      // "Windows / Chrome"
+  ip: string;
+  city: string;
+  region: string;
+  country: string;
+}
+
 export interface SheetMappingConfig {
   id: string;
   module: "ap" | "banks" | "loans" | "ar" | "statements" | "payroll" | "calendar";
@@ -242,4 +253,5 @@ export type PageRoute =
   | "datasync"
   | "notes"
   | "headleys"
-  | "fouryr-payroll";
+  | "fouryr-payroll"
+  | "logs";
