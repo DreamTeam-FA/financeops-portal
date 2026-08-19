@@ -449,6 +449,12 @@ app.post("/api/data", (req, res) => {
       calendarLocalEvents: updated.calendarLocalEvents?.length
         ? updated.calendarLocalEvents
         : existing.calendarLocalEvents,
+      // Never let a client save-data call wipe the login log or activity log —
+      // those are append-only via their own dedicated endpoints.
+      loginLog: existing.loginLog || [],
+      auditLog: (updated.auditLog?.length ?? 0) >= (existing.auditLog?.length ?? 0)
+        ? updated.auditLog
+        : existing.auditLog,
     };
     saveStoredData(merged);
     res.json({ success: true, timestamp: new Date().toISOString() });
