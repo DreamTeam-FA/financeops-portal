@@ -375,8 +375,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Auth State
   const [googleUser, setGoogleUser] = useState<User | null>(null);
-  // Always require Google auth on every portal open — no session bypass
-  const [needsAuth, setNeedsAuth] = useState<boolean>(true);
+  // Require login on every new browser session (sessionStorage cleared on close).
+  // Same tab refresh keeps the flag; a new tab/window gets it via BroadcastChannel.
+  const [needsAuth, setNeedsAuth] = useState<boolean>(() => {
+    return sessionStorage.getItem("financeops_session_authed") !== "true";
+  });
 
   const setUserEmail = (email: string) => {
     const clean = email.trim();
@@ -761,6 +764,44 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
   }, []);
 
+  // Cross-tab auth sharing via BroadcastChannel:
+  //   - If this tab needs auth, ask other tabs if they're already signed in.
+  //   - If another tab signs in/out, update this tab too.
+  useEffect(() => {
+    let ch: BroadcastChannel | null = null;
+    try { ch = new BroadcastChannel("financeops_auth"); } catch { return; }
+
+    ch.onmessage = (e: MessageEvent) => {
+      const { type, authed } = e.data || {};
+      if (type === "REQUEST_AUTH_STATE") {
+        // Another tab is asking — reply if we're authenticated
+        if (sessionStorage.getItem("financeops_session_authed") === "true") {
+          ch?.postMessage({ type: "AUTH_RESPONSE", authed: true });
+        }
+      } else if (type === "AUTH_RESPONSE" && authed) {
+        // An existing tab confirmed it's authenticated — skip login here too
+        sessionStorage.setItem("financeops_session_authed", "true");
+        setNeedsAuth(false);
+      } else if (type === "AUTH_STATE") {
+        // Another tab logged in or out
+        if (authed) {
+          sessionStorage.setItem("financeops_session_authed", "true");
+          setNeedsAuth(false);
+        } else {
+          sessionStorage.removeItem("financeops_session_authed");
+          setNeedsAuth(true);
+        }
+      }
+    };
+
+    // If this tab still needs auth, ask other tabs
+    if (sessionStorage.getItem("financeops_session_authed") !== "true") {
+      ch.postMessage({ type: "REQUEST_AUTH_STATE" });
+    }
+
+    return () => { try { ch?.close(); } catch {} };
+  }, []);
+
   // Listen for token expiry from the silent-refresh scheduler
   useEffect(() => {
     const onTokenExpired = () => {
@@ -785,6 +826,13 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setGoogleUser(res.user);
         setUserEmail(res.user.email || "accounting@marktimm.com");
         setNeedsAuth(false);
+        sessionStorage.setItem("financeops_session_authed", "true");
+        // Tell other open tabs that we're now authenticated
+        try {
+          const ch = new BroadcastChannel("financeops_auth");
+          ch.postMessage({ type: "AUTH_STATE", authed: true });
+          ch.close();
+        } catch {}
         startAutoTokenRefresh();
         logAction("Google OAuth Authenticated", `Connected as ${res.user.email}`);
         window.dispatchEvent(new Event("google-token-refreshed"));
@@ -838,6 +886,13 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const handleGoogleLogout = async () => {
     await logoutGoogle();
     setGoogleUser(null);
+    sessionStorage.removeItem("financeops_session_authed");
+    // Tell other open tabs to also require re-auth
+    try {
+      const ch = new BroadcastChannel("financeops_auth");
+      ch.postMessage({ type: "AUTH_STATE", authed: false });
+      ch.close();
+    } catch {}
     setNeedsAuth(true);
     logAction("Google Logout", "User signed out from Google OAuth session.");
   };
