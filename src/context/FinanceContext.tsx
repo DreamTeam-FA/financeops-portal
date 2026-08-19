@@ -375,9 +375,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Auth State
   const [googleUser, setGoogleUser] = useState<User | null>(null);
-  const [needsAuth, setNeedsAuth] = useState<boolean>(() => {
-    return !localStorage.getItem("financeops_user_email");
-  });
+  // Always require Google auth on every portal open — no session bypass
+  const [needsAuth, setNeedsAuth] = useState<boolean>(true);
 
   const setUserEmail = (email: string) => {
     const clean = email.trim();
