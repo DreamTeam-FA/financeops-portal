@@ -50,6 +50,10 @@ const silentRefreshGoogleToken = () => {
         scheduleNextRefresh();
       } else if (response?.error) {
         console.warn("[Auth] Silent token refresh failed:", response.error);
+        // Clear the stale token and notify the app so it can show a reconnect toast
+        cachedAccessToken = null;
+        localStorage.removeItem("google_access_token");
+        window.dispatchEvent(new CustomEvent("google-token-expired", { detail: { reason: response.error } }));
       }
     }
   });

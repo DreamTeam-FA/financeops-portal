@@ -762,6 +762,22 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
   }, []);
 
+  // Listen for token expiry from the silent-refresh scheduler
+  useEffect(() => {
+    const onTokenExpired = () => {
+      // Only show the toast if the user had a token (i.e. was connected)
+      if (!needsAuth) {
+        setSyncToast({
+          message: "Google Sheets token expired — click Reconnect to restore access.",
+          type: "auth-error",
+        });
+        // duration 0 → persistent; user must click Reconnect or dismiss
+      }
+    };
+    window.addEventListener("google-token-expired", onTokenExpired);
+    return () => window.removeEventListener("google-token-expired", onTokenExpired);
+  }, [needsAuth]);
+
   // Google Sign In / Out Handlers
   const handleGoogleSignIn = async () => {
     try {
