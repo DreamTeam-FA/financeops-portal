@@ -156,8 +156,12 @@ export const Sidebar: React.FC = () => {
       className={`${
         isSidebarFolded ? "w-16" : "w-[240px]"
       } shrink-0 ${
-        isLight ? "bg-white border-slate-200 text-slate-800" : "bg-[#060a11] border-[#1a2235] text-[#c8d4e8]"
+        isLight ? "bg-white border-slate-200 text-slate-800" : "border-[#1a2235] text-[#c8d4e8]"
       } border-r flex flex-col h-screen overflow-y-auto overflow-x-hidden transition-all duration-200 ease-in-out`}
+      style={isLight ? {} : {
+        background: "linear-gradient(180deg, #080d18 0%, #060a11 40%, #060a11 100%)",
+        boxShadow: "inset -1px 0 0 rgba(26,34,53,0.6), 2px 0 16px rgba(0,0,0,0.4)"
+      }}
     >
       {/* Brand Header */}
       <div
@@ -363,15 +367,18 @@ export const Sidebar: React.FC = () => {
             setSelectedEntities(new Set(["CurcuminPro"]));
             setCurrentPage("curcumin");
           }}
-          className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all ${
+          className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all relative overflow-hidden ${
             currentPage === "curcumin"
-              ? isLight ? "bg-blue-50 border border-blue-200 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]" : "bg-[#0d1a2e] border border-[#1e3358] shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
-              : isLight ? "hover:bg-slate-50" : "hover:bg-[#0a1220]"
+              ? isLight ? "bg-amber-50 border border-amber-200 shadow-[0_2px_10px_rgba(245,158,11,.12)]" : "bg-amber-950/20 border border-amber-900/40 shadow-[0_2px_10px_rgba(245,158,11,.15)]"
+              : isLight ? "hover:bg-slate-50 border border-transparent" : "hover:bg-[#0a1220] border border-transparent"
           }`}
           title="CurcuminPRO Dashboard"
         >
+          {currentPage === "curcumin" && !isSidebarFolded && (
+            <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-amber-500 rounded-r" />
+          )}
           {isSidebarFolded ? (
-            <span className="w-7 h-7 rounded bg-amber-500/20 text-amber-500 font-extrabold text-xs flex items-center justify-center">C</span>
+            <span className={`w-7 h-7 rounded-lg flex items-center justify-center font-extrabold text-xs transition-all ${currentPage === "curcumin" ? "bg-amber-500 text-white shadow-md shadow-amber-500/40" : "bg-amber-500/15 text-amber-500"}`}>C</span>
           ) : (
             <>
               <CurcuminLogo className="h-7 max-w-[170px]" isLight={isLight} />
@@ -382,15 +389,18 @@ export const Sidebar: React.FC = () => {
 
         <button
           onClick={() => setCurrentPage("fouryr-payroll")}
-          className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all ${
+          className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all relative overflow-hidden ${
             currentPage === "fouryr-payroll"
-              ? isLight ? "bg-blue-50 border border-blue-200 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]" : "bg-[#0d1a2e] border border-[#1e3358] shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
-              : isLight ? "hover:bg-slate-50" : "hover:bg-[#0a1220]"
+              ? isLight ? "bg-purple-50 border border-purple-200 shadow-[0_2px_10px_rgba(168,85,247,.12)]" : "bg-purple-950/20 border border-purple-900/40 shadow-[0_2px_10px_rgba(168,85,247,.15)]"
+              : isLight ? "hover:bg-slate-50 border border-transparent" : "hover:bg-[#0a1220] border border-transparent"
           }`}
           title="4You Pros Dashboard"
         >
+          {currentPage === "fouryr-payroll" && !isSidebarFolded && (
+            <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-purple-500 rounded-r" />
+          )}
           {isSidebarFolded ? (
-            <span className="w-7 h-7 rounded bg-purple-500/20 text-purple-400 font-extrabold text-xs flex items-center justify-center">4Y</span>
+            <span className={`w-7 h-7 rounded-lg flex items-center justify-center font-extrabold text-xs transition-all ${currentPage === "fouryr-payroll" ? "bg-purple-500 text-white shadow-md shadow-purple-500/40" : "bg-purple-500/15 text-purple-400"}`}>4Y</span>
           ) : (
             <>
               <FourYrLogo className="h-7 max-w-[170px]" isLight={isLight} />
@@ -404,13 +414,16 @@ export const Sidebar: React.FC = () => {
             setSelectedEntities(new Set(["Ziglar"]));
             setCurrentPage("ziglar");
           }}
-          className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-all ${
+          className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-all relative overflow-hidden ${
             currentPage === "ziglar"
-              ? isLight ? "bg-blue-50 border border-blue-200 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]" : "bg-[#0d1a2e] border border-[#1e3358] shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
-              : isLight ? "hover:bg-slate-50" : "hover:bg-[#0a1220]"
+              ? isLight ? "bg-emerald-50 border border-emerald-200 shadow-[0_2px_10px_rgba(16,185,129,.12)]" : "bg-emerald-950/20 border border-emerald-900/40 shadow-[0_2px_10px_rgba(16,185,129,.15)]"
+              : isLight ? "hover:bg-slate-50 border border-transparent" : "hover:bg-[#0a1220] border border-transparent"
           }`}
           title="Ziglar Dashboard"
         >
+          {currentPage === "ziglar" && (
+            <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-emerald-500 rounded-r" />
+          )}
           <ZiglarLogo className="h-7 max-w-[170px]" isLight={isLight} />
           <ChevronRight className="w-3.5 h-3.5 text-[#666] shrink-0" />
         </button>
@@ -434,10 +447,10 @@ export const Sidebar: React.FC = () => {
 
         <button
           onClick={() => setCurrentPage("workspace-tools")}
-          className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors ${
+          className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-all relative ${
             currentPage === "workspace-tools"
-              ? isLight ? "bg-blue-50 text-blue-700 font-semibold" : "bg-[#0d1e3a] text-blue-300 font-semibold"
-              : isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900" : "text-[#7a90b0] hover:bg-[#0d1525] hover:text-[#c8d4e8]"
+              ? isLight ? "bg-amber-50 text-amber-800 font-semibold border border-amber-200" : "bg-amber-950/20 text-amber-200 font-semibold border border-amber-900/40 shadow-[0_1px_8px_rgba(245,158,11,.1)]"
+              : isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900 border border-transparent" : "text-[#7a90b0] hover:bg-[#0d1525] hover:text-[#c8d4e8] border border-transparent"
           }`}
         >
           <Wrench className="w-3.5 h-3.5 text-amber-500 shrink-0" />
@@ -446,10 +459,10 @@ export const Sidebar: React.FC = () => {
 
         <button
           onClick={() => setCurrentPage("workspace-platforms")}
-          className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors ${
+          className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-all relative ${
             currentPage === "workspace-platforms"
-              ? isLight ? "bg-blue-50 text-blue-700 font-semibold" : "bg-[#0d1e3a] text-blue-300 font-semibold"
-              : isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900" : "text-[#7a90b0] hover:bg-[#0d1525] hover:text-[#c8d4e8]"
+              ? isLight ? "bg-sky-50 text-sky-800 font-semibold border border-sky-200" : "bg-sky-950/20 text-sky-200 font-semibold border border-sky-900/40 shadow-[0_1px_8px_rgba(14,165,233,.1)]"
+              : isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900 border border-transparent" : "text-[#7a90b0] hover:bg-[#0d1525] hover:text-[#c8d4e8] border border-transparent"
           }`}
         >
           <Globe className="w-3.5 h-3.5 text-sky-400 shrink-0" />
@@ -458,10 +471,10 @@ export const Sidebar: React.FC = () => {
 
         <button
           onClick={() => setCurrentPage("workspace-drive")}
-          className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors ${
+          className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-all relative ${
             currentPage === "workspace-drive"
-              ? isLight ? "bg-blue-50 text-blue-700 font-semibold" : "bg-[#0d1e3a] text-blue-300 font-semibold"
-              : isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900" : "text-[#7a90b0] hover:bg-[#0d1525] hover:text-[#c8d4e8]"
+              ? isLight ? "bg-amber-50 text-amber-800 font-semibold border border-amber-200" : "bg-amber-950/20 text-amber-200 font-semibold border border-amber-900/40 shadow-[0_1px_8px_rgba(245,158,11,.1)]"
+              : isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900 border border-transparent" : "text-[#7a90b0] hover:bg-[#0d1525] hover:text-[#c8d4e8] border border-transparent"
           }`}
         >
           <Folder className="w-3.5 h-3.5 text-amber-500 shrink-0" />
@@ -494,14 +507,14 @@ export const Sidebar: React.FC = () => {
                 setActiveMember({ id: mem.id, name: mem.name, color: mem.color });
                 setCurrentPage("member-workspace");
               }}
-              className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors ${
+              className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-all ${
                 isMemActive
-                  ? isLight ? "bg-blue-50 text-blue-700 font-semibold" : "bg-[#0d1e3a] text-blue-300 font-semibold"
-                  : isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900" : "text-[#7a90b0] hover:bg-[#0d1525] hover:text-[#c8d4e8]"
+                  ? isLight ? "bg-purple-50 text-purple-800 font-semibold border border-purple-200 shadow-[0_1px_6px_rgba(168,85,247,.1)]" : "bg-purple-950/20 text-purple-200 font-semibold border border-purple-900/40 shadow-[0_1px_8px_rgba(168,85,247,.12)]"
+                  : isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900 border border-transparent" : "text-[#7a90b0] hover:bg-[#0d1525] hover:text-[#c8d4e8] border border-transparent"
               }`}
               title={`Open Workspace for ${mem.name}`}
             >
-              <UserIcon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <UserIcon className={`w-3.5 h-3.5 shrink-0 ${isMemActive ? "text-purple-400" : "text-slate-400"}`} />
               <span className="flex-1 text-left truncate font-medium">{formatPossessiveName(mem.name)}</span>
               <span
                 className="w-2.5 h-2.5 rounded-full shrink-0 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"

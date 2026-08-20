@@ -1853,7 +1853,7 @@ export const CalendarPage: React.FC = () => {
       {/* Manage Assignees Modal */}
       {showAssigneeModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className={`${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#0d111a] border-[#1a2235] text-white"} border rounded-xl w-full p-5 space-y-4 shadow-2xl`} style={{ maxWidth: 400 }}>
+          <div className={`${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#0d111a] border-[#1a2235] text-white"} border rounded-xl w-full p-5 space-y-4 shadow-2xl overflow-y-auto`} style={{ maxWidth: 400, maxHeight: "85vh" }}>
             <div className={`flex items-center justify-between border-b pb-2.5 ${isLight ? "border-slate-200" : "border-[#1a2235]"}`}>
               <h3 className={`text-sm font-bold flex items-center gap-2 ${isLight ? "text-slate-900" : "text-white"}`}>
                 <Users className="w-4 h-4 text-[#2563eb]" /> Manage Team Assignees
@@ -1869,28 +1869,34 @@ export const CalendarPage: React.FC = () => {
                 <div key={a.id}>
                   <div className={`flex items-center justify-between px-3 py-2 rounded-lg border transition-colors ${isLight ? "bg-slate-50 border-slate-200 text-slate-800" : "bg-[#131824] border-[#1a2235] text-white"}`}>
                     <div className="flex items-center gap-2.5 min-w-0">
-                      {/* Avatar dot — click to open color grid */}
-                      <button
-                        onClick={() => setEditingColorId(editingColorId === a.id ? null : a.id)}
-                        className="shrink-0 relative group/dot"
-                        title="Click to change color"
+                      {/* Color avatar */}
+                      <span
+                        className="w-7 h-7 rounded-full text-white font-black text-[11px] flex items-center justify-center shadow-md shrink-0"
+                        style={{ backgroundColor: a.color }}
                       >
-                        <span
-                          className="w-7 h-7 rounded-full text-white font-black text-[11px] flex items-center justify-center shadow-md transition-transform group-hover/dot:scale-110"
-                          style={{ backgroundColor: a.color }}
-                        >
-                          {a.name.charAt(0).toUpperCase()}
-                        </span>
-                        <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-white dark:bg-[#0d111a] border border-slate-200 dark:border-[#1a2235] flex items-center justify-center text-[6px]">🎨</span>
-                      </button>
+                        {a.name.charAt(0).toUpperCase()}
+                      </span>
                       <span className="font-semibold truncate">{a.name}</span>
                     </div>
-                    <button
-                      onClick={() => { setAssignees(prev => prev.filter(item => item.id !== a.id)); setEditingColorId(null); }}
-                      className="text-red-500 hover:text-red-400 text-[11px] font-semibold cursor-pointer shrink-0 ml-2"
-                    >
-                      Remove
-                    </button>
+                    <div className="flex items-center gap-2 shrink-0 ml-2">
+                      {/* Explicit color change button */}
+                      <button
+                        onClick={() => setEditingColorId(editingColorId === a.id ? null : a.id)}
+                        className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border transition-colors cursor-pointer ${
+                          editingColorId === a.id
+                            ? "bg-[#1a2235] border-[#2563eb] text-[#60a5fa]"
+                            : isLight ? "bg-slate-100 border-slate-300 text-slate-500 hover:text-slate-700" : "bg-[#0d111a] border-[#1a2235] text-[#4a6080] hover:text-[#7a90b0]"
+                        }`}
+                      >
+                        {editingColorId === a.id ? "✕ Close" : "🎨 Color"}
+                      </button>
+                      <button
+                        onClick={() => { setAssignees(prev => prev.filter(item => item.id !== a.id)); setEditingColorId(null); }}
+                        className="text-red-500 hover:text-red-400 text-[11px] font-semibold cursor-pointer"
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </div>
                   {/* Inline color picker for this assignee */}
                   {editingColorId === a.id && (
