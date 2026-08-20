@@ -188,9 +188,9 @@ export const Sidebar: React.FC = () => {
 
         <button
           onClick={toggleSidebarFold}
-          className={`p-1 rounded-lg ${
-            isLight ? "hover:bg-slate-100 text-slate-500" : "hover:bg-[#1a1a1a] text-[#888] hover:text-white"
-          } transition-colors cursor-pointer`}
+          className={`p-1.5 rounded-lg transition-all ${
+            isLight ? "hover:bg-slate-100 text-slate-400 hover:text-slate-700" : "hover:bg-[#1a2235] text-[#3d5478] hover:text-[#7a90b0]"
+          } cursor-pointer`}
           title={isSidebarFolded ? "Expand Sidebar" : "Fold Sidebar"}
         >
           {isSidebarFolded ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
@@ -198,11 +198,12 @@ export const Sidebar: React.FC = () => {
       </div>
 
       {/* Main Dashboards Section */}
-      <div className="px-2 py-2">
+      <div className="px-2 pt-3 pb-2">
         {!isSidebarFolded && (
-          <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#3d5478]"} px-3 py-1 block`}>
-            Dashboards
-          </span>
+          <div className={`flex items-center gap-2 px-3 mb-1.5`}>
+            <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#3d5478]"}`}>Dashboards</span>
+            <div className={`flex-1 h-px ${isLight ? "bg-slate-200" : "bg-[#1a2235]"}`} />
+          </div>
         )}
         {navItems.map((item) => {
           const isActive = currentPage === item.id;
@@ -218,26 +219,19 @@ export const Sidebar: React.FC = () => {
               title={item.label}
               className={`w-full flex items-center ${
                 isSidebarFolded ? "justify-center px-0 py-2" : "gap-2.5 px-3 py-1.5"
-              } rounded-md text-[13px] font-medium transition-colors relative ${
+              } rounded-md text-[13px] font-medium transition-all duration-150 relative ${
                 isActive
                   ? isLight
-                    ? "bg-blue-50 text-blue-700 font-semibold nav-active-pill"
-                    : "bg-[#0d1e3a] text-blue-300 font-semibold nav-active-pill"
+                    ? "bg-blue-50 text-blue-700 font-semibold nav-active-pill shadow-[inset_0_1px_0_rgba(255,255,255,.8),0_1px_4px_rgba(37,99,235,.08)]"
+                    : "bg-[#0d1e3a] text-blue-300 font-semibold nav-active-pill shadow-[inset_0_1px_0_rgba(255,255,255,.06),0_0_12px_rgba(59,130,246,.08)]"
                   : isLight
                     ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                     : "text-[#7a90b0] hover:bg-[#0d1525] hover:text-[#c8d4e8]"
               }`}
             >
-              <span className="shrink-0">{item.icon}</span>
+              <span className={`shrink-0 ${isActive ? (isLight ? "text-blue-600" : "text-blue-400") : ""}`}>{item.icon}</span>
               {!isSidebarFolded && (
-                <>
-                  <span className="flex-1 text-left truncate">{item.label}</span>
-                  <ChevronRight
-                    className={`w-3 h-3 ${isLight ? "text-slate-400" : "text-[#555]"} transition-opacity ${
-                      isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-                    }`}
-                  />
-                </>
+                <span className="flex-1 text-left truncate">{item.label}</span>
               )}
             </button>
           );
@@ -245,94 +239,123 @@ export const Sidebar: React.FC = () => {
       </div>
 
       {/* Entities Section */}
-      <div className="px-2 py-2">
+      <div className={`px-2 pt-3 pb-2 border-t ${isLight ? "border-slate-100" : "border-[#1a2235]"}`}>
         {!isSidebarFolded && (
-          <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#3d5478]"} px-3 py-1 block`}>
-            Entities AP Views
-          </span>
+          <div className="flex items-center gap-2 px-3 mb-1.5">
+            <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#3d5478]"}`}>Entities AP Views</span>
+            <div className={`flex-1 h-px ${isLight ? "bg-slate-200" : "bg-[#1a2235]"}`} />
+          </div>
         )}
         {/* 1. Ruby's */}
-        <button
-          onClick={() => {
-            setSelectedEntities(new Set(["Ruby's"]));
-            setCurrentPage("rubys");
-          }}
-          className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all ${
-            (currentPage === "rubys" || (currentPage === "ap" && selectedEntities.has("Ruby's") && selectedEntities.size === 1))
-              ? isLight ? "bg-blue-50 border border-blue-200 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]" : "bg-[#0d1a2e] border border-[#1e3358] shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
-              : isLight ? "hover:bg-slate-50" : "hover:bg-[#0a1220]"
-          }`}
-          title="Ruby's AP View"
-        >
-          {isSidebarFolded ? (
-            <span className="w-7 h-7 rounded bg-red-500/20 text-red-500 font-extrabold text-xs flex items-center justify-center">R</span>
-          ) : (
-            <>
-              <RubysLogo className="h-7 max-w-[170px]" isLight={isLight} />
-              <span className="text-[10px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 shrink-0">
-                AP
-              </span>
-            </>
-          )}
-        </button>
+        {(() => {
+          const isRubysActive = currentPage === "rubys" || (currentPage === "ap" && selectedEntities.has("Ruby's") && selectedEntities.size === 1);
+          return (
+            <button
+              onClick={() => { setSelectedEntities(new Set(["Ruby's"])); setCurrentPage("rubys"); }}
+              className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all relative overflow-hidden ${
+                isRubysActive
+                  ? isLight
+                    ? "bg-pink-50 border border-pink-200 shadow-[0_2px_10px_rgba(236,72,153,.12)]"
+                    : "bg-pink-950/20 border border-pink-900/40 shadow-[0_2px_10px_rgba(236,72,153,.15)]"
+                  : isLight ? "hover:bg-slate-50 border border-transparent" : "hover:bg-[#0a1220] border border-transparent"
+              }`}
+              title="Ruby's AP View"
+            >
+              {isRubysActive && !isSidebarFolded && (
+                <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-pink-500 rounded-r" />
+              )}
+              {isSidebarFolded ? (
+                <span className={`w-7 h-7 rounded-lg flex items-center justify-center font-extrabold text-xs transition-all ${
+                  isRubysActive ? "bg-pink-500 text-white shadow-md shadow-pink-500/40" : "bg-pink-500/15 text-pink-400"
+                }`}>R</span>
+              ) : (
+                <>
+                  <RubysLogo className="h-7 max-w-[150px]" isLight={isLight} />
+                  <span className={`text-[10px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded-md shrink-0 ${
+                    isRubysActive ? "bg-pink-500 text-white" : "bg-pink-500/10 text-pink-500"
+                  }`}>AP</span>
+                </>
+              )}
+            </button>
+          );
+        })()}
 
         {/* 2. TI */}
-        <button
-          onClick={() => {
-            setSelectedEntities(new Set(["TI"]));
-            setCurrentPage("ti");
-          }}
-          className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all ${
-            (currentPage === "ti" || (currentPage === "ap" && selectedEntities.has("TI") && selectedEntities.size === 1))
-              ? isLight ? "bg-blue-50 border border-blue-200 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]" : "bg-[#0d1a2e] border border-[#1e3358] shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
-              : isLight ? "hover:bg-slate-50" : "hover:bg-[#0a1220]"
-          }`}
-          title="TI AP View"
-        >
-          {isSidebarFolded ? (
-            <span className="w-7 h-7 rounded bg-blue-500/20 text-blue-500 font-extrabold text-xs flex items-center justify-center">TI</span>
-          ) : (
-            <>
-              <TILogo className="h-7 max-w-[170px]" isLight={isLight} />
-              <span className="text-[10px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500 shrink-0">
-                AP
-              </span>
-            </>
-          )}
-        </button>
+        {(() => {
+          const isTIActive = currentPage === "ti" || (currentPage === "ap" && selectedEntities.has("TI") && selectedEntities.size === 1);
+          return (
+            <button
+              onClick={() => { setSelectedEntities(new Set(["TI"])); setCurrentPage("ti"); }}
+              className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all relative overflow-hidden ${
+                isTIActive
+                  ? isLight
+                    ? "bg-blue-50 border border-blue-200 shadow-[0_2px_10px_rgba(59,130,246,.12)]"
+                    : "bg-blue-950/20 border border-blue-900/40 shadow-[0_2px_10px_rgba(59,130,246,.15)]"
+                  : isLight ? "hover:bg-slate-50 border border-transparent" : "hover:bg-[#0a1220] border border-transparent"
+              }`}
+              title="TI AP View"
+            >
+              {isTIActive && !isSidebarFolded && (
+                <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-blue-500 rounded-r" />
+              )}
+              {isSidebarFolded ? (
+                <span className={`w-7 h-7 rounded-lg flex items-center justify-center font-extrabold text-xs transition-all ${
+                  isTIActive ? "bg-blue-500 text-white shadow-md shadow-blue-500/40" : "bg-blue-500/15 text-blue-400"
+                }`}>TI</span>
+              ) : (
+                <>
+                  <TILogo className="h-7 max-w-[150px]" isLight={isLight} />
+                  <span className={`text-[10px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded-md shrink-0 ${
+                    isTIActive ? "bg-blue-500 text-white" : "bg-blue-500/10 text-blue-500"
+                  }`}>AP</span>
+                </>
+              )}
+            </button>
+          );
+        })()}
 
         {/* 3. MSDx */}
-        <button
-          onClick={() => {
-            setSelectedEntities(new Set(["MSDx"]));
-            setCurrentPage("msdx");
-          }}
-          className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all ${
-            (currentPage === "msdx" || (currentPage === "ap" && selectedEntities.has("MSDx") && selectedEntities.size === 1))
-              ? isLight ? "bg-blue-50 border border-blue-200 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]" : "bg-[#0d1a2e] border border-[#1e3358] shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
-              : isLight ? "hover:bg-slate-50" : "hover:bg-[#0a1220]"
-          }`}
-          title="MSDx AP View"
-        >
-          {isSidebarFolded ? (
-            <span className="w-7 h-7 rounded bg-teal-500/20 text-teal-500 font-extrabold text-xs flex items-center justify-center">MS</span>
-          ) : (
-            <>
-              <MSDxLogo className="h-7 max-w-[170px]" isLight={isLight} />
-              <span className="text-[10px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-500 shrink-0">
-                AP
-              </span>
-            </>
-          )}
-        </button>
+        {(() => {
+          const isMSDxActive = currentPage === "msdx" || (currentPage === "ap" && selectedEntities.has("MSDx") && selectedEntities.size === 1);
+          return (
+            <button
+              onClick={() => { setSelectedEntities(new Set(["MSDx"])); setCurrentPage("msdx"); }}
+              className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all relative overflow-hidden ${
+                isMSDxActive
+                  ? isLight
+                    ? "bg-teal-50 border border-teal-200 shadow-[0_2px_10px_rgba(20,184,166,.12)]"
+                    : "bg-teal-950/20 border border-teal-900/40 shadow-[0_2px_10px_rgba(20,184,166,.15)]"
+                  : isLight ? "hover:bg-slate-50 border border-transparent" : "hover:bg-[#0a1220] border border-transparent"
+              }`}
+              title="MSDx AP View"
+            >
+              {isMSDxActive && !isSidebarFolded && (
+                <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-teal-500 rounded-r" />
+              )}
+              {isSidebarFolded ? (
+                <span className={`w-7 h-7 rounded-lg flex items-center justify-center font-extrabold text-xs transition-all ${
+                  isMSDxActive ? "bg-teal-500 text-white shadow-md shadow-teal-500/40" : "bg-teal-500/15 text-teal-400"
+                }`}>MS</span>
+              ) : (
+                <>
+                  <MSDxLogo className="h-7 max-w-[150px]" isLight={isLight} />
+                  <span className={`text-[10px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded-md shrink-0 ${
+                    isMSDxActive ? "bg-teal-500 text-white" : "bg-teal-500/10 text-teal-500"
+                  }`}>AP</span>
+                </>
+              )}
+            </button>
+          );
+        })()}
       </div>
 
       {/* Other Dashboards Section */}
-      <div className="px-2 py-2">
+      <div className={`px-2 pt-3 pb-2 border-t ${isLight ? "border-slate-100" : "border-[#1a2235]"}`}>
         {!isSidebarFolded && (
-          <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#3d5478]"} px-3 py-1 block`}>
-            Other Dashboards
-          </span>
+          <div className="flex items-center gap-2 px-3 mb-1.5">
+            <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#3d5478]"}`}>Other Dashboards</span>
+            <div className={`flex-1 h-px ${isLight ? "bg-slate-200" : "bg-[#1a2235]"}`} />
+          </div>
         )}
 
         <button
@@ -394,11 +417,12 @@ export const Sidebar: React.FC = () => {
       </div>
 
       {/* WORKSPACE Section */}
-      <div className="px-2 py-2">
-        <div className="flex items-center justify-between px-3 py-1">
-          <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#3d5478]"}`}>
-            WORKSPACE
-          </span>
+      <div className={`px-2 pt-3 pb-2 border-t ${isLight ? "border-slate-100" : "border-[#1a2235]"}`}>
+        <div className="flex items-center justify-between px-3 mb-1.5">
+          <div className="flex items-center gap-2 flex-1">
+            <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#3d5478]"}`}>WORKSPACE</span>
+            <div className={`flex-1 h-px ${isLight ? "bg-slate-200" : "bg-[#1a2235]"}`} />
+          </div>
           <button
             onClick={() => setCurrentPage("workspace-tools")}
             className="text-[#1a73e8] hover:text-[#1557b0] p-0.5 rounded hover:bg-slate-100 dark:hover:bg-[#1a1a1a] transition-colors"
@@ -446,11 +470,12 @@ export const Sidebar: React.FC = () => {
       </div>
 
       {/* MEMBER'S WORKSPACE Section */}
-      <div className="px-2 py-2">
-        <div className="flex items-center justify-between px-3 py-1">
-          <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#3d5478]"}`}>
-            MEMBER'S WORKSPACE
-          </span>
+      <div className={`px-2 pt-3 pb-2 border-t ${isLight ? "border-slate-100" : "border-[#1a2235]"}`}>
+        <div className="flex items-center justify-between px-3 mb-1.5">
+          <div className="flex items-center gap-2 flex-1">
+            <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#3d5478]"}`}>MEMBER'S WORKSPACE</span>
+            <div className={`flex-1 h-px ${isLight ? "bg-slate-200" : "bg-[#1a2235]"}`} />
+          </div>
           <button
             onClick={() => setShowAddMemberModal(true)}
             className="text-[#1a73e8] hover:text-[#1557b0] p-0.5 rounded hover:bg-slate-100 dark:hover:bg-[#1a1a1a] transition-colors"
@@ -488,10 +513,11 @@ export const Sidebar: React.FC = () => {
       </div>
 
       {/* Quick External Links Section */}
-      <div className="px-2 py-2">
-        <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#3d5478]"} px-3 py-1 block`}>
-          Quick Links
-        </span>
+      <div className={`px-2 pt-3 pb-2 border-t ${isLight ? "border-slate-100" : "border-[#1a2235]"}`}>
+        <div className="flex items-center gap-2 px-3 mb-1.5">
+          <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#3d5478]"}`}>Quick Links</span>
+          <div className={`flex-1 h-px ${isLight ? "bg-slate-200" : "bg-[#1a2235]"}`} />
+        </div>
         {quickLinks.map((link) => (
           <a
             key={link.id}
@@ -657,7 +683,7 @@ export const Sidebar: React.FC = () => {
         {!isSidebarFolded ? (
           <>
             <div className="flex items-center gap-2.5 px-2 pb-2">
-              <div className="w-7 h-7 rounded-full bg-[#1e1e1e] flex items-center justify-center text-[11px] font-bold text-white shrink-0">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-700 flex items-center justify-center text-[12px] font-extrabold text-white shrink-0 shadow-md shadow-blue-500/30 ring-2 ring-blue-500/20">
                 {greetingName.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
@@ -702,7 +728,7 @@ export const Sidebar: React.FC = () => {
           <div className="flex flex-col items-center gap-2 py-1">
             <button
               onClick={signOutUser}
-              className="w-8 h-8 rounded-full bg-[#1e1e1e] flex items-center justify-center text-xs font-bold text-white shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
+              className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-700 flex items-center justify-center text-xs font-extrabold text-white shadow-md shadow-blue-500/30 ring-2 ring-blue-500/20"
               title={`Active User: ${greetingName} (${userEmail})`}
             >
               {greetingName.charAt(0).toUpperCase()}
