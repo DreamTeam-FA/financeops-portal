@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { APBill } from "../../types";
 import { useFinance } from "../../context/FinanceContext";
 import {
@@ -142,7 +142,7 @@ const BillDetail: React.FC<{
     <div className="flex flex-col gap-3">
       {/* Amount card */}
       <div className={`rounded-xl border p-4 ${
-        isLight ? "bg-white border-slate-200 shadow-xs" : "bg-[#161616] border-[#2a2a2a]"
+        isLight ? "bg-white border-slate-200 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]" : "bg-[#161616] border-[#2a2a2a]"
       }`}>
         <p className={`text-[9px] font-bold uppercase tracking-wider mb-1 ${
           isLight ? "text-slate-400" : "text-[#666]"
@@ -238,7 +238,7 @@ const BillDetail: React.FC<{
                   }}
                   title="Edit payment date"
                   className={`text-[11px] font-semibold border rounded px-2 py-0.5 focus:outline-none ${
-                    isLight ? "bg-white border-emerald-300 text-emerald-700" : "bg-[#111] border-emerald-700 text-emerald-300"
+                    isLight ? "bg-white border-emerald-300 text-emerald-700" : "bg-[#0d111a] border-emerald-700 text-emerald-300"
                   }`}
                 />
               </>
@@ -435,7 +435,7 @@ const AccordionItem: React.FC<{
           }`}>
             <button
               onClick={handleMarkPaid}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold text-white transition-all hover:opacity-90 shadow-xs"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold text-white transition-all hover:opacity-90 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
               style={{ backgroundColor: accentColor }}
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
@@ -523,7 +523,7 @@ export const BillDetailsModal: React.FC<BillDetailsModalProps> = ({
   const handleSingleHold = () =>
     toggleBillStatus(singleBill.id, singleBill.status === "hold" ? "unpaid" : "hold");
 
-  const surf = isLight ? "bg-white text-slate-900" : "bg-[#111] text-white";
+  const surf = isLight ? "bg-white text-slate-900" : "bg-[#0d111a] text-white";
 
   return (
     <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4">
@@ -595,7 +595,7 @@ export const BillDetailsModal: React.FC<BillDetailsModalProps> = ({
             }`}>
               <button
                 onClick={handleSingleMarkPaid}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold text-white transition-all hover:opacity-90 shadow-xs"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold text-white transition-all hover:opacity-90 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
                 style={{ backgroundColor: accentColor }}
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />

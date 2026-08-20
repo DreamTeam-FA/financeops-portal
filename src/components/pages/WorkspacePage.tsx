@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { ExternalLinkItem } from "../../types";
@@ -151,10 +151,10 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
   };
 
   return (
-    <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#0a0a0a] text-[#e8e8e8]"}`}>
+    <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#070b12] text-[#e8e8e8]"}`}>
       <PageHeader
         title={categoryTitles[activeTab].title}
-        bgClass={isLight ? "bg-slate-800 text-white" : "bg-[#181818] border-b border-[#262626]"}
+        bgClass={isLight ? "bg-slate-800 text-white" : "bg-[#0d111a] border-b border-[#1a2235]"}
         tabs={[
           { id: "tools", label: "Tools & Sheets" },
           { id: "platforms", label: "Platforms" },
@@ -167,7 +167,7 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
       />
 
       {/* Filter and Action Bar */}
-      <div className={`flex items-center justify-between gap-3 px-4 py-3 ${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border-b shrink-0`}>
+      <div className={`flex items-center justify-between gap-3 px-4 py-3 ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border-b shrink-0`}>
         <div className="relative flex-1 max-w-md">
           <Search className={`w-3.5 h-3.5 absolute left-3 top-2.5 ${isLight ? "text-slate-400" : "text-[#666]"}`} />
           <input
@@ -175,13 +175,13 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={`Search ${activeTab}...`}
-            className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400" : "bg-[#181818] border-[#262626] text-white placeholder-[#666]"} border rounded-lg pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:border-[#1a73e8]`}
+            className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400" : "bg-[#0d111a] border-[#1a2235] text-white placeholder-[#666]"} border rounded-lg pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:border-[#1a73e8]`}
           />
         </div>
 
         <button
           onClick={() => handleOpenAdd(activeTab)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#1a73e8] hover:bg-[#1557b0] text-white shadow-xs transition-colors shrink-0"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#1a73e8] hover:bg-[#1557b0] text-white shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] transition-colors shrink-0"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>Add New</span>
@@ -191,7 +191,7 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
       {/* Main Grid Content */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
         {/* Category Header Banner */}
-        <div className={`p-4 rounded-xl border ${isLight ? "bg-white border-slate-200 shadow-xs" : "bg-[#111] border-[#262626]"} flex items-center justify-between gap-4`}>
+        <div className={`p-4 rounded-xl border ${isLight ? "bg-white border-slate-200 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]" : "bg-[#0d111a] border-[#1a2235]"} flex items-center justify-between gap-4`}>
           <div className="flex items-center gap-3">
             <div className={`p-2.5 rounded-lg ${isLight ? "bg-slate-100" : "bg-[#1f1f1f]"}`}>
               {categoryTitles[activeTab].icon}
@@ -212,7 +212,7 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
 
         {/* Item Cards Grid */}
         {activeItems.length === 0 ? (
-          <div className={`text-center py-12 rounded-xl border border-dashed ${isLight ? "border-slate-300 bg-white" : "border-[#262626] bg-[#111]"} p-6`}>
+          <div className={`text-center py-12 rounded-xl border border-dashed ${isLight ? "border-slate-300 bg-white" : "border-[#1a2235] bg-[#0d111a]"} p-6`}>
             <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-[#1f1f1f] flex items-center justify-center mx-auto mb-3">
               {categoryTitles[activeTab].icon}
             </div>
@@ -238,7 +238,7 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
               return (
                 <div
                   key={item.id}
-                  className={`group border ${isLight ? "bg-white border-slate-200 hover:border-slate-300 shadow-xs" : "bg-[#111] border-[#262626] hover:border-[#333]"} rounded-xl p-4 flex flex-col justify-between transition-all`}
+                  className={`group border ${isLight ? "bg-white border-slate-200 hover:border-slate-300 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]" : "bg-[#0d111a] border-[#1a2235] hover:border-[#333]"} rounded-xl p-4 flex flex-col justify-between transition-all`}
                 >
                   <div className="space-y-2">
                     <div className="flex items-start justify-between gap-2">
@@ -328,8 +328,8 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
       {/* ADD / EDIT ITEM MODAL */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-          <div className={`w-full max-w-md ${isLight ? "bg-white text-slate-900" : "bg-[#181818] text-white"} border ${isLight ? "border-slate-200" : "border-[#333]"} rounded-xl shadow-2xl p-5 space-y-4`}>
-            <div className="flex items-center justify-between border-b pb-3 border-slate-200 dark:border-[#262626]">
+          <div className={`w-full max-w-md ${isLight ? "bg-white text-slate-900" : "bg-[#0d111a] text-white"} border ${isLight ? "border-slate-200" : "border-[#333]"} rounded-xl shadow-2xl p-5 space-y-4`}>
+            <div className="flex items-center justify-between border-b pb-3 border-slate-200 dark:border-[#1a2235]">
               <h3 className="text-base font-bold flex items-center gap-2">
                 {editingItem ? <Edit2 className="w-4 h-4 text-blue-500" /> : <Plus className="w-4 h-4 text-blue-500" />}
                 {editingItem ? "Edit Item" : `Add New ${formData.category}`}
@@ -348,7 +348,7 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
                 <select
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
-                  className={`w-full ${isLight ? "bg-slate-50 border-slate-300" : "bg-[#111] border-[#333]"} border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#1a73e8]`}
+                  className={`w-full ${isLight ? "bg-slate-50 border-slate-300" : "bg-[#0d111a] border-[#333]"} border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#1a73e8]`}
                 >
                   <option value="tools">Tools & Sheets</option>
                   <option value="platforms">Platforms</option>
@@ -364,7 +364,7 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
                   placeholder="e.g. Master Financial Sheet / QuickBooks / AP Receipts"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className={`w-full ${isLight ? "bg-slate-50 border-slate-300" : "bg-[#111] border-[#333]"} border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#1a73e8]`}
+                  className={`w-full ${isLight ? "bg-slate-50 border-slate-300" : "bg-[#0d111a] border-[#333]"} border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#1a73e8]`}
                 />
               </div>
 
@@ -376,7 +376,7 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
                   placeholder="https://..."
                   value={formData.url}
                   onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-                  className={`w-full ${isLight ? "bg-slate-50 border-slate-300" : "bg-[#111] border-[#333]"} border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#1a73e8]`}
+                  className={`w-full ${isLight ? "bg-slate-50 border-slate-300" : "bg-[#0d111a] border-[#333]"} border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#1a73e8]`}
                 />
               </div>
 
@@ -387,7 +387,7 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
                   placeholder="Brief summary or purpose of this tool/folder..."
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className={`w-full ${isLight ? "bg-slate-50 border-slate-300" : "bg-[#111] border-[#333]"} border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#1a73e8]`}
+                  className={`w-full ${isLight ? "bg-slate-50 border-slate-300" : "bg-[#0d111a] border-[#333]"} border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#1a73e8]`}
                 />
               </div>
 
@@ -408,7 +408,7 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-[#262626]">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-[#1a2235]">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
@@ -418,7 +418,7 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 rounded-lg font-semibold bg-[#1a73e8] hover:bg-[#1557b0] text-white shadow-xs"
+                  className="px-4 py-1.5 rounded-lg font-semibold bg-[#1a73e8] hover:bg-[#1557b0] text-white shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
                 >
                   {editingItem ? "Save Changes" : "Add to Space"}
                 </button>

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { User, LogOut, Check, Plus, Shield, UserCheck } from "lucide-react";
 
@@ -93,7 +93,7 @@ export const UserSwitchModal: React.FC<UserSwitchModalProps> = ({ isOpen, onClos
                         : "bg-purple-950/30 border-purple-800 ring-2 ring-purple-500/30"
                       : isLight
                       ? "border-slate-200 bg-slate-50/50 hover:bg-slate-100/80"
-                      : "border-[#262626] bg-[#1a1a1a] hover:bg-[#222]"
+                      : "border-[#1a2235] bg-[#1a1a1a] hover:bg-[#222]"
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
@@ -139,7 +139,7 @@ export const UserSwitchModal: React.FC<UserSwitchModalProps> = ({ isOpen, onClos
               Enter Custom User Credentials
             </button>
           ) : (
-            <form onSubmit={handleAddCustomUser} className={`p-4 rounded-xl border space-y-3 ${isLight ? "bg-slate-50 border-slate-200" : "bg-[#1a1a1a] border-[#262626]"}`}>
+            <form onSubmit={handleAddCustomUser} className={`p-4 rounded-xl border space-y-3 ${isLight ? "bg-slate-50 border-slate-200" : "bg-[#1a1a1a] border-[#1a2235]"}`}>
               <div className="text-xs font-bold text-purple-600 dark:text-purple-400">Add Custom Profile</div>
               <div>
                 <label className="block text-[11px] font-semibold text-slate-400 mb-1">Full Name</label>

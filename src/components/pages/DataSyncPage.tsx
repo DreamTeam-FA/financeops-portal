@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import {
@@ -163,12 +163,12 @@ export const DataSyncPage: React.FC = () => {
   };
 
   return (
-    <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#0a0a0a] text-[#e8e8e8]"}`}>
-      <PageHeader title="2-Way Google Sheets Sync Hub" bgClass={isLight ? "bg-slate-800 text-white" : "bg-[#181818] border-b border-[#262626]"} />
+    <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#070b12] text-[#e8e8e8]"}`}>
+      <PageHeader title="2-Way Google Sheets Sync Hub" bgClass={isLight ? "bg-slate-800 text-white" : "bg-[#0d111a] border-b border-[#1a2235]"} />
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         {/* Google Authentication & Connection Status Card */}
-        <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl p-5 space-y-4 shadow-sm`}>
+        <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-5 space-y-4 shadow-sm`}>
           <div className={`flex flex-wrap items-center justify-between gap-3 border-b ${isLight ? "border-slate-200" : "border-[#222]"} pb-4`}>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-[#1a73e8]/20 border border-[#1a73e8]/40 flex items-center justify-center text-[#1a73e8] dark:text-[#60a5fa]">
@@ -208,7 +208,7 @@ export const DataSyncPage: React.FC = () => {
               ) : (
                 <button
                   onClick={handleGoogleSignIn}
-                  className="px-4 py-2 rounded-lg bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs font-semibold flex items-center gap-2 transition-colors shadow-xs"
+                  className="px-4 py-2 rounded-lg bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs font-semibold flex items-center gap-2 transition-colors shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
                 >
                   <Key className="w-4 h-4" /> Sign In with Google
                 </button>
@@ -242,7 +242,7 @@ export const DataSyncPage: React.FC = () => {
               <button
                 onClick={syncAllFromGoogleSheets}
                 disabled={isSyncing}
-                className="px-3.5 py-1.5 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs disabled:opacity-50"
+                className="px-3.5 py-1.5 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] disabled:opacity-50"
               >
                 <ArrowDownToLine className={`w-4 h-4 ${isSyncing ? "animate-bounce" : ""}`} />
                 Pull All Modules
@@ -250,7 +250,7 @@ export const DataSyncPage: React.FC = () => {
               <button
                 onClick={() => syncAllToGoogleSheets(true)}
                 disabled={isSyncing}
-                className="px-3.5 py-1.5 rounded-lg bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs disabled:opacity-50"
+                className="px-3.5 py-1.5 rounded-lg bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] disabled:opacity-50"
               >
                 <ArrowUpFromLine className="w-4 h-4" />
                 Push All Modules
@@ -260,7 +260,7 @@ export const DataSyncPage: React.FC = () => {
         </div>
 
         {/* GAS Dashboard Web App URLs Section */}
-        <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl overflow-hidden shadow-xs p-5 space-y-4`}>
+        <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] p-5 space-y-4`}>
           <div>
             <h3 className={`text-xs font-extrabold uppercase tracking-wider ${isLight ? "text-slate-900" : "text-white"} flex items-center gap-2`}>
               <Zap className="w-4 h-4 text-purple-500" />
@@ -326,8 +326,8 @@ export const DataSyncPage: React.FC = () => {
         </div>
 
         {/* Module Sheet Mappings Config Table */}
-        <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl overflow-hidden shadow-sm`}>
-          <div className={`p-4 ${isLight ? "bg-slate-50 border-slate-200" : "bg-[#181818] border-[#262626]"} border-b flex flex-wrap items-center justify-between gap-2`}>
+        <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl overflow-hidden shadow-sm`}>
+          <div className={`p-4 ${isLight ? "bg-slate-50 border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border-b flex flex-wrap items-center justify-between gap-2`}>
             <div>
               <h3 className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-slate-900" : "text-white"} flex items-center gap-2`}>
                 <FileSpreadsheet className="w-4 h-4 text-[#1a73e8]" />
@@ -429,7 +429,7 @@ export const DataSyncPage: React.FC = () => {
                         value={currentEdit.spreadsheetIdOrUrl}
                         onChange={(e) => handleConfigChange(cfg.id, "spreadsheetIdOrUrl", e.target.value)}
                         placeholder="https://docs.google.com/spreadsheets/d/..."
-                        className="w-full bg-[#181818] border border-[#262626] rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-[#1a73e8]"
+                        className="w-full bg-[#0d111a] border border-[#1a2235] rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-[#1a73e8]"
                       />
                     </div>
 
@@ -442,7 +442,7 @@ export const DataSyncPage: React.FC = () => {
                         value={currentEdit.tabName}
                         onChange={(e) => handleConfigChange(cfg.id, "tabName", e.target.value)}
                         placeholder="e.g. Accounts Payable"
-                        className="w-full bg-[#181818] border border-[#262626] rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-[#1a73e8]"
+                        className="w-full bg-[#0d111a] border border-[#1a2235] rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-[#1a73e8]"
                       />
                     </div>
 
@@ -455,7 +455,7 @@ export const DataSyncPage: React.FC = () => {
                         value={currentEdit.range}
                         onChange={(e) => handleConfigChange(cfg.id, "range", e.target.value)}
                         placeholder="A1:Z100"
-                        className="w-full bg-[#181818] border border-[#262626] rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-[#1a73e8]"
+                        className="w-full bg-[#0d111a] border border-[#1a2235] rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-[#1a73e8]"
                       />
                     </div>
                   </div>
@@ -466,8 +466,8 @@ export const DataSyncPage: React.FC = () => {
         </div>
 
         {/* External Links & Sheets Manager Card */}
-        <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl p-5 space-y-4 shadow-sm`}>
-          <div className="flex flex-wrap items-center justify-between border-b border-[#262626] pb-3 gap-2">
+        <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-5 space-y-4 shadow-sm`}>
+          <div className="flex flex-wrap items-center justify-between border-b border-[#1a2235] pb-3 gap-2">
             <div>
               <h3 className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-slate-900" : "text-white"} flex items-center gap-2`}>
                 <LinkIcon className="w-4 h-4 text-purple-400" /> Sidebar External Links Manager
@@ -478,7 +478,7 @@ export const DataSyncPage: React.FC = () => {
             </div>
             <button
               onClick={() => setShowAddLinkModal(true)}
-              className="px-3 py-1.5 rounded bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs"
+              className="px-3 py-1.5 rounded bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
             >
               <Plus className="w-3.5 h-3.5" /> Add External Link
             </button>
@@ -486,7 +486,7 @@ export const DataSyncPage: React.FC = () => {
 
           <div className="space-y-2.5">
             {externalLinks.map((link) => (
-              <div key={link.id} className={`flex flex-wrap items-center justify-between gap-3 p-3 ${isLight ? "bg-slate-50 border-slate-200" : "bg-[#181818] border-[#262626]"} border rounded-lg`}>
+              <div key={link.id} className={`flex flex-wrap items-center justify-between gap-3 p-3 ${isLight ? "bg-slate-50 border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-lg`}>
                 <div className="flex flex-wrap items-center gap-2 min-w-0 flex-1">
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500/20 text-purple-400 uppercase">
                     {link.category || "entities"}
@@ -495,13 +495,13 @@ export const DataSyncPage: React.FC = () => {
                     type="text"
                     value={link.name}
                     onChange={(e) => updateExternalLink(link.id, { name: e.target.value })}
-                    className={`border rounded px-2.5 py-1 text-xs font-semibold w-36 ${isLight ? "bg-white border-slate-300 text-slate-900" : "bg-[#111] border-[#333] text-white"}`}
+                    className={`border rounded px-2.5 py-1 text-xs font-semibold w-36 ${isLight ? "bg-white border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"}`}
                   />
                   <input
                     type="text"
                     value={link.url}
                     onChange={(e) => updateExternalLink(link.id, { url: e.target.value })}
-                    className={`border rounded px-2.5 py-1 text-xs flex-1 min-w-[220px] ${isLight ? "bg-white border-slate-300 text-slate-700" : "bg-[#111] border-[#333] text-[#aaa]"}`}
+                    className={`border rounded px-2.5 py-1 text-xs flex-1 min-w-[220px] ${isLight ? "bg-white border-slate-300 text-slate-700" : "bg-[#0d111a] border-[#333] text-[#aaa]"}`}
                   />
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -530,7 +530,7 @@ export const DataSyncPage: React.FC = () => {
         {/* Modal to add Custom External Link */}
         {showAddLinkModal && (
           <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-            <div className="bg-[#111] border border-[#333] rounded-xl max-w-md w-full p-5 space-y-4">
+            <div className="bg-[#0d111a] border border-[#333] rounded-xl max-w-md w-full p-5 space-y-4">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <LinkIcon className="w-4 h-4 text-purple-400" /> Add New External Sidebar Link
               </h3>
@@ -543,7 +543,7 @@ export const DataSyncPage: React.FC = () => {
                     placeholder="e.g. CurcuminPRO Sheet"
                     value={newLinkName}
                     onChange={(e) => setNewLinkName(e.target.value)}
-                    className="w-full bg-[#181818] border border-[#333] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500"
+                    className="w-full bg-[#0d111a] border border-[#333] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500"
                   />
                 </div>
 
@@ -555,7 +555,7 @@ export const DataSyncPage: React.FC = () => {
                     placeholder="https://docs.google.com/spreadsheets/d/..."
                     value={newLinkUrl}
                     onChange={(e) => setNewLinkUrl(e.target.value)}
-                    className="w-full bg-[#181818] border border-[#333] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500"
+                    className="w-full bg-[#0d111a] border border-[#333] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500"
                   />
                 </div>
 
@@ -565,7 +565,7 @@ export const DataSyncPage: React.FC = () => {
                     <select
                       value={newLinkCategory}
                       onChange={(e) => setNewLinkCategory(e.target.value as any)}
-                      className="w-full bg-[#181818] border border-[#333] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500"
+                      className="w-full bg-[#0d111a] border border-[#333] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500"
                     >
                       <option value="entities">Entities Section</option>
                       <option value="quicklinks">Quick Links Section</option>
@@ -577,7 +577,7 @@ export const DataSyncPage: React.FC = () => {
                     <select
                       value={newLinkIcon}
                       onChange={(e) => setNewLinkIcon(e.target.value as any)}
-                      className="w-full bg-[#181818] border border-[#333] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500"
+                      className="w-full bg-[#0d111a] border border-[#333] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500"
                     >
                       <option value="sheet">Google Sheet</option>
                       <option value="users">Payroll / Users</option>
@@ -611,7 +611,7 @@ export const DataSyncPage: React.FC = () => {
         {/* Modal to add Custom Sheet Mapping */}
         {showAddModal && (
           <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-            <div className={`${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#111] border-[#333] text-white"} border rounded-xl max-w-md w-full p-5 space-y-4`}>
+            <div className={`${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded-xl max-w-md w-full p-5 space-y-4`}>
               <h3 className={`text-sm font-bold ${isLight ? "text-slate-900" : "text-white"} flex items-center gap-2`}>
                 <FileSpreadsheet className="w-4 h-4 text-[#1a73e8]" /> Add Custom Sheet Mapping
               </h3>
@@ -624,7 +624,7 @@ export const DataSyncPage: React.FC = () => {
                     placeholder="e.g. Custom Payroll Sheet"
                     value={newMappingName}
                     onChange={(e) => setNewMappingName(e.target.value)}
-                    className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"} border rounded px-3 py-1.5 text-xs focus:outline-none focus:border-[#1a73e8]`}
+                    className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded px-3 py-1.5 text-xs focus:outline-none focus:border-[#1a73e8]`}
                   />
                 </div>
 
@@ -633,7 +633,7 @@ export const DataSyncPage: React.FC = () => {
                   <select
                     value={newMappingModule}
                     onChange={(e) => setNewMappingModule(e.target.value as any)}
-                    className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"} border rounded px-3 py-1.5 text-xs focus:outline-none focus:border-[#1a73e8]`}
+                    className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded px-3 py-1.5 text-xs focus:outline-none focus:border-[#1a73e8]`}
                   >
                     <option value="ap">Accounts Payable (AP)</option>
                     <option value="banks">Bank Balances</option>
@@ -653,7 +653,7 @@ export const DataSyncPage: React.FC = () => {
                     placeholder="https://docs.google.com/spreadsheets/d/..."
                     value={newMappingUrl}
                     onChange={(e) => setNewMappingUrl(e.target.value)}
-                    className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"} border rounded px-3 py-1.5 text-xs focus:outline-none focus:border-[#1a73e8]`}
+                    className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded px-3 py-1.5 text-xs focus:outline-none focus:border-[#1a73e8]`}
                   />
                 </div>
 
@@ -664,7 +664,7 @@ export const DataSyncPage: React.FC = () => {
                     placeholder="Auto-detected if left blank"
                     value={newMappingTab}
                     onChange={(e) => setNewMappingTab(e.target.value)}
-                    className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"} border rounded px-3 py-1.5 text-xs focus:outline-none focus:border-[#1a73e8]`}
+                    className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded px-3 py-1.5 text-xs focus:outline-none focus:border-[#1a73e8]`}
                   />
                 </div>
 
@@ -689,11 +689,11 @@ export const DataSyncPage: React.FC = () => {
         )}
 
         {/* Sync Logs */}
-        <div className="bg-[#111] border border-[#262626] rounded-xl p-5 space-y-3">
+        <div className="bg-[#0d111a] border border-[#1a2235] rounded-xl p-5 space-y-3">
           <h3 className="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-2">
             <Clock className="w-4 h-4 text-[#fb923c]" /> 2-Way Sync Activity Log
           </h3>
-          <div className="bg-[#181818] border border-[#262626] rounded-lg p-3 max-h-48 overflow-y-auto space-y-2 font-mono text-[11px]">
+          <div className="bg-[#0d111a] border border-[#1a2235] rounded-lg p-3 max-h-48 overflow-y-auto space-y-2 font-mono text-[11px]">
             {syncLogs.length > 0 ? (
               syncLogs.map((log) => (
                 <div key={log.id} className="flex items-start justify-between gap-2 border-b border-[#222] pb-1.5 last:border-0 last:pb-0">
@@ -717,7 +717,7 @@ export const DataSyncPage: React.FC = () => {
         </div>
 
         {/* Diagnostic Explanation Card */}
-        <div className="bg-[#111] border border-[#262626] rounded-xl p-5 space-y-3 shadow-sm">
+        <div className="bg-[#0d111a] border border-[#1a2235] rounded-xl p-5 space-y-3 shadow-sm">
           <div className="flex items-center gap-2 text-[#fb923c] font-bold text-sm">
             <ShieldAlert className="w-5 h-5" /> Architecture Analysis: Why your original GAS Portal struggled
           </div>
@@ -736,7 +736,7 @@ export const DataSyncPage: React.FC = () => {
 
         {/* Data Export / Backup Utility */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-[#111] border border-[#262626] rounded-xl p-5 space-y-4">
+          <div className="bg-[#0d111a] border border-[#1a2235] rounded-xl p-5 space-y-4">
             <div className="flex items-center gap-2 text-white font-bold text-sm">
               <Download className="w-4 h-4 text-[#1a73e8]" /> Export Portal Data (JSON Backup)
             </div>
@@ -745,13 +745,13 @@ export const DataSyncPage: React.FC = () => {
             </p>
             <button
               onClick={handleExportJSON}
-              className="px-4 py-2 rounded-lg bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs font-semibold flex items-center gap-2 transition-colors shadow-xs"
+              className="px-4 py-2 rounded-lg bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs font-semibold flex items-center gap-2 transition-colors shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
             >
               <Download className="w-4 h-4" /> Export Complete Dataset
             </button>
           </div>
 
-          <div className="bg-[#111] border border-[#262626] rounded-xl p-5 space-y-4">
+          <div className="bg-[#0d111a] border border-[#1a2235] rounded-xl p-5 space-y-4">
             <div className="flex items-center gap-2 text-white font-bold text-sm">
               <Upload className="w-4 h-4 text-[#16a34a]" /> Import Data Payload
             </div>
@@ -763,7 +763,7 @@ export const DataSyncPage: React.FC = () => {
               value={pasteData}
               onChange={(e) => setPasteData(e.target.value)}
               placeholder="Paste JSON payload here..."
-              className="w-full bg-[#181818] border border-[#262626] rounded-lg p-2.5 text-xs text-white font-mono focus:outline-none focus:border-[#1a73e8]"
+              className="w-full bg-[#0d111a] border border-[#1a2235] rounded-lg p-2.5 text-xs text-white font-mono focus:outline-none focus:border-[#1a73e8]"
             />
             {importStatus && (
               <div className="text-xs font-semibold text-[#4ade80] flex items-center gap-1.5">
@@ -772,7 +772,7 @@ export const DataSyncPage: React.FC = () => {
             )}
             <button
               onClick={handleImportPastedJSON}
-              className="px-4 py-2 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white text-xs font-semibold flex items-center gap-2 transition-colors shadow-xs"
+              className="px-4 py-2 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white text-xs font-semibold flex items-center gap-2 transition-colors shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
             >
               <RefreshCw className="w-4 h-4" /> Apply & Update Portal
             </button>

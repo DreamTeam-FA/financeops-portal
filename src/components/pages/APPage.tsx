@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+﻿import React, { useState, useMemo, useEffect } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { APBill, EntityName } from "../../types";
@@ -343,7 +343,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
           });
 
           return (
-            <div key={subKey} className={`rounded-md overflow-hidden border ${isLight ? "border-slate-200 bg-white" : "border-[#262626] bg-[#141414]"}`}>
+            <div key={subKey} className={`rounded-md overflow-hidden border ${isLight ? "border-slate-200 bg-white" : "border-[#1a2235] bg-[#141414]"}`}>
               {/* Sub-entity banner */}
               <div
                 onClick={() => toggleSection(subSecKey)}
@@ -361,7 +361,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                 <>
                   {/* Column headers */}
                   <div className={`grid grid-cols-12 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider border-b ${
-                    isLight ? "bg-slate-50 border-slate-200 text-slate-500" : "bg-[#1c1c1c] border-[#262626] text-gray-400"
+                    isLight ? "bg-slate-50 border-slate-200 text-slate-500" : "bg-[#1c1c1c] border-[#1a2235] text-gray-400"
                   }`}>
                     <div className="col-span-5">VENDOR</div>
                     <div className="col-span-3 text-center">{isPaidTab ? "PAID DATE" : "DUE"}</div>
@@ -442,7 +442,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
   ];
 
   return (
-    <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#0a0a0a] text-[#e8e8e8]"}`}>
+    <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#070b12] text-[#e8e8e8]"}`}>
       <PageHeader
         title={pageTitle}
         bgClass={headerBg}
@@ -460,7 +460,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
       />
 
       {/* Filter Bar */}
-      <div className={`flex flex-wrap items-center gap-2 px-4 py-2 ${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border-b shrink-0`}>
+      <div className={`flex flex-wrap items-center gap-2 px-4 py-2 ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border-b shrink-0`}>
         {/* Search */}
         <div className="relative min-w-[160px] max-w-[260px]">
           <Search className={`w-3.5 h-3.5 absolute left-2.5 top-2 ${isLight ? "text-slate-400" : "text-[#666]"}`} />
@@ -469,7 +469,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search vendor, invoice #, amount..."
-            className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400" : "bg-[#181818] border-[#262626] text-white placeholder-[#666]"} border rounded-md pl-8 pr-3 py-1 text-xs focus:outline-none focus:border-[#1a73e8]`}
+            className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400" : "bg-[#0d111a] border-[#1a2235] text-white placeholder-[#666]"} border rounded-md pl-8 pr-3 py-1 text-xs focus:outline-none focus:border-[#1a73e8]`}
           />
         </div>
 
@@ -477,7 +477,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
         <select
           value={companyFilter}
           onChange={(e) => setCompanyFilter(e.target.value)}
-          className={`${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#181818] border-[#262626] text-white"} border rounded-md px-2.5 py-1 text-xs focus:outline-none focus:border-[#1a73e8]`}
+          className={`${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"} border rounded-md px-2.5 py-1 text-xs focus:outline-none focus:border-[#1a73e8]`}
         >
           <option value="ALL">All Companies</option>
           <option value="rubys">Ruby's</option>
@@ -499,7 +499,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
         <select
           value={vendorFilter}
           onChange={(e) => setVendorFilter(e.target.value)}
-          className={`${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#181818] border-[#262626] text-white"} border rounded-md px-2.5 py-1 text-xs focus:outline-none focus:border-[#1a73e8] max-w-[180px]`}
+          className={`${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"} border rounded-md px-2.5 py-1 text-xs focus:outline-none focus:border-[#1a73e8] max-w-[180px]`}
         >
           <option value="ALL">All Vendors</option>
           {uniqueVendors.map((v) => (
@@ -511,7 +511,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
         <select
           value={monthFilter}
           onChange={(e) => setMonthFilter(e.target.value)}
-          className={`${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#181818] border-[#262626] text-white"} border rounded-md px-2.5 py-1 text-xs focus:outline-none focus:border-[#1a73e8]`}
+          className={`${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"} border rounded-md px-2.5 py-1 text-xs focus:outline-none focus:border-[#1a73e8]`}
         >
           <option value="ALL">All Months</option>
           {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map((m, i) => (
@@ -523,7 +523,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
         <select
           value={yearFilter}
           onChange={(e) => setYearFilter(e.target.value)}
-          className={`${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#181818] border-[#262626] text-white"} border rounded-md px-2.5 py-1 text-xs focus:outline-none focus:border-[#1a73e8]`}
+          className={`${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"} border rounded-md px-2.5 py-1 text-xs focus:outline-none focus:border-[#1a73e8]`}
         >
           <option value="ALL">All Years</option>
           <option value="2024">2024</option>
@@ -536,7 +536,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value as any)}
-          className={`${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#181818] border-[#262626] text-white"} border rounded-md px-2.5 py-1 text-xs focus:outline-none focus:border-[#1a73e8]`}
+          className={`${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"} border rounded-md px-2.5 py-1 text-xs focus:outline-none focus:border-[#1a73e8]`}
         >
           <option value="ALL">All Types</option>
           <option value="Auto">Auto-Debit</option>
@@ -547,7 +547,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
         <select
           value={qboFilter}
           onChange={(e) => setQboFilter(e.target.value as any)}
-          className={`${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#181818] border-[#262626] text-white"} border rounded-md px-2.5 py-1 text-xs focus:outline-none focus:border-[#1a73e8]`}
+          className={`${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"} border rounded-md px-2.5 py-1 text-xs focus:outline-none focus:border-[#1a73e8]`}
         >
           <option value="ALL">All QBO</option>
           <option value="In QBO">In QBO</option>
@@ -574,15 +574,15 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
           <>
             {/* Top KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl p-4 flex flex-col justify-between border-l-4 border-l-blue-500 shadow-xs`}>
+              <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-4 flex flex-col justify-between border-l-4 border-l-blue-500 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]`}>
                 <div className="text-[11px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">OUTSTANDING BILLS</div>
                 <div className="text-3xl font-extrabold text-blue-600 dark:text-blue-400 mt-1">{unpaidBills.length + onHoldBills.length}</div>
               </div>
-              <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl p-4 flex flex-col justify-between border-l-4 border-l-red-500 shadow-xs`}>
+              <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-4 flex flex-col justify-between border-l-4 border-l-red-500 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]`}>
                 <div className="text-[11px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">UNPAID TOTAL</div>
                 <div className="text-3xl font-extrabold text-red-600 dark:text-red-400 mt-1">{formatCurrency(unpaidBills.reduce((s, b) => s + b.amount, 0))}</div>
               </div>
-              <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl p-4 flex flex-col justify-between border-l-4 border-l-amber-500 shadow-xs`}>
+              <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-4 flex flex-col justify-between border-l-4 border-l-amber-500 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]`}>
                 <div className="text-[11px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">ON HOLD TOTAL</div>
                 <div className="text-3xl font-extrabold text-amber-600 dark:text-amber-400 mt-1">{formatCurrency(onHoldBills.reduce((s, b) => s + b.amount, 0))}</div>
               </div>
@@ -593,7 +593,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
               {bucketsConfig.map((bk) => {
                 const bTotal = bk.bills.reduce((s, b) => s + b.amount, 0);
                 return (
-                  <div key={bk.key} className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl overflow-hidden flex flex-col shadow-xs`}>
+                  <div key={bk.key} className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl overflow-hidden flex flex-col shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]`}>
                     <div className={`${bk.bg} px-3 py-2 flex items-center justify-between text-white font-bold`}>
                       <span className="text-xs uppercase tracking-wider">{bk.label}</span>
                       <span className="text-sm">{formatCurrency(bTotal)}</span>
@@ -608,7 +608,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
 
             {/* Rest of Year — full-width, sub-entities collapsed by default */}
             {restOfYearBills.length > 0 && (
-              <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl overflow-hidden shadow-xs`}>
+              <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]`}>
                 <div className="bg-[#5c6bc0] px-3 py-2 flex items-center justify-between text-white font-bold">
                   <span className="text-xs uppercase tracking-wider">Rest of Year</span>
                   <span className="text-sm">{formatCurrency(restOfYearBills.reduce((s, b) => s + b.amount, 0))}</span>
@@ -620,7 +620,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
             )}
 
             {/* On Hold */}
-            <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl overflow-hidden shadow-xs`}>
+            <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]`}>
               <div className="bg-[#e65100] px-4 py-2 flex items-center justify-between text-white">
                 <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
                   <PauseCircle className="w-4 h-4" /> Bills On Hold ({onHoldBills.length})
@@ -636,8 +636,8 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
 
         {/* PAID TAB */}
         {activeTab === "paid" && (
-          <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl p-4 shadow-xs`}>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-[#262626] mb-3">
+          <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-4 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]`}>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-[#1a2235] mb-3">
               <h3 className={`text-sm font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
                 Paid Bills — Grouped by Company & Vendor
               </h3>
@@ -653,21 +653,21 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
         {activeTab === "summary" && (
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl p-4`}>
+              <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-4`}>
                 <div className={`text-[11px] font-semibold ${isLight ? "text-slate-500" : "text-[#888]"} uppercase`}>Total Outstanding</div>
                 <div className={`text-2xl font-bold ${isLight ? "text-slate-900" : "text-white"} mt-1`}>
                   {formatCurrency(unpaidBills.reduce((s, b) => s + b.amount, 0))}
                 </div>
                 <div className={`text-[11px] ${isLight ? "text-slate-500" : "text-[#888]"} mt-1`}>Across filtered entities</div>
               </div>
-              <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl p-4`}>
+              <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-4`}>
                 <div className={`text-[11px] font-semibold ${isLight ? "text-slate-500" : "text-[#888]"} uppercase`}>Past Due</div>
                 <div className="text-2xl font-bold text-[#f87171] mt-1">
                   {formatCurrency(pastDueBills.reduce((s, b) => s + b.amount, 0))}
                 </div>
                 <div className="text-[11px] text-[#f87171] mt-1">Urgent action required</div>
               </div>
-              <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl p-4`}>
+              <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-4`}>
                 <div className={`text-[11px] font-semibold ${isLight ? "text-slate-500" : "text-[#888]"} uppercase`}>On Hold</div>
                 <div className="text-2xl font-bold text-[#fb923c] mt-1">
                   {formatCurrency(onHoldBills.reduce((s, b) => s + b.amount, 0))}
@@ -685,7 +685,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                 const bannerCfg = SUBENTITY_BANNER_CONFIGS[subKey];
 
                 return (
-                  <div key={subKey} className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl overflow-hidden`}>
+                  <div key={subKey} className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl overflow-hidden`}>
                     <div className={`${bannerCfg.bg} px-3 py-2 flex items-center justify-between text-xs font-bold`}>
                       <span>{bannerCfg.label}</span>
                       <span>{formatCurrency(total)}</span>
@@ -763,7 +763,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                 const reason = `${vendor0} — invoice #${inv0} · ${formatCurrency(group[0].amount)} · due ${formatDateStr(group[0].dueDate)}`;
 
                 return (
-                  <div key={gi} className={`rounded-lg border overflow-hidden ${isLight ? "border-slate-200 bg-slate-50" : "border-[#262626] bg-[#1a1a1a]"}`}>
+                  <div key={gi} className={`rounded-lg border overflow-hidden ${isLight ? "border-slate-200 bg-slate-50" : "border-[#1a2235] bg-[#1a1a1a]"}`}>
                     {/* Group header */}
                     <div className={`px-3 py-2 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${isLight ? "bg-red-50 text-red-600 border-b border-red-100" : "bg-red-900/20 text-red-400 border-b border-red-900/30"}`}>
                       <AlertTriangle className="w-3 h-3" />

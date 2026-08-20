@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+﻿import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   Settings, X, FileSpreadsheet, Tag, Database, ScrollText,
   Plus, Pencil, Trash2, Check
@@ -424,7 +424,7 @@ const HeadleysImportModal: React.FC<{ isLight: boolean; onClose: () => void }> =
                 .map(([bu,bk]) => {
                   const st = billStatus[bu] || "idle";
                   return (
-                    <div key={bu} className={`rounded-xl border p-4 flex flex-col gap-2 ${isLight?"bg-slate-50 border-slate-200":"bg-[#111] border-[#262626]"}`}>
+                    <div key={bu} className={`rounded-xl border p-4 flex flex-col gap-2 ${isLight?"bg-slate-50 border-slate-200":"bg-[#0d111a] border-[#1a2235]"}`}>
                       <div className={`text-[10px] font-bold uppercase tracking-wider ${s.muted}`}>Charging BU</div>
                       <div className="text-xl font-black text-[#5c35a5]">{bu}</div>
                       <div className={`text-lg font-bold ${s.txt}`}>{fmt(bk.charges)}</div>

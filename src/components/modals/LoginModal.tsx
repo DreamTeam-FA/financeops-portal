@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { googleSignInRedirect } from "../../services/googleAuth";
 import { Shield, LogIn } from "lucide-react";
@@ -56,7 +56,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen }) => {
         className={`w-full max-w-sm ${
           isLight
             ? "bg-white text-slate-900 border-slate-200"
-            : "bg-[#111] text-white border-[#262626]"
+            : "bg-[#0d111a] text-white border-[#1a2235]"
         } border rounded-2xl shadow-2xl overflow-hidden p-6 space-y-5`}
       >
         {/* Header */}

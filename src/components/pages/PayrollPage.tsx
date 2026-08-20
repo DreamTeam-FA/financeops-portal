@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { Users, Filter, CheckCircle2 } from "lucide-react";
@@ -66,7 +66,7 @@ export const PayrollPage: React.FC = () => {
   });
 
   return (
-    <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#0a0a0a] text-[#e8e8e8]"}`}>
+    <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#070b12] text-[#e8e8e8]"}`}>
       <PageHeader
         title="4YR Payroll Dashboard"
         bgClass="bg-[#7c3aed]"
@@ -81,7 +81,7 @@ export const PayrollPage: React.FC = () => {
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* Filter Bar */}
-        <div className={`flex flex-wrap items-center gap-2 p-3 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"}`}>
+        <div className={`flex flex-wrap items-center gap-2 p-3 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"}`}>
           <div className="flex items-center gap-1.5 text-xs font-semibold uppercase mr-2 text-[#7c3aed]">
             <Filter className="w-3.5 h-3.5 text-[#7c3aed]" /> Payroll Filters:
           </div>
@@ -89,7 +89,7 @@ export const PayrollPage: React.FC = () => {
           <select
             value={selectedWeekNum}
             onChange={(e) => setSelectedWeekNum(e.target.value)}
-            className={`border rounded px-2.5 py-1 text-xs ${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#181818] border-[#262626] text-white"}`}
+            className={`border rounded px-2.5 py-1 text-xs ${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"}`}
           >
             {payrollWeeks.map((w) => (
               <option key={w.weekNum} value={w.weekNum}>
@@ -101,7 +101,7 @@ export const PayrollPage: React.FC = () => {
           <select
             value={selectedCompany}
             onChange={(e) => setSelectedCompany(e.target.value)}
-            className={`border rounded px-2.5 py-1 text-xs ${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#181818] border-[#262626] text-white"}`}
+            className={`border rounded px-2.5 py-1 text-xs ${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"}`}
           >
             <option value="ALL">All Entities / Companies</option>
             <option value="Ruby's">Ruby's</option>
@@ -112,7 +112,7 @@ export const PayrollPage: React.FC = () => {
 
         {/* KPIs */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className={`border rounded-xl p-4 ${isLight ? "bg-white border-slate-200 shadow-xs" : "bg-[#111] border-[#262626]"}`}>
+          <div className={`border rounded-xl p-4 ${isLight ? "bg-white border-slate-200 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]" : "bg-[#0d111a] border-[#1a2235]"}`}>
             <div className={`text-[11px] font-semibold uppercase ${isLight ? "text-slate-500" : "text-[#888]"}`}>
               Total Payroll Outflow
             </div>
@@ -122,7 +122,7 @@ export const PayrollPage: React.FC = () => {
             <div className="text-[11px] text-[#7c3aed] mt-1 font-semibold">For week {selectedWeekNum}</div>
           </div>
 
-          <div className={`border rounded-xl p-4 ${isLight ? "bg-white border-slate-200 shadow-xs" : "bg-[#111] border-[#262626]"}`}>
+          <div className={`border rounded-xl p-4 ${isLight ? "bg-white border-slate-200 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]" : "bg-[#0d111a] border-[#1a2235]"}`}>
             <div className={`text-[11px] font-semibold uppercase ${isLight ? "text-slate-500" : "text-[#888]"}`}>
               Total Logged Hours
             </div>
@@ -130,7 +130,7 @@ export const PayrollPage: React.FC = () => {
             <div className={`text-[11px] mt-1 ${isLight ? "text-slate-500" : "text-[#888]"}`}>Across all departments</div>
           </div>
 
-          <div className={`border rounded-xl p-4 ${isLight ? "bg-white border-slate-200 shadow-xs" : "bg-[#111] border-[#262626]"}`}>
+          <div className={`border rounded-xl p-4 ${isLight ? "bg-white border-slate-200 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]" : "bg-[#0d111a] border-[#1a2235]"}`}>
             <div className={`text-[11px] font-semibold uppercase ${isLight ? "text-slate-500" : "text-[#888]"}`}>
               Line Items / Staff
             </div>
@@ -141,8 +141,8 @@ export const PayrollPage: React.FC = () => {
 
         {/* Pivot View */}
         {activeTab === "weekly" && (
-          <div className={`border rounded-xl overflow-hidden shadow-xs ${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"}`}>
-            <div className={`p-3 border-b flex items-center justify-between ${isLight ? "bg-slate-50 border-slate-200" : "bg-[#181818] border-[#262626]"}`}>
+          <div className={`border rounded-xl overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"}`}>
+            <div className={`p-3 border-b flex items-center justify-between ${isLight ? "bg-slate-50 border-slate-200" : "bg-[#0d111a] border-[#1a2235]"}`}>
               <h3 className={`text-xs font-bold uppercase tracking-wider flex items-center gap-2 ${isLight ? "text-slate-800" : "text-white"}`}>
                 <Users className="w-4 h-4 text-[#7c3aed]" /> Department & Job Category Pivot Breakdown
               </h3>
@@ -151,7 +151,7 @@ export const PayrollPage: React.FC = () => {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className={`border-b font-semibold ${isLight ? "bg-slate-100 border-slate-200 text-slate-600" : "bg-[#141414] border-[#262626] text-[#888]"}`}>
+                  <tr className={`border-b font-semibold ${isLight ? "bg-slate-100 border-slate-200 text-slate-600" : "bg-[#141414] border-[#1a2235] text-[#888]"}`}>
                     <th className="p-3">Company / Department</th>
                     <th className="p-3">Job Category</th>
                     <th className="p-3">Logged Hours</th>
@@ -210,12 +210,12 @@ export const PayrollPage: React.FC = () => {
 
         {/* Employee Detail View */}
         {activeTab === "detail" && (
-          <div className={`border rounded-xl p-4 text-xs ${isLight ? "bg-white border-slate-200 text-slate-700" : "bg-[#111] border-[#262626] text-[#aaa]"}`}>
+          <div className={`border rounded-xl p-4 text-xs ${isLight ? "bg-white border-slate-200 text-slate-700" : "bg-[#0d111a] border-[#1a2235] text-[#aaa]"}`}>
             <h4 className={`font-bold mb-1 text-sm ${isLight ? "text-slate-900" : "text-white"}`}>Employee & Category Payroll Items</h4>
             <p className={`mb-4 ${isLight ? "text-slate-500" : "text-[#888]"}`}>Detailed breakdown of hourly allocations, departmental payouts, and vendor payroll line items.</p>
             <div className="space-y-2">
               {lineItems.map((emp, i) => (
-                <div key={i} className={`flex items-center justify-between p-3 rounded-lg border ${isLight ? "bg-slate-50 border-slate-200" : "bg-[#181818] border-[#222]"}`}>
+                <div key={i} className={`flex items-center justify-between p-3 rounded-lg border ${isLight ? "bg-slate-50 border-slate-200" : "bg-[#0d111a] border-[#222]"}`}>
                   <div>
                     <div className={`font-bold ${isLight ? "text-slate-900" : "text-white"}`}>{emp.name}</div>
                     <div className={`text-[11px] ${isLight ? "text-slate-500" : "text-[#888]"}`}>{emp.role} · {emp.hours} hrs logged</div>
@@ -229,12 +229,12 @@ export const PayrollPage: React.FC = () => {
 
         {/* History Log */}
         {activeTab === "history" && (
-          <div className={`border rounded-xl p-4 text-xs ${isLight ? "bg-white border-slate-200 text-slate-700" : "bg-[#111] border-[#262626] text-[#aaa]"}`}>
+          <div className={`border rounded-xl p-4 text-xs ${isLight ? "bg-white border-slate-200 text-slate-700" : "bg-[#0d111a] border-[#1a2235] text-[#aaa]"}`}>
             <h4 className={`font-bold mb-1 text-sm ${isLight ? "text-slate-900" : "text-white"}`}>Payroll Run History Archive</h4>
             <p className={`mb-3 ${isLight ? "text-slate-500" : "text-[#888]"}`}>Weekly log records extracted from the 4YR Payroll sheet.</p>
             <div className="space-y-2 pt-1">
               {payrollWeeks.map((w) => (
-                <div key={w.weekNum} className={`flex items-center justify-between p-2.5 rounded border ${isLight ? "bg-slate-50 border-slate-200" : "bg-[#181818] border-[#222]"}`}>
+                <div key={w.weekNum} className={`flex items-center justify-between p-2.5 rounded border ${isLight ? "bg-slate-50 border-slate-200" : "bg-[#0d111a] border-[#222]"}`}>
                   <div>
                     <span className={`font-bold ${isLight ? "text-slate-900" : "text-white"}`}>{w.weekNum}: {w.label}</span>
                     <span className={`ml-2 text-[11px] ${isLight ? "text-slate-500" : "text-[#888]"}`}>({w.sheetName})</span>

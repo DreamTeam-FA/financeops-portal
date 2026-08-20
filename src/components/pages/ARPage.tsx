@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+﻿import React, { useState, useMemo } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { ARItem, EntityName } from "../../types";
@@ -156,7 +156,7 @@ export const ARPage: React.FC = () => {
   };
 
   return (
-    <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#0a0a0a] text-[#e8e8e8]"}`}>
+    <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#070b12] text-[#e8e8e8]"}`}>
       <PageHeader
         title="Accounts Receivables"
         bgClass="bg-[#16a34a]"
@@ -167,7 +167,7 @@ export const ARPage: React.FC = () => {
       />
 
       {/* Monthly Tracking Filter Bar */}
-      <div className={`flex items-center justify-between px-4 py-2 ${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border-b shrink-0`}>
+      <div className={`flex items-center justify-between px-4 py-2 ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border-b shrink-0`}>
         <div className="flex items-center gap-2">
           <span className={`text-xs font-semibold ${isLight ? "text-slate-500" : "text-[#888]"}`}>Select Month:</span>
           <select
@@ -176,7 +176,7 @@ export const ARPage: React.FC = () => {
             className={`px-3 py-1 rounded-md text-xs font-semibold border ${
               isLight
                 ? "bg-slate-50 border-slate-300 text-slate-800 focus:border-[#16a34a]"
-                : "bg-[#181818] border-[#262626] text-white focus:border-[#16a34a]"
+                : "bg-[#0d111a] border-[#1a2235] text-white focus:border-[#16a34a]"
             } focus:outline-none`}
           >
             <option value="ALL">All Months</option>
@@ -195,7 +195,7 @@ export const ARPage: React.FC = () => {
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl p-4 shadow-xs`}>
+          <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-4 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]`}>
             <div className={`text-[11px] font-semibold ${isLight ? "text-slate-500" : "text-[#888]"} uppercase`}>
               Total Invoiced Receivables
             </div>
@@ -209,7 +209,7 @@ export const ARPage: React.FC = () => {
 
           <button
             onClick={() => setShowOverdueModal(true)}
-            className={`${isLight ? "bg-white border-slate-200 hover:border-red-300 hover:shadow-md" : "bg-[#111] border-[#262626] hover:border-red-800/60 hover:bg-[#161616]"} border rounded-xl p-4 shadow-xs text-left transition-all group w-full`}
+            className={`${isLight ? "bg-white border-slate-200 hover:border-red-300 hover:shadow-md" : "bg-[#0d111a] border-[#1a2235] hover:border-red-800/60 hover:bg-[#161616]"} border rounded-xl p-4 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] text-left transition-all group w-full`}
           >
             <div className={`text-[11px] font-semibold ${isLight ? "text-slate-500" : "text-[#888]"} uppercase`}>
               Overdue Receivables
@@ -227,7 +227,7 @@ export const ARPage: React.FC = () => {
             </div>
           </button>
 
-          <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl p-4 shadow-xs`}>
+          <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-4 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]`}>
             <div className={`text-[11px] font-semibold ${isLight ? "text-slate-500" : "text-[#888]"} uppercase`}>
               Collection Rate
             </div>
@@ -239,8 +239,8 @@ export const ARPage: React.FC = () => {
         </div>
 
         {/* AR Workflow Table */}
-        <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl overflow-hidden shadow-sm`}>
-          <div className={`p-3 ${isLight ? "bg-slate-50 border-slate-200" : "bg-[#181818] border-[#262626]"} border-b flex items-center justify-between`}>
+        <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl overflow-hidden shadow-sm`}>
+          <div className={`p-3 ${isLight ? "bg-slate-50 border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border-b flex items-center justify-between`}>
             <h3 className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-slate-900" : "text-white"} flex items-center gap-2`}>
               <Receipt className="w-4 h-4 text-[#16a34a]" /> Accounts Receivable Workflow Matrix
             </h3>
@@ -252,7 +252,7 @@ export const ARPage: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className={`${isLight ? "bg-slate-100/70 border-slate-200 text-slate-600" : "bg-[#141414] border-[#262626] text-[#888]"} border-b font-semibold`}>
+                <tr className={`${isLight ? "bg-slate-100/70 border-slate-200 text-slate-600" : "bg-[#141414] border-[#1a2235] text-[#888]"} border-b font-semibold`}>
                   <th className="p-3">Entity</th>
                   <th className="p-3">Customer / Client</th>
                   <th className="p-3">Description</th>
@@ -321,7 +321,7 @@ export const ARPage: React.FC = () => {
                               type="text"
                               value={tempRemarks}
                               onChange={(e) => setTempRemarks(e.target.value)}
-                              className="bg-[#181818] border border-[#16a34a] rounded px-2 py-0.5 text-xs text-white w-36"
+                              className="bg-[#0d111a] border border-[#16a34a] rounded px-2 py-0.5 text-xs text-white w-36"
                             />
                             <button
                               onClick={() => handleSaveRemarks(a.id)}
@@ -376,7 +376,7 @@ export const ARPage: React.FC = () => {
       {/* Template Picker Modal */}
       {showTemplatePicker && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className={`w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border ${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#2a2a2a]"}`}>
+          <div className={`w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#2a2a2a]"}`}>
             <div className="h-1.5 bg-[#16a34a]" />
             <div className={`flex items-center justify-between px-5 py-4 border-b ${isLight ? "border-slate-100" : "border-[#222]"}`}>
               <div>
@@ -456,7 +456,7 @@ export const ARPage: React.FC = () => {
       {/* Add AR Modal */}
       {isAddOpen && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className={`w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border ${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#2a2a2a]"}`}>
+          <div className={`w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#2a2a2a]"}`}>
             <div className="h-1.5 bg-[#16a34a]" />
             <div className={`flex items-center justify-between px-5 py-4 border-b ${isLight ? "border-slate-100" : "border-[#222]"}`}>
               <h3 className={`text-sm font-black ${isLight ? "text-slate-900" : "text-white"}`}>
@@ -470,13 +470,13 @@ export const ARPage: React.FC = () => {
               <div>
                 <label className={`block text-[11px] font-semibold uppercase mb-1 ${isLight ? "text-slate-500" : "text-[#888]"}`}>Customer Name</label>
                 <input type="text" required value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="e.g. Apex Retail"
-                  className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"}`} />
+                  className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"}`} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={`block text-[11px] font-semibold uppercase mb-1 ${isLight ? "text-slate-500" : "text-[#888]"}`}>Entity</label>
                   <select value={entity} onChange={(e) => setEntity(e.target.value as EntityName)}
-                    className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"}`}>
+                    className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"}`}>
                     <option value="Ruby's">Ruby's</option>
                     <option value="TI">TI</option>
                     <option value="MSDx">MSDx</option>
@@ -485,18 +485,18 @@ export const ARPage: React.FC = () => {
                 <div>
                   <label className={`block text-[11px] font-semibold uppercase mb-1 ${isLight ? "text-slate-500" : "text-[#888]"}`}>Amount ($)</label>
                   <input type="number" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00"
-                    className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"}`} />
+                    className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"}`} />
                 </div>
               </div>
               <div>
                 <label className={`block text-[11px] font-semibold uppercase mb-1 ${isLight ? "text-slate-500" : "text-[#888]"}`}>Description</label>
                 <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Invoice details"
-                  className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"}`} />
+                  className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"}`} />
               </div>
               <div>
                 <label className={`block text-[11px] font-semibold uppercase mb-1 ${isLight ? "text-slate-500" : "text-[#888]"}`}>Due Date</label>
                 <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)}
-                  className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"}`} />
+                  className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"}`} />
               </div>
               <div className={`flex justify-end gap-2 pt-3 border-t ${isLight ? "border-slate-100" : "border-[#222]"}`}>
                 <button type="button" onClick={() => setIsAddOpen(false)}
@@ -515,7 +515,7 @@ export const ARPage: React.FC = () => {
       {/* Overdue Receivables Modal */}
       {showOverdueModal && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className={`w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden border ${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#2a2a2a]"}`}>
+          <div className={`w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden border ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#2a2a2a]"}`}>
             {/* Accent bar */}
             <div className="h-1.5 w-full bg-red-500" />
 
@@ -544,7 +544,7 @@ export const ARPage: React.FC = () => {
             <div className="overflow-y-auto max-h-[60vh]">
               <table className="w-full text-xs border-collapse">
                 <thead>
-                  <tr className={`sticky top-0 ${isLight ? "bg-slate-50 border-slate-200 text-slate-500" : "bg-[#161616] border-[#262626] text-[#777]"} border-b font-semibold uppercase tracking-wide`}>
+                  <tr className={`sticky top-0 ${isLight ? "bg-slate-50 border-slate-200 text-slate-500" : "bg-[#161616] border-[#1a2235] text-[#777]"} border-b font-semibold uppercase tracking-wide`}>
                     <th className="px-4 py-2.5 text-left">Entity</th>
                     <th className="px-4 py-2.5 text-left">Customer</th>
                     <th className="px-4 py-2.5 text-left">Description</th>
@@ -597,7 +597,7 @@ export const ARPage: React.FC = () => {
       {/* Edit AR Modal */}
       {editingAR && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className={`w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border ${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#2a2a2a]"}`}>
+          <div className={`w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#2a2a2a]"}`}>
             <div className="h-1.5 bg-[#16a34a]" />
             <div className={`flex items-center justify-between px-5 py-4 border-b ${isLight ? "border-slate-100" : "border-[#222]"}`}>
               <h3 className={`text-sm font-black ${isLight ? "text-slate-900" : "text-white"}`}>Edit Receivable Invoice</h3>
@@ -609,13 +609,13 @@ export const ARPage: React.FC = () => {
               <div>
                 <label className={`block text-[11px] font-semibold uppercase mb-1 ${isLight ? "text-slate-500" : "text-[#888]"}`}>Customer Name</label>
                 <input type="text" required value={editingAR.customer} onChange={(e) => setEditingAR({ ...editingAR, customer: e.target.value })}
-                  className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"}`} />
+                  className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"}`} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={`block text-[11px] font-semibold uppercase mb-1 ${isLight ? "text-slate-500" : "text-[#888]"}`}>Entity</label>
                   <select value={editingAR.entity} onChange={(e) => setEditingAR({ ...editingAR, entity: e.target.value as EntityName })}
-                    className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"}`}>
+                    className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"}`}>
                     <option value="Ruby's">Ruby's</option>
                     <option value="TI">TI</option>
                     <option value="MSDx">MSDx</option>
@@ -624,23 +624,23 @@ export const ARPage: React.FC = () => {
                 <div>
                   <label className={`block text-[11px] font-semibold uppercase mb-1 ${isLight ? "text-slate-500" : "text-[#888]"}`}>Amount ($)</label>
                   <input type="number" step="0.01" required value={editingAR.amount} onChange={(e) => setEditingAR({ ...editingAR, amount: parseFloat(e.target.value) || 0 })}
-                    className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"}`} />
+                    className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"}`} />
                 </div>
               </div>
               <div>
                 <label className={`block text-[11px] font-semibold uppercase mb-1 ${isLight ? "text-slate-500" : "text-[#888]"}`}>Description</label>
                 <input type="text" value={editingAR.description} onChange={(e) => setEditingAR({ ...editingAR, description: e.target.value })}
-                  className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"}`} />
+                  className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"}`} />
               </div>
               <div>
                 <label className={`block text-[11px] font-semibold uppercase mb-1 ${isLight ? "text-slate-500" : "text-[#888]"}`}>Due Date</label>
                 <input type="date" value={editingAR.dueDate} onChange={(e) => setEditingAR({ ...editingAR, dueDate: e.target.value })}
-                  className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"}`} />
+                  className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"}`} />
               </div>
               <div>
                 <label className={`block text-[11px] font-semibold uppercase mb-1 ${isLight ? "text-slate-500" : "text-[#888]"}`}>Remarks</label>
                 <input type="text" value={editingAR.remarks || ""} onChange={(e) => setEditingAR({ ...editingAR, remarks: e.target.value })}
-                  className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"}`} />
+                  className={`w-full border rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:border-[#16a34a] ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"}`} />
               </div>
               <div className={`flex justify-end gap-2 pt-3 border-t ${isLight ? "border-slate-100" : "border-[#222]"}`}>
                 <button type="button" onClick={() => setEditingAR(null)}

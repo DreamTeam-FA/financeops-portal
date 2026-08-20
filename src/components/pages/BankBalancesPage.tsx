@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { getBankBalanceWarning } from "../../utils/bankWarning";
@@ -53,7 +53,7 @@ export const BankBalancesPage: React.FC = () => {
       const data = payload[0].payload;
       const warn = getBankBalanceWarning(data.balance);
       return (
-        <div className={`p-3 rounded-xl border shadow-xl space-y-1.5 ${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#181818] border-[#333] text-white"}`}>
+        <div className={`p-3 rounded-xl border shadow-xl space-y-1.5 ${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"}`}>
           <div className="font-extrabold text-xs">{data.name}</div>
           <div className={`text-[11px] font-semibold ${isLight ? "text-slate-500" : "text-[#999]"}`}>
             {data.entity} {data.bank ? `• ${data.bank}` : ""} {data.acct ? `(${data.acct})` : ""}
@@ -100,7 +100,7 @@ export const BankBalancesPage: React.FC = () => {
   };
 
   return (
-    <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#0a0a0a] text-[#e8e8e8]"}`}>
+    <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#070b12] text-[#e8e8e8]"}`}>
       <PageHeader
         title="Bank Balances"
         bgClass="bg-[#0891b2]"
@@ -113,7 +113,7 @@ export const BankBalancesPage: React.FC = () => {
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl p-4 shadow-xs`}>
+          <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-4 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]`}>
             <div className={`text-[11px] font-semibold ${isLight ? "text-slate-500" : "text-[#888]"} uppercase`}>
               Total Cash Position
             </div>
@@ -131,7 +131,7 @@ export const BankBalancesPage: React.FC = () => {
               .reduce((s, a) => s + a.balance, 0);
 
             return (
-              <div key={en} className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl p-4 shadow-xs`}>
+              <div key={en} className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-4 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]`}>
                 <div className={`text-[11px] font-semibold ${isLight ? "text-slate-500" : "text-[#888]"} uppercase`}>
                   {en} Total
                 </div>
@@ -145,16 +145,16 @@ export const BankBalancesPage: React.FC = () => {
         </div>
 
         {/* View Toggle Bar */}
-        <div className={`flex items-center justify-between p-2 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"}`}>
+        <div className={`flex items-center justify-between p-2 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"}`}>
           <div className="text-xs font-bold px-2 text-slate-600 dark:text-gray-300">
             Bank Accounts View Mode
           </div>
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#181818] p-1 rounded-lg">
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#0d111a] p-1 rounded-lg">
             <button
               onClick={() => setViewMode("chart")}
               className={`flex items-center gap-1 px-3.5 py-1.5 rounded text-xs font-semibold transition-colors ${
                 viewMode === "chart"
-                  ? "bg-white dark:bg-[#262626] text-slate-900 dark:text-white shadow-xs border border-slate-200 dark:border-[#333]"
+                  ? "bg-white dark:bg-[#262626] text-slate-900 dark:text-white shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] border border-slate-200 dark:border-[#333]"
                   : "text-slate-500 hover:text-slate-900 dark:text-[#888] dark:hover:text-white"
               }`}
             >
@@ -164,7 +164,7 @@ export const BankBalancesPage: React.FC = () => {
               onClick={() => setViewMode("table")}
               className={`flex items-center gap-1 px-3.5 py-1.5 rounded text-xs font-semibold transition-colors ${
                 viewMode === "table"
-                  ? "bg-white dark:bg-[#262626] text-slate-900 dark:text-white shadow-xs border border-slate-200 dark:border-[#333]"
+                  ? "bg-white dark:bg-[#262626] text-slate-900 dark:text-white shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] border border-slate-200 dark:border-[#333]"
                   : "text-slate-500 hover:text-slate-900 dark:text-[#888] dark:hover:text-white"
               }`}
             >
@@ -175,7 +175,7 @@ export const BankBalancesPage: React.FC = () => {
 
         {/* Visual Bar Graph Section - Single Full Width Chart */}
         {viewMode === "chart" && (
-          <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl p-4 shadow-sm`}>
+          <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-4 shadow-sm`}>
             <div className="flex items-center justify-between mb-3">
               <h3 className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-slate-900" : "text-white"} flex items-center gap-2`}>
                 <BarChart3 className="w-4 h-4 text-[#0891b2]" /> Bank Account Balances Visual
@@ -214,8 +214,8 @@ export const BankBalancesPage: React.FC = () => {
 
         {/* Bank Table */}
         {viewMode === "table" && (
-          <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl overflow-hidden shadow-sm`}>
-            <div className={`p-3 ${isLight ? "bg-slate-50 border-slate-200" : "bg-[#181818] border-[#262626]"} border-b flex items-center justify-between`}>
+          <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl overflow-hidden shadow-sm`}>
+            <div className={`p-3 ${isLight ? "bg-slate-50 border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border-b flex items-center justify-between`}>
               <h3 className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-slate-800" : "text-white"} flex items-center gap-2`}>
                 <Landmark className="w-4 h-4 text-[#0891b2]" /> Managed Cash & Deposit Accounts
               </h3>
@@ -225,7 +225,7 @@ export const BankBalancesPage: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className={`${isLight ? "bg-slate-100/70 border-slate-200 text-slate-600" : "bg-[#141414] border-[#262626] text-[#888]"} border-b font-semibold`}>
+                <tr className={`${isLight ? "bg-slate-100/70 border-slate-200 text-slate-600" : "bg-[#141414] border-[#1a2235] text-[#888]"} border-b font-semibold`}>
                   <th className="p-3">Entity</th>
                   <th className="p-3">Bank Name</th>
                   <th className="p-3">Account Type</th>
@@ -259,7 +259,7 @@ export const BankBalancesPage: React.FC = () => {
                             step="0.01"
                             defaultValue={b.balance}
                             onChange={(e) => setNewVal(e.target.value)}
-                            className={`border border-[#1a73e8] rounded px-2 py-0.5 text-xs w-28 ${isLight ? "bg-white text-slate-900" : "bg-[#181818] text-white"}`}
+                            className={`border border-[#1a73e8] rounded px-2 py-0.5 text-xs w-28 ${isLight ? "bg-white text-slate-900" : "bg-[#0d111a] text-white"}`}
                           />
                         ) : (
                           <div className="flex flex-col gap-0.5">

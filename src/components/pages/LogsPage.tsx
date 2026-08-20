@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+﻿import React, { useState, useEffect, useCallback } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { readLogsSheet, LOGS_SHEET_TITLE } from "../../services/logsSheetService";
 import { getAccessToken } from "../../services/googleAuth";
@@ -118,7 +118,7 @@ export const LogsPage: React.FC = () => {
   const [activityRows, setActivityRows] = useState<string[][]>([]);
   const [sheetUrl, setSheetUrl]         = useState<string>("");
 
-  const bg   = isLight ? "bg-slate-100"  : "bg-[#0a0a0a]";
+  const bg   = isLight ? "bg-slate-100"  : "bg-[#070b12]";
   const card = isLight ? "bg-white border-slate-200" : "bg-[#111318] border-[#1e2433]";
   const txt  = isLight ? "text-slate-800" : "text-slate-100";
   const txt2 = isLight ? "text-slate-500" : "text-slate-400";

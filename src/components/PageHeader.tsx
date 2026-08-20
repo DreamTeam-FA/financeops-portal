@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useFinance } from "../context/FinanceContext";
 import { Plus, RefreshCw, ArrowDownToLine, ArrowUpFromLine, CheckCircle2, AlertCircle, Sun, Moon, RefreshCcw } from "lucide-react";
 import { ScreenshotButton } from "./ScreenshotButton";
@@ -99,7 +99,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
                 onClick={() => toggleEntityFilter("ALL")}
                 className={`h-6 px-3 rounded-full text-[11px] font-semibold transition-all ${
                   selectedEntities.has("ALL")
-                    ? "bg-white text-[#1a73e8] shadow-xs"
+                    ? "bg-white text-[#1a73e8] shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
                     : "text-white/80 hover:text-white hover:bg-white/10"
                 }`}
               >

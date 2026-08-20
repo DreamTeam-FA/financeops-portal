@@ -1,4 +1,4 @@
-/**
+﻿/**
  * FourYrPayrollPage — 4YouPros Payroll Dashboard
  * Matches GAS 4YRdashboard.html patterns exactly.
  */
@@ -595,7 +595,7 @@ export function FourYrPayrollPage() {
 
   // ── Theme tokens ──────────────────────────────────────────────────────────
   const bg   = isLight ? "bg-white"     : "bg-[#0f0f0f]";
-  const bg2  = isLight ? "bg-slate-50"  : "bg-[#111]";
+  const bg2  = isLight ? "bg-slate-50"  : "bg-[#0d111a]";
   const bg3  = isLight ? "bg-slate-100" : "bg-[#1a1a1a]";
   const bdr  = isLight ? "border-slate-200" : "border-[#272727]";
   const txt  = isLight ? "text-slate-900"   : "text-slate-100";

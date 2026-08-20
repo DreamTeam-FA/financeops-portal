@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+﻿import React, { useState, useMemo } from "react";
 import { StickyNote, X, Plus, Trash2, Edit2, Check, Search, Calendar, ExternalLink } from "lucide-react";
 import { useFinance } from "../../context/FinanceContext";
 import { DashboardNote } from "../../types";
@@ -164,7 +164,7 @@ export const NotesFloatingWidget: React.FC = () => {
   });
 
   const inp = `w-full p-2 rounded-lg text-xs font-medium border focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-    isLight ? "bg-white border-slate-300 text-slate-900" : "bg-[#111] border-[#333] text-white"
+    isLight ? "bg-white border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"
   }`;
   const lbl = `text-[10px] font-bold block mb-1 uppercase tracking-wide ${isLight ? "text-slate-500" : "text-[#888]"}`;
 
@@ -200,7 +200,7 @@ export const NotesFloatingWidget: React.FC = () => {
 
             {/* Header */}
             <div className={`flex items-center justify-between p-4 border-b shrink-0 ${
-              isLight ? "border-slate-200 bg-slate-50" : "border-[#262626] bg-[#181818]"
+              isLight ? "border-slate-200 bg-slate-50" : "border-[#1a2235] bg-[#0d111a]"
             }`}>
               <div className="flex items-center gap-2">
                 <div className="p-2 rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400">
@@ -239,7 +239,7 @@ export const NotesFloatingWidget: React.FC = () => {
               {/* ── Create / Edit Form ────────────────────────────────────── */}
               {isCreating ? (
                 <div className={`p-4 rounded-xl border space-y-3 ${
-                  isLight ? "bg-slate-50 border-slate-200" : "bg-[#181818] border-[#2a2a2a]"
+                  isLight ? "bg-slate-50 border-slate-200" : "bg-[#0d111a] border-[#2a2a2a]"
                 }`}>
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">
@@ -297,7 +297,7 @@ export const NotesFloatingWidget: React.FC = () => {
 
                   <button
                     onClick={handleSave}
-                    className="w-full py-2.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-xs"
+                    className="w-full py-2.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
                   >
                     <Check className="w-4 h-4" /> Save Note
                   </button>
@@ -309,7 +309,7 @@ export const NotesFloatingWidget: React.FC = () => {
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center justify-between gap-2">
                       <div className={`flex-1 flex items-center gap-2 px-3 py-1.5 rounded-xl border ${
-                        isLight ? "bg-slate-50 border-slate-200" : "bg-[#181818] border-[#262626]"
+                        isLight ? "bg-slate-50 border-slate-200" : "bg-[#0d111a] border-[#1a2235]"
                       }`}>
                         <Search className="w-3.5 h-3.5 text-slate-400" />
                         <input
@@ -324,7 +324,7 @@ export const NotesFloatingWidget: React.FC = () => {
                       </div>
                       <button
                         onClick={() => { resetForm(); setIsCreating(true); }}
-                        className="px-3 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center gap-1 shrink-0 transition-colors shadow-xs"
+                        className="px-3 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center gap-1 shrink-0 transition-colors shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
                       >
                         <Plus className="w-4 h-4" /> Add
                       </button>
@@ -369,7 +369,7 @@ export const NotesFloatingWidget: React.FC = () => {
                           className={`p-3.5 rounded-xl border transition-all ${
                             isLight
                               ? "bg-slate-50 border-slate-200 hover:border-purple-300"
-                              : "bg-[#181818] border-[#262626] hover:border-purple-500/50"
+                              : "bg-[#0d111a] border-[#1a2235] hover:border-purple-500/50"
                           }`}
                         >
                           {/* Badge row */}

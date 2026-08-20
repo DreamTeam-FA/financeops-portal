@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+﻿import React, { useState, useEffect, useMemo } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { EntityName } from "../../types";
 import { X, Check } from "lucide-react";
@@ -284,7 +284,7 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
               className={`${inp} resize-vertical`} />
 
             {remarks && (
-              <div className={`mt-2 p-2.5 rounded-lg border text-xs ${isLight ? "bg-blue-50 border-blue-200" : "bg-[#181818] border-[#2c2c2c]"}`}>
+              <div className={`mt-2 p-2.5 rounded-lg border text-xs ${isLight ? "bg-blue-50 border-blue-200" : "bg-[#0d111a] border-[#2c2c2c]"}`}>
                 <div className={`text-[10px] font-bold uppercase mb-1.5 ${isLight ? "text-blue-700" : "text-[#1a73e8]"}`}>
                   Save to which column?
                 </div>

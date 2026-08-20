@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { ExternalLink, Settings, RefreshCw, Edit2, Check, AlertCircle, EyeOff, Eye, Maximize2, Minimize2 } from "lucide-react";
@@ -44,7 +44,7 @@ export const GasDashboardView: React.FC<GasDashboardViewProps> = ({ entityKey, t
   };
 
   return (
-    <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#0a0a0a] text-[#e8e8e8]"}`}>
+    <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#070b12] text-[#e8e8e8]"}`}>
       {!isHeaderCollapsed && (
         <>
           <PageHeader
@@ -55,14 +55,14 @@ export const GasDashboardView: React.FC<GasDashboardViewProps> = ({ entityKey, t
           />
 
           {/* Top Action Bar */}
-          <div className={`flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 border-b ${isLight ? "bg-white border-slate-200 text-slate-800" : "bg-[#111] border-[#262626] text-white"} shrink-0`}>
+          <div className={`flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 border-b ${isLight ? "bg-white border-slate-200 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"} shrink-0`}>
             <div className="flex items-center gap-3 min-w-0">
               {renderLogo()}
               <span className="text-xs text-slate-400 hidden sm:inline">|</span>
               
               {!isEditingUrl ? (
                 <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="text-xs font-semibold text-slate-500 dark:text-gray-400 truncate max-w-xs md:max-w-md font-mono bg-slate-100 dark:bg-[#181818] px-2 py-0.5 rounded border border-slate-200 dark:border-[#333]">
+                  <span className="text-xs font-semibold text-slate-500 dark:text-gray-400 truncate max-w-xs md:max-w-md font-mono bg-slate-100 dark:bg-[#0d111a] px-2 py-0.5 rounded border border-slate-200 dark:border-[#333]">
                     {currentUrl}
                   </span>
                   <button
@@ -83,7 +83,7 @@ export const GasDashboardView: React.FC<GasDashboardViewProps> = ({ entityKey, t
                     value={editedUrl}
                     onChange={(e) => setEditedUrl(e.target.value)}
                     placeholder="Paste Google Apps Script / Dashboard Web App URL..."
-                    className={`flex-1 px-2 py-1 text-xs font-mono rounded border ${isLight ? "bg-slate-50 border-purple-300 text-slate-900" : "bg-[#181818] border-purple-500 text-white"} focus:outline-none`}
+                    className={`flex-1 px-2 py-1 text-xs font-mono rounded border ${isLight ? "bg-slate-50 border-purple-300 text-slate-900" : "bg-[#0d111a] border-purple-500 text-white"} focus:outline-none`}
                   />
                   <button
                     onClick={handleSaveUrl}

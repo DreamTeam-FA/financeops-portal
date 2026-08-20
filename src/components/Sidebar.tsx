@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { useFinance } from "../context/FinanceContext";
 import { getUserGreetingName } from "../utils/userGreeting";
 import { formatPossessiveName, formatCleanName } from "../utils/formatters";
@@ -259,7 +259,7 @@ export const Sidebar: React.FC = () => {
           }}
           className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all ${
             (currentPage === "rubys" || (currentPage === "ap" && selectedEntities.has("Ruby's") && selectedEntities.size === 1))
-              ? isLight ? "bg-blue-50 border border-blue-200 shadow-xs" : "bg-[#0d1a2e] border border-[#1e3358] shadow-xs"
+              ? isLight ? "bg-blue-50 border border-blue-200 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]" : "bg-[#0d1a2e] border border-[#1e3358] shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
               : isLight ? "hover:bg-slate-50" : "hover:bg-[#0a1220]"
           }`}
           title="Ruby's AP View"
@@ -284,7 +284,7 @@ export const Sidebar: React.FC = () => {
           }}
           className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all ${
             (currentPage === "ti" || (currentPage === "ap" && selectedEntities.has("TI") && selectedEntities.size === 1))
-              ? isLight ? "bg-blue-50 border border-blue-200 shadow-xs" : "bg-[#0d1a2e] border border-[#1e3358] shadow-xs"
+              ? isLight ? "bg-blue-50 border border-blue-200 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]" : "bg-[#0d1a2e] border border-[#1e3358] shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
               : isLight ? "hover:bg-slate-50" : "hover:bg-[#0a1220]"
           }`}
           title="TI AP View"
@@ -309,7 +309,7 @@ export const Sidebar: React.FC = () => {
           }}
           className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all ${
             (currentPage === "msdx" || (currentPage === "ap" && selectedEntities.has("MSDx") && selectedEntities.size === 1))
-              ? isLight ? "bg-blue-50 border border-blue-200 shadow-xs" : "bg-[#0d1a2e] border border-[#1e3358] shadow-xs"
+              ? isLight ? "bg-blue-50 border border-blue-200 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]" : "bg-[#0d1a2e] border border-[#1e3358] shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
               : isLight ? "hover:bg-slate-50" : "hover:bg-[#0a1220]"
           }`}
           title="MSDx AP View"
@@ -342,7 +342,7 @@ export const Sidebar: React.FC = () => {
           }}
           className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all ${
             currentPage === "curcumin"
-              ? isLight ? "bg-blue-50 border border-blue-200 shadow-xs" : "bg-[#0d1a2e] border border-[#1e3358] shadow-xs"
+              ? isLight ? "bg-blue-50 border border-blue-200 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]" : "bg-[#0d1a2e] border border-[#1e3358] shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
               : isLight ? "hover:bg-slate-50" : "hover:bg-[#0a1220]"
           }`}
           title="CurcuminPRO Dashboard"
@@ -361,7 +361,7 @@ export const Sidebar: React.FC = () => {
           onClick={() => setCurrentPage("fouryr-payroll")}
           className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all ${
             currentPage === "fouryr-payroll"
-              ? isLight ? "bg-blue-50 border border-blue-200 shadow-xs" : "bg-[#0d1a2e] border border-[#1e3358] shadow-xs"
+              ? isLight ? "bg-blue-50 border border-blue-200 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]" : "bg-[#0d1a2e] border border-[#1e3358] shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
               : isLight ? "hover:bg-slate-50" : "hover:bg-[#0a1220]"
           }`}
           title="4You Pros Dashboard"
@@ -383,7 +383,7 @@ export const Sidebar: React.FC = () => {
           }}
           className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-all ${
             currentPage === "ziglar"
-              ? isLight ? "bg-blue-50 border border-blue-200 shadow-xs" : "bg-[#0d1a2e] border border-[#1e3358] shadow-xs"
+              ? isLight ? "bg-blue-50 border border-blue-200 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]" : "bg-[#0d1a2e] border border-[#1e3358] shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
               : isLight ? "hover:bg-slate-50" : "hover:bg-[#0a1220]"
           }`}
           title="Ziglar Dashboard"
@@ -479,7 +479,7 @@ export const Sidebar: React.FC = () => {
               <UserIcon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               <span className="flex-1 text-left truncate font-medium">{formatPossessiveName(mem.name)}</span>
               <span
-                className="w-2.5 h-2.5 rounded-full shrink-0 shadow-xs"
+                className="w-2.5 h-2.5 rounded-full shrink-0 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
                 style={{ backgroundColor: mem.color }}
               />
             </button>
@@ -515,7 +515,7 @@ export const Sidebar: React.FC = () => {
           <div className={`w-full max-w-md rounded-xl border p-5 space-y-4 shadow-2xl ${
             isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#121212] border-[#2d2d2d] text-white"
           }`}>
-            <div className="flex items-center justify-between border-b pb-2.5 dark:border-[#262626]">
+            <div className="flex items-center justify-between border-b pb-2.5 dark:border-[#1a2235]">
               <h3 className="text-sm font-bold flex items-center gap-2 text-blue-600 dark:text-blue-400">
                 <FolderPlus className="w-4 h-4" /> Add Workspace Item
               </h3>
@@ -534,7 +534,7 @@ export const Sidebar: React.FC = () => {
                   onChange={(e) => setWsName(e.target.value)}
                   placeholder="e.g. Operations Drive, Marketing Sheet"
                   className={`w-full border rounded-lg p-2 text-xs ${
-                    isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"
+                    isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"
                   }`}
                 />
               </div>
@@ -545,7 +545,7 @@ export const Sidebar: React.FC = () => {
                   value={wsType}
                   onChange={(e) => setWsType(e.target.value as any)}
                   className={`w-full border rounded-lg p-2 text-xs ${
-                    isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"
+                    isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"
                   }`}
                 >
                   <option value="tools">Tools & sheets</option>
@@ -562,7 +562,7 @@ export const Sidebar: React.FC = () => {
                   onChange={(e) => setWsUrl(e.target.value)}
                   placeholder="https://docs.google.com/..."
                   className={`w-full border rounded-lg p-2 text-xs ${
-                    isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"
+                    isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"
                   }`}
                 />
               </div>
@@ -593,7 +593,7 @@ export const Sidebar: React.FC = () => {
           <div className={`w-full max-w-md rounded-xl border p-5 space-y-4 shadow-2xl ${
             isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#121212] border-[#2d2d2d] text-white"
           }`}>
-            <div className="flex items-center justify-between border-b pb-2.5 dark:border-[#262626]">
+            <div className="flex items-center justify-between border-b pb-2.5 dark:border-[#1a2235]">
               <h3 className="text-sm font-bold flex items-center gap-2 text-purple-600 dark:text-purple-400">
                 <UserPlus className="w-4 h-4" /> Add Member's Workspace
               </h3>
@@ -612,7 +612,7 @@ export const Sidebar: React.FC = () => {
                   onChange={(e) => setMemberName(e.target.value)}
                   placeholder="e.g. Alex, Sarah"
                   className={`w-full border rounded-lg p-2 text-xs ${
-                    isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"
+                    isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"
                   }`}
                 />
               </div>
@@ -702,7 +702,7 @@ export const Sidebar: React.FC = () => {
           <div className="flex flex-col items-center gap-2 py-1">
             <button
               onClick={signOutUser}
-              className="w-8 h-8 rounded-full bg-[#1e1e1e] flex items-center justify-center text-xs font-bold text-white shadow-xs"
+              className="w-8 h-8 rounded-full bg-[#1e1e1e] flex items-center justify-center text-xs font-bold text-white shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
               title={`Active User: ${greetingName} (${userEmail})`}
             >
               {greetingName.charAt(0).toUpperCase()}

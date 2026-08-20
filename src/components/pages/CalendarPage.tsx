@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+﻿import React, { useState, useEffect, useMemo } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import {
@@ -785,33 +785,33 @@ export const CalendarPage: React.FC = () => {
   const todayStr = new Date().toISOString().split("T")[0];
 
   return (
-    <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#0a0a0a] text-[#e8e8e8]"}`}>
+    <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#070b12] text-[#e8e8e8]"}`}>
       <PageHeader title="Integrated Finance & Schedule Calendar" bgClass="bg-[#2563eb]" />
 
       <div className="flex-1 flex overflow-hidden">
         {/* Main Calendar Content Area */}
         <div className="flex-1 flex flex-col overflow-y-auto p-4 space-y-3 min-w-0">
           {/* Control Bar */}
-          <div className={`flex flex-wrap items-center justify-between gap-3 ${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} p-3 rounded-xl border shadow-xs`}>
+          <div className={`flex flex-wrap items-center justify-between gap-3 ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} p-3 rounded-xl border shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]`}>
             {/* Prev / Next / Today / Month Label */}
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1">
                 <button
                   onClick={handlePrev}
-                  className={`p-1.5 rounded-lg border ${isLight ? "bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700" : "bg-[#181818] hover:bg-[#222] border-[#262626] text-white"}`}
+                  className={`p-1.5 rounded-lg border ${isLight ? "bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700" : "bg-[#0d111a] hover:bg-[#222] border-[#1a2235] text-white"}`}
                   title="Previous"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <button
                   onClick={handleToday}
-                  className="px-3 py-1 rounded-lg bg-[#2563eb] hover:bg-[#1d4ed8] text-xs font-bold text-white shadow-xs"
+                  className="px-3 py-1 rounded-lg bg-[#2563eb] hover:bg-[#1d4ed8] text-xs font-bold text-white shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
                 >
                   Today
                 </button>
                 <button
                   onClick={handleNext}
-                  className={`p-1.5 rounded-lg border ${isLight ? "bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700" : "bg-[#181818] hover:bg-[#222] border-[#262626] text-white"}`}
+                  className={`p-1.5 rounded-lg border ${isLight ? "bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700" : "bg-[#0d111a] hover:bg-[#222] border-[#1a2235] text-white"}`}
                   title="Next"
                 >
                   <ChevronRight className="w-4 h-4" />
@@ -838,12 +838,12 @@ export const CalendarPage: React.FC = () => {
 
             {/* View Mode & Actions */}
             <div className="flex items-center gap-2">
-              <div className={`p-0.5 rounded-lg border flex items-center gap-0.5 ${isLight ? "bg-slate-100 border-slate-200" : "bg-[#181818] border-[#282828]"}`}>
+              <div className={`p-0.5 rounded-lg border flex items-center gap-0.5 ${isLight ? "bg-slate-100 border-slate-200" : "bg-[#0d111a] border-[#282828]"}`}>
                 <button
                   onClick={() => setCalendarView("week")}
                   className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${
                     calendarView === "week"
-                      ? "bg-[#2563eb] text-white shadow-xs"
+                      ? "bg-[#2563eb] text-white shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
                       : isLight ? "text-slate-600 hover:text-slate-900" : "text-[#aaa] hover:text-white"
                   }`}
                 >
@@ -853,7 +853,7 @@ export const CalendarPage: React.FC = () => {
                   onClick={() => setCalendarView("month")}
                   className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${
                     calendarView === "month"
-                      ? "bg-[#2563eb] text-white shadow-xs"
+                      ? "bg-[#2563eb] text-white shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
                       : isLight ? "text-slate-600 hover:text-slate-900" : "text-[#aaa] hover:text-white"
                   }`}
                 >
@@ -878,7 +878,7 @@ export const CalendarPage: React.FC = () => {
 
               <button
                 onClick={() => setShowModal(true)}
-                className="px-3.5 py-1.5 rounded-lg bg-[#10b981] hover:bg-[#059669] text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                className="px-3.5 py-1.5 rounded-lg bg-[#10b981] hover:bg-[#059669] text-white text-xs font-bold flex items-center gap-1.5 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] transition-colors cursor-pointer"
               >
                 <Plus className="w-4 h-4" /> Add Event / Task
               </button>
@@ -886,7 +886,7 @@ export const CalendarPage: React.FC = () => {
           </div>
 
           {/* Legends Bar: Urgency, Categories, Assignees */}
-          <div className={`p-3 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} grid grid-cols-1 md:grid-cols-3 gap-3 text-xs`}>
+          <div className={`p-3 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} grid grid-cols-1 md:grid-cols-3 gap-3 text-xs`}>
             {/* Urgency */}
             <div className="space-y-1">
               <span className={`text-[10px] font-extrabold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-[#888]"}`}>Urgency Level</span>
@@ -922,7 +922,7 @@ export const CalendarPage: React.FC = () => {
               <div className="flex flex-wrap items-center gap-2">
                 {assignees.map((a) => (
                   <span key={a.id} className="inline-flex items-center gap-1 font-bold">
-                    <span className="w-4 h-4 rounded-full text-[9px] text-white flex items-center justify-center font-black shadow-xs" style={{ backgroundColor: a.color }}>
+                    <span className="w-4 h-4 rounded-full text-[9px] text-white flex items-center justify-center font-black shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]" style={{ backgroundColor: a.color }}>
                       {a.name.charAt(0)}
                     </span>
                     <span className="text-[11px]">{a.name}</span>
@@ -933,7 +933,7 @@ export const CalendarPage: React.FC = () => {
           </div>
 
           {/* Calendar Source Filters */}
-          <div className={`p-3 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} flex flex-wrap items-center justify-between gap-2 text-xs`}>
+          <div className={`p-3 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} flex flex-wrap items-center justify-between gap-2 text-xs`}>
             <div className="flex items-center gap-2">
               <Filter className="w-3.5 h-3.5 text-[#2563eb]" />
               <span className={`text-[10px] font-extrabold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-[#888]"}`}>Visible Sources:</span>
@@ -1003,10 +1003,10 @@ export const CalendarPage: React.FC = () => {
           </div>
 
           {/* Calendar Main Grid */}
-          <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl p-4 shadow-sm`}>
+          <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-4 shadow-sm`}>
             {/* Day Headers */}
             <div className={`border ${isLight ? "border-slate-200" : "border-[#222]"} rounded-lg overflow-hidden`}>
-              <div className={`grid grid-cols-7 ${isLight ? "bg-slate-100 border-slate-200 text-slate-700" : "bg-[#181818] border-[#222] text-slate-300"} border-b text-center text-xs font-bold py-2`}>
+              <div className={`grid grid-cols-7 ${isLight ? "bg-slate-100 border-slate-200 text-slate-700" : "bg-[#0d111a] border-[#222] text-slate-300"} border-b text-center text-xs font-bold py-2`}>
                 <div>SUN</div>
                 <div>MON</div>
                 <div>TUE</div>
@@ -1016,7 +1016,7 @@ export const CalendarPage: React.FC = () => {
                 <div>SAT</div>
               </div>
 
-              <div className={`grid grid-cols-7 divide-x divide-y ${isLight ? "divide-slate-200 bg-white" : "divide-[#222] bg-[#111]"}`}>
+              <div className={`grid grid-cols-7 divide-x divide-y ${isLight ? "divide-slate-200 bg-white" : "divide-[#222] bg-[#0d111a]"}`}>
                 {calendarView === "week" ? (
                   /* WEEK VIEW (7 Days) */
                   (() => {
@@ -1099,7 +1099,7 @@ export const CalendarPage: React.FC = () => {
                                 title={dayApBills
                                   .map((b) => `${b.company || "AP"}: ${b.vendor} ($${b.amount.toFixed(2)})`)
                                   .join("\n")}
-                                className={`text-[11px] px-2 py-1 rounded-md font-bold ${apColor.bg} ${apColor.text} shadow-xs cursor-pointer transition-opacity hover:opacity-90 flex flex-col gap-0.5 border border-amber-300/30`}
+                                className={`text-[11px] px-2 py-1 rounded-md font-bold ${apColor.bg} ${apColor.text} shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] cursor-pointer transition-opacity hover:opacity-90 flex flex-col gap-0.5 border border-amber-300/30`}
                               >
                                 <div className="flex items-center justify-between">
                                   <span>📋 AP Bills ({dayApBills.length})</span>
@@ -1245,7 +1245,7 @@ export const CalendarPage: React.FC = () => {
                             title={dayApBills
                               .map((b) => `${b.company || "AP"}: ${b.vendor} ($${b.amount.toFixed(2)})`)
                               .join("\n")}
-                            className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${apColor.bg} ${apColor.text} shadow-xs cursor-pointer truncate transition-opacity hover:opacity-90 flex items-center gap-1`}
+                            className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${apColor.bg} ${apColor.text} shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] cursor-pointer truncate transition-opacity hover:opacity-90 flex items-center gap-1`}
                           >
                             <span>📋</span>
                             <span className="truncate">
@@ -1695,7 +1695,7 @@ export const CalendarPage: React.FC = () => {
       {/* Add Event Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className={`${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#111] border-[#333] text-white"} border rounded-xl max-w-md w-full p-5 space-y-4 shadow-2xl`}>
+          <div className={`${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded-xl max-w-md w-full p-5 space-y-4 shadow-2xl`}>
             <h3 className="text-sm font-bold flex items-center gap-2">
               <CalendarDays className="w-4 h-4 text-[#10b981]" /> Add Calendar Event or Task
             </h3>
@@ -1730,7 +1730,7 @@ export const CalendarPage: React.FC = () => {
                   placeholder="e.g. Executive Cash Flow Review"
                   value={taskTitle}
                   onChange={(e) => setTaskTitle(e.target.value)}
-                  className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"} border rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#2563eb]`}
+                  className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#2563eb]`}
                 />
               </div>
 
@@ -1742,7 +1742,7 @@ export const CalendarPage: React.FC = () => {
                     required
                     value={taskDate}
                     onChange={(e) => setTaskDate(e.target.value)}
-                    className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"} border rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#2563eb]`}
+                    className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#2563eb]`}
                   />
                 </div>
 
@@ -1752,7 +1752,7 @@ export const CalendarPage: React.FC = () => {
                     type="time"
                     value={taskTime}
                     onChange={(e) => setTaskTime(e.target.value)}
-                    className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"} border rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#2563eb]`}
+                    className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#2563eb]`}
                   />
                 </div>
               </div>
@@ -1783,7 +1783,7 @@ export const CalendarPage: React.FC = () => {
                 <select
                   value={taskAssignee}
                   onChange={(e) => setTaskAssignee(e.target.value)}
-                  className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"} border rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#2563eb]`}
+                  className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#2563eb]`}
                 >
                   <option value="">Unassigned</option>
                   {assignees.map((a) => (
@@ -1801,7 +1801,7 @@ export const CalendarPage: React.FC = () => {
                   placeholder="Details..."
                   value={taskDesc}
                   onChange={(e) => setTaskDesc(e.target.value)}
-                  className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#181818] border-[#333] text-white"} border rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#2563eb]`}
+                  className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#2563eb]`}
                 />
               </div>
 
@@ -1841,8 +1841,8 @@ export const CalendarPage: React.FC = () => {
       {/* Manage Assignees Modal */}
       {showAssigneeModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className={`${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#111] border-[#333] text-white"} border rounded-xl max-w-sm w-full p-5 space-y-4 shadow-2xl`}>
-            <div className={`flex items-center justify-between border-b pb-2.5 ${isLight ? "border-slate-200" : "border-[#262626]"}`}>
+          <div className={`${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded-xl max-w-sm w-full p-5 space-y-4 shadow-2xl`}>
+            <div className={`flex items-center justify-between border-b pb-2.5 ${isLight ? "border-slate-200" : "border-[#1a2235]"}`}>
               <h3 className={`text-sm font-bold flex items-center gap-2 ${isLight ? "text-slate-900" : "text-white"}`}>
                 <Users className="w-4 h-4 text-[#2563eb]" /> Manage Team Assignees
               </h3>
@@ -1853,7 +1853,7 @@ export const CalendarPage: React.FC = () => {
 
             <div className="space-y-2 text-xs">
               {assignees.map((a) => (
-                <div key={a.id} className={`flex items-center justify-between p-2 rounded-lg border ${isLight ? "bg-slate-50 border-slate-200 text-slate-800" : "bg-[#181818] border-[#282828] text-white"}`}>
+                <div key={a.id} className={`flex items-center justify-between p-2 rounded-lg border ${isLight ? "bg-slate-50 border-slate-200 text-slate-800" : "bg-[#0d111a] border-[#282828] text-white"}`}>
                   <div className="flex items-center gap-2">
                     <span className="w-5 h-5 rounded-full text-white font-black text-[10px] flex items-center justify-center shrink-0" style={{ backgroundColor: a.color }}>
                       {a.name.charAt(0)}
@@ -1870,13 +1870,13 @@ export const CalendarPage: React.FC = () => {
               ))}
             </div>
 
-            <div className={`flex items-center gap-2 pt-2 border-t ${isLight ? "border-slate-200" : "border-[#262626]"}`}>
+            <div className={`flex items-center gap-2 pt-2 border-t ${isLight ? "border-slate-200" : "border-[#1a2235]"}`}>
               <input
                 type="text"
                 placeholder="New Assignee Name..."
                 value={newAssigneeName}
                 onChange={(e) => setNewAssigneeName(e.target.value)}
-                className={`flex-1 px-3 py-1.5 rounded-lg border text-xs ${isLight ? "bg-slate-50 border-slate-300" : "bg-[#181818] border-[#333] text-white"}`}
+                className={`flex-1 px-3 py-1.5 rounded-lg border text-xs ${isLight ? "bg-slate-50 border-slate-300" : "bg-[#0d111a] border-[#333] text-white"}`}
               />
               <button
                 onClick={() => {

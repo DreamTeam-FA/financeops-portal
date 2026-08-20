@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+﻿import React, { useMemo, useState } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { HeadleysItem } from "../../types";
@@ -53,7 +53,7 @@ export const HeadleysPage: React.FC = () => {
   const getBuColor = (bu: string) => buColors[bu] || "#546e7a";
 
   return (
-    <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#0a0a0a] text-[#e8e8e8]"}`}>
+    <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#070b12] text-[#e8e8e8]"}`}>
       <PageHeader
         title="Headley's Invoice Tracker"
         bgClass="bg-[#5c35a5]"
@@ -63,7 +63,7 @@ export const HeadleysPage: React.FC = () => {
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {headleys.length === 0 ? (
-          <div className={`flex flex-col items-center justify-center py-20 rounded-xl border ${isLight ? "bg-white border-slate-200 text-slate-500" : "bg-[#111] border-[#262626] text-[#888]"}`}>
+          <div className={`flex flex-col items-center justify-center py-20 rounded-xl border ${isLight ? "bg-white border-slate-200 text-slate-500" : "bg-[#0d111a] border-[#1a2235] text-[#888]"}`}>
             <FileText className="w-10 h-10 mb-3 opacity-30" />
             <p className="text-sm font-semibold">No Headley's data found</p>
             <p className="text-xs mt-1 opacity-60">
@@ -74,21 +74,21 @@ export const HeadleysPage: React.FC = () => {
           <>
             {/* Summary KPI row */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl p-4`}>
+              <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-4`}>
                 <div className={`text-[11px] font-semibold uppercase ${isLight ? "text-slate-500" : "text-[#888]"}`}>Billing Cycles</div>
                 <div className={`text-2xl font-bold mt-1 ${isLight ? "text-slate-900" : "text-white"}`}>{grouped.length}</div>
               </div>
-              <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl p-4`}>
+              <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-4`}>
                 <div className={`text-[11px] font-semibold uppercase ${isLight ? "text-slate-500" : "text-[#888]"}`}>Line Items</div>
                 <div className={`text-2xl font-bold mt-1 ${isLight ? "text-slate-900" : "text-white"}`}>{headleys.length}</div>
               </div>
-              <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl p-4`}>
+              <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-4`}>
                 <div className={`text-[11px] font-semibold uppercase ${isLight ? "text-slate-500" : "text-[#888]"}`}>Charging BUs</div>
                 <div className={`text-2xl font-bold mt-1 ${isLight ? "text-slate-900" : "text-white"}`}>
                   {new Set(headleys.map(h => h.bu)).size}
                 </div>
               </div>
-              <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl p-4`}>
+              <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-4`}>
                 <div className={`text-[11px] font-semibold uppercase ${isLight ? "text-slate-500" : "text-[#888]"}`}>Latest Total</div>
                 <div className="text-2xl font-bold mt-1 text-[#8B5CF6]">
                   {grouped[0] ? fmt(grandTotals[grouped[0][0]] || 0) : "—"}
@@ -107,7 +107,7 @@ export const HeadleysPage: React.FC = () => {
               }));
 
               return (
-                <div key={billingDate} className={`${isLight ? "bg-white border-slate-200" : "bg-[#111] border-[#262626]"} border rounded-xl overflow-hidden`}>
+                <div key={billingDate} className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl overflow-hidden`}>
                   {/* Header row — click to expand */}
                   <button
                     onClick={() => toggleDate(billingDate)}
