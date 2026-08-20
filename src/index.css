@@ -222,6 +222,22 @@ a[role="button"]:not([disabled]):active {
 .scrollbar-none::-webkit-scrollbar { display: none; }
 .scrollbar-none { scrollbar-width: none; }
 
+/* ─── Global overflow safety ──────────────────────────────────────── */
+/* Prevent any single long word / URL from breaking out of its container */
+p, span, div, li, td, th, label {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+/* Prevent the page body from ever scrolling horizontally */
+html, body, #root {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+/* Tables inside cards must scroll, not push layout */
+.overflow-x-auto table {
+  min-width: 100%;
+}
+
 /* ─── Sidebar nav active indicator ───────────────────────────────── */
 .nav-active-pill {
   position: relative;

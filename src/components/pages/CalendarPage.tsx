@@ -381,14 +381,14 @@ export const CalendarPage: React.FC = () => {
   };
 
   const getChipStyle = (type: string, category?: string, urgency?: string) => {
-    if (type === "loan")    return { border: "border-l-2 border-purple-500", bg: "bg-purple-500/10", text: isLight ? "text-purple-900" : "text-purple-300" };
-    if (type === "ar")      return { border: "border-l-2 border-emerald-500", bg: "bg-emerald-500/10", text: isLight ? "text-emerald-900" : "text-emerald-300" };
-    if (type === "payroll") return { border: "border-l-2 border-blue-500", bg: "bg-blue-500/10", text: isLight ? "text-blue-900" : "text-blue-300" };
-    if (type === "google" && !category) return { border: "border-l-2 border-sky-400", bg: "bg-sky-400/10", text: isLight ? "text-sky-900" : "text-sky-300" };
-    if (urgency === "critical") return { border: "border-l-2 border-red-500", bg: "bg-red-500/10", text: isLight ? "text-red-900" : "text-red-300" };
-    if (urgency === "high")     return { border: "border-l-2 border-orange-500", bg: "bg-orange-500/10", text: isLight ? "text-orange-900" : "text-orange-300" };
-    if (urgency === "low")      return { border: "border-l-2 border-slate-400", bg: "bg-slate-400/10", text: isLight ? "text-slate-600" : "text-slate-400" };
-    return { border: "border-l-2 border-teal-500", bg: "bg-teal-500/10", text: isLight ? "text-teal-900" : "text-teal-300" };
+    if (type === "loan")    return { border: "border-l-2 border-purple-500", bg: isLight ? "bg-purple-500/15" : "bg-purple-500/20", text: isLight ? "text-purple-900" : "text-purple-200", shadow: "shadow-[0_1px_4px_rgba(168,85,247,.25)]" };
+    if (type === "ar")      return { border: "border-l-2 border-emerald-500", bg: isLight ? "bg-emerald-500/15" : "bg-emerald-500/20", text: isLight ? "text-emerald-900" : "text-emerald-200", shadow: "shadow-[0_1px_4px_rgba(16,185,129,.25)]" };
+    if (type === "payroll") return { border: "border-l-2 border-blue-500", bg: isLight ? "bg-blue-500/15" : "bg-blue-500/20", text: isLight ? "text-blue-900" : "text-blue-200", shadow: "shadow-[0_1px_4px_rgba(59,130,246,.25)]" };
+    if (type === "google" && !category) return { border: "border-l-2 border-sky-400", bg: isLight ? "bg-sky-400/15" : "bg-sky-400/20", text: isLight ? "text-sky-900" : "text-sky-200", shadow: "shadow-[0_1px_4px_rgba(56,189,248,.25)]" };
+    if (urgency === "critical") return { border: "border-l-2 border-red-500", bg: isLight ? "bg-red-500/15" : "bg-red-500/20", text: isLight ? "text-red-900" : "text-red-200", shadow: "shadow-[0_1px_4px_rgba(239,68,68,.3)]" };
+    if (urgency === "high")     return { border: "border-l-2 border-orange-500", bg: isLight ? "bg-orange-500/15" : "bg-orange-500/20", text: isLight ? "text-orange-900" : "text-orange-200", shadow: "shadow-[0_1px_4px_rgba(249,115,22,.3)]" };
+    if (urgency === "low")      return { border: "border-l-2 border-slate-400", bg: isLight ? "bg-slate-400/15" : "bg-slate-400/15", text: isLight ? "text-slate-600" : "text-slate-300", shadow: "" };
+    return { border: "border-l-2 border-teal-500", bg: isLight ? "bg-teal-500/15" : "bg-teal-500/20", text: isLight ? "text-teal-900" : "text-teal-200", shadow: "shadow-[0_1px_4px_rgba(20,184,166,.25)]" };
   };
 
   const getEventIcon = (type: string, category?: string) =>
@@ -944,7 +944,7 @@ export const CalendarPage: React.FC = () => {
                 className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
                   showApBillsFilter
                     ? "bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400 font-extrabold"
-                    : isLight ? "bg-slate-100 text-slate-400 border-slate-200" : "bg-[#1f1f1f] text-[#666] border-[#333]"
+                    : isLight ? "bg-slate-100 text-slate-400 border-slate-200" : "bg-[#0d111a] text-[#4a5568] border-[#1a2235]"
                 }`}
               >
                 📋 AP Bills
@@ -954,7 +954,7 @@ export const CalendarPage: React.FC = () => {
                 className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
                   showLoansFilter
                     ? "bg-purple-500/10 border-purple-500/30 text-purple-600 dark:text-purple-400 font-extrabold"
-                    : isLight ? "bg-slate-100 text-slate-400 border-slate-200" : "bg-[#1f1f1f] text-[#666] border-[#333]"
+                    : isLight ? "bg-slate-100 text-slate-400 border-slate-200" : "bg-[#0d111a] text-[#4a5568] border-[#1a2235]"
                 }`}
               >
                 🏛️ Loans
@@ -964,7 +964,7 @@ export const CalendarPage: React.FC = () => {
                 className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
                   showArFilter
                     ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-extrabold"
-                    : isLight ? "bg-slate-100 text-slate-400 border-slate-200" : "bg-[#1f1f1f] text-[#666] border-[#333]"
+                    : isLight ? "bg-slate-100 text-slate-400 border-slate-200" : "bg-[#0d111a] text-[#4a5568] border-[#1a2235]"
                 }`}
               >
                 💵 AR Invoices
@@ -974,7 +974,7 @@ export const CalendarPage: React.FC = () => {
                 className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
                   showPayrollFilter
                     ? "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 font-extrabold"
-                    : isLight ? "bg-slate-100 text-slate-400 border-slate-200" : "bg-[#1f1f1f] text-[#666] border-[#333]"
+                    : isLight ? "bg-slate-100 text-slate-400 border-slate-200" : "bg-[#0d111a] text-[#4a5568] border-[#1a2235]"
                 }`}
               >
                 ⏱️ Payroll
@@ -984,7 +984,7 @@ export const CalendarPage: React.FC = () => {
                 className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
                   showGoogleCalFilter
                     ? "bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400 font-extrabold"
-                    : isLight ? "bg-slate-100 text-slate-400 border-slate-200" : "bg-[#1f1f1f] text-[#666] border-[#333]"
+                    : isLight ? "bg-slate-100 text-slate-400 border-slate-200" : "bg-[#0d111a] text-[#4a5568] border-[#1a2235]"
                 }`}
               >
                 📅 Google / Sheet Events
@@ -994,7 +994,7 @@ export const CalendarPage: React.FC = () => {
                 className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
                   showTasksFilter
                     ? "bg-teal-500/10 border-teal-500/30 text-teal-600 dark:text-teal-400 font-extrabold"
-                    : isLight ? "bg-slate-100 text-slate-400 border-slate-200" : "bg-[#1f1f1f] text-[#666] border-[#333]"
+                    : isLight ? "bg-slate-100 text-slate-400 border-slate-200" : "bg-[#0d111a] text-[#4a5568] border-[#1a2235]"
                 }`}
               >
                 ✅ Local Tasks
@@ -1003,9 +1003,9 @@ export const CalendarPage: React.FC = () => {
           </div>
 
           {/* Calendar Main Grid */}
-          <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-4 shadow-sm`}>
+          <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-2 sm:p-4 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]`}>
             {/* Day Headers */}
-            <div className={`border ${isLight ? "border-slate-200" : "border-[#222]"} rounded-lg overflow-hidden`}>
+            <div className={`border ${isLight ? "border-slate-200" : "border-[#1a2235]"} rounded-lg overflow-hidden overflow-x-auto`}>
               <div className={`grid grid-cols-7 ${isLight ? "bg-slate-100 border-slate-200 text-slate-700" : "bg-[#0d111a] border-[#222] text-slate-300"} border-b text-center text-xs font-bold py-2`}>
                 <div>SUN</div>
                 <div>MON</div>
@@ -1150,7 +1150,7 @@ export const CalendarPage: React.FC = () => {
                                   setIsEditingEvent(false);
                                 }}
                                 title={`${ev.label.replace(/^\[[^\]]+\]\s*/, "")} — Click to view`}
-                                className={`text-[10px] px-1.5 py-[3px] rounded cursor-pointer hover:brightness-95 transition-all flex items-center gap-1 ${style.bg} ${ev.done ? "opacity-50" : ""} group/chip overflow-hidden border ${isLight ? "border-slate-200/60" : "border-white/5"}`}
+                                className={`text-[10px] px-1.5 py-[3px] rounded-md cursor-pointer hover:brightness-110 transition-all flex items-center gap-1 ${style.bg} ${style.border} ${style.shadow} ${ev.done ? "opacity-50" : ""} group/chip overflow-hidden`}
                               >
                                 {/* Assignee color bars (like GAS pill-color-bars) */}
                                 {(() => {
@@ -1180,7 +1180,7 @@ export const CalendarPage: React.FC = () => {
                   <>
                     {/* Padding Previous Month */}
                 {Array.from({ length: startDow }).map((_, i) => (
-                  <div key={`prev-${i}`} className={`min-h-[100px] p-1.5 text-xs ${isLight ? "text-slate-300 bg-slate-50" : "text-[#444] bg-[#0c0c0c]"}`}>
+                  <div key={`prev-${i}`} className={`min-h-[100px] p-1.5 text-xs ${isLight ? "text-slate-300 bg-slate-50/60" : "text-[#2d3748] bg-[#060a10]"}`}>
                     {prevMonthLastDate - startDow + i + 1}
                   </div>
                 ))}
@@ -1346,8 +1346,8 @@ export const CalendarPage: React.FC = () => {
         const typeIcon = selectedEvent.category === "meeting" ? "🤝" : selectedEvent.category === "task" || selectedEvent.type === "task" ? "✅" : selectedEvent.category === "event" ? "📅" : selectedEvent.type === "google" ? "🗓️" : "";
         const evColor = getEventHexColor(selectedEvent.type, selectedEvent.category, selectedEvent.urgency);
         return (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-5 z-50">
-          <div className={`${isLight ? "bg-white text-slate-900" : "bg-[#20242E] text-white"} rounded-xl w-full shadow-[0_20px_60px_rgba(0,0,0,0.22)] overflow-hidden`} style={{ maxWidth: 440 }}>
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className={`${isLight ? "bg-white text-slate-900" : "bg-[#20242E] text-white"} rounded-xl w-full shadow-[0_20px_60px_rgba(0,0,0,0.22)] overflow-hidden max-w-[440px] mx-auto my-auto`}>
 
             {/* Header */}
             <div className="px-5 pt-[18px] pr-5 pb-[14px] border-b-4 relative"
@@ -1424,9 +1424,9 @@ export const CalendarPage: React.FC = () => {
                   )}
                   {/* Description */}
                   {selectedEvent.description && (
-                    <div className="flex gap-2.5 items-start">
+                    <div className="flex gap-2.5 items-start min-w-0">
                       <span className="w-[18px] text-center shrink-0 opacity-55 mt-px">📝</span>
-                      <span className={`text-[13px] leading-relaxed whitespace-pre-wrap ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                      <span className={`text-[13px] leading-relaxed whitespace-pre-wrap break-all overflow-hidden min-w-0 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
                         {selectedEvent.description}
                       </span>
                     </div>
