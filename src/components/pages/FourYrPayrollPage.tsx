@@ -323,9 +323,9 @@ export function FourYrPayrollPage() {
       setWeekContext(data.weekContext||{});
       // Auto-select current week
       const now = new Date();
+      const pd = (s: string) => { const [m,d,y] = s.split('/'); return new Date(+y, +m-1, +d); };
       const cur = (data.weeks as WeekMeta[]).find(w => {
-        const s = new Date(w.startDate.replace(/(\d+)\/(\d+)\/(\d+)/, "$3-$1-$2"));
-        const e = new Date(w.endDate.replace(/(\d+)\/(\d+)\/(\d+)/, "$3-$1-$2"));
+        const s = pd(w.startDate), e = pd(w.endDate);
         e.setHours(23,59,59,999); return now >= s && now <= e;
       });
       if (cur) {
