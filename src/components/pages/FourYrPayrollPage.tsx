@@ -321,16 +321,26 @@ export function FourYrPayrollPage() {
       setYears(data.years||[]); setAllWeeks(data.weeks||[]);
       setAllNames(data.names||[]); setAllJobs(data.jobs||[]);
       setWeekContext(data.weekContext||{});
-      // Auto-select current week
+      // Auto-select current week; fall back to most recent week if today isn't in the dataset
       const now = new Date();
-      const cur = (data.weeks as WeekMeta[]).find(w => {
+      const weeks = data.weeks as WeekMeta[];
+      let cur = weeks.find(w => {
         const s = new Date(w.startDate.replace(/(\d+)\/(\d+)\/(\d+)/, "$3-$1-$2"));
         const e = new Date(w.endDate.replace(/(\d+)\/(\d+)\/(\d+)/, "$3-$1-$2"));
         e.setHours(23,59,59,999); return now >= s && now <= e;
       });
+      // Fallback: most recent week by startDate
+      if (!cur && weeks.length) {
+        cur = weeks.slice().sort((a, b) => {
+          const da = new Date(a.startDate.replace(/(\d+)\/(\d+)\/(\d+)/, "$3-$1-$2"));
+          const db = new Date(b.startDate.replace(/(\d+)\/(\d+)\/(\d+)/, "$3-$1-$2"));
+          return db.getTime() - da.getTime();
+        })[0];
+      }
       if (cur) {
-        filtersRef.current = { ...filtersRef.current, weekNums: [cur.weekNum] };
+        filtersRef.current = { ...filtersRef.current, year: String(cur.year), weekNums: [cur.weekNum] };
         lastKeyRef.current = "";
+        setYearFilter(String(cur.year));
         setSelectedWeeks([cur.weekNum]);
       }
       doLoad();
