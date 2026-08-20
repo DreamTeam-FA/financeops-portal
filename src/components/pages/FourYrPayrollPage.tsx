@@ -321,16 +321,12 @@ export function FourYrPayrollPage() {
       setYears(data.years||[]); setAllWeeks(data.weeks||[]);
       setAllNames(data.names||[]); setAllJobs(data.jobs||[]);
       setWeekContext(data.weekContext||{});
-      // Auto-select the week whose range contains today
+      // Auto-select current week
       const now = new Date();
-      const weeks = data.weeks as WeekMeta[];
-      // Parse MM/DD/YYYY → local Date (avoids ISO zero-padding/UTC issues)
-      const parseDate = (s: string) => { const [m,d,y] = s.split('/'); return new Date(+y, +m-1, +d); };
-      const cur = weeks.find(w => {
-        const s = parseDate(w.startDate);
-        const e = parseDate(w.endDate);
-        e.setHours(23,59,59,999);
-        return now >= s && now <= e;
+      const cur = (data.weeks as WeekMeta[]).find(w => {
+        const s = new Date(w.startDate.replace(/(\d+)\/(\d+)\/(\d+)/, "$3-$1-$2"));
+        const e = new Date(w.endDate.replace(/(\d+)\/(\d+)\/(\d+)/, "$3-$1-$2"));
+        e.setHours(23,59,59,999); return now >= s && now <= e;
       });
       if (cur) {
         filtersRef.current = { ...filtersRef.current, weekNums: [cur.weekNum] };
