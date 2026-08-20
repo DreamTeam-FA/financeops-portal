@@ -1,18 +1,231 @@
 @import "tailwindcss";
 @custom-variant dark (&:is(.dark, .dark *));
 
-/* ── Global button press animation ──────────────────────────────────────────
-   Applies to every <button> and <a role="button"> across the entire portal.
-   Slight scale-down on press + eased transition = tactile click feel.
-   pointer-events:none and disabled buttons are excluded.
-   ─────────────────────────────────────────────────────────────────────────── */
+/* ─── Typography ──────────────────────────────────────────────────── */
+:root {
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+}
+
+html, body, #root {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Design Tokens ───────────────────────────────────────────────── */
+:root {
+  /* Light palette */
+  --c-bg:            #f1f5f9;        /* page canvas */
+  --c-surface:       #ffffff;        /* card/panel face */
+  --c-surface-raised:#f8fafc;        /* inner bg (e.g. table header) */
+  --c-border:        #e2e8f0;
+  --c-border-subtle: #f1f5f9;
+  --c-text-primary:  #0f172a;
+  --c-text-secondary:#475569;
+  --c-text-muted:    #94a3b8;
+  --c-accent:        #1a73e8;
+  --c-accent-hover:  #1557b0;
+
+  /* Card 3-D depth — light */
+  --card-shadow-light:
+    0 1px 2px rgba(15,23,42,.06),
+    0 4px 12px rgba(15,23,42,.08),
+    0 0 0 1px rgba(255,255,255,.8) inset,
+    0 1px 0  rgba(255,255,255,1)   inset;
+  --card-shadow-light-hover:
+    0 4px 8px rgba(15,23,42,.08),
+    0 12px 28px rgba(15,23,42,.12),
+    0 0 0 1px rgba(255,255,255,.9) inset,
+    0 1px 0  rgba(255,255,255,1)   inset;
+}
+
+.dark {
+  /* Dark palette */
+  --c-bg:            #070b12;
+  --c-surface:       #0f1420;
+  --c-surface-raised:#151b28;
+  --c-border:        #1e2840;
+  --c-border-subtle: #131929;
+  --c-text-primary:  #e2e8f0;
+  --c-text-secondary:#94a3b8;
+  --c-text-muted:    #475569;
+  --c-accent:        #3b82f6;
+  --c-accent-hover:  #60a5fa;
+
+  /* Card 3-D depth — dark */
+  --card-shadow-dark:
+    0 1px 0   rgba(255,255,255,.04) inset,
+    0 -1px 0  rgba(0,0,0,.5)        inset,
+    0 0 0 1px rgba(255,255,255,.06) inset,
+    0 4px 16px rgba(0,0,0,.5),
+    0 1px 3px  rgba(0,0,0,.6);
+  --card-shadow-dark-hover:
+    0 1px 0   rgba(255,255,255,.07) inset,
+    0 -1px 0  rgba(0,0,0,.5)        inset,
+    0 0 0 1px rgba(255,255,255,.10) inset,
+    0 8px 28px rgba(0,0,0,.65),
+    0 2px 6px  rgba(0,0,0,.7);
+}
+
+/* ─── 3-D Card Utilities ──────────────────────────────────────────── */
+.card-3d {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: 14px;
+  box-shadow: var(--card-shadow-light);
+  transition: box-shadow 160ms ease, transform 160ms ease;
+}
+.dark .card-3d {
+  box-shadow: var(--card-shadow-dark);
+}
+.card-3d:hover {
+  box-shadow: var(--card-shadow-light-hover);
+  transform: translateY(-1px);
+}
+.dark .card-3d:hover {
+  box-shadow: var(--card-shadow-dark-hover);
+  transform: translateY(-1px);
+}
+
+/* KPI hero gradient cards */
+.kpi-card {
+  border-radius: 14px;
+  padding: 1rem;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.18) inset,
+    0 -1px 0 rgba(0,0,0,.25) inset,
+    0 4px 20px rgba(0,0,0,.4),
+    0 1px 4px rgba(0,0,0,.3);
+  transition: box-shadow 160ms ease, transform 160ms ease;
+}
+.kpi-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 60% 70% at 30% -10%, rgba(255,255,255,.22), transparent 60%);
+  pointer-events: none;
+}
+.kpi-card:hover {
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.22) inset,
+    0 -1px 0 rgba(0,0,0,.28) inset,
+    0 8px 32px rgba(0,0,0,.55),
+    0 2px 6px rgba(0,0,0,.4);
+  transform: translateY(-2px);
+}
+
+/* ─── 3-D Button Utilities ────────────────────────────────────────── */
+.btn-3d {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.875rem;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  transition: transform 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
+  cursor: pointer;
+}
+.btn-3d:active {
+  transform: scale(0.96) translateY(1px);
+  opacity: 0.92;
+}
+
+.btn-3d-blue {
+  background: linear-gradient(180deg, #2d83f5 0%, #1557d4 100%);
+  color: #fff;
+  border: 1px solid #1557d4;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.2) inset,
+    0 2px 6px rgba(21,87,212,.45),
+    0 1px 2px rgba(0,0,0,.2);
+}
+.btn-3d-blue:hover {
+  background: linear-gradient(180deg, #4a93f8 0%, #1d6af0 100%);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.25) inset,
+    0 4px 12px rgba(21,87,212,.55),
+    0 1px 3px rgba(0,0,0,.25);
+}
+
+.btn-3d-light {
+  background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+  color: #1e293b;
+  border: 1px solid #cbd5e1;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,1) inset,
+    0 2px 4px rgba(15,23,42,.12),
+    0 1px 2px rgba(15,23,42,.06);
+}
+.btn-3d-light:hover {
+  background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,1) inset,
+    0 3px 8px rgba(15,23,42,.16);
+}
+
+.btn-3d-ghost {
+  background: rgba(255,255,255,.12);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.25);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.15) inset,
+    0 1px 3px rgba(0,0,0,.2);
+}
+.btn-3d-ghost:hover {
+  background: rgba(255,255,255,.2);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.2) inset,
+    0 2px 6px rgba(0,0,0,.3);
+}
+
+/* ─── Monospace number font ───────────────────────────────────────── */
+.font-mono-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* ─── Micro-interactions ──────────────────────────────────────────── */
 button:not([disabled]),
 a[role="button"]:not([disabled]) {
   transition: transform 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
 }
-
 button:not([disabled]):active,
 a[role="button"]:not([disabled]):active {
-  transform: scale(0.95);
-  opacity: 0.88;
+  transform: scale(0.96);
+  opacity: 0.9;
+}
+
+/* ─── Custom Scrollbars ───────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(100,116,139,.3);
+  border-radius: 99px;
+}
+.dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); }
+::-webkit-scrollbar-thumb:hover { background: rgba(100,116,139,.5); }
+.scrollbar-none::-webkit-scrollbar { display: none; }
+.scrollbar-none { scrollbar-width: none; }
+
+/* ─── Sidebar nav active indicator ───────────────────────────────── */
+.nav-active-pill {
+  position: relative;
+}
+.nav-active-pill::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  border-radius: 0 3px 3px 0;
+  background: var(--c-accent);
 }

@@ -64,7 +64,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
     <div className={`${bgClass} text-white shrink-0 transition-colors`}>
       <div className="flex flex-wrap items-center justify-between px-4 pt-3 pb-2 gap-2">
         <div className="flex items-center gap-2.5">
-          <h1 className="text-lg font-bold tracking-tight">{title}</h1>
+          <h1 className="text-lg font-bold tracking-tight" style={{ fontFamily: "var(--font-sans)" }}>{title}</h1>
           {/* Auth / Token Status Badge — always visible */}
           {googleUser ? (
             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border transition-all duration-500 ${
@@ -161,7 +161,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           <button
             onClick={syncAllFromGoogleSheets}
             disabled={isSyncing}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-white/15 border border-white/30 text-white text-[12px] font-medium hover:bg-white/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-3d btn-3d-ghost disabled:opacity-40 disabled:cursor-not-allowed"
             title="Pull live data from Google Sheets"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin" : ""}`} />
@@ -173,7 +173,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           {/* Theme Toggle Button */}
           <button
             onClick={toggleTheme}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-white/15 border border-white/30 text-white text-[12px] font-medium hover:bg-white/25 transition-colors"
+            className="btn-3d btn-3d-ghost"
             title={`Switch to ${theme === "dark" ? "Light" : "Dark"} Mode`}
           >
             {theme === "dark" ? <Sun className="w-3.5 h-3.5 text-amber-300" /> : <Moon className="w-3.5 h-3.5 text-slate-100" />}
@@ -183,7 +183,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           {onAddClick && (
             <button
               onClick={onAddClick}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-white/20 border border-white/40 text-white text-[12px] font-semibold hover:bg-white/30 transition-colors shadow-xs"
+              className="btn-3d btn-3d-ghost font-bold"
             >
               <Plus className="w-3.5 h-3.5" />
               {addLabel}

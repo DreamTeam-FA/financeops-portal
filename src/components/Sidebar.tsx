@@ -156,30 +156,32 @@ export const Sidebar: React.FC = () => {
       className={`${
         isSidebarFolded ? "w-16" : "w-[240px]"
       } shrink-0 ${
-        isLight ? "bg-white border-slate-200 text-slate-800" : "bg-[#0f0f0f] border-[#262626] text-[#e8e8e8]"
+        isLight ? "bg-white border-slate-200 text-slate-800" : "bg-[#060a11] border-[#1a2235] text-[#c8d4e8]"
       } border-r flex flex-col h-screen overflow-y-auto overflow-x-hidden transition-all duration-200 ease-in-out`}
     >
       {/* Brand Header */}
       <div
         className={`flex items-center ${
           isSidebarFolded ? "justify-center p-3" : "justify-between p-4"
-        } border-b ${isLight ? "border-slate-200" : "border-[#262626]"} shrink-0`}
+        } border-b ${isLight ? "border-slate-200" : "border-[#1a2235]"} shrink-0 ${
+          isLight ? "" : "bg-gradient-to-b from-[#0a1020] to-[#060a11]"
+        }`}
       >
         {!isSidebarFolded ? (
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[#1a73e8] flex items-center justify-center shrink-0 text-white shadow-xs">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shrink-0 text-white shadow-md">
               <Landmark className="w-4 h-4" />
             </div>
             <div>
-              <div className={`text-[13px] font-semibold ${isLight ? "text-slate-900" : "text-white"} leading-tight`}>
+              <div className={`text-[13px] font-bold tracking-tight ${isLight ? "text-slate-900" : "text-white"} leading-tight`}>
                 FinanceOps
               </div>
-              <div className={`text-[11px] ${isLight ? "text-slate-500" : "text-[#888]"}`}>Company Portal</div>
-              <div className="text-[10px] font-bold text-blue-600 dark:text-blue-400 mt-0.5">® Made by Finance Team</div>
+              <div className={`text-[11px] ${isLight ? "text-slate-500" : "text-[#6a7f9e]"}`}>Company Portal</div>
+              <div className="text-[10px] font-semibold text-blue-500 mt-0.5">® Made by Finance Team</div>
             </div>
           </div>
         ) : (
-          <div className="w-8 h-8 rounded-lg bg-[#1a73e8] flex items-center justify-center shrink-0 text-white shadow-xs" title="FinanceOps Portal">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shrink-0 text-white shadow-md" title="FinanceOps Portal">
             <Landmark className="w-4 h-4" />
           </div>
         )}
@@ -198,7 +200,7 @@ export const Sidebar: React.FC = () => {
       {/* Main Dashboards Section */}
       <div className="px-2 py-2">
         {!isSidebarFolded && (
-          <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#555]"} px-3 py-1 block`}>
+          <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#3d5478]"} px-3 py-1 block`}>
             Dashboards
           </span>
         )}
@@ -216,10 +218,14 @@ export const Sidebar: React.FC = () => {
               title={item.label}
               className={`w-full flex items-center ${
                 isSidebarFolded ? "justify-center px-0 py-2" : "gap-2.5 px-3 py-1.5"
-              } rounded-md text-[13px] font-medium transition-colors ${
+              } rounded-md text-[13px] font-medium transition-colors relative ${
                 isActive
-                  ? isLight ? "bg-slate-100 text-[#1a73e8] font-semibold" : "bg-[#1e1e1e] text-white"
-                  : isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900" : "text-[#888] hover:bg-[#181818] hover:text-[#e8e8e8]"
+                  ? isLight
+                    ? "bg-blue-50 text-blue-700 font-semibold nav-active-pill"
+                    : "bg-[#0d1e3a] text-blue-300 font-semibold nav-active-pill"
+                  : isLight
+                    ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    : "text-[#7a90b0] hover:bg-[#0d1525] hover:text-[#c8d4e8]"
               }`}
             >
               <span className="shrink-0">{item.icon}</span>
@@ -241,7 +247,7 @@ export const Sidebar: React.FC = () => {
       {/* Entities Section */}
       <div className="px-2 py-2">
         {!isSidebarFolded && (
-          <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#555]"} px-3 py-1 block`}>
+          <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#3d5478]"} px-3 py-1 block`}>
             Entities AP Views
           </span>
         )}
@@ -253,8 +259,8 @@ export const Sidebar: React.FC = () => {
           }}
           className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all ${
             (currentPage === "rubys" || (currentPage === "ap" && selectedEntities.has("Ruby's") && selectedEntities.size === 1))
-              ? isLight ? "bg-slate-200/80 border border-slate-300 shadow-xs" : "bg-[#222] border border-[#333] shadow-xs"
-              : isLight ? "hover:bg-slate-100" : "hover:bg-[#181818]"
+              ? isLight ? "bg-blue-50 border border-blue-200 shadow-xs" : "bg-[#0d1a2e] border border-[#1e3358] shadow-xs"
+              : isLight ? "hover:bg-slate-50" : "hover:bg-[#0a1220]"
           }`}
           title="Ruby's AP View"
         >
@@ -278,8 +284,8 @@ export const Sidebar: React.FC = () => {
           }}
           className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all ${
             (currentPage === "ti" || (currentPage === "ap" && selectedEntities.has("TI") && selectedEntities.size === 1))
-              ? isLight ? "bg-slate-200/80 border border-slate-300 shadow-xs" : "bg-[#222] border border-[#333] shadow-xs"
-              : isLight ? "hover:bg-slate-100" : "hover:bg-[#181818]"
+              ? isLight ? "bg-blue-50 border border-blue-200 shadow-xs" : "bg-[#0d1a2e] border border-[#1e3358] shadow-xs"
+              : isLight ? "hover:bg-slate-50" : "hover:bg-[#0a1220]"
           }`}
           title="TI AP View"
         >
@@ -303,8 +309,8 @@ export const Sidebar: React.FC = () => {
           }}
           className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all ${
             (currentPage === "msdx" || (currentPage === "ap" && selectedEntities.has("MSDx") && selectedEntities.size === 1))
-              ? isLight ? "bg-slate-200/80 border border-slate-300 shadow-xs" : "bg-[#222] border border-[#333] shadow-xs"
-              : isLight ? "hover:bg-slate-100" : "hover:bg-[#181818]"
+              ? isLight ? "bg-blue-50 border border-blue-200 shadow-xs" : "bg-[#0d1a2e] border border-[#1e3358] shadow-xs"
+              : isLight ? "hover:bg-slate-50" : "hover:bg-[#0a1220]"
           }`}
           title="MSDx AP View"
         >
@@ -324,7 +330,7 @@ export const Sidebar: React.FC = () => {
       {/* Other Dashboards Section */}
       <div className="px-2 py-2">
         {!isSidebarFolded && (
-          <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#555]"} px-3 py-1 block`}>
+          <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#3d5478]"} px-3 py-1 block`}>
             Other Dashboards
           </span>
         )}
@@ -336,8 +342,8 @@ export const Sidebar: React.FC = () => {
           }}
           className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all ${
             currentPage === "curcumin"
-              ? isLight ? "bg-slate-200/80 border border-slate-300 shadow-xs" : "bg-[#222] border border-[#333] shadow-xs"
-              : isLight ? "hover:bg-slate-100" : "hover:bg-[#181818]"
+              ? isLight ? "bg-blue-50 border border-blue-200 shadow-xs" : "bg-[#0d1a2e] border border-[#1e3358] shadow-xs"
+              : isLight ? "hover:bg-slate-50" : "hover:bg-[#0a1220]"
           }`}
           title="CurcuminPRO Dashboard"
         >
@@ -355,8 +361,8 @@ export const Sidebar: React.FC = () => {
           onClick={() => setCurrentPage("fouryr-payroll")}
           className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all ${
             currentPage === "fouryr-payroll"
-              ? isLight ? "bg-slate-200/80 border border-slate-300 shadow-xs" : "bg-[#222] border border-[#333] shadow-xs"
-              : isLight ? "hover:bg-slate-100" : "hover:bg-[#181818]"
+              ? isLight ? "bg-blue-50 border border-blue-200 shadow-xs" : "bg-[#0d1a2e] border border-[#1e3358] shadow-xs"
+              : isLight ? "hover:bg-slate-50" : "hover:bg-[#0a1220]"
           }`}
           title="4You Pros Dashboard"
         >
@@ -377,8 +383,8 @@ export const Sidebar: React.FC = () => {
           }}
           className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-all ${
             currentPage === "ziglar"
-              ? isLight ? "bg-slate-200/80 border border-slate-300 shadow-xs" : "bg-[#222] border border-[#333] shadow-xs"
-              : isLight ? "hover:bg-slate-100" : "hover:bg-[#181818]"
+              ? isLight ? "bg-blue-50 border border-blue-200 shadow-xs" : "bg-[#0d1a2e] border border-[#1e3358] shadow-xs"
+              : isLight ? "hover:bg-slate-50" : "hover:bg-[#0a1220]"
           }`}
           title="Ziglar Dashboard"
         >
@@ -390,7 +396,7 @@ export const Sidebar: React.FC = () => {
       {/* WORKSPACE Section */}
       <div className="px-2 py-2">
         <div className="flex items-center justify-between px-3 py-1">
-          <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#555]"}`}>
+          <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#3d5478]"}`}>
             WORKSPACE
           </span>
           <button
@@ -406,8 +412,8 @@ export const Sidebar: React.FC = () => {
           onClick={() => setCurrentPage("workspace-tools")}
           className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors ${
             currentPage === "workspace-tools"
-              ? isLight ? "bg-slate-100 text-[#1a73e8] font-semibold" : "bg-[#1e1e1e] text-white font-semibold"
-              : isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900" : "text-[#888] hover:bg-[#181818] hover:text-[#e8e8e8]"
+              ? isLight ? "bg-blue-50 text-blue-700 font-semibold" : "bg-[#0d1e3a] text-blue-300 font-semibold"
+              : isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900" : "text-[#7a90b0] hover:bg-[#0d1525] hover:text-[#c8d4e8]"
           }`}
         >
           <Wrench className="w-3.5 h-3.5 text-amber-500 shrink-0" />
@@ -418,8 +424,8 @@ export const Sidebar: React.FC = () => {
           onClick={() => setCurrentPage("workspace-platforms")}
           className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors ${
             currentPage === "workspace-platforms"
-              ? isLight ? "bg-slate-100 text-[#1a73e8] font-semibold" : "bg-[#1e1e1e] text-white font-semibold"
-              : isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900" : "text-[#888] hover:bg-[#181818] hover:text-[#e8e8e8]"
+              ? isLight ? "bg-blue-50 text-blue-700 font-semibold" : "bg-[#0d1e3a] text-blue-300 font-semibold"
+              : isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900" : "text-[#7a90b0] hover:bg-[#0d1525] hover:text-[#c8d4e8]"
           }`}
         >
           <Globe className="w-3.5 h-3.5 text-sky-400 shrink-0" />
@@ -430,8 +436,8 @@ export const Sidebar: React.FC = () => {
           onClick={() => setCurrentPage("workspace-drive")}
           className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors ${
             currentPage === "workspace-drive"
-              ? isLight ? "bg-slate-100 text-[#1a73e8] font-semibold" : "bg-[#1e1e1e] text-white font-semibold"
-              : isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900" : "text-[#888] hover:bg-[#181818] hover:text-[#e8e8e8]"
+              ? isLight ? "bg-blue-50 text-blue-700 font-semibold" : "bg-[#0d1e3a] text-blue-300 font-semibold"
+              : isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900" : "text-[#7a90b0] hover:bg-[#0d1525] hover:text-[#c8d4e8]"
           }`}
         >
           <Folder className="w-3.5 h-3.5 text-amber-500 shrink-0" />
@@ -442,7 +448,7 @@ export const Sidebar: React.FC = () => {
       {/* MEMBER'S WORKSPACE Section */}
       <div className="px-2 py-2">
         <div className="flex items-center justify-between px-3 py-1">
-          <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#555]"}`}>
+          <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#3d5478]"}`}>
             MEMBER'S WORKSPACE
           </span>
           <button
@@ -465,8 +471,8 @@ export const Sidebar: React.FC = () => {
               }}
               className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors ${
                 isMemActive
-                  ? isLight ? "bg-slate-200/80 text-[#1a73e8] font-semibold" : "bg-[#222] text-white font-semibold"
-                  : isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900" : "text-[#888] hover:bg-[#181818] hover:text-[#e8e8e8]"
+                  ? isLight ? "bg-blue-50 text-blue-700 font-semibold" : "bg-[#0d1e3a] text-blue-300 font-semibold"
+                  : isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900" : "text-[#7a90b0] hover:bg-[#0d1525] hover:text-[#c8d4e8]"
               }`}
               title={`Open Workspace for ${mem.name}`}
             >
@@ -483,7 +489,7 @@ export const Sidebar: React.FC = () => {
 
       {/* Quick External Links Section */}
       <div className="px-2 py-2">
-        <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#555]"} px-3 py-1 block`}>
+        <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#3d5478]"} px-3 py-1 block`}>
           Quick Links
         </span>
         {quickLinks.map((link) => (
@@ -493,7 +499,7 @@ export const Sidebar: React.FC = () => {
             target="_blank"
             rel="noopener noreferrer"
             className={`flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors ${
-              isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900" : "text-[#888] hover:bg-[#181818] hover:text-[#e8e8e8]"
+              isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900" : "text-[#7a90b0] hover:bg-[#0d1525] hover:text-[#c8d4e8]"
             }`}
           >
             {renderLinkIcon(link)}
@@ -647,7 +653,7 @@ export const Sidebar: React.FC = () => {
       <div className="flex-1 min-h-[16px]" />
 
       {/* Sidebar Footer */}
-      <div className={`border-t ${isLight ? "border-slate-200" : "border-[#262626]"} p-2 shrink-0`}>
+      <div className={`border-t ${isLight ? "border-slate-200" : "border-[#1a2235]"} p-2 shrink-0 ${isLight ? "" : "bg-[#060a11]"}`}>
         {!isSidebarFolded ? (
           <>
             <div className="flex items-center gap-2.5 px-2 pb-2">

@@ -65,14 +65,14 @@ export const HubPage: React.FC = () => {
   });
 
   const card = (cls: string) =>
-    `${isLight ? "bg-white border-slate-200 shadow-sm" : "bg-[#111] border-[#262626]"} border rounded-xl p-4 ${cls}`;
+    `card-3d p-4 ${cls}`;
 
   const kpiCard = (bg: string) =>
-    `${bg} rounded-xl p-4 text-white`;
+    `kpi-card ${bg}`;
 
   return (
-    <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#0a0a0a] text-[#e8e8e8]"}`}>
-      <PageHeader title="Finance Overview" bgClass={isLight ? "bg-slate-800 text-white" : "bg-[#181818] border-b border-[#262626]"} />
+    <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#070b12] text-[#e2e8f0]"}`}>
+      <PageHeader title="Finance Overview" bgClass={isLight ? "bg-gradient-to-r from-slate-800 to-slate-900 text-white" : "bg-gradient-to-r from-[#0d1526] to-[#0f1a30] border-b border-[#1e2840]"} />
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
 
@@ -91,10 +91,10 @@ export const HubPage: React.FC = () => {
 
         {/* Top KPI strip */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className={kpiCard("bg-gradient-to-br from-blue-700 to-blue-900")}>
-            <div className="text-[10px] font-bold uppercase tracking-wider opacity-70 mb-1">Cash Balance</div>
-            <div className="text-2xl font-black">{fmt(totalCash)}</div>
-            <div className="text-[11px] mt-1 opacity-80">
+          <div className={kpiCard("bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-900")}>
+            <div className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-1">Cash Balance</div>
+            <div className="text-2xl font-black font-mono-num">{fmt(totalCash)}</div>
+            <div className="text-[11px] mt-1.5 opacity-75">
               {criticalAccounts.length > 0
                 ? `⚠ ${criticalAccounts.length} critical account(s)`
                 : lowAccounts.length > 0
@@ -102,20 +102,20 @@ export const HubPage: React.FC = () => {
                 : `${bankAccounts.length} active accounts`}
             </div>
           </div>
-          <div className={kpiCard("bg-gradient-to-br from-red-600 to-red-800")}>
-            <div className="text-[10px] font-bold uppercase tracking-wider opacity-70 mb-1">AP Unpaid</div>
-            <div className="text-2xl font-black">{fmt(unpaidBills.reduce((s,b) => s+b.amount, 0))}</div>
-            <div className="text-[11px] mt-1 opacity-80">{overdueBills.length} overdue · {dueSoon.length} due this week</div>
+          <div className={kpiCard("bg-gradient-to-br from-rose-600 via-rose-700 to-red-950")}>
+            <div className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-1">AP Unpaid</div>
+            <div className="text-2xl font-black font-mono-num">{fmt(unpaidBills.reduce((s,b) => s+b.amount, 0))}</div>
+            <div className="text-[11px] mt-1.5 opacity-75">{overdueBills.length} overdue · {dueSoon.length} due this week</div>
           </div>
-          <div className={kpiCard("bg-gradient-to-br from-indigo-600 to-indigo-800")}>
-            <div className="text-[10px] font-bold uppercase tracking-wider opacity-70 mb-1">AR Outstanding</div>
-            <div className="text-2xl font-black">{fmt(totalAR)}</div>
-            <div className="text-[11px] mt-1 opacity-80">{overdueAR.length} overdue invoices</div>
+          <div className={kpiCard("bg-gradient-to-br from-indigo-600 via-indigo-700 to-slate-900")}>
+            <div className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-1">AR Outstanding</div>
+            <div className="text-2xl font-black font-mono-num">{fmt(totalAR)}</div>
+            <div className="text-[11px] mt-1.5 opacity-75">{overdueAR.length} overdue invoices</div>
           </div>
-          <div className={kpiCard("bg-gradient-to-br from-amber-600 to-amber-800")}>
-            <div className="text-[10px] font-bold uppercase tracking-wider opacity-70 mb-1">Loans</div>
-            <div className="text-2xl font-black">{fmt(totalLoans || totalMonthlyPayments)}</div>
-            <div className="text-[11px] mt-1 opacity-80">{loans.length} active facilities · {fmt(totalMonthlyPayments)}/mo</div>
+          <div className={kpiCard("bg-gradient-to-br from-amber-600 via-amber-700 to-stone-900")}>
+            <div className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-1">Loans</div>
+            <div className="text-2xl font-black font-mono-num">{fmt(totalLoans || totalMonthlyPayments)}</div>
+            <div className="text-[11px] mt-1.5 opacity-75">{loans.length} active facilities · {fmt(totalMonthlyPayments)}/mo</div>
           </div>
         </div>
 
