@@ -321,22 +321,29 @@ export function FourYrPayrollPage() {
       setYears(data.years||[]); setAllWeeks(data.weeks||[]);
       setAllNames(data.names||[]); setAllJobs(data.jobs||[]);
       setWeekContext(data.weekContext||{});
-      // Auto-select current week; fall back to most recent week if today isn't in the dataset
+      // Auto-select current week; fall back to most recent week in current year
       const now = new Date();
+      const thisYear = String(now.getFullYear());
       const weeks = data.weeks as WeekMeta[];
+      const sortDesc = (arr: WeekMeta[]) =>
+        arr.slice().sort((a, b) => {
+          const da = new Date(a.startDate.replace(/(\d+)\/(\d+)\/(\d+)/, "$3-$1-$2"));
+          const db = new Date(b.startDate.replace(/(\d+)\/(\d+)\/(\d+)/, "$3-$1-$2"));
+          return db.getTime() - da.getTime();
+        });
+      // 1. Exact match: today falls within a week's start-end range
       let cur = weeks.find(w => {
         const s = new Date(w.startDate.replace(/(\d+)\/(\d+)\/(\d+)/, "$3-$1-$2"));
         const e = new Date(w.endDate.replace(/(\d+)\/(\d+)\/(\d+)/, "$3-$1-$2"));
         e.setHours(23,59,59,999); return now >= s && now <= e;
       });
-      // Fallback: most recent week by startDate
-      if (!cur && weeks.length) {
-        cur = weeks.slice().sort((a, b) => {
-          const da = new Date(a.startDate.replace(/(\d+)\/(\d+)\/(\d+)/, "$3-$1-$2"));
-          const db = new Date(b.startDate.replace(/(\d+)\/(\d+)\/(\d+)/, "$3-$1-$2"));
-          return db.getTime() - da.getTime();
-        })[0];
+      // 2. Fallback: most recent week in the current calendar year
+      if (!cur) {
+        const thisYearWeeks = weeks.filter(w => String(w.year) === thisYear);
+        if (thisYearWeeks.length) cur = sortDesc(thisYearWeeks)[0];
       }
+      // 3. Last resort: most recent week of any year
+      if (!cur && weeks.length) cur = sortDesc(weeks)[0];
       if (cur) {
         filtersRef.current = { ...filtersRef.current, year: String(cur.year), weekNums: [cur.weekNum] };
         lastKeyRef.current = "";
