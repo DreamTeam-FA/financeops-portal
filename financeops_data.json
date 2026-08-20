@@ -1203,7 +1203,7 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "this-week",
+      "bucket": "past-due",
       "sheet": "Ruby's Bills",
       "invoiceNo": "",
       "remarks": "",
@@ -1761,7 +1761,7 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "this-week",
+      "bucket": "past-due",
       "sheet": "Ruby's Bills",
       "invoiceNo": "",
       "remarks": "",
@@ -2004,21 +2004,22 @@
       "vendor": "Enbridge (Dominion Energy)",
       "entity": "Ruby's",
       "company": "Ruby's",
-      "amount": 1200,
+      "amount": 1352.77,
       "dueDate": "2026-08-10",
       "invoiceDate": "2026-08-10",
       "method": "Manual",
-      "status": "unpaid",
-      "inQBO": false,
-      "bucket": "this-week",
+      "status": "paid",
+      "inQBO": true,
+      "bucket": "paid",
       "sheet": "Ruby's Bills",
       "invoiceNo": "",
-      "remarks": "",
+      "remarks": "Paid",
       "category": "Utilities",
       "row": 320,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Auto-Debit"
+      "paymentType": "Auto-Debit",
+      "paidDate": "2026-08-13"
     },
     {
       "id": "ap-ruby-325",
@@ -4945,17 +4946,18 @@
       "dueDate": "2026-08-11",
       "invoiceDate": "2026-08-11",
       "method": "Manual",
-      "status": "unpaid",
+      "status": "paid",
       "inQBO": false,
-      "bucket": "this-week",
+      "bucket": "paid",
       "sheet": "Ruby's Bills",
       "invoiceNo": "",
-      "remarks": "",
+      "remarks": "Paid",
       "category": "Computer System Expenses",
       "row": 618,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Auto-Debit"
+      "paymentType": "Auto-Debit",
+      "paidDate": "2026-08-11"
     },
     {
       "id": "ap-ruby-623",
@@ -5215,7 +5217,7 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "rest-of-month",
+      "bucket": "next-week",
       "sheet": "Ruby's Bills",
       "invoiceNo": "",
       "remarks": "",
@@ -5437,7 +5439,7 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "next-week",
+      "bucket": "this-week",
       "sheet": "Ruby's Bills",
       "invoiceNo": "",
       "remarks": "",
@@ -5676,20 +5678,21 @@
       "vendor": "MetTel",
       "entity": "Ruby's",
       "company": "Ruby's",
-      "amount": 110.16,
+      "amount": 110.35,
       "dueDate": "2026-08-16",
       "invoiceDate": "2026-08-16",
       "method": "Manual",
-      "status": "unpaid",
-      "inQBO": false,
-      "bucket": "this-week",
+      "status": "paid",
+      "inQBO": true,
+      "bucket": "paid",
       "sheet": "Ruby's Bills",
       "invoiceNo": "",
-      "remarks": "",
+      "remarks": "Paid 08/17/26 · Paid",
       "description": "Auto debit - Phone service",
       "row": 664,
       "recurringType": "Recurring",
-      "paymentType": "Auto-Debit"
+      "paymentType": "Auto-Debit",
+      "paidDate": "2026-08-17"
     },
     {
       "id": "ap-ruby-669",
@@ -6684,7 +6687,7 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "next-week",
+      "bucket": "this-week",
       "sheet": "Ruby's Bills",
       "invoiceNo": "",
       "remarks": "Auto-debit every 23rd of the month",
@@ -6857,27 +6860,6 @@
       "remarks": "https://mail.google.com/mail/u/0/#inbox/FMfcgzQfCDPZCCVlhKPLllkpzzsxPDvW?projector=1&messagePartId=0.1 · paid",
       "category": "Advertising and Promotions",
       "row": 799,
-      "recurringType": "Recurring",
-      "costType": "Estimate",
-      "paymentType": "Manual"
-    },
-    {
-      "id": "ap-ruby-804",
-      "vendor": "Square One",
-      "entity": "Ruby's",
-      "company": "Ruby's",
-      "amount": 44,
-      "dueDate": "2026-04-15",
-      "invoiceDate": "2026-03-06",
-      "method": "Manual",
-      "status": "paid",
-      "inQBO": true,
-      "bucket": "paid",
-      "sheet": "Ruby's Bills",
-      "invoiceNo": "472151",
-      "remarks": "https://mail.google.com/mail/u/0/#inbox/FMfcgzQfCDXdvvRqXRHHNzHqtfbJhWJM?projector=1&messagePartId=0.1 · paid",
-      "category": "Advertising and Promotions",
-      "row": 800,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
@@ -7108,7 +7090,7 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "rest-of-month",
+      "bucket": "next-week",
       "sheet": "Ruby's Bills",
       "invoiceNo": "",
       "remarks": "",
@@ -7382,7 +7364,7 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "this-week",
+      "bucket": "past-due",
       "sheet": "Ruby's Bills",
       "invoiceNo": "",
       "remarks": "",
@@ -7660,7 +7642,7 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "rest-of-month",
+      "bucket": "next-week",
       "sheet": "Ruby's Bills",
       "invoiceNo": "",
       "remarks": "",
@@ -7938,7 +7920,7 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "rest-of-month",
+      "bucket": "next-week",
       "sheet": "Ruby's Bills",
       "invoiceNo": "",
       "remarks": "",
@@ -9486,13 +9468,13 @@
       "vendor": "Marquee Monsen",
       "entity": "Ruby's",
       "company": "Ruby's",
-      "amount": 2500,
+      "amount": 8000,
       "dueDate": "2026-08-22",
       "invoiceDate": "2026-08-22",
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "next-week",
+      "bucket": "this-week",
       "sheet": "Ruby's Bills",
       "invoiceNo": "",
       "remarks": "",
@@ -9578,6 +9560,72 @@
     },
     {
       "id": "ap-ruby-1014",
+      "vendor": "Square One",
+      "entity": "Ruby's",
+      "company": "Ruby's",
+      "amount": 57.78,
+      "dueDate": "2026-03-06",
+      "invoiceDate": "2026-03-06",
+      "method": "Manual",
+      "status": "paid",
+      "inQBO": false,
+      "bucket": "paid",
+      "sheet": "Ruby's Bills",
+      "invoiceNo": "472151",
+      "remarks": "https://mail.google.com/mail/u/1/#search/472151?projector=1 · Paid",
+      "row": 1010,
+      "recurringType": "Recurring",
+      "paymentType": "Manual",
+      "category": "Advertising and Promotions",
+      "costType": "Estimate",
+      "paidDate": "2026-06-26"
+    },
+    {
+      "id": "ap-ruby-1015",
+      "vendor": "Square One",
+      "entity": "Ruby's",
+      "company": "Ruby's",
+      "amount": 21.4,
+      "dueDate": "2026-03-26",
+      "invoiceDate": "2026-03-26",
+      "method": "Manual",
+      "status": "paid",
+      "inQBO": false,
+      "bucket": "paid",
+      "sheet": "Ruby's Bills",
+      "invoiceNo": "472982",
+      "remarks": "https://mail.google.com/mail/u/1/#search/square+one+printing?projector=1 · Paid",
+      "category": "Advertising and Promotions",
+      "row": 1011,
+      "recurringType": "Recurring",
+      "costType": "Estimate",
+      "paymentType": "Manual",
+      "paidDate": "2026-03-26"
+    },
+    {
+      "id": "ap-ruby-1016",
+      "vendor": "Square One",
+      "entity": "Ruby's",
+      "company": "Ruby's",
+      "amount": 164.78,
+      "dueDate": "2026-03-26",
+      "invoiceDate": "2026-03-26",
+      "method": "Manual",
+      "status": "paid",
+      "inQBO": false,
+      "bucket": "paid",
+      "sheet": "Ruby's Bills",
+      "invoiceNo": "472981",
+      "remarks": "https://mail.google.com/mail/u/1/#search/square+one+printing?projector=1 · Paid",
+      "category": "Advertising and Promotions",
+      "row": 1012,
+      "recurringType": "Recurring",
+      "costType": "Estimate",
+      "paymentType": "Manual",
+      "paidDate": "2026-03-26"
+    },
+    {
+      "id": "ap-ruby-1017",
       "vendor": "Alsco",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -9589,16 +9637,16 @@
       "inQBO": true,
       "bucket": "paid",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "",
+      "invoiceNo": "9171578938",
       "remarks": "https://mail.google.com/mail/u/0?ui=2&ik=3da3fc2045&attid=0.1&permmsgid=msg-f:1863751074699938439&th=19dd5fba553e0a87&view=att&zw&disp=inline&acrobatPromotionSource=gmail_chrome-card · Paid",
-      "row": 1010,
-      "recurringType": "Recurring",
-      "paymentType": "Manual",
       "category": "Linens",
-      "costType": "Estimate"
+      "row": 1013,
+      "recurringType": "Recurring",
+      "costType": "Estimate",
+      "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1015",
+      "id": "ap-ruby-1018",
       "vendor": "Airgas",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -9613,13 +9661,13 @@
       "invoiceNo": "9171525122",
       "remarks": "https://mail.google.com/mail/u/0?ui=2&ik=3da3fc2045&attid=0.1&permmsgid=msg-f:1863887401408768332&th=19dddbb75e4ba94c&view=att&zw&disp=inline&acrobatPromotionSource=gmail_chrome-card · Paid",
       "category": "Utilities",
-      "row": 1011,
+      "row": 1014,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1016",
+      "id": "ap-ruby-1019",
       "vendor": "Airgas",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -9634,13 +9682,13 @@
       "invoiceNo": "5524509537",
       "remarks": "https://mail.google.com/mail/u/0?ui=2&ik=3da3fc2045&attid=0.1&permmsgid=msg-f:1864050717684811082&th=19de704066ea454a&view=att&zw&disp=inline&acrobatPromotionSource=gmail_chrome-card · Paid",
       "category": "Utilities",
-      "row": 1012,
+      "row": 1015,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1017",
+      "id": "ap-ruby-1020",
       "vendor": "Airgas",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -9655,13 +9703,13 @@
       "invoiceNo": "9171578938",
       "remarks": "https://airgasapi.archive.sourcelink.com/resource/SSEPDFExtractor.dll?F977EF7016F2FE7D906C92AA566240199B8D60007D3D2CAC098F5039D4AC5BAC67908BA7543DDADBCE6019B868347F1CB3281B5CD1799533D71FDF99F82729A20FBCD1A855D8458835ED7347DF22F9BCA4DD6431CE23C37E50C07B57B2C54F9F0F6FF977EF7016F2FE5A21E4CAB596DBD499D873B9DD62F6CD20262ED53C29C28552A71D708E90955A4DDAF5B5A72BDEFCEBFD287E3E75D20F5AA90EEA3BE283E61DF2E9EB046E20782E890EB84587B1222D548DC735A5A0E693F35476028F5EA61B5A83D61DD2E9AB14E6026F5E661BDA83D61DD2CDB962E9D374F6643CF8932C380B2F459245A3C83A442E3962066DFE0DBB31B0CB8A08CD53BD91AA1C09214AABCC26503E4D1E4C264B5BAFE55ABCE612884D39882CA3954F52F3A84943631B77241C7BAAA9AA04934525C7BC42AA37AA20937D2537BA23AEF896ABBD871547BE3D95B322 · Paid",
       "category": "Utilities",
-      "row": 1013,
+      "row": 1016,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1018",
+      "id": "ap-ruby-1021",
       "vendor": "Airgas",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -9676,13 +9724,13 @@
       "invoiceNo": "9171629400",
       "remarks": "https://www.airgas.com/invoice/detail/?invoiceNumber=9171629400&salesOrgUid=CE00&accountNo=0004997025 · Paid",
       "category": "Utilities",
-      "row": 1014,
+      "row": 1017,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1019",
+      "id": "ap-ruby-1022",
       "vendor": "Alsco",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -9694,16 +9742,16 @@
       "inQBO": true,
       "bucket": "paid",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "9171629400",
+      "invoiceNo": "LOGD1813639",
       "remarks": "https://mail.google.com/mail/u/0?ui=2&ik=3da3fc2045&attid=0.1&permmsgid=msg-f:1864020026185336883&th=19de54567afdc833&view=att&zw&disp=inline&acrobatPromotionSource=gmail_chrome-card · Paid",
       "category": "Linens",
-      "row": 1015,
+      "row": 1018,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1020",
+      "id": "ap-ruby-1023",
       "vendor": "Alsco",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -9715,16 +9763,16 @@
       "inQBO": true,
       "bucket": "paid",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "LOGD1812357",
+      "invoiceNo": "9171966218",
       "remarks": "https://mail.google.com/mail/u/0?ui=2&ik=3da3fc2045&attid=0.1&permmsgid=msg-f:1864383932421136266&th=19df9f4f00e85f8a&view=att&zw&disp=inline&acrobatPromotionSource=gmail_chrome-card · Paid",
       "category": "Linens",
-      "row": 1016,
+      "row": 1019,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1021",
+      "id": "ap-ruby-1024",
       "vendor": "Alsco",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -9736,16 +9784,16 @@
       "inQBO": true,
       "bucket": "paid",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "LOGD1812835",
+      "invoiceNo": "9171966236",
       "remarks": "https://atrack.alsco.com/Invoice/SLOGD/028510/PDF/LOGD1813639 · Paid",
       "category": "Linens",
-      "row": 1017,
+      "row": 1020,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1022",
+      "id": "ap-ruby-1025",
       "vendor": "Alsco",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -9757,16 +9805,16 @@
       "inQBO": true,
       "bucket": "paid",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "LOGD1813639",
+      "invoiceNo": "475719",
       "remarks": "https://atrack.alsco.com/Invoice/SLOGD/028510/PDF/LOGD1814118 · Paid",
       "category": "Linens",
-      "row": 1018,
+      "row": 1021,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1023",
+      "id": "ap-ruby-1026",
       "vendor": "Airgas",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -9781,13 +9829,13 @@
       "invoiceNo": "9171966218",
       "remarks": "https://mail.google.com/mail/u/0?ui=2&ik=3da3fc2045&attid=0.1&permmsgid=msg-f:1865155972483486885&th=19e25d79969394a5&view=att&zw&disp=inline&acrobatPromotionSource=gmail_chrome-card · Paid",
       "category": "Utilities",
-      "row": 1019,
+      "row": 1022,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1024",
+      "id": "ap-ruby-1027",
       "vendor": "Airgas",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -9802,13 +9850,13 @@
       "invoiceNo": "9171966236",
       "remarks": "https://mail.google.com/mail/u/0?ui=2&ik=3da3fc2045&attid=0.2&permmsgid=msg-f:1865155972483486885&th=19e25d79969394a5&view=att&zw&disp=inline&acrobatPromotionSource=gmail_chrome-card · Paid",
       "category": "Utilities",
-      "row": 1020,
+      "row": 1023,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1025",
+      "id": "ap-ruby-1028",
       "vendor": "Square One",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -9823,14 +9871,14 @@
       "invoiceNo": "475719",
       "remarks": "https://mail.google.com/mail/u/1?ui=2&ik=3da3fc2045&attid=0.1&permmsgid=msg-f:1865295295514723974&th=19e2dc30425cc686&view=att&zw&disp=inline&acrobatPromotionSource=gmail_chrome-card · paid",
       "category": "Advertising and Promotions",
-      "row": 1021,
+      "row": 1024,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual",
       "paidDate": "2026-05-15"
     },
     {
-      "id": "ap-ruby-1026",
+      "id": "ap-ruby-1029",
       "vendor": "Alsco",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -9842,71 +9890,8 @@
       "inQBO": true,
       "bucket": "paid",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "475719",
-      "remarks": "https://mail.google.com/mail/u/1?ui=2&ik=3da3fc2045&attid=0.1&permmsgid=msg-f:1865288327449325826&th=19e2d5d9e14cb102&view=att&zw&disp=inline&acrobatPromotionSource=gmail_chrome-card · Paid",
-      "category": "Linens",
-      "row": 1022,
-      "recurringType": "Recurring",
-      "costType": "Estimate",
-      "paymentType": "Manual"
-    },
-    {
-      "id": "ap-ruby-1027",
-      "vendor": "Alsco",
-      "entity": "Ruby's",
-      "company": "Ruby's",
-      "amount": 269.69,
-      "dueDate": "2026-05-29",
-      "invoiceDate": "2026-05-19",
-      "method": "Manual",
-      "status": "paid",
-      "inQBO": true,
-      "bucket": "paid",
-      "sheet": "Ruby's Bills",
-      "invoiceNo": "LOGD1814945",
-      "remarks": "https://atrack.alsco.com/Invoice/SLOGD/028510/PDF/LOGD1815434 · Paid",
-      "category": "Linens",
-      "row": 1023,
-      "recurringType": "Recurring",
-      "costType": "Estimate",
-      "paymentType": "Manual"
-    },
-    {
-      "id": "ap-ruby-1028",
-      "vendor": "Wells Fargo CC x9653",
-      "entity": "Ruby's",
-      "company": "Ruby's",
-      "amount": 4516.689999999999,
-      "dueDate": "2026-06-22",
-      "invoiceDate": "2026-05-27",
-      "method": "Manual",
-      "status": "paid",
-      "inQBO": false,
-      "bucket": "paid",
-      "sheet": "Ruby's Bills",
-      "invoiceNo": "LOGD1815434",
-      "remarks": "Paid",
-      "category": "Cards",
-      "row": 1024,
-      "recurringType": "Recurring",
-      "costType": "Estimate",
-      "paymentType": "Manual"
-    },
-    {
-      "id": "ap-ruby-1029",
-      "vendor": "Alsco",
-      "entity": "Ruby's",
-      "company": "Ruby's",
-      "amount": 282.91,
-      "dueDate": "2026-06-01",
-      "invoiceDate": "2026-05-22",
-      "method": "Manual",
-      "status": "paid",
-      "inQBO": true,
-      "bucket": "paid",
-      "sheet": "Ruby's Bills",
       "invoiceNo": "",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQgLsFGkdxBlKBbwKrdZgPXSwpg?projector=1&messagePartId=0.1 · Paid",
+      "remarks": "https://mail.google.com/mail/u/1?ui=2&ik=3da3fc2045&attid=0.1&permmsgid=msg-f:1865288327449325826&th=19e2d5d9e14cb102&view=att&zw&disp=inline&acrobatPromotionSource=gmail_chrome-card · Paid",
       "category": "Linens",
       "row": 1025,
       "recurringType": "Recurring",
@@ -9919,15 +9904,15 @@
       "entity": "Ruby's",
       "company": "Ruby's",
       "amount": 269.69,
-      "dueDate": "2026-06-05",
-      "invoiceDate": "2026-05-26",
+      "dueDate": "2026-05-29",
+      "invoiceDate": "2026-05-19",
       "method": "Manual",
       "status": "paid",
       "inQBO": true,
       "bucket": "paid",
       "sheet": "Ruby's Bills",
       "invoiceNo": "LOGD1816298",
-      "remarks": "https://mail.google.com/mail/u/1/#search/LOGD1816777/FMfcgzQgMCWGjtvLFlqzvlxQdbWxcrXv · Paid",
+      "remarks": "https://atrack.alsco.com/Invoice/SLOGD/028510/PDF/LOGD1815434 · Paid",
       "category": "Linens",
       "row": 1026,
       "recurringType": "Recurring",
@@ -9936,6 +9921,69 @@
     },
     {
       "id": "ap-ruby-1031",
+      "vendor": "Wells Fargo CC x9653",
+      "entity": "Ruby's",
+      "company": "Ruby's",
+      "amount": 4516.689999999999,
+      "dueDate": "2026-06-22",
+      "invoiceDate": "2026-05-27",
+      "method": "Manual",
+      "status": "paid",
+      "inQBO": false,
+      "bucket": "paid",
+      "sheet": "Ruby's Bills",
+      "invoiceNo": "LOGD1816777",
+      "remarks": "Paid",
+      "category": "Cards",
+      "row": 1027,
+      "recurringType": "Recurring",
+      "costType": "Estimate",
+      "paymentType": "Manual"
+    },
+    {
+      "id": "ap-ruby-1032",
+      "vendor": "Alsco",
+      "entity": "Ruby's",
+      "company": "Ruby's",
+      "amount": 282.91,
+      "dueDate": "2026-06-01",
+      "invoiceDate": "2026-05-22",
+      "method": "Manual",
+      "status": "paid",
+      "inQBO": true,
+      "bucket": "paid",
+      "sheet": "Ruby's Bills",
+      "invoiceNo": "9172466583",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQgLsFGkdxBlKBbwKrdZgPXSwpg?projector=1&messagePartId=0.1 · Paid",
+      "category": "Linens",
+      "row": 1028,
+      "recurringType": "Recurring",
+      "costType": "Estimate",
+      "paymentType": "Manual"
+    },
+    {
+      "id": "ap-ruby-1033",
+      "vendor": "Alsco",
+      "entity": "Ruby's",
+      "company": "Ruby's",
+      "amount": 269.69,
+      "dueDate": "2026-06-05",
+      "invoiceDate": "2026-05-26",
+      "method": "Manual",
+      "status": "paid",
+      "inQBO": true,
+      "bucket": "paid",
+      "sheet": "Ruby's Bills",
+      "invoiceNo": "9172466583",
+      "remarks": "https://mail.google.com/mail/u/1/#search/LOGD1816777/FMfcgzQgMCWGjtvLFlqzvlxQdbWxcrXv · Paid",
+      "category": "Linens",
+      "row": 1029,
+      "recurringType": "Recurring",
+      "costType": "Estimate",
+      "paymentType": "Manual"
+    },
+    {
+      "id": "ap-ruby-1034",
       "vendor": "Alsco",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -9947,16 +9995,16 @@
       "inQBO": false,
       "bucket": "paid",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "LOGD1816777",
+      "invoiceNo": "5525183514",
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQgMCbhgPKbxPqhDkGKXQgPfCpm?compose=GTvVlcSGMhdWHDKMhTzbZgdKxgmCfLfGcnJqXcJkKpxdFdpfMFPmQcBxRfJtfZLmhkWMSPSNswxWV · Paid",
       "category": "Linens",
-      "row": 1027,
+      "row": 1030,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1032",
+      "id": "ap-ruby-1035",
       "vendor": "Airgas",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -9971,36 +10019,36 @@
       "invoiceNo": "9172466583",
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQgMCgKXXnVxwzVbsJDvhvdgTdJ?projector=1&messagePartId=0.1 · Paid",
       "category": "Utilities",
-      "row": 1028,
+      "row": 1031,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual",
       "paidDate": "2026-06-30"
     },
     {
-      "id": "ap-ruby-1033",
+      "id": "ap-ruby-1036",
       "vendor": "Alsco",
       "entity": "Ruby's",
       "company": "Ruby's",
       "amount": 269.69,
       "dueDate": "2026-06-12",
       "invoiceDate": "2026-06-02",
-      "paidDate": "2026-06-30",
       "method": "Manual",
       "status": "paid",
       "inQBO": false,
       "bucket": "paid",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "9172466583",
+      "invoiceNo": "9172533648",
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQgMChRnkqXGwvjZhXbvlgkzWXs?projector=1&messagePartId=0.1 · Paid",
       "category": "Linens",
-      "row": 1029,
+      "row": 1032,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "paidDate": "2026-06-30"
     },
     {
-      "id": "ap-ruby-1034",
+      "id": "ap-ruby-1037",
       "vendor": "Airgas",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10016,13 +10064,13 @@
       "invoiceNo": "5525183514",
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQgMCgKXXnVxwzVbsJDvhvdgTdJ?compose=DmwnWsdGCWjvjvRdNfGvkrDLZLhJSFfDLzpDVSMcMZblNNVKBfxldJVrRpjvHWxrgqqtgDgBmbvq&projector=1&messagePartId=0.1 · Paid",
       "category": "Utilities",
-      "row": 1030,
+      "row": 1033,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1035",
+      "id": "ap-ruby-1038",
       "vendor": "Wells Fargo CC x9653",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10034,22 +10082,23 @@
       "inQBO": true,
       "bucket": "paid",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "5525183514",
+      "invoiceNo": "9172578341",
       "remarks": "Paid",
       "category": "Cards",
-      "row": 1031,
+      "row": 1034,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1036",
+      "id": "ap-ruby-1039",
       "vendor": "Airgas",
       "entity": "Ruby's",
       "company": "Ruby's",
       "amount": 205.52,
       "dueDate": "2026-07-02",
       "invoiceDate": "2026-06-02",
+      "paidDate": "2026-07-07",
       "method": "Manual",
       "status": "paid",
       "inQBO": false,
@@ -10058,14 +10107,13 @@
       "invoiceNo": "9172533648",
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQgMChSstMDWHkbtXLDdggVwFDv?projector=1&messagePartId=0.1 · Paid",
       "category": "Utilities",
-      "row": 1032,
+      "row": 1035,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual",
-      "paidDate": "2026-07-07"
+      "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1037",
+      "id": "ap-ruby-1040",
       "vendor": "Airgas",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10081,13 +10129,13 @@
       "invoiceNo": "9172578341",
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQgMLvxnBmvgBbTTWnnmMCwTpDv?projector=1&messagePartId=0.1 · Paid",
       "category": "Utilities",
-      "row": 1033,
+      "row": 1036,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1038",
+      "id": "ap-ruby-1041",
       "vendor": "Alsco",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10100,16 +10148,16 @@
       "inQBO": false,
       "bucket": "paid",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "9172578341",
+      "invoiceNo": "LOGD1820184",
       "remarks": "https://mail.google.com/mail/u/1/#inbox?projector=1 · Paid",
       "category": "Linens",
-      "row": 1034,
+      "row": 1037,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1039",
+      "id": "ap-ruby-1042",
       "vendor": "Alsco",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10122,60 +10170,60 @@
       "inQBO": false,
       "bucket": "paid",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "LOGD1818882",
+      "invoiceNo": "LOGD1820651",
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQgMMDssfHMRjQjNSVgcRkDxZMV?projector=1&messagePartId=0.1 · Paid",
       "category": "Linens",
-      "row": 1035,
+      "row": 1038,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1040",
+      "id": "ap-ruby-1043",
       "vendor": "Alsco",
       "entity": "Ruby's",
       "company": "Ruby's",
       "amount": 282.91,
       "dueDate": "2026-06-22",
       "invoiceDate": "2026-06-12",
-      "paidDate": "2026-07-21",
       "method": "Manual",
       "status": "paid",
       "inQBO": false,
       "bucket": "paid",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "LOGD1819368",
+      "invoiceNo": "LOGD1821442",
       "remarks": "https://mail.google.com/mail/u/1/#search/LOGD1820184/FMfcgzQgMMJTzZRxKzDKGPpjXPhpfQKg · Paid",
       "category": "Linens",
-      "row": 1036,
+      "row": 1039,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "paidDate": "2026-07-21"
     },
     {
-      "id": "ap-ruby-1041",
+      "id": "ap-ruby-1044",
       "vendor": "Alsco",
       "entity": "Ruby's",
       "company": "Ruby's",
       "amount": 269.69,
       "dueDate": "2026-06-26",
       "invoiceDate": "2026-06-16",
-      "paidDate": "2026-07-21",
       "method": "Manual",
       "status": "paid",
       "inQBO": false,
       "bucket": "paid",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "LOGD1820184",
+      "invoiceNo": "9173107449",
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQgMVbTpVBGJHPmxBqkRGqCPVSM?projector=1&messagePartId=0.1 · Paid",
       "category": "Linens",
-      "row": 1037,
+      "row": 1040,
+      "paidDate": "2026-07-21",
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1042",
+      "id": "ap-ruby-1045",
       "vendor": "Alsco",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10188,43 +10236,23 @@
       "inQBO": false,
       "bucket": "paid",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "LOGD1820651",
+      "invoiceNo": "9173107449",
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQgMVfwFXHqLPCsmhCtqzHKrBzk?projector=1&messagePartId=0.1 · Paid",
       "category": "Linens",
-      "row": 1038,
+      "row": 1041,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1043",
-      "vendor": "Restaurant365",
-      "entity": "Ruby's",
-      "company": "Ruby's",
-      "amount": 994.97,
-      "dueDate": "2026-07-23",
-      "invoiceDate": "2026-06-23",
-      "method": "Manual",
-      "status": "unpaid",
-      "inQBO": false,
-      "bucket": "past-due",
-      "sheet": "Ruby's Bills",
-      "invoiceNo": "LOGD1821442",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQgMVkXwdPWmmbqxVSfhJVzvhJL",
-      "category": "Computer System Expenses",
-      "row": 1039,
-      "recurringType": "Recurring",
-      "costType": "Estimate",
-      "paymentType": "Manual"
-    },
-    {
-      "id": "ap-ruby-1044",
+      "id": "ap-ruby-1046",
       "vendor": "Airgas",
       "entity": "Ruby's",
       "company": "Ruby's",
       "amount": 208.17,
       "dueDate": "2026-07-22",
       "invoiceDate": "2026-06-22",
+      "paidDate": "2026-07-30",
       "method": "Manual",
       "status": "paid",
       "inQBO": false,
@@ -10233,14 +10261,13 @@
       "invoiceNo": "9173107449",
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQgMVkXwnSgjBsBCjpcBJkvczDr?projector=1&messagePartId=0.1 · Paid",
       "category": "Utilities",
-      "row": 1040,
-      "paidDate": "2026-07-30",
+      "row": 1042,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1045",
+      "id": "ap-ruby-1047",
       "vendor": "Alsco",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10253,16 +10280,16 @@
       "inQBO": false,
       "bucket": "paid",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "9173107449",
+      "invoiceNo": "9173194920",
       "remarks": "https://mail.google.com/mail/u/1/#inbox?projector=1 · Paid",
       "category": "Linens",
-      "row": 1041,
+      "row": 1043,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1046",
+      "id": "ap-ruby-1048",
       "vendor": "Airgas",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10278,13 +10305,13 @@
       "invoiceNo": "9173194920",
       "remarks": "https://mail.google.com/mail/u/1/#search/9173194920/FMfcgzQgMVmrLClRHcdNBRDkCFwsqRQd · Paid",
       "category": "Utilities",
-      "row": 1042,
+      "row": 1044,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1047",
+      "id": "ap-ruby-1049",
       "vendor": "Alsco",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10297,16 +10324,16 @@
       "inQBO": false,
       "bucket": "paid",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "9173194920",
+      "invoiceNo": "477531",
       "remarks": "https://atrack.alsco.com/Invoice/SLOGD/028510/PDF/LOGD1822689 · Paid",
       "category": "Linens",
-      "row": 1043,
+      "row": 1045,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1048",
+      "id": "ap-ruby-1050",
       "vendor": "Square One",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10322,42 +10349,41 @@
       "invoiceNo": "477531",
       "remarks": "https://mail.google.com/mail/u/1/#search/477531/FMfcgzQgMgCXBJVwMGTHSDqBdZSsvxWN?projector=1&messagePartId=0.1 · paid",
       "category": "Advertising and Promotions",
-      "row": 1044,
+      "row": 1046,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1049",
+      "id": "ap-ruby-1051",
       "vendor": "Alsco",
       "entity": "Ruby's",
       "company": "Ruby's",
       "amount": 269.69,
       "dueDate": "2026-07-10",
       "invoiceDate": "2026-06-30",
-      "paidDate": "2026-07-21",
       "method": "Manual",
       "status": "paid",
       "inQBO": false,
       "bucket": "paid",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "477531",
+      "invoiceNo": "477898",
       "remarks": "https://atrack.alsco.com/Invoice/SLOGD/028510/PDF/LOGD1823149 · Paid",
       "category": "Linens",
-      "row": 1045,
+      "row": 1047,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "paidDate": "2026-07-21"
     },
     {
-      "id": "ap-ruby-1050",
+      "id": "ap-ruby-1052",
       "vendor": "Airgas",
       "entity": "Ruby's",
       "company": "Ruby's",
       "amount": 229.62,
       "dueDate": "2026-07-30",
       "invoiceDate": "2026-06-30",
-      "paidDate": "2026-07-31",
       "method": "Manual",
       "status": "paid",
       "inQBO": false,
@@ -10366,13 +10392,14 @@
       "invoiceNo": "9173372017",
       "remarks": "https://mail.google.com/mail/u/1/#search/9173372017/FMfcgzQgMgKRnFJHsjGJvJZxPtTHbvCL?projector=1&messagePartId=0.1 · Paid",
       "category": "Utilities",
-      "row": 1046,
+      "row": 1048,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "paidDate": "2026-07-31"
     },
     {
-      "id": "ap-ruby-1051",
+      "id": "ap-ruby-1053",
       "vendor": "Square One",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10382,18 +10409,18 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "this-week",
+      "bucket": "past-due",
       "sheet": "Ruby's Bills",
       "invoiceNo": "477898",
       "remarks": "",
       "category": "Advertising and Promotions",
-      "row": 1047,
+      "row": 1049,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1052",
+      "id": "ap-ruby-1054",
       "vendor": "Alsco",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10405,16 +10432,16 @@
       "inQBO": false,
       "bucket": "past-due",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "477898",
+      "invoiceNo": "9173499698",
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQgMgMkXSpxhwsSvVcKhVtwXrxK",
       "category": "Linens",
-      "row": 1048,
+      "row": 1050,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1053",
+      "id": "ap-ruby-1055",
       "vendor": "Airgas",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10429,21 +10456,20 @@
       "invoiceNo": "5525861049",
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQgMgKRnFJHsjGJvJZxPtTHbvCL?projector=1&messagePartId=0.1 · Paid",
       "category": "Utilities",
-      "row": 1049,
+      "row": 1051,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual",
       "paidDate": "2026-07-31"
     },
     {
-      "id": "ap-ruby-1054",
+      "id": "ap-ruby-1056",
       "vendor": "Airgas",
       "entity": "Ruby's",
       "company": "Ruby's",
       "amount": 277.23,
       "dueDate": "2026-08-05",
       "invoiceDate": "2026-07-06",
-      "paidDate": "2026-08-11",
       "method": "Manual",
       "status": "paid",
       "inQBO": false,
@@ -10452,13 +10478,35 @@
       "invoiceNo": "9173499698",
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVNQgCkMXSNMtRzKZjQVvnkTj?projector=1&messagePartId=0.1 · Paid",
       "category": "Utilities",
-      "row": 1050,
+      "row": 1052,
+      "recurringType": "Recurring",
+      "costType": "Estimate",
+      "paymentType": "Manual",
+      "paidDate": "2026-08-11"
+    },
+    {
+      "id": "ap-ruby-1057",
+      "vendor": "Alsco",
+      "entity": "Ruby's",
+      "company": "Ruby's",
+      "amount": 269.69,
+      "dueDate": "2026-07-17",
+      "invoiceDate": "2026-07-07",
+      "method": "Manual",
+      "status": "unpaid",
+      "inQBO": false,
+      "bucket": "past-due",
+      "sheet": "Ruby's Bills",
+      "invoiceNo": "20679",
+      "remarks": "https://mail.google.com/mail/u/1/#search/LOGD1824437/FMfcgzQhVNQgnxgvNdtWcRdBnTsQCbKn?projector=1&messagePartId=0.1",
+      "category": "Linens",
+      "row": 1053,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1055",
+      "id": "ap-ruby-1058",
       "vendor": "Alsco",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10470,16 +10518,16 @@
       "inQBO": false,
       "bucket": "past-due",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "9173499698",
+      "invoiceNo": "9173915180",
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVNVHthgJFNSBqnHxsHpJsHpn?projector=1&messagePartId=0.1",
       "category": "Linens",
-      "row": 1051,
+      "row": 1054,
       "recurringType": "Recurring",
-      "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "costType": "Estimate"
     },
     {
-      "id": "ap-ruby-1056",
+      "id": "ap-ruby-1059",
       "vendor": "Alsco",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10491,16 +10539,59 @@
       "inQBO": false,
       "bucket": "past-due",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "LOGD1825217",
+      "invoiceNo": "9173915180",
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVNbsDDNJjBKwbHsQvDwnGxWQ?projector=1&messagePartId=0.1",
       "category": "Linens",
-      "row": 1052,
+      "row": 1055,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1057",
+      "id": "ap-ruby-1060",
+      "vendor": "Square One",
+      "entity": "Ruby's",
+      "company": "Ruby's",
+      "amount": 166.32,
+      "dueDate": "2026-07-14",
+      "invoiceDate": "2026-07-14",
+      "method": "Manual",
+      "status": "paid",
+      "inQBO": false,
+      "bucket": "paid",
+      "sheet": "Ruby's Bills",
+      "invoiceNo": "478599",
+      "remarks": "https://mail.google.com/mail/u/1/#search/square+one+printing/FMfcgzQhVNbsMRwKhJmtHcbpSRJJcRQW?projector=1&messagePartId=0.1 · Paid",
+      "category": "Advertising and Promotions",
+      "row": 1056,
+      "recurringType": "Recurring",
+      "paymentType": "Manual",
+      "paidDate": "2026-07-14",
+      "costType": "Estimate"
+    },
+    {
+      "id": "ap-ruby-1061",
+      "vendor": "Alsco",
+      "entity": "Ruby's",
+      "company": "Ruby's",
+      "amount": 282.91,
+      "dueDate": "2026-07-27",
+      "invoiceDate": "2026-07-17",
+      "method": "Manual",
+      "status": "unpaid",
+      "inQBO": false,
+      "bucket": "past-due",
+      "sheet": "Ruby's Bills",
+      "invoiceNo": "RPG 2026.02",
+      "remarks": "https://mail.google.com/mail/u/1/#search/LOGD1826489/FMfcgzQhVWsqSsNPDkSfmWmFBSZCqVSM?projector=1&messagePartId=0.1",
+      "category": "Linens",
+      "row": 1057,
+      "recurringType": "Recurring",
+      "paymentType": "Manual",
+      "costType": "Estimate"
+    },
+    {
+      "id": "ap-ruby-1062",
       "vendor": "Cache Valley by Products, Inc.",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10515,15 +10606,14 @@
       "invoiceNo": "20679",
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVNbtJNqcJXkzbCnxzvrDRvKl?projector=1&messagePartId=0.1.1 · Paid",
       "category": "Cleaning and Janitorial",
-      "row": 1053,
+      "row": 1058,
       "recurringType": "Recurring",
-      "costType": "Estimate",
       "paymentType": "Manual",
       "paidDate": "2026-07-21",
       "description": "Grease trap cleaning"
     },
     {
-      "id": "ap-ruby-1058",
+      "id": "ap-ruby-1063",
       "vendor": "Airgas",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10533,18 +10623,39 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "next-week",
+      "bucket": "this-week",
       "sheet": "Ruby's Bills",
       "invoiceNo": "9173915180",
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVWxSMMvSdGtXKZFLVSNsHLjs?projector=1&messagePartId=0.1",
       "category": "Utilities",
-      "row": 1054,
+      "row": 1059,
       "recurringType": "Recurring",
       "paymentType": "Manual",
       "costType": "Estimate"
     },
     {
-      "id": "ap-ruby-1059",
+      "id": "ap-ruby-1064",
+      "vendor": "Alsco",
+      "entity": "Ruby's",
+      "company": "Ruby's",
+      "amount": 269.69,
+      "dueDate": "2026-07-31",
+      "invoiceDate": "2026-07-21",
+      "method": "Manual",
+      "status": "unpaid",
+      "inQBO": false,
+      "bucket": "past-due",
+      "sheet": "Ruby's Bills",
+      "invoiceNo": "RPG 2026.05",
+      "remarks": "https://mail.google.com/mail/u/1/#search/LOGD1826956/FMfcgzQhVWxTHzsqtgNjBpxCWsnGdZlb?projector=1&messagePartId=0.1",
+      "category": "Linens",
+      "row": 1060,
+      "recurringType": "Recurring",
+      "paymentType": "Manual",
+      "costType": "Estimate"
+    },
+    {
+      "id": "ap-ruby-1065",
       "vendor": "Elevate One - Marketing",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10556,16 +10667,16 @@
       "inQBO": false,
       "bucket": "paid",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "9173915180",
+      "invoiceNo": "RPG 2026.07",
       "remarks": "Paid",
       "category": "Marketing",
-      "row": 1055,
+      "row": 1061,
       "recurringType": "Recurring",
-      "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "costType": "Estimate"
     },
     {
-      "id": "ap-ruby-1060",
+      "id": "ap-ruby-1066",
       "vendor": "Elevate One - Marketing",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10577,15 +10688,16 @@
       "inQBO": false,
       "bucket": "paid",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "RPG 2026.01",
+      "invoiceNo": "9174076949",
       "remarks": "Paid",
       "category": "Marketing",
-      "row": 1056,
+      "row": 1062,
       "recurringType": "Recurring",
+      "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1061",
+      "id": "ap-ruby-1067",
       "vendor": "Elevate One - Marketing",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10597,15 +10709,16 @@
       "inQBO": false,
       "bucket": "paid",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "RPG 2026.02",
+      "invoiceNo": "9174076949",
       "remarks": "Paid",
       "category": "Marketing",
-      "row": 1057,
+      "row": 1063,
       "recurringType": "Recurring",
+      "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1062",
+      "id": "ap-ruby-1068",
       "vendor": "Elevate One - Marketing",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10617,15 +10730,16 @@
       "inQBO": false,
       "bucket": "paid",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "RPG 2026.03",
+      "invoiceNo": "LOGD1828210",
       "remarks": "Paid",
-      "category": "Marketing",
-      "row": 1058,
+      "row": 1064,
       "recurringType": "Recurring",
-      "paymentType": "Manual"
+      "costType": "Estimate",
+      "paymentType": "Manual",
+      "category": "Marketing"
     },
     {
-      "id": "ap-ruby-1063",
+      "id": "ap-ruby-1069",
       "vendor": "Elevate One - Marketing",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10637,15 +10751,16 @@
       "inQBO": false,
       "bucket": "paid",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "RPG 2026.04",
+      "invoiceNo": "9174294112",
       "remarks": "Paid",
-      "category": "Marketing",
-      "row": 1059,
+      "row": 1065,
       "recurringType": "Recurring",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "category": "Marketing",
+      "costType": "Estimate"
     },
     {
-      "id": "ap-ruby-1064",
+      "id": "ap-ruby-1070",
       "vendor": "Elevate One - Marketing",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10657,15 +10772,16 @@
       "inQBO": false,
       "bucket": "paid",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "RPG 2026.05",
+      "invoiceNo": "5526534263",
       "remarks": "Paid",
       "category": "Marketing",
-      "row": 1060,
+      "row": 1066,
       "recurringType": "Recurring",
+      "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1065",
+      "id": "ap-ruby-1071",
       "vendor": "Alsco",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10677,16 +10793,16 @@
       "inQBO": false,
       "bucket": "past-due",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "RPG 2026.07",
+      "invoiceNo": "5526534263",
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVXCvNjsMcsnrPmdLgxnXGJvZ?projector=1&messagePartId=0.1",
       "category": "Linens",
-      "row": 1061,
+      "row": 1067,
       "recurringType": "Recurring",
-      "paymentType": "Manual",
-      "costType": "Estimate"
+      "costType": "Estimate",
+      "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1066",
+      "id": "ap-ruby-1072",
       "vendor": "Airgas",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10696,18 +10812,18 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "rest-of-month",
+      "bucket": "next-week",
       "sheet": "Ruby's Bills",
       "invoiceNo": "9174076949",
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVXCwBVlPKMDcFgQTfHBbbVjq?projector=1&messagePartId=0.1",
       "category": "Utilities",
-      "row": 1062,
+      "row": 1068,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1067",
+      "id": "ap-ruby-1073",
       "vendor": "Alsco",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10719,16 +10835,16 @@
       "inQBO": false,
       "bucket": "past-due",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "9174076949",
+      "invoiceNo": "479727",
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVXHZDBdQlhDdHXhcsnnGMJfq?projector=1&messagePartId=0.1",
       "category": "Linens",
-      "row": 1063,
+      "row": 1069,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1068",
+      "id": "ap-ruby-1074",
       "vendor": "Payroll",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10740,16 +10856,16 @@
       "inQBO": false,
       "bucket": "paid",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "LOGD1828210",
+      "invoiceNo": "479727",
       "remarks": "Paid",
-      "row": 1064,
+      "row": 1070,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual",
       "paidDate": "2026-07-29"
     },
     {
-      "id": "ap-ruby-1069",
+      "id": "ap-ruby-1075",
       "vendor": "Airgas",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10763,14 +10879,14 @@
       "sheet": "Ruby's Bills",
       "invoiceNo": "9174294112",
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVhbgVPrglLNKFJxxXRSGRPMS?projector=1&messagePartId=0.1",
-      "row": 1065,
-      "recurringType": "Recurring",
-      "paymentType": "Manual",
       "category": "Utilities",
-      "costType": "Estimate"
+      "row": 1071,
+      "recurringType": "Recurring",
+      "costType": "Estimate",
+      "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1070",
+      "id": "ap-ruby-1076",
       "vendor": "Airgas",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10785,13 +10901,13 @@
       "invoiceNo": "5526534263",
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVhbgVPrglLNKFJxxXRSGRPMS?projector=1&messagePartId=0.1",
       "category": "Utilities",
-      "row": 1066,
+      "row": 1072,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ruby-1071",
+      "id": "ap-ruby-1077",
       "vendor": "Alsco",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10801,18 +10917,18 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "this-week",
+      "bucket": "past-due",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "5526534263",
+      "invoiceNo": "",
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVhZWKXfKDQtvlmhcjXhQFBrQ?projector=1&messagePartId=0.1",
-      "category": "Linens",
-      "row": 1067,
+      "row": 1073,
       "recurringType": "Recurring",
-      "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "category": "Linens",
+      "costType": "Estimate"
     },
     {
-      "id": "ap-ruby-1072",
+      "id": "ap-ruby-1078",
       "vendor": "Alsco",
       "entity": "Ruby's",
       "company": "Ruby's",
@@ -10822,138 +10938,11 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "this-week",
-      "sheet": "Ruby's Bills",
-      "invoiceNo": "LOGD1829001",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVhgHRjBNNTvCPzqPlGtVZHpr?projector=1&messagePartId=0.1 · UNPAID",
-      "category": "Linens",
-      "row": 1068,
-      "recurringType": "Recurring",
-      "costType": "Estimate",
-      "paymentType": "Manual"
-    },
-    {
-      "id": "ap-ruby-1073",
-      "vendor": "Square One",
-      "entity": "Ruby's",
-      "company": "Ruby's",
-      "amount": 15.02,
-      "dueDate": "2026-08-07",
-      "invoiceDate": "2026-08-06",
-      "method": "Manual",
-      "status": "paid",
-      "inQBO": false,
-      "bucket": "paid",
-      "sheet": "Ruby's Bills",
-      "invoiceNo": "479727",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVhjZgTprNNlqmZNPlcDvSPlf?compose=DmwnWsCWzjbjQbPcfHFLKbqFxXnQZhgCvfrXMXggDktlQtWWlBcgFFxkrKdjNpstSRLtHzkdsmfB · Paid",
-      "category": "Advertising and Promotions",
-      "row": 1069,
-      "recurringType": "Recurring",
-      "costType": "Estimate",
-      "paymentType": "Manual",
-      "paidDate": "2026-08-07"
-    },
-    {
-      "id": "ap-ruby-1074",
-      "vendor": "Square One",
-      "entity": "Ruby's",
-      "company": "Ruby's",
-      "amount": 15.02,
-      "dueDate": "2026-08-07",
-      "invoiceDate": "2026-08-06",
-      "method": "Manual",
-      "status": "paid",
-      "inQBO": false,
-      "bucket": "paid",
-      "sheet": "Ruby's Bills",
-      "invoiceNo": "479727",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVhjZgTprNNlqmZNPlcDvSPlf?compose=DmwnWsCWzjbjQbPcfHFLKbqFxXnQZhgCvfrXMXggDktlQtWWlBcgFFxkrKdjNpstSRLtHzkdsmfB · Paid",
-      "category": "Advertising and Promotions",
-      "row": 1070,
-      "recurringType": "Recurring",
-      "costType": "Estimate",
-      "paymentType": "Manual",
-      "paidDate": "2026-08-11"
-    },
-    {
-      "id": "ap-ruby-1075",
-      "vendor": "Alsco",
-      "entity": "Ruby's",
-      "company": "Ruby's",
-      "amount": 282.91,
-      "dueDate": "2026-08-17",
-      "invoiceDate": "2026-08-07",
-      "method": "Manual",
-      "status": "unpaid",
-      "inQBO": false,
-      "bucket": "next-week",
-      "sheet": "Ruby's Bills",
-      "invoiceNo": "479727",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVhjcFRbXDdLxPHlWkQLpfrZC?projector=1&messagePartId=0.1",
-      "category": "Linens",
-      "row": 1071,
-      "recurringType": "Recurring",
-      "costType": "Estimate",
-      "paymentType": "Manual"
-    },
-    {
-      "id": "ap-ruby-1076",
-      "vendor": "Alsco",
-      "entity": "Ruby's",
-      "company": "Ruby's",
-      "amount": 269.69,
-      "dueDate": "2026-08-21",
-      "invoiceDate": "2026-08-11",
-      "method": "Manual",
-      "status": "unpaid",
-      "inQBO": false,
-      "bucket": "next-week",
-      "sheet": "Ruby's Bills",
-      "invoiceNo": "",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcJGDdSNJxRzkPzgWgrN",
-      "category": "Linens",
-      "row": 1072,
-      "recurringType": "Recurring",
-      "costType": "Estimate",
-      "paymentType": "Manual"
-    },
-    {
-      "id": "ap-ruby-1077",
-      "vendor": "Payroll",
-      "entity": "Ruby's",
-      "company": "Ruby's",
-      "amount": 30448.6,
-      "dueDate": "2026-08-14",
-      "invoiceDate": "2026-08-10",
-      "method": "Manual",
-      "status": "unpaid",
-      "inQBO": false,
-      "bucket": "this-week",
-      "sheet": "Ruby's Bills",
-      "invoiceNo": "",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrBXjlTxtCHLrNfsVrWHSmpn",
-      "row": 1073,
-      "recurringType": "Recurring",
-      "paymentType": "Manual"
-    },
-    {
-      "id": "ap-ruby-1078",
-      "vendor": "Airgas",
-      "entity": "Ruby's",
-      "company": "Ruby's",
-      "amount": 243.05,
-      "dueDate": "2026-09-09",
-      "invoiceDate": "2026-08-10",
-      "method": "Manual",
-      "status": "unpaid",
-      "inQBO": false,
-      "bucket": "rest-of-year",
+      "bucket": "past-due",
       "sheet": "Ruby's Bills",
       "invoiceNo": "9174543116",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrChcClKfmPdrSfgCrVlCXvg?projector=1&messagePartId=0.1",
-      "description": "Cylinder Rent",
-      "category": "Utilities",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVhgHRjBNNTvCPzqPlGtVZHpr?projector=1&messagePartId=0.1",
+      "category": "Linens",
       "row": 1074,
       "recurringType": "Recurring",
       "costType": "Estimate",
@@ -10964,17 +10953,17 @@
       "vendor": "Square One",
       "entity": "Ruby's",
       "company": "Ruby's",
-      "amount": 333.7,
-      "dueDate": "2026-08-05",
-      "invoiceDate": "2026-08-03",
+      "amount": 15.02,
+      "dueDate": "2026-08-07",
+      "invoiceDate": "2026-08-06",
       "paidDate": "2026-08-11",
       "method": "Manual",
       "status": "paid",
       "inQBO": false,
       "bucket": "paid",
       "sheet": "Ruby's Bills",
-      "invoiceNo": "479561",
-      "remarks": "Paid",
+      "invoiceNo": "479727",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVhjZgTprNNlqmZNPlcDvSPlf?compose=DmwnWsCWzjbjQbPcfHFLKbqFxXnQZhgCvfrXMXggDktlQtWWlBcgFFxkrKdjNpstSRLtHzkdsmfB · Paid",
       "category": "Advertising and Promotions",
       "row": 1075,
       "recurringType": "Recurring",
@@ -10983,20 +10972,20 @@
     },
     {
       "id": "ap-ruby-1080",
-      "vendor": "Wells Fargo CC x9653",
+      "vendor": "Alsco",
       "entity": "Ruby's",
       "company": "Ruby's",
-      "amount": 9012.52,
-      "dueDate": "2026-08-22",
-      "invoiceDate": "2026-07-27",
+      "amount": 282.91,
+      "dueDate": "2026-08-17",
+      "invoiceDate": "2026-08-07",
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "next-week",
+      "bucket": "this-week",
       "sheet": "Ruby's Bills",
       "invoiceNo": "",
-      "remarks": "",
-      "category": "Cards",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVhjcFRbXDdLxPHlWkQLpfrZC?projector=1&messagePartId=0.1",
+      "category": "Linens",
       "row": 1076,
       "recurringType": "Recurring",
       "costType": "Estimate",
@@ -11007,16 +10996,16 @@
       "vendor": "Alsco",
       "entity": "Ruby's",
       "company": "Ruby's",
-      "amount": 282.91,
-      "dueDate": "2026-08-24",
-      "invoiceDate": "2026-08-14",
+      "amount": 269.69,
+      "dueDate": "2026-08-21",
+      "invoiceDate": "2026-08-11",
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "rest-of-month",
+      "bucket": "this-week",
       "sheet": "Ruby's Bills",
       "invoiceNo": "",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrHKdcBhqPNxgSHqKlDPBchW",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcJGDdSNJxRzkPzgWgrN",
       "category": "Linens",
       "row": 1077,
       "recurringType": "Recurring",
@@ -11025,21 +11014,126 @@
     },
     {
       "id": "ap-ruby-1082",
+      "vendor": "Payroll",
+      "entity": "Ruby's",
+      "company": "Ruby's",
+      "amount": 30448.6,
+      "dueDate": "2026-08-14",
+      "invoiceDate": "2026-08-10",
+      "method": "Manual",
+      "status": "paid",
+      "inQBO": false,
+      "bucket": "paid",
+      "sheet": "Ruby's Bills",
+      "invoiceNo": "",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrBXjlTxtCHLrNfsVrWHSmpn · Paid",
+      "row": 1078,
+      "recurringType": "Recurring",
+      "costType": "Estimate",
+      "paymentType": "Manual",
+      "paidDate": "2026-08-14"
+    },
+    {
+      "id": "ap-ruby-1083",
+      "vendor": "Square One",
+      "entity": "Ruby's",
+      "company": "Ruby's",
+      "amount": 333.7,
+      "dueDate": "2026-08-05",
+      "invoiceDate": "2026-08-03",
+      "method": "Manual",
+      "status": "unpaid",
+      "inQBO": false,
+      "bucket": "past-due",
+      "sheet": "Ruby's Bills",
+      "invoiceNo": "479561",
+      "remarks": "https://mail.google.com/mail/u/1/#search/square+one+printing/FMfcgzQhVhhQdkQFFpCXcfVxrkzgdlrS?projector=1&messagePartId=0.1",
+      "category": "Advertising and Promotions",
+      "row": 1079,
+      "recurringType": "Recurring",
+      "costType": "Estimate",
+      "paymentType": "Manual"
+    },
+    {
+      "id": "ap-ruby-1084",
+      "vendor": "Wells Fargo CC x9653",
+      "entity": "Ruby's",
+      "company": "Ruby's",
+      "amount": 9012.52,
+      "dueDate": "2026-08-22",
+      "invoiceDate": "2026-07-27",
+      "method": "Manual",
+      "status": "unpaid",
+      "inQBO": false,
+      "bucket": "this-week",
+      "sheet": "Ruby's Bills",
+      "invoiceNo": "",
+      "remarks": "",
+      "category": "Cards",
+      "row": 1080,
+      "recurringType": "Recurring",
+      "costType": "Estimate",
+      "paymentType": "Manual"
+    },
+    {
+      "id": "ap-ruby-1085",
+      "vendor": "Alsco",
+      "entity": "Ruby's",
+      "company": "Ruby's",
+      "amount": 269.69,
+      "dueDate": "2026-08-28",
+      "invoiceDate": "2026-08-18",
+      "method": "Manual",
+      "status": "unpaid",
+      "inQBO": false,
+      "bucket": "next-week",
+      "sheet": "Ruby's Bills",
+      "invoiceNo": "",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrLnRgRHQlclJdwVmbczxJfm",
+      "category": "Linens",
+      "row": 1081,
+      "recurringType": "Recurring",
+      "costType": "Estimate",
+      "paymentType": "Manual"
+    },
+    {
+      "id": "ap-ruby-1086",
+      "vendor": "Alsco",
+      "entity": "Ruby's",
+      "company": "Ruby's",
+      "amount": 269.69,
+      "dueDate": "2026-08-28",
+      "invoiceDate": "2026-08-18",
+      "method": "Manual",
+      "status": "unpaid",
+      "inQBO": false,
+      "bucket": "next-week",
+      "sheet": "Ruby's Bills",
+      "invoiceNo": "",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrLnRgRHQlclJdwVmbczxJfm",
+      "category": "Linens",
+      "row": 1082,
+      "recurringType": "Recurring",
+      "costType": "Estimate",
+      "paymentType": "Manual"
+    },
+    {
+      "id": "ap-ruby-1087",
       "vendor": "Alsco",
       "entity": "Ruby's",
       "company": "Ruby's",
       "amount": 282.91,
-      "dueDate": "2026-08-24",
-      "invoiceDate": "2026-08-14",
+      "dueDate": "2026-08-31",
+      "invoiceDate": "2026-08-21",
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
       "bucket": "rest-of-month",
       "sheet": "Ruby's Bills",
       "invoiceNo": "",
-      "remarks": "https://mail.google.com/mail/u/1/#search/LOGD1831652/FMfcgzQhVrHKdcBhqPNxgSHqKlDPBchW",
+      "remarks": "https://atrack.alsco.com/Invoice/SLOGD/028510/PDF/LOGD1832949",
       "category": "Linens",
-      "row": 1078,
+      "row": 1083,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
@@ -11977,15 +12071,16 @@
       "dueDate": "2026-07-25",
       "invoiceDate": "2026-07-17",
       "method": "Manual",
-      "status": "unpaid",
+      "status": "paid",
       "inQBO": false,
-      "bucket": "past-due",
+      "bucket": "paid",
       "sheet": "TI Bills",
       "invoiceNo": "",
       "remarks": "Recurring",
       "row": 214,
       "recurringType": "Recurring",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "paidDate": "2026-07-31"
     },
     {
       "id": "ap-ti-TIBills-221",
@@ -11998,7 +12093,7 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "rest-of-month",
+      "bucket": "next-week",
       "sheet": "TI Bills",
       "invoiceNo": "",
       "remarks": "Recurring",
@@ -13025,15 +13120,16 @@
       "dueDate": "2026-08-15",
       "invoiceDate": "2026-08-10",
       "method": "Manual",
-      "status": "unpaid",
+      "status": "paid",
       "inQBO": false,
-      "bucket": "this-week",
+      "bucket": "paid",
       "sheet": "TI Bills",
       "invoiceNo": "",
       "remarks": "Recurring",
       "row": 271,
       "recurringType": "Recurring",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "paidDate": "2026-08-13"
     },
     {
       "id": "ap-ti-TIBills-278",
@@ -13046,7 +13142,7 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "rest-of-month",
+      "bucket": "next-week",
       "sheet": "TI Bills",
       "invoiceNo": "",
       "remarks": "Recurring",
@@ -13748,15 +13844,16 @@
       "dueDate": "2026-08-01",
       "invoiceDate": "2026-08-01",
       "method": "Manual",
-      "status": "unpaid",
+      "status": "paid",
       "inQBO": false,
-      "bucket": "past-due",
+      "bucket": "paid",
       "sheet": "TI Bills",
       "invoiceNo": "",
       "remarks": "",
       "row": 309,
       "recurringType": "Recurring",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "paidDate": "2026-08-04"
     },
     {
       "id": "ap-ti-TIBills-316",
@@ -14262,7 +14359,7 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "next-week",
+      "bucket": "this-week",
       "sheet": "TI Bills",
       "invoiceNo": "",
       "remarks": "Headley's — billing cycle 8/22/26",
@@ -14279,7 +14376,7 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "next-week",
+      "bucket": "this-week",
       "sheet": "TI Bills",
       "invoiceNo": "",
       "remarks": "Headley's — billing cycle 8/22/26",
@@ -14415,7 +14512,7 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "next-week",
+      "bucket": "this-week",
       "sheet": "TI Bills",
       "invoiceNo": "961465-001",
       "remarks": "https://pcremcolb.parkecountyremc.com/onlineportal/PDFTEMP/UyOY71YneUOzV5FLorOK2A53.pdf · Recurring",
@@ -14435,7 +14532,7 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "next-week",
+      "bucket": "this-week",
       "sheet": "TI Bills",
       "invoiceNo": "961465-002",
       "remarks": "https://pcremcolb.parkecountyremc.com/onlineportal/PDFTEMP/ZGVdq4kkMUCKsC5wL8uL6Q13.pdf · Recurring",
@@ -14455,7 +14552,7 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "next-week",
+      "bucket": "this-week",
       "sheet": "TI Bills",
       "invoiceNo": "961465-003",
       "remarks": "https://pcremcolb.parkecountyremc.com/onlineportal/PDFTEMP/JOIgsvdFW0alTLPoG9p7eg19.pdf · Recurring",
@@ -14475,7 +14572,7 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "next-week",
+      "bucket": "this-week",
       "sheet": "TI Bills",
       "invoiceNo": "961465-005",
       "remarks": "https://pcremcolb.parkecountyremc.com/onlineportal/PDFTEMP/Kr5f0IBwm06zpg2naP9ieA17.pdf · Recurring",
@@ -14495,7 +14592,7 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "next-week",
+      "bucket": "this-week",
       "sheet": "TI Bills",
       "invoiceNo": "961465-006",
       "remarks": "https://pcremcolb.parkecountyremc.com/onlineportal/PDFTEMP/djU2dmHv2Uem2UxFVML0qQ19.pdf · Recurring",
@@ -14609,23 +14706,6 @@
     },
     {
       "id": "ap-ti-TIBills-360",
-      "vendor": "Pershing & Co - 2B Timms",
-      "entity": "TI",
-      "company": "2B Timms LLC",
-      "amount": 120,
-      "dueDate": "2026-04-02",
-      "invoiceDate": "2026-03-23",
-      "method": "Manual",
-      "status": "unpaid",
-      "inQBO": false,
-      "bucket": "past-due",
-      "sheet": "TI Bills",
-      "invoiceNo": "J647",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVhdxQDHRDkWMFSkTzHrGczDv?projector=1&messagePartId=0.1",
-      "row": 354
-    },
-    {
-      "id": "ap-ti-TIBills-361",
       "vendor": "Incorporate",
       "entity": "TI",
       "company": "E1",
@@ -14639,9 +14719,30 @@
       "sheet": "TI Bills",
       "invoiceNo": "84839920",
       "remarks": "",
-      "row": 355,
+      "row": 354,
       "costType": "Estimate",
       "paymentType": "Manual"
+    },
+    {
+      "id": "ap-ti-TIBills-361",
+      "vendor": "Republic Services",
+      "entity": "TI",
+      "company": "TI",
+      "amount": 108.77,
+      "dueDate": "2026-07-10",
+      "invoiceDate": "2026-06-20",
+      "method": "Manual",
+      "status": "paid",
+      "inQBO": false,
+      "bucket": "paid",
+      "sheet": "TI Bills",
+      "invoiceNo": "84839920",
+      "remarks": "https://mail.google.com/mail/u/1/?ui=3#inbox/FMfcgzQhVhhQnDXtmnThsjwxsdfmQKlX · FALSE · Recurring · Recurring",
+      "row": 355,
+      "costType": "Estimate",
+      "paymentType": "Manual",
+      "paidDate": "2026-08-06",
+      "recurringType": "Recurring"
     },
     {
       "id": "ap-ti-TIBills-362",
@@ -14649,8 +14750,8 @@
       "entity": "TI",
       "company": "TI",
       "amount": 108.77,
-      "dueDate": "2026-07-10",
-      "invoiceDate": "2026-06-20",
+      "dueDate": "2026-08-09",
+      "invoiceDate": "2026-07-20",
       "paidDate": "2026-08-06",
       "method": "Manual",
       "status": "paid",
@@ -14666,27 +14767,6 @@
     },
     {
       "id": "ap-ti-TIBills-363",
-      "vendor": "Republic Services",
-      "entity": "TI",
-      "company": "TI",
-      "amount": 108.77,
-      "dueDate": "2026-08-09",
-      "invoiceDate": "2026-07-20",
-      "paidDate": "2026-08-06",
-      "method": "Manual",
-      "status": "paid",
-      "inQBO": false,
-      "bucket": "paid",
-      "sheet": "TI Bills",
-      "invoiceNo": "0694-004103653",
-      "remarks": "https://mail.google.com/mail/u/1/?ui=3#inbox/FMfcgzQhVhhQnDXtmnThsjwxsdfmQKlX · FALSE · Recurring · Recurring",
-      "row": 357,
-      "recurringType": "Recurring",
-      "costType": "Estimate",
-      "paymentType": "Manual"
-    },
-    {
-      "id": "ap-ti-TIBills-364",
       "vendor": "Cash Concrete - BRICK",
       "entity": "TI",
       "company": "4YR",
@@ -14698,14 +14778,15 @@
       "inQBO": false,
       "bucket": "past-due",
       "sheet": "TI Bills",
-      "invoiceNo": "",
+      "invoiceNo": "0694-004103653",
       "remarks": "https://mail.google.com/mail/u/1/#inbox?projector=1",
-      "row": 358,
+      "row": 357,
+      "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
     },
     {
-      "id": "ap-ti-TIBills-365",
+      "id": "ap-ti-TIBills-364",
       "vendor": "Arcadia Publishing",
       "entity": "TI",
       "company": "4G",
@@ -14719,6 +14800,26 @@
       "sheet": "TI Bills",
       "invoiceNo": "26086913",
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcKSRVXfwqrlDgNNChJJ?projector=1&messagePartId=0.1 · Recurring",
+      "row": 358,
+      "costType": "Estimate",
+      "paymentType": "Manual",
+      "recurringType": "Recurring"
+    },
+    {
+      "id": "ap-ti-TIBills-365",
+      "vendor": "Arcadia Publishing",
+      "entity": "TI",
+      "company": "4G",
+      "amount": 62.55,
+      "dueDate": "2026-09-10",
+      "invoiceDate": "2026-08-11",
+      "method": "Manual",
+      "status": "unpaid",
+      "inQBO": false,
+      "bucket": "rest-of-year",
+      "sheet": "TI Bills",
+      "invoiceNo": "26086912",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcKSRVqjtqpnwcdXdhJJ?projector=1&messagePartId=0.1 · Recurring",
       "row": 359,
       "recurringType": "Recurring",
       "costType": "Estimate",
@@ -14737,8 +14838,8 @@
       "inQBO": false,
       "bucket": "rest-of-year",
       "sheet": "TI Bills",
-      "invoiceNo": "26086912",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcKSRVqjtqpnwcdXdhJJ?projector=1&messagePartId=0.1 · Recurring",
+      "invoiceNo": "26086915",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcKSRVqlBjMcstbQtPsx?projector=1&messagePartId=0.1 · Recurring",
       "row": 360,
       "recurringType": "Recurring",
       "costType": "Estimate",
@@ -14757,8 +14858,8 @@
       "inQBO": false,
       "bucket": "rest-of-year",
       "sheet": "TI Bills",
-      "invoiceNo": "26086915",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcKSRVqlBjMcstbQtPsx?projector=1&messagePartId=0.1 · Recurring",
+      "invoiceNo": "26086914",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcKSRVzqndkJMxjmvMXs?projector=1&messagePartId=0.1 · Recurring",
       "row": 361,
       "recurringType": "Recurring",
       "costType": "Estimate",
@@ -14777,8 +14878,8 @@
       "inQBO": false,
       "bucket": "rest-of-year",
       "sheet": "TI Bills",
-      "invoiceNo": "26086914",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcKSRVzqndkJMxjmvMXs?projector=1&messagePartId=0.1 · Recurring",
+      "invoiceNo": "26086918",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcKSScbCcDcCwxvRGbSG?projector=1&messagePartId=0.1 · Recurring",
       "row": 362,
       "recurringType": "Recurring",
       "costType": "Estimate",
@@ -14797,8 +14898,8 @@
       "inQBO": false,
       "bucket": "rest-of-year",
       "sheet": "TI Bills",
-      "invoiceNo": "26086918",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcKSScbCcDcCwxvRGbSG?projector=1&messagePartId=0.1 · Recurring",
+      "invoiceNo": "26086917",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcKSSckCtvVzlqrPkkTj?projector=1&messagePartId=0.1 · Recurring",
       "row": 363,
       "recurringType": "Recurring",
       "costType": "Estimate",
@@ -14817,8 +14918,8 @@
       "inQBO": false,
       "bucket": "rest-of-year",
       "sheet": "TI Bills",
-      "invoiceNo": "26086917",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcKSSckCtvVzlqrPkkTj?projector=1&messagePartId=0.1 · Recurring",
+      "invoiceNo": "26086920",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcKSSdCRkHGDJdmTWJvX?projector=1&messagePartId=0.1 · Recurring",
       "row": 364,
       "recurringType": "Recurring",
       "costType": "Estimate",
@@ -14837,8 +14938,8 @@
       "inQBO": false,
       "bucket": "rest-of-year",
       "sheet": "TI Bills",
-      "invoiceNo": "26086920",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcKSSdCRkHGDJdmTWJvX?projector=1&messagePartId=0.1 · Recurring",
+      "invoiceNo": "26086921",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcKSSdmQxLbjbgVWVchP?projector=1&messagePartId=0.1 · Recurring",
       "row": 365,
       "recurringType": "Recurring",
       "costType": "Estimate",
@@ -14857,8 +14958,8 @@
       "inQBO": false,
       "bucket": "rest-of-year",
       "sheet": "TI Bills",
-      "invoiceNo": "26086921",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcKSSdmQxLbjbgVWVchP?projector=1&messagePartId=0.1 · Recurring",
+      "invoiceNo": "26086922",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcKSTjcXCKjwcqPMRZDs?projector=1&messagePartId=0.1 · Recurring",
       "row": 366,
       "recurringType": "Recurring",
       "costType": "Estimate",
@@ -14877,8 +14978,8 @@
       "inQBO": false,
       "bucket": "rest-of-year",
       "sheet": "TI Bills",
-      "invoiceNo": "26086922",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcKSTjcXCKjwcqPMRZDs?projector=1&messagePartId=0.1 · Recurring",
+      "invoiceNo": "26086923",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcKSTjccRQMGmnWzzJnH?projector=1&messagePartId=0.1 · Recurring",
       "row": 367,
       "recurringType": "Recurring",
       "costType": "Estimate",
@@ -14897,8 +14998,8 @@
       "inQBO": false,
       "bucket": "rest-of-year",
       "sheet": "TI Bills",
-      "invoiceNo": "26086923",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcKSTjccRQMGmnWzzJnH?projector=1&messagePartId=0.1 · Recurring",
+      "invoiceNo": "26086919",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcKSTjlckqJlkTVNQtTh?projector=1&messagePartId=0.1 · Recurring",
       "row": 368,
       "recurringType": "Recurring",
       "costType": "Estimate",
@@ -14906,26 +15007,6 @@
     },
     {
       "id": "ap-ti-TIBills-375",
-      "vendor": "Arcadia Publishing",
-      "entity": "TI",
-      "company": "4G",
-      "amount": 62.55,
-      "dueDate": "2026-09-10",
-      "invoiceDate": "2026-08-11",
-      "method": "Manual",
-      "status": "unpaid",
-      "inQBO": false,
-      "bucket": "rest-of-year",
-      "sheet": "TI Bills",
-      "invoiceNo": "26086919",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcKSTjlckqJlkTVNQtTh?projector=1&messagePartId=0.1 · Recurring",
-      "row": 369,
-      "recurringType": "Recurring",
-      "costType": "Estimate",
-      "paymentType": "Manual"
-    },
-    {
-      "id": "ap-ti-TIBills-376",
       "vendor": "Arcadia Publishing",
       "entity": "TI",
       "company": "4G",
@@ -14939,6 +15020,26 @@
       "sheet": "TI Bills",
       "invoiceNo": "26086925",
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcKSTkMqmlnWRGszQDWT?projector=1&messagePartId=0.1 · Recurring",
+      "row": 369,
+      "recurringType": "Recurring",
+      "costType": "Estimate",
+      "paymentType": "Manual"
+    },
+    {
+      "id": "ap-ti-TIBills-376",
+      "vendor": "Arcadia Publishing",
+      "entity": "TI",
+      "company": "4G",
+      "amount": 62.55,
+      "dueDate": "2026-09-10",
+      "invoiceDate": "2026-08-11",
+      "method": "Manual",
+      "status": "unpaid",
+      "inQBO": false,
+      "bucket": "rest-of-year",
+      "sheet": "TI Bills",
+      "invoiceNo": "26086926",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcKSTkfqSmntQNLdpdNz?projector=1&messagePartId=0.1 · Recurring",
       "row": 370,
       "recurringType": "Recurring",
       "costType": "Estimate",
@@ -14957,8 +15058,8 @@
       "inQBO": false,
       "bucket": "rest-of-year",
       "sheet": "TI Bills",
-      "invoiceNo": "26086926",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcKSTkfqSmntQNLdpdNz?projector=1&messagePartId=0.1 · Recurring",
+      "invoiceNo": "26086924",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcKSTkfrZnFbsCnPGgbX?projector=1&messagePartId=0.1 · Recurring",
       "row": 371,
       "recurringType": "Recurring",
       "costType": "Estimate",
@@ -14977,8 +15078,8 @@
       "inQBO": false,
       "bucket": "rest-of-year",
       "sheet": "TI Bills",
-      "invoiceNo": "26086924",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcKSTkfrZnFbsCnPGgbX?projector=1&messagePartId=0.1 · Recurring",
+      "invoiceNo": "26086927",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcKSTknpkJJhWwBdMCXx?projector=1&messagePartId=0.1 · Recurring",
       "row": 372,
       "recurringType": "Recurring",
       "costType": "Estimate",
@@ -14997,8 +15098,8 @@
       "inQBO": false,
       "bucket": "rest-of-year",
       "sheet": "TI Bills",
-      "invoiceNo": "26086927",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcKSTknpkJJhWwBdMCXx?projector=1&messagePartId=0.1 · Recurring",
+      "invoiceNo": "26086929",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcKSVpmwFWXJTVVqKSWQ?projector=1&messagePartId=0.1 · Recurring",
       "row": 373,
       "recurringType": "Recurring",
       "costType": "Estimate",
@@ -15010,15 +15111,15 @@
       "entity": "TI",
       "company": "4G",
       "amount": 62.55,
-      "dueDate": "2026-09-10",
-      "invoiceDate": "2026-08-11",
+      "dueDate": "2026-09-12",
+      "invoiceDate": "2026-08-13",
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
       "bucket": "rest-of-year",
       "sheet": "TI Bills",
-      "invoiceNo": "26086929",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrCjNcKSVpmwFWXJTVVqKSWQ?projector=1&messagePartId=0.1 · Recurring",
+      "invoiceNo": "26089183",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrGBbqblHLLVBGhBpwXgfNfj?projector=1&messagePartId=0.1 · Recurring",
       "row": 374,
       "recurringType": "Recurring",
       "costType": "Estimate",
@@ -15037,8 +15138,8 @@
       "inQBO": false,
       "bucket": "rest-of-year",
       "sheet": "TI Bills",
-      "invoiceNo": "26089183",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrGBbqblHLLVBGhBpwXgfNfj?projector=1&messagePartId=0.1 · Recurring",
+      "invoiceNo": "26089185",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrGBbqblHLmbWXHzcRKfBPlZ?projector=1&messagePartId=0.1 · Recurring",
       "row": 375,
       "recurringType": "Recurring",
       "costType": "Estimate",
@@ -15057,8 +15158,8 @@
       "inQBO": false,
       "bucket": "rest-of-year",
       "sheet": "TI Bills",
-      "invoiceNo": "26089185",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrGBbqblHLmbWXHzcRKfBPlZ?projector=1&messagePartId=0.1 · Recurring",
+      "invoiceNo": "26089184",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrGBbqblJQKbRgkhzMmVsbCR?projector=1&messagePartId=0.1 · Recurring",
       "row": 376,
       "recurringType": "Recurring",
       "costType": "Estimate",
@@ -15077,8 +15178,8 @@
       "inQBO": false,
       "bucket": "rest-of-year",
       "sheet": "TI Bills",
-      "invoiceNo": "26089184",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrGBbqblJQKbRgkhzMmVsbCR?projector=1&messagePartId=0.1 · Recurring",
+      "invoiceNo": "26089186",
+      "remarks": "v · Recurring",
       "row": 377,
       "recurringType": "Recurring",
       "costType": "Estimate",
@@ -15097,8 +15198,8 @@
       "inQBO": false,
       "bucket": "rest-of-year",
       "sheet": "TI Bills",
-      "invoiceNo": "26089186",
-      "remarks": "v · Recurring",
+      "invoiceNo": "26089187",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrGBbqblJRDmwWRJxHPnKBbf?projector=1&messagePartId=0.1 · Recurring",
       "row": 378,
       "recurringType": "Recurring",
       "costType": "Estimate",
@@ -15117,8 +15218,8 @@
       "inQBO": false,
       "bucket": "rest-of-year",
       "sheet": "TI Bills",
-      "invoiceNo": "26089187",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrGBbqblJRDmwWRJxHPnKBbf?projector=1&messagePartId=0.1 · Recurring",
+      "invoiceNo": "26089188",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrGBbqblJRnslnQbCXzqvcxB?projector=1&messagePartId=0.1 · Recurring",
       "row": 379,
       "recurringType": "Recurring",
       "costType": "Estimate",
@@ -15126,26 +15227,6 @@
     },
     {
       "id": "ap-ti-TIBills-386",
-      "vendor": "Arcadia Publishing",
-      "entity": "TI",
-      "company": "4G",
-      "amount": 62.55,
-      "dueDate": "2026-09-12",
-      "invoiceDate": "2026-08-13",
-      "method": "Manual",
-      "status": "unpaid",
-      "inQBO": false,
-      "bucket": "rest-of-year",
-      "sheet": "TI Bills",
-      "invoiceNo": "26089188",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrGBbqblJRnslnQbCXzqvcxB?projector=1&messagePartId=0.1 · Recurring",
-      "row": 380,
-      "recurringType": "Recurring",
-      "costType": "Estimate",
-      "paymentType": "Manual"
-    },
-    {
-      "id": "ap-ti-TIBills-387",
       "vendor": "Arcadia Publishing",
       "entity": "TI",
       "company": "4G",
@@ -15159,6 +15240,26 @@
       "sheet": "TI Bills",
       "invoiceNo": "26089189",
       "remarks": "https://mail.google.com/mail/u/1/#inbox?projector=1 · Recurring",
+      "row": 380,
+      "recurringType": "Recurring",
+      "costType": "Estimate",
+      "paymentType": "Manual"
+    },
+    {
+      "id": "ap-ti-TIBills-387",
+      "vendor": "Arcadia Publishing",
+      "entity": "TI",
+      "company": "4G",
+      "amount": 62.55,
+      "dueDate": "2026-09-12",
+      "invoiceDate": "2026-08-13",
+      "method": "Manual",
+      "status": "unpaid",
+      "inQBO": false,
+      "bucket": "rest-of-year",
+      "sheet": "TI Bills",
+      "invoiceNo": "26089190",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrGBbqblKWwBcpGkxzRGGdWM?projector=1&messagePartId=0.1 · Recurring",
       "row": 381,
       "recurringType": "Recurring",
       "costType": "Estimate",
@@ -15177,8 +15278,8 @@
       "inQBO": false,
       "bucket": "rest-of-year",
       "sheet": "TI Bills",
-      "invoiceNo": "26089190",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrGBbqblKWwBcpGkxzRGGdWM?projector=1&messagePartId=0.1 · Recurring",
+      "invoiceNo": "26089191",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrGBbqblKXXGzPdltzDnRjfr?projector=1&messagePartId=0.1 · Recurring",
       "row": 382,
       "recurringType": "Recurring",
       "costType": "Estimate",
@@ -15197,8 +15298,8 @@
       "inQBO": false,
       "bucket": "rest-of-year",
       "sheet": "TI Bills",
-      "invoiceNo": "26089191",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrGBbqblKXXGzPdltzDnRjfr?projector=1&messagePartId=0.1 · Recurring",
+      "invoiceNo": "26089192",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrGBbqblKXhLhvNDKtbHdVbV?projector=1&messagePartId=0.1 · Recurring",
       "row": 383,
       "recurringType": "Recurring",
       "costType": "Estimate",
@@ -15217,8 +15318,8 @@
       "inQBO": false,
       "bucket": "rest-of-year",
       "sheet": "TI Bills",
-      "invoiceNo": "26089192",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrGBbqblKXhLhvNDKtbHdVbV?projector=1&messagePartId=0.1 · Recurring",
+      "invoiceNo": "26089193",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrGBbqblLdpVkDFvHKKtJkMP?projector=1&messagePartId=0.1 · Recurring",
       "row": 384,
       "recurringType": "Recurring",
       "costType": "Estimate",
@@ -15237,8 +15338,8 @@
       "inQBO": false,
       "bucket": "rest-of-year",
       "sheet": "TI Bills",
-      "invoiceNo": "26089193",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrGBbqblLdpVkDFvHKKtJkMP?projector=1&messagePartId=0.1 · Recurring",
+      "invoiceNo": "26089194",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrGBbqblLdpfNFGHdLgplxfg?projector=1&messagePartId=0.1 · Recurring",
       "row": 385,
       "recurringType": "Recurring",
       "costType": "Estimate",
@@ -15257,8 +15358,8 @@
       "inQBO": false,
       "bucket": "rest-of-year",
       "sheet": "TI Bills",
-      "invoiceNo": "26089194",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrGBbqblLdpfNFGHdLgplxfg?projector=1&messagePartId=0.1 · Recurring",
+      "invoiceNo": "26089195",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrGBbqblMkPmsbMcDhLNfGrW?projector=1&messagePartId=0.1 · Recurring",
       "row": 386,
       "recurringType": "Recurring",
       "costType": "Estimate",
@@ -15266,26 +15367,6 @@
     },
     {
       "id": "ap-ti-TIBills-393",
-      "vendor": "Arcadia Publishing",
-      "entity": "TI",
-      "company": "4G",
-      "amount": 62.55,
-      "dueDate": "2026-09-12",
-      "invoiceDate": "2026-08-13",
-      "method": "Manual",
-      "status": "unpaid",
-      "inQBO": false,
-      "bucket": "rest-of-year",
-      "sheet": "TI Bills",
-      "invoiceNo": "26089195",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrGBbqblMkPmsbMcDhLNfGrW?projector=1&messagePartId=0.1 · Recurring",
-      "row": 387,
-      "recurringType": "Recurring",
-      "costType": "Estimate",
-      "paymentType": "Manual"
-    },
-    {
-      "id": "ap-ti-TIBills-394",
       "vendor": "IPG Studio",
       "entity": "TI",
       "company": "E1",
@@ -15295,13 +15376,168 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "this-week",
+      "bucket": "past-due",
       "sheet": "TI Bills",
       "invoiceNo": "36",
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrHKKlVCXVfzCFzKlcDVdmxB",
-      "row": 388,
+      "row": 387,
+      "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
+    },
+    {
+      "id": "ap-ti-TIBills-394",
+      "vendor": "Arcadia Publishing",
+      "entity": "TI",
+      "company": "4G",
+      "amount": 62.55,
+      "dueDate": "2026-09-16",
+      "invoiceDate": "2026-08-17",
+      "method": "Manual",
+      "status": "unpaid",
+      "inQBO": false,
+      "bucket": "rest-of-year",
+      "sheet": "TI Bills",
+      "invoiceNo": "26093084",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrLlkJrMBvGknhlmgBgWmsNs?projector=1&messagePartId=0.1 · Recurring",
+      "row": 388,
+      "costType": "Estimate",
+      "paymentType": "Manual",
+      "recurringType": "Recurring"
+    },
+    {
+      "id": "ap-ti-TIBills-395",
+      "vendor": "Arcadia Publishing",
+      "entity": "TI",
+      "company": "4G",
+      "amount": 62.55,
+      "dueDate": "2026-09-16",
+      "invoiceDate": "2026-08-17",
+      "method": "Manual",
+      "status": "unpaid",
+      "inQBO": false,
+      "bucket": "rest-of-year",
+      "sheet": "TI Bills",
+      "invoiceNo": "26093086",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrLlkJrMBvhlsZmdzVhRDwxM?projector=1&messagePartId=0.1 · Recurring",
+      "row": 389,
+      "recurringType": "Recurring",
+      "costType": "Estimate",
+      "paymentType": "Manual"
+    },
+    {
+      "id": "ap-ti-TIBills-396",
+      "vendor": "Arcadia Publishing",
+      "entity": "TI",
+      "company": "4G",
+      "amount": 62.55,
+      "dueDate": "2026-09-16",
+      "invoiceDate": "2026-08-17",
+      "method": "Manual",
+      "status": "unpaid",
+      "inQBO": false,
+      "bucket": "rest-of-year",
+      "sheet": "TI Bills",
+      "invoiceNo": "26093085",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrLlkJrMBvqrhWQJwMrTpbCT?projector=1&messagePartId=0.1 · Recurring",
+      "row": 390,
+      "recurringType": "Recurring",
+      "costType": "Estimate",
+      "paymentType": "Manual"
+    },
+    {
+      "id": "ap-ti-TIBills-397",
+      "vendor": "Arcadia Publishing",
+      "entity": "TI",
+      "company": "4G",
+      "amount": 62.55,
+      "dueDate": "2026-09-16",
+      "invoiceDate": "2026-08-17",
+      "method": "Manual",
+      "status": "unpaid",
+      "inQBO": false,
+      "bucket": "rest-of-year",
+      "sheet": "TI Bills",
+      "invoiceNo": "26093093",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrLlkJrMFHZTwRKRXwbWXfMM?projector=1&messagePartId=0.1 · Recurring",
+      "row": 391,
+      "recurringType": "Recurring",
+      "costType": "Estimate",
+      "paymentType": "Manual"
+    },
+    {
+      "id": "ap-ti-TIBills-398",
+      "vendor": "Arcadia Publishing",
+      "entity": "TI",
+      "company": "4G",
+      "amount": 62.55,
+      "dueDate": "2026-09-16",
+      "invoiceDate": "2026-08-17",
+      "method": "Manual",
+      "status": "unpaid",
+      "inQBO": false,
+      "bucket": "rest-of-year",
+      "sheet": "TI Bills",
+      "invoiceNo": "26093107",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrLlkJrMHTTSCpCmxqlzlWxC?projector=1&messagePartId=0.1 · Recurring",
+      "row": 392,
+      "recurringType": "Recurring",
+      "costType": "Estimate",
+      "paymentType": "Manual"
+    },
+    {
+      "id": "ap-ti-TIBills-399",
+      "vendor": "Arcadia Publishing",
+      "entity": "TI",
+      "company": "4G",
+      "amount": 62.55,
+      "dueDate": "2026-09-16",
+      "invoiceDate": "2026-08-17",
+      "method": "Manual",
+      "status": "unpaid",
+      "inQBO": false,
+      "bucket": "rest-of-year",
+      "sheet": "TI Bills",
+      "invoiceNo": "26093108",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrLlkJrMHVNXGrCgSbgCBJfl?projector=1&messagePartId=0.1 · Recurring",
+      "row": 393,
+      "recurringType": "Recurring",
+      "costType": "Estimate",
+      "paymentType": "Manual"
+    },
+    {
+      "id": "ap-ti-TIBills-400",
+      "vendor": "Manychat",
+      "entity": "TI",
+      "company": "E1",
+      "amount": 17,
+      "dueDate": "2026-08-16",
+      "invoiceDate": "2026-08-16",
+      "paidDate": "2026-08-16",
+      "method": "Manual",
+      "status": "paid",
+      "inQBO": false,
+      "bucket": "paid",
+      "sheet": "TI Bills",
+      "invoiceNo": "",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrKchhNlTSFdTGlcFsdCjpTn · FALSE",
+      "row": 394
+    },
+    {
+      "id": "ap-ti-TIBills-401",
+      "vendor": "INbiz",
+      "entity": "TI",
+      "company": "4G",
+      "amount": 150,
+      "dueDate": "2026-10-15",
+      "method": "Manual",
+      "status": "unpaid",
+      "inQBO": false,
+      "bucket": "rest-of-year",
+      "sheet": "TI Bills",
+      "invoiceNo": "",
+      "remarks": "INDIANA BUSINESS ENTITY REPORT FILING NOTICE\nhttps://mail.google.com/mail/u/1/#inbox/FMfcgzQhVhhQnDXtgFzDFQfTMrjCjpTm",
+      "row": 395
     },
     {
       "id": "ap-msdx-12",
@@ -15580,13 +15816,13 @@
       "id": "ap-msdx-56",
       "vendor": "Starlink",
       "entity": "MSDx",
-      "amount": 290,
+      "amount": 280,
       "dueDate": "2026-08-18",
       "invoiceDate": "2026-08-18",
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "next-week",
+      "bucket": "this-week",
       "sheet": "MSDx Bills",
       "invoiceNo": "",
       "remarks": "",
@@ -15778,7 +16014,7 @@
       "id": "ap-msdx-68",
       "vendor": "ElevateOne - Retainer",
       "entity": "MSDx",
-      "amount": 5000,
+      "amount": 2500,
       "dueDate": "2026-04-01",
       "invoiceDate": "2026-04-01",
       "method": "Manual",
@@ -15814,7 +16050,7 @@
       "id": "ap-msdx-70",
       "vendor": "ElevateOne - Retainer",
       "entity": "MSDx",
-      "amount": 5000,
+      "amount": 2500,
       "dueDate": "2026-05-01",
       "invoiceDate": "2026-05-01",
       "method": "Manual",
@@ -15850,7 +16086,7 @@
       "id": "ap-msdx-72",
       "vendor": "ElevateOne - Retainer",
       "entity": "MSDx",
-      "amount": 5000,
+      "amount": 2500,
       "dueDate": "2026-06-01",
       "invoiceDate": "2026-06-01",
       "method": "Manual",
@@ -15886,7 +16122,7 @@
       "id": "ap-msdx-74",
       "vendor": "ElevateOne - Retainer",
       "entity": "MSDx",
-      "amount": 5000,
+      "amount": 2500,
       "dueDate": "2026-07-01",
       "invoiceDate": "2026-07-01",
       "method": "Manual",
@@ -15922,7 +16158,7 @@
       "id": "ap-msdx-76",
       "vendor": "ElevateOne - Retainer",
       "entity": "MSDx",
-      "amount": 5000,
+      "amount": 2500,
       "dueDate": "2026-08-01",
       "invoiceDate": "2026-08-01",
       "method": "Manual",
@@ -15958,7 +16194,7 @@
       "id": "ap-msdx-78",
       "vendor": "ElevateOne - Retainer",
       "entity": "MSDx",
-      "amount": 5000,
+      "amount": 2500,
       "dueDate": "2026-09-01",
       "invoiceDate": "2026-09-01",
       "method": "Manual",
@@ -15994,7 +16230,7 @@
       "id": "ap-msdx-80",
       "vendor": "ElevateOne - Retainer",
       "entity": "MSDx",
-      "amount": 5000,
+      "amount": 2500,
       "dueDate": "2026-10-01",
       "invoiceDate": "2026-10-01",
       "method": "Manual",
@@ -16030,7 +16266,7 @@
       "id": "ap-msdx-82",
       "vendor": "ElevateOne - Retainer",
       "entity": "MSDx",
-      "amount": 5000,
+      "amount": 2500,
       "dueDate": "2026-11-01",
       "invoiceDate": "2026-11-01",
       "method": "Manual",
@@ -16066,7 +16302,7 @@
       "id": "ap-msdx-84",
       "vendor": "ElevateOne - Retainer",
       "entity": "MSDx",
-      "amount": 5000,
+      "amount": 2500,
       "dueDate": "2026-12-01",
       "invoiceDate": "2026-12-01",
       "method": "Manual",
@@ -16460,7 +16696,7 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "rest-of-month",
+      "bucket": "next-week",
       "sheet": "MSDx Bills",
       "invoiceNo": "",
       "remarks": "",
@@ -16615,7 +16851,7 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "rest-of-month",
+      "bucket": "next-week",
       "sheet": "MSDx Bills",
       "invoiceNo": "",
       "remarks": "",
@@ -17033,7 +17269,7 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "this-week",
+      "bucket": "past-due",
       "sheet": "MSDx Bills",
       "invoiceNo": "",
       "remarks": "",
@@ -17291,7 +17527,7 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "rest-of-month",
+      "bucket": "next-week",
       "sheet": "MSDx Bills",
       "invoiceNo": "",
       "remarks": "",
@@ -17624,7 +17860,7 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "this-week",
+      "bucket": "past-due",
       "sheet": "MSDx Bills",
       "invoiceNo": "KJ4VBOMP-0005",
       "remarks": "",
@@ -18203,7 +18439,7 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "rest-of-month",
+      "bucket": "next-week",
       "sheet": "MSDx Bills",
       "invoiceNo": "",
       "remarks": "",
@@ -18477,7 +18713,7 @@
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "rest-of-month",
+      "bucket": "next-week",
       "sheet": "MSDx Bills",
       "invoiceNo": "2101023580",
       "remarks": "",
@@ -18603,31 +18839,12 @@
     },
     {
       "id": "ap-msdx-234",
-      "vendor": "Rental Spaces Inc",
-      "entity": "MSDx",
-      "amount": 264,
-      "dueDate": "2026-08-13",
-      "invoiceDate": "2026-08-10",
-      "paidDate": "2026-08-10",
-      "method": "Manual",
-      "status": "paid",
-      "inQBO": false,
-      "bucket": "paid",
-      "sheet": "MSDx Bills",
-      "invoiceNo": "8801344576",
-      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrBZCXlRgpjpqlBBCXwknmpp · Paid",
-      "row": 229,
-      "recurringType": "Recurring",
-      "costType": "Estimate",
-      "paymentType": "Manual"
-    },
-    {
-      "id": "ap-msdx-235",
       "vendor": "MXR Imaging Solution Company",
       "entity": "MSDx",
       "amount": 363.68,
       "dueDate": "2026-06-26",
       "invoiceDate": "2026-05-27",
+      "paidDate": "2026-07-07",
       "method": "Manual",
       "status": "paid",
       "inQBO": false,
@@ -18635,11 +18852,13 @@
       "sheet": "MSDx Bills",
       "invoiceNo": "8801345226",
       "remarks": "Paid",
-      "row": 230,
-      "paidDate": "2026-07-07"
+      "row": 229,
+      "recurringType": "Recurring",
+      "costType": "Estimate",
+      "paymentType": "Manual"
     },
     {
-      "id": "ap-msdx-236",
+      "id": "ap-msdx-235",
       "vendor": "MXR Imaging Solution Company",
       "entity": "MSDx",
       "amount": 33.58,
@@ -18652,11 +18871,11 @@
       "sheet": "MSDx Bills",
       "invoiceNo": "8801344575",
       "remarks": "Paid",
-      "row": 231,
+      "row": 230,
       "paidDate": "2026-07-07"
     },
     {
-      "id": "ap-msdx-237",
+      "id": "ap-msdx-236",
       "vendor": "MEDICAL IMAGING SPECIALISTS",
       "entity": "MSDx",
       "amount": 1225,
@@ -18669,11 +18888,11 @@
       "sheet": "MSDx Bills",
       "invoiceNo": "3667",
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVXBlZffLBxTZWgcJHJLmBTdF?projector=1&messagePartId=0.1 · Paid",
-      "row": 232,
+      "row": 231,
       "paidDate": "2026-07-23"
     },
     {
-      "id": "ap-msdx-238",
+      "id": "ap-msdx-237",
       "vendor": "Rental Spaces Inc",
       "entity": "MSDx",
       "amount": 264,
@@ -18684,10 +18903,28 @@
       "inQBO": false,
       "bucket": "paid",
       "sheet": "MSDx Bills",
-      "invoiceNo": "",
+      "invoiceNo": "3667",
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrBZCXlRgpjpqlBBCXwknmpp · Paid",
-      "row": 233,
+      "row": 232,
       "paidDate": "2026-08-10",
+      "recurringType": "Recurring",
+      "costType": "Estimate",
+      "paymentType": "Manual"
+    },
+    {
+      "id": "ap-msdx-238",
+      "vendor": "Rental Spaces Inc",
+      "entity": "MSDx",
+      "amount": 264,
+      "dueDate": "2026-09-13",
+      "method": "Manual",
+      "status": "unpaid",
+      "inQBO": false,
+      "bucket": "rest-of-year",
+      "sheet": "MSDx Bills",
+      "invoiceNo": "",
+      "remarks": "",
+      "row": 233,
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
@@ -18697,7 +18934,7 @@
       "vendor": "Rental Spaces Inc",
       "entity": "MSDx",
       "amount": 264,
-      "dueDate": "2026-09-13",
+      "dueDate": "2026-10-13",
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
@@ -18715,7 +18952,7 @@
       "vendor": "Rental Spaces Inc",
       "entity": "MSDx",
       "amount": 264,
-      "dueDate": "2026-10-13",
+      "dueDate": "2026-11-13",
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
@@ -18733,7 +18970,7 @@
       "vendor": "Rental Spaces Inc",
       "entity": "MSDx",
       "amount": 264,
-      "dueDate": "2026-11-13",
+      "dueDate": "2026-12-13",
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
@@ -18748,39 +18985,41 @@
     },
     {
       "id": "ap-msdx-242",
-      "vendor": "Rental Spaces Inc",
-      "entity": "MSDx",
-      "amount": 264,
-      "dueDate": "2026-12-13",
-      "method": "Manual",
-      "status": "unpaid",
-      "inQBO": false,
-      "bucket": "rest-of-year",
-      "sheet": "MSDx Bills",
-      "invoiceNo": "8801344126",
-      "remarks": "",
-      "row": 237,
-      "recurringType": "Recurring",
-      "costType": "Estimate",
-      "paymentType": "Manual"
-    },
-    {
-      "id": "ap-msdx-243",
       "vendor": "IPG Studio",
       "entity": "MSDx",
       "amount": 390,
       "dueDate": "2026-08-14",
-      "invoiceDate": "2026-08-07",
       "method": "Manual",
       "status": "unpaid",
       "inQBO": false,
-      "bucket": "this-week",
+      "bucket": "past-due",
       "sheet": "MSDx Bills",
       "invoiceNo": "37",
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrHKKlVLfMPxZTrHXbKMMSfj",
+      "row": 237,
+      "recurringType": "Recurring",
+      "costType": "Estimate",
+      "paymentType": "Manual",
+      "invoiceDate": "2026-08-07"
+    },
+    {
+      "id": "ap-msdx-243",
+      "vendor": "Goldsmiths RV Repairs, LLC",
+      "entity": "MSDx",
+      "amount": 583.15,
+      "dueDate": "2026-10-18",
+      "invoiceDate": "2026-08-18",
+      "method": "Manual",
+      "status": "paid",
+      "inQBO": false,
+      "bucket": "paid",
+      "sheet": "MSDx Bills",
+      "invoiceNo": "1107",
+      "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrLnJGdTdVPhXPmcfxtHfwXr · Paid",
       "row": 238,
       "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "paidDate": "2026-08-18"
     }
   ],
   "banks": [
@@ -18790,9 +19029,9 @@
       "bank": "4G - ONB",
       "type": "Operating",
       "acct": "...",
-      "balance": 856.48,
-      "yesterday": 856.48,
-      "asOf": "2026-08-12",
+      "balance": 786.39,
+      "yesterday": 786.39,
+      "asOf": "2026-08-19",
       "status": "Active",
       "trend": "up"
     },
@@ -18802,9 +19041,9 @@
       "bank": "E1 - ONB",
       "type": "Operating",
       "acct": "...",
-      "balance": 3140.42,
-      "yesterday": 3140.42,
-      "asOf": "2026-08-12",
+      "balance": 27.39,
+      "yesterday": 27.39,
+      "asOf": "2026-08-18",
       "status": "Active",
       "trend": "up"
     },
@@ -18814,9 +19053,9 @@
       "bank": "New TI - ONB x9304",
       "type": "Operating",
       "acct": "...",
-      "balance": 693.57,
-      "yesterday": 693.57,
-      "asOf": "2026-08-12",
+      "balance": 3673.64,
+      "yesterday": 3673.64,
+      "asOf": "2026-08-19",
       "status": "Active",
       "trend": "up"
     },
@@ -18826,9 +19065,9 @@
       "bank": "Old TI - ONB x0539",
       "type": "Operating",
       "acct": "...",
-      "balance": 208.71,
-      "yesterday": 208.71,
-      "asOf": "2026-08-11",
+      "balance": 5828.68,
+      "yesterday": 5828.68,
+      "asOf": "2026-08-20",
       "status": "Active",
       "trend": "up"
     },
@@ -18838,9 +19077,9 @@
       "bank": "4YR - ONB",
       "type": "Operating",
       "acct": "...",
-      "balance": 2710.44,
-      "yesterday": 2710.44,
-      "asOf": "2026-08-11",
+      "balance": 2104.48,
+      "yesterday": 2104.48,
+      "asOf": "2026-08-17",
       "status": "Active",
       "trend": "up"
     },
@@ -18850,9 +19089,9 @@
       "bank": "4YR - NSSB x1923",
       "type": "Operating",
       "acct": "...",
-      "balance": 5389.43,
-      "yesterday": 5389.43,
-      "asOf": "2026-08-12",
+      "balance": 21978.39,
+      "yesterday": 21978.39,
+      "asOf": "2026-08-19",
       "status": "Active",
       "trend": "up"
     },
@@ -18874,9 +19113,9 @@
       "bank": "MSDx - Seacoast x9601",
       "type": "Operating",
       "acct": "...",
-      "balance": 170.4,
-      "yesterday": 170.4,
-      "asOf": "2026-08-12",
+      "balance": 471.21,
+      "yesterday": 471.21,
+      "asOf": "2026-08-19",
       "status": "Active",
       "trend": "up"
     },
@@ -18898,9 +19137,9 @@
       "bank": "Ruby's - Zions",
       "type": "Operating",
       "acct": "...",
-      "balance": 22738.08,
-      "yesterday": 22738.08,
-      "asOf": "2026-08-12",
+      "balance": 4933.84,
+      "yesterday": 4933.84,
+      "asOf": "2026-08-19",
       "status": "Active",
       "trend": "up"
     },
@@ -18910,22 +19149,22 @@
       "bank": "4YR - TriCounty",
       "type": "Operating",
       "acct": "...",
-      "balance": 879.9,
-      "yesterday": 879.9,
-      "asOf": "2026-08-12",
+      "balance": 231.14,
+      "yesterday": 231.14,
+      "asOf": "2026-08-18",
       "status": "Active",
       "trend": "up"
     }
   ],
   "loans": [
     {
-      "id": "cc-9",
-      "entity": "TI",
-      "lender": "4G AMEX x8008",
+      "id": "cc-1",
+      "entity": "Ruby's",
+      "lender": "Ruby's Wells Fargo x0497",
       "purpose": "Credit Card Facility",
       "principal": 0,
       "outstanding": 0,
-      "monthly": 78881.65,
+      "monthly": 22762.9,
       "nextPay": "22nd of the month",
       "maturity": "Revolving",
       "status": "Active"
@@ -18943,13 +19182,13 @@
       "status": "Active"
     },
     {
-      "id": "cc-1",
-      "entity": "Ruby's",
-      "lender": "Ruby's Wells Fargo x0497",
+      "id": "cc-9",
+      "entity": "TI",
+      "lender": "4G AMEX x8008",
       "purpose": "Credit Card Facility",
       "principal": 0,
       "outstanding": 0,
-      "monthly": 22762.9,
+      "monthly": 78881.65,
       "nextPay": "22nd of the month",
       "maturity": "Revolving",
       "status": "Active"
@@ -19317,6 +19556,22 @@
       "row": 3
     },
     {
+      "id": "ar-3-August",
+      "entity": "TI",
+      "customer": "MSDx",
+      "description": "Retainers",
+      "amount": 0,
+      "dueDate": "2026-08-31",
+      "month": "August",
+      "occurrence": "true",
+      "invoice": false,
+      "approval": false,
+      "sent": false,
+      "payment": false,
+      "remarks": "Tue Sep 01 2026 00:00:00 GMT+0800 (Philippine Standard Time)",
+      "row": 3
+    },
+    {
       "id": "ar-4-March",
       "entity": "TI",
       "customer": "MSDx",
@@ -19394,6 +19649,22 @@
       "sent": false,
       "payment": false,
       "remarks": "Fri Jul 31 2026 00:00:00 GMT+0800 (Philippine Standard Time)",
+      "row": 4
+    },
+    {
+      "id": "ar-4-August",
+      "entity": "TI",
+      "customer": "MSDx",
+      "description": "Accounting",
+      "amount": 0,
+      "dueDate": "2026-08-31",
+      "month": "August",
+      "occurrence": "true",
+      "invoice": false,
+      "approval": false,
+      "sent": false,
+      "payment": false,
+      "remarks": "Tue Sep 01 2026 00:00:00 GMT+0800 (Philippine Standard Time)",
       "row": 4
     },
     {
@@ -20742,9 +21013,9 @@
   ],
   "payrollPivot": {
     "Ruby's": {
-      "22738.08": {
-        "22738.08": {
-          "hours": 202671220287,
+      "4933.84": {
+        "4933.84": {
+          "hours": 2026719203118,
           "amount": 0
         }
       },
@@ -20756,39 +21027,39 @@
       }
     },
     "TI": {
-      "856.48": {
-        "856.48": {
-          "hours": 2026712201332,
+      "786.39": {
+        "786.39": {
+          "hours": 202671920176,
           "amount": 0
         }
       },
-      "3140.42": {
-        "3140.42": {
-          "hours": 2026712201352,
+      "27.39": {
+        "27.39": {
+          "hours": 202671820225,
           "amount": 0
         }
       },
-      "693.57": {
-        "693.57": {
-          "hours": 2026712201410,
+      "3673.64": {
+        "3673.64": {
+          "hours": 2026719201954,
           "amount": 0
         }
       },
-      "208.71": {
-        "208.71": {
-          "hours": 202671122343,
+      "5828.68": {
+        "5828.68": {
+          "hours": 202672014052,
           "amount": 0
         }
       },
-      "2710.44": {
-        "2710.44": {
-          "hours": 20267112225,
+      "2104.48": {
+        "2104.48": {
+          "hours": 2026717201737,
           "amount": 0
         }
       },
-      "5389.43": {
-        "5389.43": {
-          "hours": 202671220184,
+      "21978.39": {
+        "21978.39": {
+          "hours": 2026719202439,
           "amount": 0
         }
       },
@@ -20798,9 +21069,9 @@
           "amount": 0
         }
       },
-      "879.9": {
-        "879.9": {
-          "hours": 2026712202229,
+      "231.14": {
+        "231.14": {
+          "hours": 2026718203612,
           "amount": 0
         }
       },
@@ -20818,9 +21089,9 @@
           "amount": 0
         }
       },
-      "170.4": {
-        "170.4": {
-          "hours": 2026712201536,
+      "471.21": {
+        "471.21": {
+          "hours": 2026719202025,
           "amount": 0
         }
       },
@@ -22331,7 +22602,7 @@
       "assigneeColor": "#039BE5",
       "assigneeIds": [],
       "urgency": "normal",
-      "done": false,
+      "done": true,
       "vendor": "Amazon Weekly Report",
       "description": "Amazon Weekly Report",
       "row": 10
@@ -24406,7 +24677,7 @@
         "a_1781879713867"
       ],
       "urgency": "high",
-      "done": false,
+      "done": true,
       "vendor": "Ruby's Payables Prep",
       "description": "Ruby's Payables Prep",
       "row": 117
@@ -31524,7 +31795,7 @@
         "a_1781879713867"
       ],
       "urgency": "normal",
-      "done": false,
+      "done": true,
       "vendor": "StandUp Meeting",
       "description": "StandUp Meeting",
       "row": 431
@@ -33898,7 +34169,7 @@
         "a_1781878749529"
       ],
       "urgency": "normal",
-      "done": false,
+      "done": true,
       "vendor": "Meeting with Ammar",
       "description": "Meeting with Ammar",
       "row": 535
@@ -35998,7 +36269,7 @@
         "a_1781878749529"
       ],
       "urgency": "normal",
-      "done": false,
+      "done": true,
       "vendor": "Finalize 4YR Payroll",
       "description": "Finalize 4YR Payroll",
       "row": 635
@@ -38161,7 +38432,7 @@
         "a_1781879713867"
       ],
       "urgency": "normal",
-      "done": false,
+      "done": true,
       "vendor": "Send Finalized 4YR Payroll",
       "description": "Send Finalized 4YR Payroll",
       "row": 738
@@ -51218,7 +51489,7 @@
         "a_1781879713867"
       ],
       "urgency": "normal",
-      "done": false,
+      "done": true,
       "vendor": "StandUp Meeting",
       "description": "StandUp Meeting",
       "row": 1359
@@ -55616,29 +55887,6 @@
       "row": 1559
     },
     {
-      "id": "local_1782225897967_2_kac9",
-      "date": "2026-08-23",
-      "time": "23:30",
-      "endTime": "00:00",
-      "title": "Payables Meeting w/ Mark & Iza",
-      "notes": "",
-      "entity": "Dashboard",
-      "type": "event",
-      "assignee": "Micah, Monica, Norlan",
-      "assigneeId": "a_1781879713867",
-      "assigneeColor": "#F6BF26",
-      "assigneeIds": [
-        "a_1781879713867",
-        "a_1781879706403",
-        "a_1781878749529"
-      ],
-      "urgency": "normal",
-      "done": false,
-      "vendor": "Payables Meeting w/ Mark & Iza",
-      "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1560
-    },
-    {
       "id": "local_1782225897967_3_uh2r",
       "date": "2026-09-23",
       "time": "23:30",
@@ -55659,7 +55907,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1561
+      "row": 1560
     },
     {
       "id": "local_1782225897967_4_op14",
@@ -55682,7 +55930,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1562
+      "row": 1561
     },
     {
       "id": "local_1782225897967_5_hpgj",
@@ -55705,7 +55953,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1563
+      "row": 1562
     },
     {
       "id": "local_1782225897967_6_xnhi",
@@ -55728,7 +55976,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1564
+      "row": 1563
     },
     {
       "id": "local_1782225897967_7_sl93",
@@ -55751,7 +55999,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1565
+      "row": 1564
     },
     {
       "id": "local_1782225897967_8_cyk4",
@@ -55774,7 +56022,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1566
+      "row": 1565
     },
     {
       "id": "local_1782225897967_9_pahi",
@@ -55797,7 +56045,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1567
+      "row": 1566
     },
     {
       "id": "local_1782225897967_10_29wt",
@@ -55820,7 +56068,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1568
+      "row": 1567
     },
     {
       "id": "local_1782225897967_11_3kqi",
@@ -55843,7 +56091,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1569
+      "row": 1568
     },
     {
       "id": "local_1782225897967_12_mkss",
@@ -55866,7 +56114,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1570
+      "row": 1569
     },
     {
       "id": "local_1782225897967_13_bi17",
@@ -55889,7 +56137,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1571
+      "row": 1570
     },
     {
       "id": "local_1782225897967_14_519c",
@@ -55912,7 +56160,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1572
+      "row": 1571
     },
     {
       "id": "local_1782225897967_15_euvw",
@@ -55935,7 +56183,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1573
+      "row": 1572
     },
     {
       "id": "local_1782225897967_16_ng8q",
@@ -55958,7 +56206,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1574
+      "row": 1573
     },
     {
       "id": "local_1782225897967_17_o82n",
@@ -55981,7 +56229,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1575
+      "row": 1574
     },
     {
       "id": "local_1782225897967_18_na7j",
@@ -56004,7 +56252,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1576
+      "row": 1575
     },
     {
       "id": "local_1782225897967_19_hi44",
@@ -56027,7 +56275,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1577
+      "row": 1576
     },
     {
       "id": "local_1782225897967_20_0cd7",
@@ -56050,7 +56298,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1578
+      "row": 1577
     },
     {
       "id": "local_1782225897967_21_7vgh",
@@ -56073,7 +56321,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1579
+      "row": 1578
     },
     {
       "id": "local_1782225897967_22_aedi",
@@ -56096,7 +56344,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1580
+      "row": 1579
     },
     {
       "id": "local_1782225897967_23_jtzz",
@@ -56119,7 +56367,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1581
+      "row": 1580
     },
     {
       "id": "local_1782225897967_24_dqz6",
@@ -56142,7 +56390,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1582
+      "row": 1581
     },
     {
       "id": "local_1782225897967_25_5v4n",
@@ -56165,7 +56413,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1583
+      "row": 1582
     },
     {
       "id": "local_1782225897967_26_g62a",
@@ -56188,7 +56436,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1584
+      "row": 1583
     },
     {
       "id": "local_1782225897967_27_x10x",
@@ -56211,7 +56459,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1585
+      "row": 1584
     },
     {
       "id": "local_1782225897967_28_aps7",
@@ -56234,7 +56482,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1586
+      "row": 1585
     },
     {
       "id": "local_1782225897967_29_m9pg",
@@ -56257,7 +56505,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1587
+      "row": 1586
     },
     {
       "id": "local_1782225897967_30_2uf3",
@@ -56280,7 +56528,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1588
+      "row": 1587
     },
     {
       "id": "local_1782225897967_31_x3s7",
@@ -56303,7 +56551,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1589
+      "row": 1588
     },
     {
       "id": "local_1782225897967_32_cm9y",
@@ -56326,7 +56574,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1590
+      "row": 1589
     },
     {
       "id": "local_1782225897967_33_r9af",
@@ -56349,7 +56597,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1591
+      "row": 1590
     },
     {
       "id": "local_1782225897967_34_cfy0",
@@ -56372,7 +56620,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1592
+      "row": 1591
     },
     {
       "id": "local_1782225897967_35_4zl3",
@@ -56395,7 +56643,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1593
+      "row": 1592
     },
     {
       "id": "local_1782225897967_36_fhe4",
@@ -56418,7 +56666,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1594
+      "row": 1593
     },
     {
       "id": "local_1782225897967_37_7e89",
@@ -56441,7 +56689,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1595
+      "row": 1594
     },
     {
       "id": "local_1782225897967_38_ap8h",
@@ -56464,7 +56712,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1596
+      "row": 1595
     },
     {
       "id": "local_1782225897967_39_51s3",
@@ -56487,7 +56735,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1597
+      "row": 1596
     },
     {
       "id": "local_1782225897967_40_31h2",
@@ -56510,7 +56758,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1598
+      "row": 1597
     },
     {
       "id": "local_1782225897967_41_a85b",
@@ -56533,7 +56781,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1599
+      "row": 1598
     },
     {
       "id": "local_1782225897967_42_f8n5",
@@ -56556,7 +56804,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1600
+      "row": 1599
     },
     {
       "id": "local_1782225897967_43_nt84",
@@ -56579,7 +56827,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1601
+      "row": 1600
     },
     {
       "id": "local_1782225897967_44_lwj1",
@@ -56602,7 +56850,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1602
+      "row": 1601
     },
     {
       "id": "local_1782225897967_45_qrei",
@@ -56625,7 +56873,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1603
+      "row": 1602
     },
     {
       "id": "local_1782225897967_46_4lh6",
@@ -56648,7 +56896,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1604
+      "row": 1603
     },
     {
       "id": "local_1782225897967_47_4z6v",
@@ -56671,7 +56919,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1605
+      "row": 1604
     },
     {
       "id": "local_1782225897967_48_knvb",
@@ -56694,7 +56942,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1606
+      "row": 1605
     },
     {
       "id": "local_1782225897967_49_bp6e",
@@ -56717,7 +56965,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1607
+      "row": 1606
     },
     {
       "id": "local_1782225897967_50_ujye",
@@ -56740,7 +56988,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1608
+      "row": 1607
     },
     {
       "id": "local_1782225897967_51_7v8i",
@@ -56763,7 +57011,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1609
+      "row": 1608
     },
     {
       "id": "local_1782225897967_52_rflw",
@@ -56786,7 +57034,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1610
+      "row": 1609
     },
     {
       "id": "local_1782225897967_53_lt7r",
@@ -56809,7 +57057,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1611
+      "row": 1610
     },
     {
       "id": "local_1782225897967_54_g889",
@@ -56832,7 +57080,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1612
+      "row": 1611
     },
     {
       "id": "local_1782225897967_55_7zl7",
@@ -56855,7 +57103,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1613
+      "row": 1612
     },
     {
       "id": "local_1782225897967_56_yw47",
@@ -56878,7 +57126,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1614
+      "row": 1613
     },
     {
       "id": "local_1782225897967_57_yfp2",
@@ -56901,7 +57149,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1615
+      "row": 1614
     },
     {
       "id": "local_1782225897967_58_vm4j",
@@ -56924,7 +57172,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1616
+      "row": 1615
     },
     {
       "id": "local_1782225897967_59_a38l",
@@ -56947,7 +57195,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1617
+      "row": 1616
     },
     {
       "id": "local_1782225897967_60_n39g",
@@ -56970,7 +57218,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1618
+      "row": 1617
     },
     {
       "id": "local_1782225897967_61_7o7n",
@@ -56993,7 +57241,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1619
+      "row": 1618
     },
     {
       "id": "local_1782225897967_62_huvs",
@@ -57016,7 +57264,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1620
+      "row": 1619
     },
     {
       "id": "local_1782225897967_63_p1in",
@@ -57039,7 +57287,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1621
+      "row": 1620
     },
     {
       "id": "local_1782225897967_64_vhb2",
@@ -57062,7 +57310,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1622
+      "row": 1621
     },
     {
       "id": "local_1782225897967_65_abhn",
@@ -57085,7 +57333,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1623
+      "row": 1622
     },
     {
       "id": "local_1782225897967_66_eqep",
@@ -57108,7 +57356,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1624
+      "row": 1623
     },
     {
       "id": "local_1782225897967_67_wggc",
@@ -57131,7 +57379,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1625
+      "row": 1624
     },
     {
       "id": "local_1782225897967_68_9ujj",
@@ -57154,7 +57402,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1626
+      "row": 1625
     },
     {
       "id": "local_1782225897967_69_ju4g",
@@ -57177,7 +57425,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1627
+      "row": 1626
     },
     {
       "id": "local_1782225897967_70_xsxx",
@@ -57200,7 +57448,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1628
+      "row": 1627
     },
     {
       "id": "local_1782225897967_71_wv2r",
@@ -57223,7 +57471,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1629
+      "row": 1628
     },
     {
       "id": "local_1782225897967_72_bf1g",
@@ -57246,7 +57494,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1630
+      "row": 1629
     },
     {
       "id": "local_1782225897967_73_rl2p",
@@ -57269,7 +57517,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1631
+      "row": 1630
     },
     {
       "id": "local_1782225897967_74_dt1c",
@@ -57292,7 +57540,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1632
+      "row": 1631
     },
     {
       "id": "local_1782225897967_75_seog",
@@ -57315,7 +57563,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1633
+      "row": 1632
     },
     {
       "id": "local_1782225897967_76_urgd",
@@ -57338,7 +57586,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1634
+      "row": 1633
     },
     {
       "id": "local_1782225897967_77_6osh",
@@ -57361,7 +57609,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1635
+      "row": 1634
     },
     {
       "id": "local_1782225897967_78_83y9",
@@ -57384,7 +57632,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1636
+      "row": 1635
     },
     {
       "id": "local_1782225897967_79_lure",
@@ -57407,7 +57655,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1637
+      "row": 1636
     },
     {
       "id": "local_1782225897967_80_yjsy",
@@ -57430,7 +57678,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1638
+      "row": 1637
     },
     {
       "id": "local_1782225897967_81_xij0",
@@ -57453,7 +57701,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1639
+      "row": 1638
     },
     {
       "id": "local_1782225897967_82_8ad7",
@@ -57476,7 +57724,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1640
+      "row": 1639
     },
     {
       "id": "local_1782225897967_83_7iit",
@@ -57499,7 +57747,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1641
+      "row": 1640
     },
     {
       "id": "local_1782225897967_84_ay3f",
@@ -57522,7 +57770,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1642
+      "row": 1641
     },
     {
       "id": "local_1782225897967_85_c4fg",
@@ -57545,7 +57793,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1643
+      "row": 1642
     },
     {
       "id": "local_1782225897967_86_sepp",
@@ -57568,7 +57816,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1644
+      "row": 1643
     },
     {
       "id": "local_1782225897967_87_xa32",
@@ -57591,7 +57839,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1645
+      "row": 1644
     },
     {
       "id": "local_1782225897967_88_9tpc",
@@ -57614,7 +57862,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1646
+      "row": 1645
     },
     {
       "id": "local_1782225897967_89_d0o9",
@@ -57637,7 +57885,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1647
+      "row": 1646
     },
     {
       "id": "local_1782225897967_90_byl0",
@@ -57660,7 +57908,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1648
+      "row": 1647
     },
     {
       "id": "local_1782225897967_91_c5sa",
@@ -57683,7 +57931,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1649
+      "row": 1648
     },
     {
       "id": "local_1782225897967_92_12ia",
@@ -57706,7 +57954,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1650
+      "row": 1649
     },
     {
       "id": "local_1782225897967_93_m3hk",
@@ -57729,7 +57977,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1651
+      "row": 1650
     },
     {
       "id": "local_1782225897967_94_ze1h",
@@ -57752,7 +58000,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1652
+      "row": 1651
     },
     {
       "id": "local_1782225897967_95_oyvw",
@@ -57775,7 +58023,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1653
+      "row": 1652
     },
     {
       "id": "local_1782225897967_96_irs2",
@@ -57798,7 +58046,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1654
+      "row": 1653
     },
     {
       "id": "local_1782225897967_97_w4mc",
@@ -57821,7 +58069,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1655
+      "row": 1654
     },
     {
       "id": "local_1782225897967_98_d9pk",
@@ -57844,7 +58092,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1656
+      "row": 1655
     },
     {
       "id": "local_1782225897967_99_rikd",
@@ -57867,7 +58115,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1657
+      "row": 1656
     },
     {
       "id": "local_1782225897967_100_g2nv",
@@ -57890,7 +58138,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1658
+      "row": 1657
     },
     {
       "id": "local_1782225897967_101_ireg",
@@ -57913,7 +58161,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1659
+      "row": 1658
     },
     {
       "id": "local_1782225897967_102_g3pf",
@@ -57936,7 +58184,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1660
+      "row": 1659
     },
     {
       "id": "local_1782225897967_103_9rvm",
@@ -57959,7 +58207,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1661
+      "row": 1660
     },
     {
       "id": "local_1782225922911_1_r4pn",
@@ -57982,7 +58230,7 @@
       "done": true,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1662
+      "row": 1661
     },
     {
       "id": "local_1782225922911_2_s1db",
@@ -58005,7 +58253,7 @@
       "done": true,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1663
+      "row": 1662
     },
     {
       "id": "local_1782225922911_3_sbyq",
@@ -58028,7 +58276,7 @@
       "done": true,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1664
+      "row": 1663
     },
     {
       "id": "local_1782225922911_4_qxxj",
@@ -58051,7 +58299,7 @@
       "done": true,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1665
+      "row": 1664
     },
     {
       "id": "local_1782225922911_5_nrre",
@@ -58074,7 +58322,7 @@
       "done": true,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1666
+      "row": 1665
     },
     {
       "id": "local_1782225922911_6_3k8a",
@@ -58097,7 +58345,7 @@
       "done": true,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1667
+      "row": 1666
     },
     {
       "id": "local_1782225922911_7_4hj2",
@@ -58117,10 +58365,10 @@
         "a_1781878749529"
       ],
       "urgency": "high",
-      "done": false,
+      "done": true,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1668
+      "row": 1667
     },
     {
       "id": "local_1782225922911_8_bgkd",
@@ -58143,7 +58391,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1669
+      "row": 1668
     },
     {
       "id": "local_1782225922911_9_v3s1",
@@ -58166,7 +58414,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1670
+      "row": 1669
     },
     {
       "id": "local_1782225922911_10_z7vv",
@@ -58189,7 +58437,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1671
+      "row": 1670
     },
     {
       "id": "local_1782225922911_11_a7e3",
@@ -58212,7 +58460,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1672
+      "row": 1671
     },
     {
       "id": "local_1782225922911_12_quir",
@@ -58235,7 +58483,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1673
+      "row": 1672
     },
     {
       "id": "local_1782225922911_13_v2uw",
@@ -58258,7 +58506,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1674
+      "row": 1673
     },
     {
       "id": "local_1782225922911_14_47sw",
@@ -58281,7 +58529,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1675
+      "row": 1674
     },
     {
       "id": "local_1782225922911_15_o3g9",
@@ -58304,7 +58552,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1676
+      "row": 1675
     },
     {
       "id": "local_1782225922911_16_gqyi",
@@ -58327,7 +58575,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1677
+      "row": 1676
     },
     {
       "id": "local_1782225922911_17_e85q",
@@ -58350,7 +58598,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1678
+      "row": 1677
     },
     {
       "id": "local_1782225922911_18_a7zl",
@@ -58373,7 +58621,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1679
+      "row": 1678
     },
     {
       "id": "local_1782225922911_19_almi",
@@ -58396,7 +58644,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1680
+      "row": 1679
     },
     {
       "id": "local_1782225922911_20_qnt8",
@@ -58419,7 +58667,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1681
+      "row": 1680
     },
     {
       "id": "local_1782225922911_21_rvbw",
@@ -58442,7 +58690,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1682
+      "row": 1681
     },
     {
       "id": "local_1782225922911_22_9r05",
@@ -58465,7 +58713,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1683
+      "row": 1682
     },
     {
       "id": "local_1782225922911_23_23px",
@@ -58488,7 +58736,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1684
+      "row": 1683
     },
     {
       "id": "local_1782225922911_24_8n3a",
@@ -58511,7 +58759,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1685
+      "row": 1684
     },
     {
       "id": "local_1782225922911_25_4z9b",
@@ -58534,7 +58782,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1686
+      "row": 1685
     },
     {
       "id": "local_1782225922911_26_l9gs",
@@ -58557,7 +58805,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1687
+      "row": 1686
     },
     {
       "id": "local_1782225922911_27_i8mc",
@@ -58580,7 +58828,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1688
+      "row": 1687
     },
     {
       "id": "local_1782225922911_28_h6ch",
@@ -58603,7 +58851,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1689
+      "row": 1688
     },
     {
       "id": "local_1782225922911_29_mibk",
@@ -58626,7 +58874,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1690
+      "row": 1689
     },
     {
       "id": "local_1782225922911_30_sfwl",
@@ -58649,7 +58897,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1691
+      "row": 1690
     },
     {
       "id": "local_1782225922911_31_qpyd",
@@ -58672,7 +58920,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1692
+      "row": 1691
     },
     {
       "id": "local_1782225922911_32_iovu",
@@ -58695,7 +58943,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1693
+      "row": 1692
     },
     {
       "id": "local_1782225922911_33_u3r4",
@@ -58718,7 +58966,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1694
+      "row": 1693
     },
     {
       "id": "local_1782225922911_34_v97q",
@@ -58741,7 +58989,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1695
+      "row": 1694
     },
     {
       "id": "local_1782225922911_35_xxn0",
@@ -58764,7 +59012,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1696
+      "row": 1695
     },
     {
       "id": "local_1782225922911_36_re7z",
@@ -58787,7 +59035,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1697
+      "row": 1696
     },
     {
       "id": "local_1782225922911_37_eckj",
@@ -58810,7 +59058,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1698
+      "row": 1697
     },
     {
       "id": "local_1782225922911_38_seqz",
@@ -58833,7 +59081,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1699
+      "row": 1698
     },
     {
       "id": "local_1782225922911_39_r18h",
@@ -58856,7 +59104,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1700
+      "row": 1699
     },
     {
       "id": "local_1782225922911_40_gwwg",
@@ -58879,7 +59127,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1701
+      "row": 1700
     },
     {
       "id": "local_1782225922911_41_z1jb",
@@ -58902,7 +59150,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1702
+      "row": 1701
     },
     {
       "id": "local_1782225922911_42_9ih5",
@@ -58925,7 +59173,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1703
+      "row": 1702
     },
     {
       "id": "local_1782225922911_43_2peo",
@@ -58948,7 +59196,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1704
+      "row": 1703
     },
     {
       "id": "local_1782225922911_44_0i02",
@@ -58971,7 +59219,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1705
+      "row": 1704
     },
     {
       "id": "local_1782225922911_45_bw84",
@@ -58994,7 +59242,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1706
+      "row": 1705
     },
     {
       "id": "local_1782225922911_46_mb8i",
@@ -59017,7 +59265,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1707
+      "row": 1706
     },
     {
       "id": "local_1782225922911_47_8i2t",
@@ -59040,7 +59288,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1708
+      "row": 1707
     },
     {
       "id": "local_1782225922911_48_7yux",
@@ -59063,7 +59311,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1709
+      "row": 1708
     },
     {
       "id": "local_1782225922911_49_bjjp",
@@ -59086,7 +59334,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1710
+      "row": 1709
     },
     {
       "id": "local_1782225922911_50_bds9",
@@ -59109,7 +59357,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1711
+      "row": 1710
     },
     {
       "id": "local_1782225922911_51_3qz5",
@@ -59132,7 +59380,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1712
+      "row": 1711
     },
     {
       "id": "local_1782225922911_52_ftme",
@@ -59155,7 +59403,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1713
+      "row": 1712
     },
     {
       "id": "local_1782225922911_53_qefv",
@@ -59178,7 +59426,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1714
+      "row": 1713
     },
     {
       "id": "local_1782225922911_54_2lm2",
@@ -59201,7 +59449,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1715
+      "row": 1714
     },
     {
       "id": "local_1782225922911_55_7thj",
@@ -59224,7 +59472,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1716
+      "row": 1715
     },
     {
       "id": "local_1782225922911_56_h0z5",
@@ -59247,7 +59495,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1717
+      "row": 1716
     },
     {
       "id": "local_1782225922911_57_co0s",
@@ -59270,7 +59518,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1718
+      "row": 1717
     },
     {
       "id": "local_1782225922911_58_2w1x",
@@ -59293,7 +59541,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1719
+      "row": 1718
     },
     {
       "id": "local_1782225922911_59_gse3",
@@ -59316,7 +59564,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1720
+      "row": 1719
     },
     {
       "id": "local_1782225922911_60_qz8s",
@@ -59339,7 +59587,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1721
+      "row": 1720
     },
     {
       "id": "local_1782225922911_61_7oh7",
@@ -59362,7 +59610,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1722
+      "row": 1721
     },
     {
       "id": "local_1782225922911_62_pws0",
@@ -59385,7 +59633,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1723
+      "row": 1722
     },
     {
       "id": "local_1782225922911_63_vral",
@@ -59408,7 +59656,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1724
+      "row": 1723
     },
     {
       "id": "local_1782225922911_64_87tz",
@@ -59431,7 +59679,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1725
+      "row": 1724
     },
     {
       "id": "local_1782225922911_65_ql4f",
@@ -59454,7 +59702,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1726
+      "row": 1725
     },
     {
       "id": "local_1782225922911_66_ft6s",
@@ -59477,7 +59725,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1727
+      "row": 1726
     },
     {
       "id": "local_1782225922912_67_v3dh",
@@ -59500,7 +59748,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1728
+      "row": 1727
     },
     {
       "id": "local_1782225922912_68_h49s",
@@ -59523,7 +59771,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1729
+      "row": 1728
     },
     {
       "id": "local_1782225922912_69_g2v2",
@@ -59546,7 +59794,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1730
+      "row": 1729
     },
     {
       "id": "local_1782225922912_70_rgaq",
@@ -59569,7 +59817,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1731
+      "row": 1730
     },
     {
       "id": "local_1782225922912_71_9w63",
@@ -59592,7 +59840,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1732
+      "row": 1731
     },
     {
       "id": "local_1782225922912_72_1pl1",
@@ -59615,7 +59863,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1733
+      "row": 1732
     },
     {
       "id": "local_1782225922912_73_m2dm",
@@ -59638,7 +59886,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1734
+      "row": 1733
     },
     {
       "id": "local_1782225922912_74_nn23",
@@ -59661,7 +59909,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1735
+      "row": 1734
     },
     {
       "id": "local_1782225922912_75_wxyp",
@@ -59684,7 +59932,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1736
+      "row": 1735
     },
     {
       "id": "local_1782225922912_76_nhx9",
@@ -59707,7 +59955,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1737
+      "row": 1736
     },
     {
       "id": "local_1782225922912_77_aye1",
@@ -59730,7 +59978,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1738
+      "row": 1737
     },
     {
       "id": "local_1782225922912_78_uesz",
@@ -59753,7 +60001,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1739
+      "row": 1738
     },
     {
       "id": "local_1782225922912_79_2n8g",
@@ -59776,7 +60024,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1740
+      "row": 1739
     },
     {
       "id": "local_1782225922912_80_g1sb",
@@ -59799,7 +60047,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1741
+      "row": 1740
     },
     {
       "id": "local_1782225922912_81_27it",
@@ -59822,7 +60070,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1742
+      "row": 1741
     },
     {
       "id": "local_1782225922912_82_p8gk",
@@ -59845,7 +60093,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1743
+      "row": 1742
     },
     {
       "id": "local_1782225922912_83_ysco",
@@ -59868,7 +60116,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1744
+      "row": 1743
     },
     {
       "id": "local_1782225922912_84_trhp",
@@ -59891,7 +60139,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1745
+      "row": 1744
     },
     {
       "id": "local_1782225922912_85_hesb",
@@ -59914,7 +60162,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1746
+      "row": 1745
     },
     {
       "id": "local_1782225922912_86_xwiw",
@@ -59937,7 +60185,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1747
+      "row": 1746
     },
     {
       "id": "local_1782225922912_87_3hwk",
@@ -59960,7 +60208,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1748
+      "row": 1747
     },
     {
       "id": "local_1782225922912_88_fq7s",
@@ -59983,7 +60231,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1749
+      "row": 1748
     },
     {
       "id": "local_1782225922912_89_3uv9",
@@ -60006,7 +60254,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1750
+      "row": 1749
     },
     {
       "id": "local_1782225922912_90_96jo",
@@ -60029,7 +60277,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1751
+      "row": 1750
     },
     {
       "id": "local_1782225922912_91_zf95",
@@ -60052,7 +60300,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1752
+      "row": 1751
     },
     {
       "id": "local_1782225922912_92_qii9",
@@ -60075,7 +60323,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1753
+      "row": 1752
     },
     {
       "id": "local_1782225922912_93_c7os",
@@ -60098,7 +60346,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1754
+      "row": 1753
     },
     {
       "id": "local_1782225922912_94_fiyc",
@@ -60121,7 +60369,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1755
+      "row": 1754
     },
     {
       "id": "local_1782225922912_95_y7yg",
@@ -60144,7 +60392,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1756
+      "row": 1755
     },
     {
       "id": "local_1782225922912_96_nvy4",
@@ -60167,7 +60415,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1757
+      "row": 1756
     },
     {
       "id": "local_1782225922912_97_dwp5",
@@ -60190,7 +60438,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1758
+      "row": 1757
     },
     {
       "id": "local_1782225922912_98_qsz9",
@@ -60213,7 +60461,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1759
+      "row": 1758
     },
     {
       "id": "local_1782225922912_99_vi2n",
@@ -60236,7 +60484,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1760
+      "row": 1759
     },
     {
       "id": "local_1782225922912_100_slyj",
@@ -60259,7 +60507,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1761
+      "row": 1760
     },
     {
       "id": "local_1782225922912_101_r3r5",
@@ -60282,7 +60530,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1762
+      "row": 1761
     },
     {
       "id": "local_1782225922912_102_yuzf",
@@ -60305,7 +60553,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1763
+      "row": 1762
     },
     {
       "id": "local_1782225922912_103_izq7",
@@ -60328,7 +60576,7 @@
       "done": false,
       "vendor": "Payables Meeting w/ Mark & Iza",
       "description": "Payables Meeting w/ Mark & Iza",
-      "row": 1764
+      "row": 1763
     },
     {
       "id": "local_1782226026287_0_p78r",
@@ -60349,7 +60597,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1765
+      "row": 1764
     },
     {
       "id": "local_1782226041248_1_1jep",
@@ -60370,7 +60618,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1766
+      "row": 1765
     },
     {
       "id": "local_1782226041248_2_5561",
@@ -60391,7 +60639,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1767
+      "row": 1766
     },
     {
       "id": "local_1782226041248_3_tvsp",
@@ -60412,7 +60660,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1768
+      "row": 1767
     },
     {
       "id": "local_1782226041248_4_ezvq",
@@ -60433,7 +60681,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1769
+      "row": 1768
     },
     {
       "id": "local_1782226041248_5_wzru",
@@ -60454,7 +60702,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1770
+      "row": 1769
     },
     {
       "id": "local_1782226041248_6_636a",
@@ -60475,7 +60723,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1771
+      "row": 1770
     },
     {
       "id": "local_1782226041248_7_1j6h",
@@ -60496,7 +60744,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1772
+      "row": 1771
     },
     {
       "id": "local_1782226041248_8_umkr",
@@ -60517,7 +60765,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1773
+      "row": 1772
     },
     {
       "id": "local_1782226041248_9_r9r6",
@@ -60538,7 +60786,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1774
+      "row": 1773
     },
     {
       "id": "local_1782226041248_10_i6t9",
@@ -60559,7 +60807,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1775
+      "row": 1774
     },
     {
       "id": "local_1782226041248_11_5k7s",
@@ -60580,7 +60828,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1776
+      "row": 1775
     },
     {
       "id": "local_1782226041248_12_iu64",
@@ -60601,7 +60849,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1777
+      "row": 1776
     },
     {
       "id": "local_1782226041248_13_xgjw",
@@ -60622,7 +60870,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1778
+      "row": 1777
     },
     {
       "id": "local_1782226041248_14_zlr0",
@@ -60643,7 +60891,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1779
+      "row": 1778
     },
     {
       "id": "local_1782226041248_15_54nu",
@@ -60664,7 +60912,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1780
+      "row": 1779
     },
     {
       "id": "local_1782226041248_16_k5i6",
@@ -60685,7 +60933,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1781
+      "row": 1780
     },
     {
       "id": "local_1782226041248_17_tlyf",
@@ -60706,7 +60954,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1782
+      "row": 1781
     },
     {
       "id": "local_1782226041248_18_ibhv",
@@ -60727,7 +60975,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1783
+      "row": 1782
     },
     {
       "id": "local_1782226041248_19_ad5j",
@@ -60748,7 +60996,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1784
+      "row": 1783
     },
     {
       "id": "local_1782226041248_20_6yha",
@@ -60769,7 +61017,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1785
+      "row": 1784
     },
     {
       "id": "local_1782226041248_21_6041",
@@ -60790,7 +61038,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1786
+      "row": 1785
     },
     {
       "id": "local_1782226041248_22_ae13",
@@ -60811,7 +61059,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1787
+      "row": 1786
     },
     {
       "id": "local_1782226041248_23_5yq8",
@@ -60832,7 +61080,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1788
+      "row": 1787
     },
     {
       "id": "local_1782226041248_24_9v4q",
@@ -60853,7 +61101,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1789
+      "row": 1788
     },
     {
       "id": "local_1782226041248_25_y8ec",
@@ -60874,7 +61122,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1790
+      "row": 1789
     },
     {
       "id": "local_1782226041248_26_sjld",
@@ -60895,7 +61143,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1791
+      "row": 1790
     },
     {
       "id": "local_1782226041248_27_jvl5",
@@ -60916,7 +61164,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1792
+      "row": 1791
     },
     {
       "id": "local_1782226041248_28_faqz",
@@ -60937,7 +61185,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1793
+      "row": 1792
     },
     {
       "id": "local_1782226041248_29_h1eb",
@@ -60958,7 +61206,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1794
+      "row": 1793
     },
     {
       "id": "local_1782226041248_30_sa1w",
@@ -60979,7 +61227,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1795
+      "row": 1794
     },
     {
       "id": "local_1782226041248_31_t6eg",
@@ -61000,7 +61248,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1796
+      "row": 1795
     },
     {
       "id": "local_1782226041248_32_c21w",
@@ -61021,7 +61269,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1797
+      "row": 1796
     },
     {
       "id": "local_1782226041248_33_rbb7",
@@ -61042,7 +61290,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1798
+      "row": 1797
     },
     {
       "id": "local_1782226041248_34_fbq7",
@@ -61063,7 +61311,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1799
+      "row": 1798
     },
     {
       "id": "local_1782226041248_35_7085",
@@ -61084,7 +61332,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1800
+      "row": 1799
     },
     {
       "id": "local_1782226041248_36_rhnh",
@@ -61105,7 +61353,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1801
+      "row": 1800
     },
     {
       "id": "local_1782226041248_37_ry2i",
@@ -61126,7 +61374,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1802
+      "row": 1801
     },
     {
       "id": "local_1782226041248_38_8aw5",
@@ -61147,7 +61395,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1803
+      "row": 1802
     },
     {
       "id": "local_1782226041248_39_h6zt",
@@ -61168,7 +61416,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1804
+      "row": 1803
     },
     {
       "id": "local_1782226041248_40_2ie3",
@@ -61189,7 +61437,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1805
+      "row": 1804
     },
     {
       "id": "local_1782226041248_41_u3wd",
@@ -61210,7 +61458,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1806
+      "row": 1805
     },
     {
       "id": "local_1782226041248_42_78ti",
@@ -61231,7 +61479,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1807
+      "row": 1806
     },
     {
       "id": "local_1782226041248_43_ecbv",
@@ -61252,7 +61500,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1808
+      "row": 1807
     },
     {
       "id": "local_1782226041248_44_gxfk",
@@ -61273,7 +61521,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1809
+      "row": 1808
     },
     {
       "id": "local_1782226041248_45_7ah8",
@@ -61294,7 +61542,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1810
+      "row": 1809
     },
     {
       "id": "local_1782226041248_46_zri5",
@@ -61315,7 +61563,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1811
+      "row": 1810
     },
     {
       "id": "local_1782226041248_47_jhxt",
@@ -61336,7 +61584,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1812
+      "row": 1811
     },
     {
       "id": "local_1782226041248_48_w7mq",
@@ -61357,7 +61605,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1813
+      "row": 1812
     },
     {
       "id": "local_1782226041248_49_unc3",
@@ -61378,7 +61626,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1814
+      "row": 1813
     },
     {
       "id": "local_1782226041248_50_rm3u",
@@ -61399,7 +61647,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1815
+      "row": 1814
     },
     {
       "id": "local_1782226041248_51_cx2c",
@@ -61420,7 +61668,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1816
+      "row": 1815
     },
     {
       "id": "local_1782226041248_52_p01b",
@@ -61441,7 +61689,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1817
+      "row": 1816
     },
     {
       "id": "local_1782226041248_53_ekw0",
@@ -61462,7 +61710,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1818
+      "row": 1817
     },
     {
       "id": "local_1782226041248_54_c91l",
@@ -61483,7 +61731,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1819
+      "row": 1818
     },
     {
       "id": "local_1782226041248_55_pckh",
@@ -61504,7 +61752,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1820
+      "row": 1819
     },
     {
       "id": "local_1782226041248_56_45z4",
@@ -61525,7 +61773,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1821
+      "row": 1820
     },
     {
       "id": "local_1782226041248_57_j1o0",
@@ -61546,7 +61794,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1822
+      "row": 1821
     },
     {
       "id": "local_1782226041248_58_d8np",
@@ -61567,7 +61815,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1823
+      "row": 1822
     },
     {
       "id": "local_1782226041248_59_ztfe",
@@ -61588,7 +61836,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1824
+      "row": 1823
     },
     {
       "id": "local_1782226041248_60_ib5e",
@@ -61609,7 +61857,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1825
+      "row": 1824
     },
     {
       "id": "local_1782226041248_61_k7rn",
@@ -61630,7 +61878,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1826
+      "row": 1825
     },
     {
       "id": "local_1782226041248_62_br2p",
@@ -61651,7 +61899,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1827
+      "row": 1826
     },
     {
       "id": "local_1782226041248_63_oa9a",
@@ -61672,7 +61920,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1828
+      "row": 1827
     },
     {
       "id": "local_1782226041248_64_eekq",
@@ -61693,7 +61941,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1829
+      "row": 1828
     },
     {
       "id": "local_1782226041248_65_a92k",
@@ -61714,7 +61962,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1830
+      "row": 1829
     },
     {
       "id": "local_1782226041248_66_7loc",
@@ -61735,7 +61983,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1831
+      "row": 1830
     },
     {
       "id": "local_1782226041248_67_2of2",
@@ -61756,7 +62004,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1832
+      "row": 1831
     },
     {
       "id": "local_1782226041248_68_mwoy",
@@ -61777,7 +62025,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1833
+      "row": 1832
     },
     {
       "id": "local_1782226041248_69_ckx5",
@@ -61798,7 +62046,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1834
+      "row": 1833
     },
     {
       "id": "local_1782226041248_70_p3c2",
@@ -61819,7 +62067,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1835
+      "row": 1834
     },
     {
       "id": "local_1782226041248_71_m0wv",
@@ -61840,7 +62088,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1836
+      "row": 1835
     },
     {
       "id": "local_1782226041248_72_hc5q",
@@ -61861,7 +62109,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1837
+      "row": 1836
     },
     {
       "id": "local_1782226041248_73_mce6",
@@ -61882,7 +62130,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1838
+      "row": 1837
     },
     {
       "id": "local_1782226041248_74_88nt",
@@ -61903,7 +62151,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1839
+      "row": 1838
     },
     {
       "id": "local_1782226041248_75_r1ds",
@@ -61924,7 +62172,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1840
+      "row": 1839
     },
     {
       "id": "local_1782226041248_76_tnah",
@@ -61945,7 +62193,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1841
+      "row": 1840
     },
     {
       "id": "local_1782226041248_77_91oy",
@@ -61966,7 +62214,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1842
+      "row": 1841
     },
     {
       "id": "local_1782226041248_78_vozv",
@@ -61987,7 +62235,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1843
+      "row": 1842
     },
     {
       "id": "local_1782226041248_79_re1b",
@@ -62008,7 +62256,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1844
+      "row": 1843
     },
     {
       "id": "local_1782226041248_80_gino",
@@ -62029,7 +62277,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1845
+      "row": 1844
     },
     {
       "id": "local_1782226041248_81_spy5",
@@ -62050,7 +62298,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1846
+      "row": 1845
     },
     {
       "id": "local_1782226041248_82_0cul",
@@ -62071,7 +62319,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1847
+      "row": 1846
     },
     {
       "id": "local_1782226041248_83_wf6p",
@@ -62092,7 +62340,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1848
+      "row": 1847
     },
     {
       "id": "local_1782226041248_84_syis",
@@ -62113,7 +62361,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1849
+      "row": 1848
     },
     {
       "id": "local_1782226041248_85_bzot",
@@ -62134,7 +62382,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1850
+      "row": 1849
     },
     {
       "id": "local_1782226041248_86_yrmv",
@@ -62155,7 +62403,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1851
+      "row": 1850
     },
     {
       "id": "local_1782226041248_87_77k1",
@@ -62176,7 +62424,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1852
+      "row": 1851
     },
     {
       "id": "local_1782226041248_88_9298",
@@ -62197,7 +62445,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1853
+      "row": 1852
     },
     {
       "id": "local_1782226041248_89_g8d2",
@@ -62218,7 +62466,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1854
+      "row": 1853
     },
     {
       "id": "local_1782226041248_90_bljh",
@@ -62239,7 +62487,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1855
+      "row": 1854
     },
     {
       "id": "local_1782226041248_91_cj8j",
@@ -62260,7 +62508,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1856
+      "row": 1855
     },
     {
       "id": "local_1782226041248_92_2sp4",
@@ -62281,7 +62529,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1857
+      "row": 1856
     },
     {
       "id": "local_1782226041248_93_h7e1",
@@ -62302,7 +62550,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1858
+      "row": 1857
     },
     {
       "id": "local_1782226041248_94_yddk",
@@ -62323,7 +62571,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1859
+      "row": 1858
     },
     {
       "id": "local_1782226041248_95_d7ge",
@@ -62344,7 +62592,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1860
+      "row": 1859
     },
     {
       "id": "local_1782226041248_96_vhxq",
@@ -62365,7 +62613,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1861
+      "row": 1860
     },
     {
       "id": "local_1782226041248_97_r9in",
@@ -62386,7 +62634,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1862
+      "row": 1861
     },
     {
       "id": "local_1782226041248_98_fw8t",
@@ -62407,7 +62655,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1863
+      "row": 1862
     },
     {
       "id": "local_1782226041248_99_drp6",
@@ -62428,7 +62676,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1864
+      "row": 1863
     },
     {
       "id": "local_1782226041248_100_r814",
@@ -62449,7 +62697,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1865
+      "row": 1864
     },
     {
       "id": "local_1782226041248_101_mus0",
@@ -62470,7 +62718,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1866
+      "row": 1865
     },
     {
       "id": "local_1782226041248_102_kb1i",
@@ -62491,7 +62739,7 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1867
+      "row": 1866
     },
     {
       "id": "local_1782226041248_103_enyy",
@@ -62512,90 +62760,90 @@
       "done": false,
       "vendor": "Unpaid bills",
       "description": "Unpaid bills",
-      "row": 1868
+      "row": 1867
     },
     {
       "id": "main-4G - ONB",
-      "date": "2026-08-12",
-      "title": "856.48",
+      "date": "2026-08-19",
+      "title": "786.39",
       "notes": "",
       "entity": "Ruby's",
       "type": "task",
       "assignee": "",
       "urgency": "normal",
       "done": false,
-      "vendor": "856.48",
-      "description": "856.48",
+      "vendor": "786.39",
+      "description": "786.39",
       "row": 3
     },
     {
       "id": "main-E1 - ONB",
-      "date": "2026-08-12",
-      "title": "3140.42",
+      "date": "2026-08-18",
+      "title": "27.39",
       "notes": "",
       "entity": "Ruby's",
       "type": "task",
       "assignee": "",
       "urgency": "normal",
       "done": false,
-      "vendor": "3140.42",
-      "description": "3140.42",
+      "vendor": "27.39",
+      "description": "27.39",
       "row": 4
     },
     {
       "id": "main-New TI - ONB x9304",
-      "date": "2026-08-12",
-      "title": "693.57",
+      "date": "2026-08-19",
+      "title": "3673.64",
       "notes": "",
       "entity": "Ruby's",
       "type": "task",
       "assignee": "",
       "urgency": "normal",
       "done": false,
-      "vendor": "693.57",
-      "description": "693.57",
+      "vendor": "3673.64",
+      "description": "3673.64",
       "row": 5
     },
     {
       "id": "main-Old TI - ONB x0539",
-      "date": "2026-08-11",
-      "title": "208.71",
+      "date": "2026-08-20",
+      "title": "5828.68",
       "notes": "",
       "entity": "Ruby's",
       "type": "task",
       "assignee": "",
       "urgency": "normal",
       "done": false,
-      "vendor": "208.71",
-      "description": "208.71",
+      "vendor": "5828.68",
+      "description": "5828.68",
       "row": 6
     },
     {
       "id": "main-4YR - ONB",
-      "date": "2026-08-11",
-      "title": "2710.44",
+      "date": "2026-08-17",
+      "title": "2104.48",
       "notes": "",
       "entity": "Ruby's",
       "type": "task",
       "assignee": "",
       "urgency": "normal",
       "done": false,
-      "vendor": "2710.44",
-      "description": "2710.44",
+      "vendor": "2104.48",
+      "description": "2104.48",
       "row": 7
     },
     {
       "id": "main-4YR - NSSB x1923",
-      "date": "2026-08-12",
-      "title": "5389.43",
+      "date": "2026-08-19",
+      "title": "21978.39",
       "notes": "",
       "entity": "Ruby's",
       "type": "task",
       "assignee": "",
       "urgency": "normal",
       "done": false,
-      "vendor": "5389.43",
-      "description": "5389.43",
+      "vendor": "21978.39",
+      "description": "21978.39",
       "row": 8
     },
     {
@@ -62614,16 +62862,16 @@
     },
     {
       "id": "main-MSDx - Seacoast x9601",
-      "date": "2026-08-12",
-      "title": "170.4",
+      "date": "2026-08-19",
+      "title": "471.21",
       "notes": "",
       "entity": "Ruby's",
       "type": "task",
       "assignee": "",
       "urgency": "normal",
       "done": false,
-      "vendor": "170.4",
-      "description": "170.4",
+      "vendor": "471.21",
+      "description": "471.21",
       "row": 10
     },
     {
@@ -62642,114 +62890,114 @@
     },
     {
       "id": "main-Ruby's - Zions",
-      "date": "2026-08-12",
-      "title": "22738.08",
+      "date": "2026-08-19",
+      "title": "4933.84",
       "notes": "",
       "entity": "Ruby's",
       "type": "task",
       "assignee": "",
       "urgency": "normal",
       "done": false,
-      "vendor": "22738.08",
-      "description": "22738.08",
+      "vendor": "4933.84",
+      "description": "4933.84",
       "row": 12
     },
     {
       "id": "main-4YR - TriCounty",
-      "date": "2026-08-12",
-      "title": "879.9",
+      "date": "2026-08-18",
+      "title": "231.14",
       "notes": "",
       "entity": "Ruby's",
       "type": "task",
       "assignee": "",
       "urgency": "normal",
       "done": false,
-      "vendor": "879.9",
-      "description": "879.9",
+      "vendor": "231.14",
+      "description": "231.14",
       "row": 13
     },
     {
       "id": "main-4G - ONB",
-      "date": "2026-08-12",
-      "title": "856.48",
+      "date": "2026-08-19",
+      "title": "786.39",
       "notes": "",
       "entity": "Ruby's",
       "type": "task",
       "assignee": "",
       "urgency": "normal",
       "done": false,
-      "vendor": "856.48",
-      "description": "856.48",
+      "vendor": "786.39",
+      "description": "786.39",
       "row": 16
     },
     {
       "id": "main-E1 - ONB",
-      "date": "2026-08-12",
-      "title": "3140.42",
+      "date": "2026-08-18",
+      "title": "27.39",
       "notes": "",
       "entity": "Ruby's",
       "type": "task",
       "assignee": "",
       "urgency": "normal",
       "done": false,
-      "vendor": "3140.42",
-      "description": "3140.42",
+      "vendor": "27.39",
+      "description": "27.39",
       "row": 17
     },
     {
       "id": "main-New TI - ONB x9304",
-      "date": "2026-08-12",
-      "title": "693.57",
+      "date": "2026-08-19",
+      "title": "3673.64",
       "notes": "",
       "entity": "Ruby's",
       "type": "task",
       "assignee": "",
       "urgency": "normal",
       "done": false,
-      "vendor": "693.57",
-      "description": "693.57",
+      "vendor": "3673.64",
+      "description": "3673.64",
       "row": 18
     },
     {
       "id": "main-Old TI - ONB x0539",
-      "date": "2026-08-11",
-      "title": "208.71",
+      "date": "2026-08-20",
+      "title": "5828.68",
       "notes": "",
       "entity": "Ruby's",
       "type": "task",
       "assignee": "",
       "urgency": "normal",
       "done": false,
-      "vendor": "208.71",
-      "description": "208.71",
+      "vendor": "5828.68",
+      "description": "5828.68",
       "row": 19
     },
     {
       "id": "main-4YR - ONB",
-      "date": "2026-08-11",
-      "title": "2710.44",
+      "date": "2026-08-17",
+      "title": "2104.48",
       "notes": "",
       "entity": "Ruby's",
       "type": "task",
       "assignee": "",
       "urgency": "normal",
       "done": false,
-      "vendor": "2710.44",
-      "description": "2710.44",
+      "vendor": "2104.48",
+      "description": "2104.48",
       "row": 20
     },
     {
       "id": "main-4YR - NSSB x1923",
-      "date": "2026-08-12",
-      "title": "5389.43",
+      "date": "2026-08-19",
+      "title": "21978.39",
       "notes": "",
       "entity": "Ruby's",
       "type": "task",
       "assignee": "",
       "urgency": "normal",
       "done": false,
-      "vendor": "5389.43",
-      "description": "5389.43",
+      "vendor": "21978.39",
+      "description": "21978.39",
       "row": 21
     },
     {
@@ -62768,16 +63016,16 @@
     },
     {
       "id": "main-MSDx - Seacoast x9601",
-      "date": "2026-08-12",
-      "title": "170.4",
+      "date": "2026-08-19",
+      "title": "471.21",
       "notes": "",
       "entity": "Ruby's",
       "type": "task",
       "assignee": "",
       "urgency": "normal",
       "done": false,
-      "vendor": "170.4",
-      "description": "170.4",
+      "vendor": "471.21",
+      "description": "471.21",
       "row": 23
     },
     {
@@ -62796,114 +63044,114 @@
     },
     {
       "id": "main-Ruby's - Zions",
-      "date": "2026-08-12",
-      "title": "22738.08",
+      "date": "2026-08-19",
+      "title": "4933.84",
       "notes": "",
       "entity": "Ruby's",
       "type": "task",
       "assignee": "",
       "urgency": "normal",
       "done": false,
-      "vendor": "22738.08",
-      "description": "22738.08",
+      "vendor": "4933.84",
+      "description": "4933.84",
       "row": 25
     },
     {
       "id": "main-4YR - TriCounty",
-      "date": "2026-08-12",
-      "title": "879.9",
+      "date": "2026-08-18",
+      "title": "231.14",
       "notes": "",
       "entity": "Ruby's",
       "type": "task",
       "assignee": "",
       "urgency": "normal",
       "done": false,
-      "vendor": "879.9",
-      "description": "879.9",
+      "vendor": "231.14",
+      "description": "231.14",
       "row": 26
     },
     {
       "id": "main-4G - ONB",
-      "date": "2026-08-12",
-      "title": "856.48",
+      "date": "2026-08-19",
+      "title": "786.39",
       "notes": "",
       "entity": "Ruby's",
       "type": "task",
       "assignee": "",
       "urgency": "normal",
       "done": false,
-      "vendor": "856.48",
-      "description": "856.48",
+      "vendor": "786.39",
+      "description": "786.39",
       "row": 29
     },
     {
       "id": "main-E1 - ONB",
-      "date": "2026-08-12",
-      "title": "3140.42",
+      "date": "2026-08-18",
+      "title": "27.39",
       "notes": "",
       "entity": "Ruby's",
       "type": "task",
       "assignee": "",
       "urgency": "normal",
       "done": false,
-      "vendor": "3140.42",
-      "description": "3140.42",
+      "vendor": "27.39",
+      "description": "27.39",
       "row": 30
     },
     {
       "id": "main-New TI - ONB x9304",
-      "date": "2026-08-12",
-      "title": "693.57",
+      "date": "2026-08-19",
+      "title": "3673.64",
       "notes": "",
       "entity": "Ruby's",
       "type": "task",
       "assignee": "",
       "urgency": "normal",
       "done": false,
-      "vendor": "693.57",
-      "description": "693.57",
+      "vendor": "3673.64",
+      "description": "3673.64",
       "row": 31
     },
     {
       "id": "main-Old TI - ONB x0539",
-      "date": "2026-08-11",
-      "title": "208.71",
+      "date": "2026-08-20",
+      "title": "5828.68",
       "notes": "",
       "entity": "Ruby's",
       "type": "task",
       "assignee": "",
       "urgency": "normal",
       "done": false,
-      "vendor": "208.71",
-      "description": "208.71",
+      "vendor": "5828.68",
+      "description": "5828.68",
       "row": 32
     },
     {
       "id": "main-4YR - ONB",
-      "date": "2026-08-11",
-      "title": "2710.44",
+      "date": "2026-08-17",
+      "title": "2104.48",
       "notes": "",
       "entity": "Ruby's",
       "type": "task",
       "assignee": "",
       "urgency": "normal",
       "done": false,
-      "vendor": "2710.44",
-      "description": "2710.44",
+      "vendor": "2104.48",
+      "description": "2104.48",
       "row": 33
     },
     {
       "id": "main-4YR - NSSB x1923",
-      "date": "2026-08-12",
-      "title": "5389.43",
+      "date": "2026-08-19",
+      "title": "21978.39",
       "notes": "",
       "entity": "Ruby's",
       "type": "task",
       "assignee": "",
       "urgency": "normal",
       "done": false,
-      "vendor": "5389.43",
-      "description": "5389.43",
+      "vendor": "21978.39",
+      "description": "21978.39",
       "row": 34
     },
     {
@@ -62922,16 +63170,16 @@
     },
     {
       "id": "main-MSDx - Seacoast x9601",
-      "date": "2026-08-12",
-      "title": "170.4",
+      "date": "2026-08-19",
+      "title": "471.21",
       "notes": "",
       "entity": "Ruby's",
       "type": "task",
       "assignee": "",
       "urgency": "normal",
       "done": false,
-      "vendor": "170.4",
-      "description": "170.4",
+      "vendor": "471.21",
+      "description": "471.21",
       "row": 36
     },
     {
@@ -62950,32 +63198,32 @@
     },
     {
       "id": "main-Ruby's - Zions",
-      "date": "2026-08-12",
-      "title": "22738.08",
+      "date": "2026-08-19",
+      "title": "4933.84",
       "notes": "",
       "entity": "Ruby's",
       "type": "task",
       "assignee": "",
       "urgency": "normal",
       "done": false,
-      "vendor": "22738.08",
-      "description": "22738.08",
+      "vendor": "4933.84",
+      "description": "4933.84",
       "row": 38
     },
     {
       "id": "main-4YR - TriCounty",
-      "date": "2026-08-12",
-      "title": "879.9",
+      "date": "2026-08-18",
+      "title": "231.14",
       "notes": "",
       "entity": "Ruby's",
       "type": "task",
       "assignee": "",
       "urgency": "normal",
       "done": false,
-      "vendor": "879.9",
-      "description": "879.9",
+      "vendor": "231.14",
+      "description": "231.14",
       "row": 39
     }
   ],
-  "lastSyncedAt": "2026-08-16T09:49:53.899Z"
+  "lastSyncedAt": "2026-08-20T17:23:23.471Z"
 }
