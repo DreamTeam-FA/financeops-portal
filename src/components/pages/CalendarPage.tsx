@@ -102,6 +102,18 @@ export const CalendarPage: React.FC = () => {
   const [showAssigneeModal, setShowAssigneeModal] = useState(false);
   const [newAssigneeName, setNewAssigneeName] = useState("");
   const [newAssigneeColor, setNewAssigneeColor] = useState("#1D6AE5");
+  const [editingColorId, setEditingColorId] = useState<string | null>(null); // which assignee's color picker is open
+
+  const ASSIGNEE_COLORS = [
+    // Blues
+    "#1D6AE5","#3B82F6","#0EA5E9","#06B6D4","#6366F1","#8B5CF6",
+    // Pinks / Reds
+    "#D81B60","#EC4899","#F43F5E","#EF4444","#F97316","#F59E0B",
+    // Greens
+    "#10B981","#059669","#16A34A","#22C55E","#84CC16","#EAB308",
+    // Neutrals / others
+    "#64748B","#78716C","#6B7280","#0F766E","#7C3AED","#9333EA",
+  ];
 
   // Calendar Sheet Sync State
   const [sheetEvents, setSheetEvents] = useState<CalSheetRow[]>([]);
@@ -1841,56 +1853,123 @@ export const CalendarPage: React.FC = () => {
       {/* Manage Assignees Modal */}
       {showAssigneeModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className={`${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded-xl max-w-sm w-full p-5 space-y-4 shadow-2xl`}>
+          <div className={`${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#0d111a] border-[#1a2235] text-white"} border rounded-xl w-full p-5 space-y-4 shadow-2xl`} style={{ maxWidth: 400 }}>
             <div className={`flex items-center justify-between border-b pb-2.5 ${isLight ? "border-slate-200" : "border-[#1a2235]"}`}>
               <h3 className={`text-sm font-bold flex items-center gap-2 ${isLight ? "text-slate-900" : "text-white"}`}>
                 <Users className="w-4 h-4 text-[#2563eb]" /> Manage Team Assignees
               </h3>
-              <button onClick={() => setShowAssigneeModal(false)} className={`${isLight ? "text-slate-400 hover:text-slate-700" : "text-gray-400 hover:text-white"}`}>
+              <button onClick={() => { setShowAssigneeModal(false); setEditingColorId(null); }} className={`${isLight ? "text-slate-400 hover:text-slate-700" : "text-gray-400 hover:text-white"}`}>
                 <X className="w-4 h-4" />
               </button>
             </div>
 
+            {/* Existing assignees */}
             <div className="space-y-2 text-xs">
               {assignees.map((a) => (
-                <div key={a.id} className={`flex items-center justify-between p-2 rounded-lg border ${isLight ? "bg-slate-50 border-slate-200 text-slate-800" : "bg-[#0d111a] border-[#282828] text-white"}`}>
-                  <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full text-white font-black text-[10px] flex items-center justify-center shrink-0" style={{ backgroundColor: a.color }}>
-                      {a.name.charAt(0)}
-                    </span>
-                    <span className="font-bold">{a.name}</span>
+                <div key={a.id}>
+                  <div className={`flex items-center justify-between px-3 py-2 rounded-lg border transition-colors ${isLight ? "bg-slate-50 border-slate-200 text-slate-800" : "bg-[#131824] border-[#1a2235] text-white"}`}>
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {/* Avatar dot — click to open color grid */}
+                      <button
+                        onClick={() => setEditingColorId(editingColorId === a.id ? null : a.id)}
+                        className="shrink-0 relative group/dot"
+                        title="Click to change color"
+                      >
+                        <span
+                          className="w-7 h-7 rounded-full text-white font-black text-[11px] flex items-center justify-center shadow-md transition-transform group-hover/dot:scale-110"
+                          style={{ backgroundColor: a.color }}
+                        >
+                          {a.name.charAt(0).toUpperCase()}
+                        </span>
+                        <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-white dark:bg-[#0d111a] border border-slate-200 dark:border-[#1a2235] flex items-center justify-center text-[6px]">🎨</span>
+                      </button>
+                      <span className="font-semibold truncate">{a.name}</span>
+                    </div>
+                    <button
+                      onClick={() => { setAssignees(prev => prev.filter(item => item.id !== a.id)); setEditingColorId(null); }}
+                      className="text-red-500 hover:text-red-400 text-[11px] font-semibold cursor-pointer shrink-0 ml-2"
+                    >
+                      Remove
+                    </button>
                   </div>
-                  <button
-                    onClick={() => setAssignees((prev) => prev.filter((item) => item.id !== a.id))}
-                    className="text-red-500 hover:underline text-[11px] font-semibold cursor-pointer"
-                  >
-                    Remove
-                  </button>
+                  {/* Inline color picker for this assignee */}
+                  {editingColorId === a.id && (
+                    <div className={`mt-1.5 p-3 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-[#0d1525] border-[#1a2235]"}`}>
+                      <p className={`text-[10px] font-bold uppercase tracking-widest mb-2 ${isLight ? "text-slate-400" : "text-[#3d5478]"}`}>Pick a color</p>
+                      <div className="grid grid-cols-6 gap-1.5">
+                        {ASSIGNEE_COLORS.map(c => (
+                          <button
+                            key={c}
+                            onClick={() => { setAssignees(prev => prev.map(item => item.id === a.id ? { ...item, color: c } : item)); setEditingColorId(null); }}
+                            className="w-8 h-8 rounded-lg transition-transform hover:scale-110 hover:shadow-lg relative"
+                            style={{ backgroundColor: c }}
+                            title={c}
+                          >
+                            {a.color === c && (
+                              <span className="absolute inset-0 flex items-center justify-center text-white text-[12px] font-black drop-shadow">✓</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
 
-            <div className={`flex items-center gap-2 pt-2 border-t ${isLight ? "border-slate-200" : "border-[#1a2235]"}`}>
-              <input
-                type="text"
-                placeholder="New Assignee Name..."
-                value={newAssigneeName}
-                onChange={(e) => setNewAssigneeName(e.target.value)}
-                className={`flex-1 px-3 py-1.5 rounded-lg border text-xs ${isLight ? "bg-slate-50 border-slate-300" : "bg-[#0d111a] border-[#333] text-white"}`}
-              />
-              <button
-                onClick={() => {
-                  if (!newAssigneeName.trim()) return;
-                  setAssignees((prev) => [
-                    ...prev,
-                    { id: `a-${Date.now()}`, name: newAssigneeName.trim(), color: newAssigneeColor }
-                  ]);
-                  setNewAssigneeName("");
-                }}
-                className="px-3 py-1.5 rounded-lg bg-[#2563eb] text-white font-bold text-xs cursor-pointer"
-              >
-                + Add
-              </button>
+            {/* Add new assignee */}
+            <div className={`pt-3 border-t ${isLight ? "border-slate-200" : "border-[#1a2235]"} space-y-2.5`}>
+              <p className={`text-[10px] font-bold uppercase tracking-widest ${isLight ? "text-slate-400" : "text-[#3d5478]"}`}>Add New Assignee</p>
+
+              {/* Color palette for new assignee */}
+              <div className="grid grid-cols-6 gap-1.5">
+                {ASSIGNEE_COLORS.map(c => (
+                  <button
+                    key={c}
+                    onClick={() => setNewAssigneeColor(c)}
+                    className="w-8 h-8 rounded-lg transition-transform hover:scale-110 hover:shadow-lg relative"
+                    style={{ backgroundColor: c }}
+                    title={c}
+                  >
+                    {newAssigneeColor === c && (
+                      <span className="absolute inset-0 flex items-center justify-center text-white text-[12px] font-black drop-shadow">✓</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2">
+                {/* Preview avatar */}
+                <span
+                  className="w-8 h-8 rounded-full text-white font-black text-sm flex items-center justify-center shrink-0 shadow-md"
+                  style={{ backgroundColor: newAssigneeColor }}
+                >
+                  {newAssigneeName ? newAssigneeName.charAt(0).toUpperCase() : "?"}
+                </span>
+                <input
+                  type="text"
+                  placeholder="Name..."
+                  value={newAssigneeName}
+                  onChange={(e) => setNewAssigneeName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && newAssigneeName.trim()) {
+                      setAssignees(prev => [...prev, { id: `a-${Date.now()}`, name: newAssigneeName.trim(), color: newAssigneeColor }]);
+                      setNewAssigneeName("");
+                    }
+                  }}
+                  className={`flex-1 px-3 py-2 rounded-lg border text-xs focus:outline-none focus:border-[#2563eb] transition-colors ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#131824] border-[#1a2235] text-white placeholder-[#4a5568]"}`}
+                />
+                <button
+                  onClick={() => {
+                    if (!newAssigneeName.trim()) return;
+                    setAssignees(prev => [...prev, { id: `a-${Date.now()}`, name: newAssigneeName.trim(), color: newAssigneeColor }]);
+                    setNewAssigneeName("");
+                  }}
+                  className="px-3 py-2 rounded-lg bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-bold text-xs cursor-pointer transition-colors shrink-0"
+                >
+                  + Add
+                </button>
+              </div>
             </div>
           </div>
         </div>
