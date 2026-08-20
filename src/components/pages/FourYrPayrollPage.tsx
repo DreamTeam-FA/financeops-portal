@@ -206,7 +206,8 @@ export function FourYrPayrollPage() {
     if (res.status === 500) {
       try { const b = await res.clone().json();
         if (b?.error && /401|token|credential|auth/i.test(String(b.error))) { setAuthError(true); throw new Error("reconnect"); }
-      } catch {}
+        else if (b?.error) throw new Error(`${path} → 500: ${b.error}`);
+      } catch(inner: any) { if (inner.message) throw inner; }
     }
     if (!res.ok) throw new Error(`${path} → ${res.status}`);
     return res.json();
