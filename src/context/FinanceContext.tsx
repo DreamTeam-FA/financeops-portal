@@ -860,12 +860,15 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           const ts    = new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" });
 
           // Ensure the logs Google Sheet exists
-          let sheetId = logsSheetId;
+          // Priority: state → localStorage → Drive search → create new
+          let sheetId = logsSheetId || localStorage.getItem("financeops_logs_sheet_id");
+          if (sheetId) setLogsSheetId(sheetId);
           if (!sheetId) {
             try {
               sheetId = await createLogsSheet(token);
               setLogsSheetId(sheetId);
-              // Persist the sheet ID on the server so it survives restarts
+              localStorage.setItem("financeops_logs_sheet_id", sheetId);
+              // Also persist on server
               await fetch("/api/logs-sheet-id", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
