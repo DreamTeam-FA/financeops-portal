@@ -731,7 +731,7 @@ Notes:
 - Be as accurate as possible; leave fields null rather than guessing incorrectly`;
 
   try {
-    const result = await callVisionLLM(prompt, imageBase64, mimeType || "image/jpeg", 512);
+    const result = await callVisionLLM(prompt, imageBase64, mimeType || "image/jpeg", 4096);
     if (!result.ok) return res.status(502).json({ error: "Vision API error", details: result.error });
 
     const raw = result.text;
@@ -818,7 +818,7 @@ Notes:
 - Time like "6:30" stays as "6:30", do not add AM/PM`;
 
   try {
-    const result = await callVisionLLM(prompt, imageBase64, mimeType || "image/jpeg", 1024);
+    const result = await callVisionLLM(prompt, imageBase64, mimeType || "image/jpeg", 8192);
     if (!result.ok) {
       console.error("[TimesheetScan] Vision error:", result.error);
       return res.status(502).json({ error: "Vision API error", details: result.error });
