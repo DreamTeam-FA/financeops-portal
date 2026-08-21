@@ -21,8 +21,22 @@ const api = (token: string, path: string, opts?: RequestInit) =>
     }
   });
 
-/* ── Create the logs sheet with two pre-formatted tabs ── */
+/* ── Find existing logs sheet by title in Drive ── */
+async function findExistingLogsSheet(accessToken: string): Promise<string | null> {
+  const q = encodeURIComponent(
+    `name='${LOGS_SHEET_TITLE}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`
+  );
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)&pageSize=1`, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  const data = await res.json();
+  return data.files?.[0]?.id ?? null;
+}
+
+/* ── Get or create the logs sheet (finds existing before creating) ── */
 export async function createLogsSheet(accessToken: string): Promise<string> {
+  const existing = await findExistingLogsSheet(accessToken);
+  if (existing) return existing;
   const headerStyle = {
     backgroundColor: { red: 0.067, green: 0.278, blue: 0.553 },
     textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } }
