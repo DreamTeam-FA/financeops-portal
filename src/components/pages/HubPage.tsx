@@ -25,11 +25,50 @@ export const HubPage: React.FC = () => {
   const greetingName = getUserGreetingName(userEmail, googleUser?.displayName);
 
   const getTimeGreeting = () => {
-    const h = new Date().getHours();
-    if (h < 12) return "Good morning";
-    if (h < 17) return "Good afternoon";
-    if (h < 21) return "Good evening";
-    return "Good night";
+    const now  = new Date();
+    const h    = now.getHours();
+    const day  = now.getDay();   // 0=Sun … 6=Sat
+    const date = now.getDate();
+    const pick = (pool: string[]) => pool[date % pool.length];
+
+    const isMon = day === 1, isFri = day === 5;
+    const isWeekend = day === 0 || day === 6;
+
+    // Late night
+    if (h >= 22) return pick([
+      "Burning the midnight oil",
+      "Still at it — respect",
+      "Night owl mode",
+      "The grind never stops, huh",
+    ]);
+
+    // Evening
+    if (h >= 17) {
+      if (isFri) return pick(["Happy Friday evening", "TGIF — good evening", "Week's done — good evening"]);
+      if (isWeekend) return pick(["Weekend evening", "Hope the day was good", "Good evening"]);
+      return pick(["Good evening", "Evening — long day?", "Hey, good evening", "Almost done for today"]);
+    }
+
+    // Afternoon
+    if (h >= 12) {
+      if (isFri) return pick(["Happy Friday", "Almost the weekend", "TGIF — good afternoon"]);
+      if (isWeekend) return pick(["Hope the weekend's treating you well", "Working on a weekend? Legend", "Good afternoon"]);
+      return pick(["Good afternoon", "Afternoon — hope the morning was solid", "Hey, good afternoon", "Halfway through the day"]);
+    }
+
+    // Early morning
+    if (h < 6) return pick([
+      "You're up early",
+      "Early bird",
+      "Catching the worm — good morning",
+      "Up before sunrise",
+    ]);
+
+    // Morning
+    if (isMon) return pick(["New week, let's go — good morning", "Monday morning — ready?", "Week's just starting — good morning"]);
+    if (isFri) return pick(["Happy Friday morning", "Last push of the week — good morning", "Almost the weekend — good morning"]);
+    if (isWeekend) return pick(["Working weekends? Respect — good morning", "Weekend grind — good morning", "Good morning"]);
+    return pick(["Good morning", "Morning — ready to go?", "Hey, good morning", "Rise and shine"]);
   };
 
   const fmt = (v: number) => "$" + Math.abs(Math.round(v)).toLocaleString("en-US");
