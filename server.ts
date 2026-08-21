@@ -590,11 +590,13 @@ app.post("/api/drive/upload-bill", async (req, res) => {
 // =============================================================================
 
 const GEMINI_MODELS = [
-  { version: "v1beta", model: "gemini-3.6-flash" },
-  { version: "v1beta", model: "gemini-2.5-flash" },
-  { version: "v1beta", model: "gemini-2.0-flash" },
-  { version: "v1",     model: "gemini-1.5-flash" },
-  { version: "v1beta", model: "gemini-2.5-pro"   },
+  { version: "v1beta", model: "gemini-3.5-flash"      },
+  { version: "v1beta", model: "gemini-3.5-flash-lite"  },
+  { version: "v1beta", model: "gemini-3.6-flash"      },
+  { version: "v1beta", model: "gemini-3.7-flash"      },
+  { version: "v1beta", model: "gemini-2.5-flash"      },
+  { version: "v1beta", model: "gemini-2.5-flash-lite" },
+  { version: "v1beta", model: "gemini-2.5-pro"        },
 ];
 
 async function callGemini(apiKey: string, prompt: string, imageBase64: string, mimeType: string, maxTokens: number): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
