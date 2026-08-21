@@ -1,8 +1,9 @@
-﻿import React, { useState } from "react";
+﻿import React, { useState, lazy, Suspense } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { Users, Filter, CheckCircle2 } from "lucide-react";
-import { TimesheetScanner } from "./TimesheetScanner";
+
+const TimesheetScanner = lazy(() => import("./TimesheetScanner").then(m => ({ default: m.TimesheetScanner })));
 
 export const PayrollPage: React.FC = () => {
   const { payrollWeeks, payrollPivot, apBills, theme } = useFinance();
@@ -238,7 +239,9 @@ export const PayrollPage: React.FC = () => {
                 Drop or tap a photo of any handwritten timesheet — the AI reads the employee name, dates, clock-in/out times, and daily hours automatically.
               </p>
             </div>
-            <TimesheetScanner isLight={isLight} />
+            <Suspense fallback={<div className={`flex items-center justify-center h-32 text-xs ${isLight ? "text-slate-400" : "text-[#555]"}`}>Loading scanner…</div>}>
+              <TimesheetScanner isLight={isLight} />
+            </Suspense>
           </div>
         )}
 

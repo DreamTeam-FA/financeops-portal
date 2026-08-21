@@ -8,7 +8,9 @@ import { Search, ChevronDown, ChevronRight, PauseCircle, Eye, AlertTriangle, X, 
 import { AddBillModal } from "../modals/AddBillModal";
 import { EditBillModal } from "../modals/EditBillModal";
 import { BillDetailsModal } from "../modals/BillDetailsModal";
-import { InvoiceScanner } from "./InvoiceScanner";
+import { lazy, Suspense } from "react";
+
+const InvoiceScanner = lazy(() => import("./InvoiceScanner").then(m => ({ default: m.InvoiceScanner })));
 
 export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filterEntityOverride }) => {
   const {
@@ -722,7 +724,9 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                 Drop a photo of a printed or handwritten bill — AI reads the vendor, amount, due date, and invoice number. Verify the details, then save directly to your AP bills.
               </p>
             </div>
-            <InvoiceScanner isLight={isLight} />
+            <Suspense fallback={<div className={`flex items-center justify-center h-32 text-xs ${isLight ? "text-slate-400" : "text-[#555]"}`}>Loading scanner…</div>}>
+              <InvoiceScanner isLight={isLight} />
+            </Suspense>
           </div>
         )}
       </div>
