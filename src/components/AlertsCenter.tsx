@@ -264,15 +264,16 @@ export const AlertsBell: React.FC<{ isLight: boolean }> = ({ isLight }) => {
 let _toastsShownForEmail: string | null = null;
 
 export const AlertsToasts: React.FC<{ isLight: boolean }> = ({ isLight }) => {
-  const { googleUser, setCurrentPage } = useFinance();
+  const { googleUser, needsAuth, setCurrentPage } = useFinance();
   const alerts = useComputedAlerts();
   const [visible, setVisible] = useState<Alert[]>([]);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
-  // Show critical+warn toasts once per login session
+  // Show critical+warn toasts once per login session — but ONLY after the login gate is dismissed
   useEffect(() => {
     const email = googleUser?.email ?? null;
-    if (!email) { _toastsShownForEmail = null; return; }
+    // Don't fire while the login modal is still open
+    if (!email || needsAuth) { _toastsShownForEmail = null; return; }
     if (email === _toastsShownForEmail) return;
     _toastsShownForEmail = email;
 
@@ -287,7 +288,7 @@ export const AlertsToasts: React.FC<{ isLight: boolean }> = ({ isLight }) => {
         setTimeout(() => setVisible(prev => prev.filter(a => a.id !== alert.id)), 8000 + i * 600);
       }, 1800 + i * 600);
     });
-  }, [googleUser?.email, alerts.length]);
+  }, [googleUser?.email, needsAuth, alerts.length]);
 
   const dismiss = useCallback((id: string) => {
     setVisible(prev => prev.filter(a => a.id !== id));
