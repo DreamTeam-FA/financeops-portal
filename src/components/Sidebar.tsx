@@ -500,6 +500,15 @@ export const Sidebar: React.FC = () => {
 
         {memberWorkspaces.map((mem) => {
           const isMemActive = currentPage === "member-workspace" && activeMember?.id === mem.id;
+          // Parse hex → rgb components for dynamic rgba() values
+          const h = mem.color.replace("#", "");
+          const rgb = `${parseInt(h.slice(0,2),16)},${parseInt(h.slice(2,4),16)},${parseInt(h.slice(4,6),16)}`;
+          const activeStyle: React.CSSProperties = isMemActive ? {
+            backgroundColor: isLight ? `rgba(${rgb},0.12)` : `rgba(${rgb},0.18)`,
+            borderColor: `rgba(${rgb},0.4)`,
+            boxShadow: `0 1px 8px rgba(${rgb},${isLight ? 0.15 : 0.22})`
+          } : {};
+
           return (
             <button
               key={mem.id}
@@ -507,18 +516,25 @@ export const Sidebar: React.FC = () => {
                 setActiveMember({ id: mem.id, name: mem.name, color: mem.color });
                 setCurrentPage("member-workspace");
               }}
-              className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-all ${
+              className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-all border ${
                 isMemActive
-                  ? isLight ? "bg-purple-50 text-purple-800 font-semibold border border-purple-200 shadow-[0_1px_6px_rgba(168,85,247,.1)]" : "bg-purple-950/20 text-purple-200 font-semibold border border-purple-900/40 shadow-[0_1px_8px_rgba(168,85,247,.12)]"
-                  : isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900 border border-transparent" : "text-[#7a90b0] hover:bg-[#0d1525] hover:text-[#c8d4e8] border border-transparent"
+                  ? isLight ? "font-semibold text-slate-800" : "font-semibold text-[#c8d4e8]"
+                  : isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900 border-transparent" : "text-[#7a90b0] hover:bg-[#0d1525] hover:text-[#c8d4e8] border-transparent"
               }`}
+              style={activeStyle}
               title={`Open Workspace for ${mem.name}`}
             >
-              <UserIcon className={`w-3.5 h-3.5 shrink-0 ${isMemActive ? "text-purple-400" : "text-slate-400"}`} />
+              <UserIcon
+                className="w-3.5 h-3.5 shrink-0"
+                style={{ color: isMemActive ? mem.color : undefined }}
+              />
               <span className="flex-1 text-left truncate font-medium">{formatPossessiveName(mem.name)}</span>
               <span
-                className="w-2.5 h-2.5 rounded-full shrink-0 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
-                style={{ backgroundColor: mem.color }}
+                className="w-2.5 h-2.5 rounded-full shrink-0"
+                style={{
+                  backgroundColor: mem.color,
+                  boxShadow: `0 2px 8px rgba(${rgb},0.55), inset 0 1px 0 rgba(255,255,255,0.07)`
+                }}
               />
             </button>
           );
