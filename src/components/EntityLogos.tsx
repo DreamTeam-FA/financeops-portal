@@ -95,8 +95,8 @@ const wrapStyle: React.CSSProperties = {
   flexShrink: 0,
 };
 const imgStyle: React.CSSProperties = {
-  maxHeight: 30,
-  maxWidth: 148,
+  maxHeight: 24,
+  maxWidth: 130,
   width: "auto",
   height: "auto",
   objectFit: "contain",
@@ -130,7 +130,7 @@ export const MSDxLogo: React.FC<LogoProps> = ({ isLight = false }) => (
 export const CurcuminLogo: React.FC<LogoProps> = ({ isLight = false }) => {
   const src = useDarkLogo("/logos/curcuminpro.jpg", isLight);
   if (!src) return <div style={{ width: 130, height: 36 }} />;
-  return <div style={wrapStyle}><img src={src} alt="CurcuminPRO" style={{ ...imgStyle, maxHeight: 36, maxWidth: 155 }} /></div>;
+  return <div style={wrapStyle}><img src={src} alt="CurcuminPRO" style={{ ...imgStyle, maxHeight: 28, maxWidth: 140 }} /></div>;
 };
 
 export const ZiglarLogo: React.FC<LogoProps> = ({ isLight = false }) => {
