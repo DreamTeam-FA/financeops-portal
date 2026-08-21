@@ -782,6 +782,8 @@ app.post("/api/timesheet/scan", async (req, res) => {
 
   const prompt = `Extract timesheet data from this image. Respond with ONLY a raw JSON object — no markdown fences, no explanation, no preamble, just the JSON object starting with { and ending with }.
 
+IMPORTANT: All numeric values must be plain decimals. Convert fractions before outputting: 8½ → 8.5, 7½ → 7.5, 8¼ → 8.25. Never output fraction characters (½ ¼ ¾) — always convert to decimal numbers.
+
 Schema:
 {
   "employeeName": "string",
@@ -818,7 +820,13 @@ Notes:
     const raw = result.text;
     const start = raw.indexOf("{");
     const end   = raw.lastIndexOf("}");
-    const cleaned = start !== -1 && end > start ? raw.slice(start, end + 1) : raw.trim();
+    let cleaned = start !== -1 && end > start ? raw.slice(start, end + 1) : raw.trim();
+    // Replace fraction unicode characters that break JSON parsing
+    cleaned = cleaned
+      .replace(/(\d+)½/g, (_, n) => String(parseFloat(n) + 0.5))
+      .replace(/(\d+)¼/g, (_, n) => String(parseFloat(n) + 0.25))
+      .replace(/(\d+)¾/g, (_, n) => String(parseFloat(n) + 0.75))
+      .replace(/½/g, "0.5").replace(/¼/g, "0.25").replace(/¾/g, "0.75");
     console.log(`[TimesheetScan] Full cleaned (first 800): ${cleaned.slice(0, 800)}`);
     let parsed: any;
     try {
