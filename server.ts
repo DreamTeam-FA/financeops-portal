@@ -589,6 +589,29 @@ app.post("/api/drive/upload-bill", async (req, res) => {
 // Timesheet Scanner — Gemini Vision API
 // =============================================================================
 
+// GET /api/gemini-test — lists available Gemini models to diagnose key issues
+app.get("/api/gemini-test", async (_req, res) => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return res.json({ error: "No key set" });
+
+  // Try as ?key= param (traditional API key)
+  const r1 = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`);
+  const d1 = await r1.json() as any;
+
+  // Try as Bearer token
+  const r2 = await fetch(`https://generativelanguage.googleapis.com/v1/models`, {
+    headers: { "Authorization": `Bearer ${apiKey}` }
+  });
+  const d2 = await r2.json() as any;
+
+  return res.json({
+    keyPrefix: apiKey.slice(0, 8),
+    keyLength: apiKey.length,
+    asQueryParam: { status: r1.status, models: d1.models?.map((m: any) => m.name) || d1 },
+    asBearer:     { status: r2.status, models: d2.models?.map((m: any) => m.name) || d2 },
+  });
+});
+
 // POST /api/invoice/scan — Gemini Vision extracts bill/invoice data
 app.post("/api/invoice/scan", async (req, res) => {
   const { imageBase64, mimeType } = req.body || {};
