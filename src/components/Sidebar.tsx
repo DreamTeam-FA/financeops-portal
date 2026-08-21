@@ -519,8 +519,9 @@ export const Sidebar: React.FC = () => {
           } : {};
 
           return (
-            <Tooltip key={mem.id} label={`${formatPossessiveName(mem.name)} Workspace`} sublabel="Member Dashboard" color={mem.color}>
+            <Tooltip label={`${formatPossessiveName(mem.name)} Workspace`} sublabel="Member Dashboard" color={mem.color}>
             <button
+              key={mem.id}
               onClick={() => {
                 setActiveMember({ id: mem.id, name: mem.name, color: mem.color });
                 setCurrentPage("member-workspace");

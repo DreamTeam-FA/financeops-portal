@@ -15,7 +15,7 @@
  */
 import React, {
   createContext, useContext, useState, useCallback,
-  useRef, useEffect, type ReactNode,
+  useRef, useEffect, type ReactNode, Children, isValidElement, cloneElement,
 } from "react";
 import { createPortal } from "react-dom";
 
@@ -219,16 +219,27 @@ export const Tooltip: React.FC<TooltipProps> = ({
 
   if (disabled) return <>{children}</>;
 
-  return (
-    <div
-      style={{ display: "block", width: "100%" }}
-      onMouseEnter={(e) => showTooltip({ label, sublabel, color, x: e.clientX, y: e.clientY })}
-      onMouseMove={(e)  => moveTooltip(e.clientX, e.clientY)}
-      onMouseLeave={hideTooltip}
-    >
-      {children}
-    </div>
-  );
+  // Inject handlers directly onto the child — no wrapper div, no layout impact.
+  const child = Children.only(children);
+  if (!isValidElement(child)) return <>{children}</>;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const existing = child.props as any;
+
+  return cloneElement(child as React.ReactElement<any>, {
+    onMouseEnter: (e: React.MouseEvent) => {
+      showTooltip({ label, sublabel, color, x: e.clientX, y: e.clientY });
+      existing.onMouseEnter?.(e);
+    },
+    onMouseMove: (e: React.MouseEvent) => {
+      moveTooltip(e.clientX, e.clientY);
+      existing.onMouseMove?.(e);
+    },
+    onMouseLeave: (e: React.MouseEvent) => {
+      hideTooltip();
+      existing.onMouseLeave?.(e);
+    },
+  });
 };
 
 export const useTooltip = () => useContext(TooltipCtx);
