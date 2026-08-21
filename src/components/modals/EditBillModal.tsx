@@ -190,7 +190,7 @@ export const EditBillModal: React.FC<EditBillModalProps> = ({ bill, isOpen, onCl
         } else {
           const err = await resp.json().catch(() => ({}));
           setAttachUploading(false);
-          setAttachError(`Drive upload failed: ${err.error || resp.statusText}`);
+          setAttachError(`Drive upload failed: ${err.details || err.error || resp.statusText}`);
           return; // don't close — let user see the error
         }
       } catch (e: any) {
