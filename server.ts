@@ -586,6 +586,49 @@ app.post("/api/drive/upload-bill", async (req, res) => {
 });
 
 // =============================================================================
+// Gemini Vision helper — tries models in order until one succeeds
+// =============================================================================
+
+const GEMINI_MODELS = [
+  { version: "v1beta", model: "gemini-3.6-flash" },
+  { version: "v1beta", model: "gemini-2.5-flash" },
+  { version: "v1beta", model: "gemini-2.0-flash" },
+  { version: "v1",     model: "gemini-1.5-flash" },
+  { version: "v1beta", model: "gemini-2.5-pro"   },
+];
+
+async function callGemini(apiKey: string, body: any): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
+  let lastError = "No available Gemini model";
+  for (const { version, model } of GEMINI_MODELS) {
+    const url = `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${apiKey}`;
+    try {
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (r.ok) {
+        const resp = await r.json() as any;
+        const text = resp?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        console.log(`[Gemini] Used model: ${model}`);
+        return { ok: true, text };
+      }
+      const errBody = await r.json().catch(() => ({})) as any;
+      const status = errBody?.error?.status || "";
+      lastError = errBody?.error?.message || `HTTP ${r.status}`;
+      console.warn(`[Gemini] ${model} → ${status || r.status}: ${lastError}`);
+      // NOT_FOUND or UNAVAILABLE → try next model; anything else → stop (auth error, quota, etc.)
+      if (status !== "NOT_FOUND" && status !== "UNAVAILABLE" && r.status !== 404) {
+        return { ok: false, error: lastError };
+      }
+    } catch (e: any) {
+      lastError = e?.message || String(e);
+    }
+  }
+  return { ok: false, error: lastError };
+}
+
+// =============================================================================
 // Timesheet Scanner — Gemini Vision API
 // =============================================================================
 
@@ -651,21 +694,10 @@ Notes:
       generationConfig: { temperature: 0.1, maxOutputTokens: 512 }
     };
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
-    const r = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
-    });
+    const result = await callGemini(apiKey, body);
+    if (!result.ok) return res.status(502).json({ error: "Gemini API error", details: result.error });
 
-    if (!r.ok) {
-      const txt = await r.text();
-      return res.status(502).json({ error: "Gemini API error", details: txt });
-    }
-
-    const geminiResp = await r.json() as any;
-    const raw = geminiResp?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    // Extract JSON object robustly: find first { and last } in case model adds preamble/thinking
+    const raw = result.text;
     const start = raw.indexOf("{");
     const end   = raw.lastIndexOf("}");
     const cleaned = start !== -1 && end > start ? raw.slice(start, end + 1) : raw.trim();
@@ -753,23 +785,13 @@ Notes:
       generationConfig: { temperature: 0.1, maxOutputTokens: 1024 }
     };
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
-    const r = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
-    });
-
-    if (!r.ok) {
-      const txt = await r.text();
-      console.error("[TimesheetScan] Gemini error:", txt);
-      return res.status(502).json({ error: "Gemini API error", details: txt });
+    const result = await callGemini(apiKey, body);
+    if (!result.ok) {
+      console.error("[TimesheetScan] Gemini error:", result.error);
+      return res.status(502).json({ error: "Gemini API error", details: result.error });
     }
 
-    const geminiResp = await r.json() as any;
-    const raw = geminiResp?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-
-    // Extract JSON object robustly: find first { and last } in case model adds preamble/thinking
+    const raw = result.text;
     const start = raw.indexOf("{");
     const end   = raw.lastIndexOf("}");
     const cleaned = start !== -1 && end > start ? raw.slice(start, end + 1) : raw.trim();
