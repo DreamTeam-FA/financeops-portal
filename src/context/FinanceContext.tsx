@@ -384,11 +384,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Auth State
   const [googleUser, setGoogleUser] = useState<User | null>(null);
-  // Require login on every new browser session (sessionStorage cleared on close).
-  // Same tab refresh keeps the flag; a new tab/window gets it via BroadcastChannel.
-  const [needsAuth, setNeedsAuth] = useState<boolean>(() => {
-    return sessionStorage.getItem("financeops_session_authed") !== "true";
-  });
+  // Always require sign-in on every page load — sessionStorage bypass is removed
+  // so the login screen appears on every refresh/open, logging all user sessions.
+  const [needsAuth, setNeedsAuth] = useState<boolean>(true);
 
   const setUserEmail = (email: string) => {
     const clean = email.trim();
@@ -787,31 +785,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     ch.onmessage = (e: MessageEvent) => {
       const { type, authed } = e.data || {};
-      if (type === "REQUEST_AUTH_STATE") {
-        // Another tab is asking — reply if we're authenticated
-        if (sessionStorage.getItem("financeops_session_authed") === "true") {
-          ch?.postMessage({ type: "AUTH_RESPONSE", authed: true });
-        }
-      } else if (type === "AUTH_RESPONSE" && authed) {
-        // An existing tab confirmed it's authenticated — skip login here too
-        sessionStorage.setItem("financeops_session_authed", "true");
-        setNeedsAuth(false);
-      } else if (type === "AUTH_STATE") {
-        // Another tab logged in or out
-        if (authed) {
-          sessionStorage.setItem("financeops_session_authed", "true");
-          setNeedsAuth(false);
-        } else {
-          sessionStorage.removeItem("financeops_session_authed");
-          setNeedsAuth(true);
-        }
+      if (type === "AUTH_STATE") {
+        // Another tab logged out — require re-auth here too
+        if (!authed) setNeedsAuth(true);
       }
     };
-
-    // If this tab still needs auth, ask other tabs
-    if (sessionStorage.getItem("financeops_session_authed") !== "true") {
-      ch.postMessage({ type: "REQUEST_AUTH_STATE" });
-    }
 
     return () => { try { ch?.close(); } catch {} };
   }, []);
