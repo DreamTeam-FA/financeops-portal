@@ -136,7 +136,8 @@ export const CurcuminLogo: React.FC<LogoProps> = ({ isLight = false }) => {
 export const ZiglarLogo: React.FC<LogoProps> = ({ isLight = false }) => {
   const src = useDarkLogo("/logos/ziglar.jpg", isLight);
   if (!src) return <div style={{ width: 110, height: 30 }} />;
-  return <div style={wrapStyle}><img src={src} alt="Ziglar" style={imgStyle} /></div>;
+  // Ziglar has a dark background — screen blend makes dark areas transparent on the dark sidebar
+  return <div style={wrapStyle}><img src={src} alt="Ziglar" style={{ ...imgStyle, mixBlendMode: isLight ? "normal" : "screen" }} /></div>;
 };
 
 export const FourYrLogo: React.FC<LogoProps> = ({ isLight = false }) => {
