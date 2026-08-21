@@ -75,7 +75,7 @@ export const PayrollPage: React.FC = () => {
           { id: "weekly", label: "Weekly Summary Pivot" },
           { id: "detail", label: "Employee Line Items" },
           { id: "history", label: "Payroll History Log" },
-          { id: "scan", label: "📷 Scan Timesheet" }
+          { id: "scan", label: "🧾 Scan Timesheet" }
         ]}
         activeTab={activeTab}
         onTabChange={(t) => setActiveTab(t as any)}

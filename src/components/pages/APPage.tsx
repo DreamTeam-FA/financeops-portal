@@ -454,7 +454,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
           { id: "due", label: "Due Bills" },
           { id: "paid", label: "Paid Bills" },
           { id: "summary", label: "Summary KPI" },
-          { id: "scan", label: "📷 Scan Bill" }
+          { id: "scan", label: "🧾 Scan Bill" }
         ]}
         activeTab={activeTab}
         onTabChange={(tab) => setActiveTab(tab as any)}
