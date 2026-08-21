@@ -1,6 +1,7 @@
 /**
  * ScanToFill — compact inline scanner used inside modals.
- * Shows a small drop zone; on successful scan calls onFill(data) and collapses.
+ * Shows a small drop zone; on successful scan calls onFill(data, file) and collapses.
+ * The original File is passed alongside extracted data so callers can upload to Drive.
  * Stays collapsed unless resetKey changes (parent can force a reset).
  */
 import React, { useState, useRef, useCallback } from "react";
@@ -11,8 +12,8 @@ type ScanType = "invoice" | "timesheet";
 interface Props {
   type: ScanType;
   isLight: boolean;
-  /** Called with raw Gemini result once scan succeeds */
-  onFill: (data: any) => void;
+  /** Called with (extracted data, original File) once scan succeeds */
+  onFill: (data: any, file: File) => void;
   /** Changing this resets the component back to the drop zone */
   resetKey?: number;
 }
@@ -56,7 +57,7 @@ export const ScanToFill: React.FC<Props> = ({ type, isLight, onFill, resetKey })
           setError(json.error || "Scan failed — try again");
         } else {
           const data = type === "invoice" ? json.invoice : json.timesheet;
-          onFill(data);
+          onFill(data, file); // ← pass the original file too
           setDone(true);
           setState("idle");
         }
@@ -113,7 +114,7 @@ export const ScanToFill: React.FC<Props> = ({ type, isLight, onFill, resetKey })
 
       {state === "idle" && (
         <span className={`ml-auto text-[10px] ${isLight ? "text-slate-400" : "text-[#556]"}`}>
-          drop or click
+          drop or click · image or PDF
         </span>
       )}
 

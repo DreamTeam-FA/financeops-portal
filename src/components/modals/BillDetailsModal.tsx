@@ -3,7 +3,7 @@ import { APBill } from "../../types";
 import { useFinance } from "../../context/FinanceContext";
 import {
   X, Pencil, Trash2, CheckCircle2, PauseCircle, Zap, FileText,
-  ChevronDown, ExternalLink
+  ChevronDown, ExternalLink, FileImage
 } from "lucide-react";
 
 interface BillDetailsModalProps {
@@ -454,6 +454,22 @@ const AccordionItem: React.FC<{
               <PauseCircle className="w-3.5 h-3.5" />
               {bill.status === "hold" ? "Remove Hold" : "Put On Hold"}
             </button>
+            {/* View scanned bill in Drive */}
+            {(bill as any).driveViewUrl && (
+              <a
+                href={(bill as any).driveViewUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold border transition-all ${
+                  isLight
+                    ? "border-blue-200 text-blue-600 hover:bg-blue-50"
+                    : "border-blue-800/40 text-blue-400 hover:bg-blue-900/20"
+                }`}
+              >
+                <FileImage className="w-3.5 h-3.5" />
+                View Scan
+              </a>
+            )}
             <button
               onClick={onEdit}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold border transition-all ml-auto ${

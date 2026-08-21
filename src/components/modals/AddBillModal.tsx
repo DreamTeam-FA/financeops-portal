@@ -40,6 +40,8 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
   const [remarksTarget, setRemarksTarget] = useState<"payvia" | "remarks" | "instr" | "status1">("instr");
   const [scanKey, setScanKey] = useState(0);
   const [scanFilled, setScanFilled] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     setSelectedSheet(`${defaultEntity} Bills`);
@@ -117,14 +119,15 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
     setScanFilled(false);
   };
 
-  const handleScanFill = (data: any) => {
+  const handleScanFill = (data: any, file: File) => {
     if (!data) return;
-    if (data.vendor)      setVendor(data.vendor);
-    if (data.invoiceNo)   setInvoiceNo(String(data.invoiceNo));
+    if (data.vendor)         setVendor(data.vendor);
+    if (data.invoiceNo)      setInvoiceNo(String(data.invoiceNo));
     if (data.amount != null) setAmount(String(data.amount));
-    if (data.issueDate)   setInvoiceDate(data.issueDate);
-    if (data.dueDate)     setDueDate(data.dueDate);
-    if (data.description) setDescription(data.description);
+    if (data.issueDate)      setInvoiceDate(data.issueDate);
+    if (data.dueDate)        setDueDate(data.dueDate);
+    if (data.description)    setDescription(data.description);
+    setPendingFile(file);
     setScanFilled(true);
   };
 
@@ -138,7 +141,7 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
   }`;
   const lbl = `block text-[11px] font-bold uppercase tracking-wider mb-1 ${isLight ? "text-slate-600" : "text-[#aaa]"}`;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!vendor || !amount) return;
 
@@ -170,11 +173,43 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
       }
     }
 
+    // Upload scanned file to Google Drive if one exists
+    if (pendingFile) {
+      setUploading(true);
+      try {
+        const reader = new FileReader();
+        const base64: string = await new Promise((res, rej) => {
+          reader.onload = (ev) => res((ev.target?.result as string).split(",")[1]);
+          reader.onerror = rej;
+          reader.readAsDataURL(pendingFile);
+        });
+        const resp = await fetch("/api/drive/upload-bill", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            imageBase64: base64,
+            mimeType: pendingFile.type || "image/jpeg",
+            entity: entityName,
+            vendor,
+            invoiceNo: invoiceNo || undefined,
+            dueDate,
+            amount: parseFloat(amount) || 0,
+          }),
+        });
+        if (resp.ok) {
+          const { viewUrl, fileName } = await resp.json();
+          billData.driveViewUrl = viewUrl;
+          billData.driveFileName = fileName;
+        }
+      } catch { /* upload failure shouldn't block bill save */ }
+      setUploading(false);
+    }
+
     addBill(billData);
     onClose();
     setVendor(""); setAmount(""); setRemarks(""); setInvoiceNo("");
     setInvoiceDate(""); setPaymentDate(""); setDescription(""); setCategory("");
-    setScanKey(k => k + 1); setScanFilled(false);
+    setScanKey(k => k + 1); setScanFilled(false); setPendingFile(null);
   };
 
   return (
@@ -353,8 +388,8 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
               className={`px-4 py-2 rounded-xl text-xs font-semibold ${isLight ? "bg-slate-100 hover:bg-slate-200 text-slate-700" : "bg-[#222] hover:bg-[#333] text-[#aaa]"}`}>
               Cancel
             </button>
-            <button type="submit" className={`px-5 py-2 rounded-xl ${theme2.btn} text-xs font-bold text-white shadow-md flex items-center gap-1.5`}>
-              <Check className="w-4 h-4" /> Add Bill
+            <button type="submit" disabled={uploading} className={`px-5 py-2 rounded-xl ${theme2.btn} text-xs font-bold text-white shadow-md flex items-center gap-1.5 disabled:opacity-70`}>
+              <Check className="w-4 h-4" /> {uploading ? "Saving to Drive…" : "Add Bill"}
             </button>
           </div>
         </form>

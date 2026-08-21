@@ -798,6 +798,14 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                           </span>
                         </div>
                         <div className="col-span-2 flex items-center justify-end gap-1.5">
+                          {/* View scanned file in Drive */}
+                          {(bill as any).driveViewUrl && (
+                            <a href={(bill as any).driveViewUrl} target="_blank" rel="noopener noreferrer"
+                              title="View scanned bill in Drive"
+                              className={`p-1 rounded transition-colors ${isLight ? "text-blue-500 hover:bg-blue-50" : "text-blue-400 hover:bg-blue-400/10"}`}>
+                              <Eye className="w-3.5 h-3.5" />
+                            </a>
+                          )}
                           {/* Edit */}
                           <button
                             onClick={() => { setDuplicatesModalOpen(false); setEditingBill(bill); }}

@@ -478,6 +478,114 @@ app.post("/api/audit-log", (req, res) => {
 });
 
 // =============================================================================
+// Google Drive — bill/invoice file storage
+// =============================================================================
+
+import { google } from "googleapis";
+
+/** Build an authenticated Drive client from the service-account JSON env var. */
+function getDriveClient() {
+  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (!raw) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON not configured");
+  const creds = JSON.parse(raw);
+  const auth = new google.auth.GoogleAuth({
+    credentials: creds,
+    scopes: ["https://www.googleapis.com/auth/drive"],
+  });
+  return google.drive({ version: "v3", auth });
+}
+
+/** Find a child folder by name under parentId, or create it. Returns folder ID. */
+async function getOrCreateFolder(drive: any, parentId: string, name: string): Promise<string> {
+  const q = `name='${name.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`;
+  const list = await drive.files.list({ q, fields: "files(id,name)", spaces: "drive" });
+  if (list.data.files?.length) return list.data.files[0].id as string;
+  const created = await drive.files.create({
+    requestBody: { name, mimeType: "application/vnd.google-apps.folder", parents: [parentId] },
+    fields: "id",
+  });
+  return created.data.id as string;
+}
+
+/** Ensure the full path exists under root, return the leaf folder ID. */
+async function ensurePath(drive: any, segments: string[]): Promise<string> {
+  let parentId = "root";
+  for (const seg of segments) parentId = await getOrCreateFolder(drive, parentId, seg);
+  return parentId;
+}
+
+const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+/**
+ * POST /api/drive/upload-bill
+ * Body: { imageBase64, mimeType, entity, vendor, invoiceNo, dueDate, amount }
+ * Returns: { fileId, viewUrl }
+ *
+ * Folder layout:
+ *   FinanceOps Portal / Bills & Invoices / {entity} / {year} / {month} /
+ * File name:
+ *   {Entity}_{Vendor}_{InvoiceNo}_{YYYY-MM-DD}.{ext}
+ */
+app.post("/api/drive/upload-bill", async (req, res) => {
+  const { imageBase64, mimeType, entity, vendor, invoiceNo, dueDate, amount } = req.body || {};
+  if (!imageBase64) return res.status(400).json({ error: "imageBase64 required" });
+
+  let drive: any;
+  try { drive = getDriveClient(); }
+  catch (e: any) { return res.status(500).json({ error: e.message }); }
+
+  try {
+    // Determine folder path
+    const now = new Date();
+    const dateRef = dueDate ? new Date(dueDate) : now;
+    const year = String(dateRef.getFullYear());
+    const monthIdx = dateRef.getMonth();
+    const month = `${String(monthIdx + 1).padStart(2, "0")} - ${MONTH_NAMES[monthIdx]}`;
+    const entityFolder = (entity || "Other").replace(/[/\\:*?"<>|]/g, "-");
+
+    const folderId = await ensurePath(drive, [
+      "FinanceOps Portal",
+      "Bills & Invoices",
+      entityFolder,
+      year,
+      month,
+    ]);
+
+    // Build file name
+    const safeVendor  = (vendor   || "Unknown").replace(/[/\\:*?"<>|]/g, "-").trim().replace(/\s+/g, "_");
+    const safeInvNo   = (invoiceNo|| "").replace(/[/\\:*?"<>|]/g, "-").trim().replace(/\s+/g, "_");
+    const dateStr     = dueDate ? dueDate.replace(/\//g, "-") : now.toISOString().split("T")[0];
+    const ext         = mimeType === "application/pdf" ? "pdf" : (mimeType?.split("/")[1] || "jpg");
+    const fileName    = [entityFolder, safeVendor, safeInvNo, dateStr].filter(Boolean).join("_") + "." + ext;
+
+    // Upload
+    const { Readable } = await import("stream");
+    const buffer = Buffer.from(imageBase64, "base64");
+    const stream = Readable.from(buffer);
+
+    const uploaded = await drive.files.create({
+      requestBody: { name: fileName, parents: [folderId] },
+      media: { mimeType: mimeType || "image/jpeg", body: stream },
+      fields: "id,webViewLink,name",
+    });
+
+    const fileId   = uploaded.data.id as string;
+    const viewUrl  = uploaded.data.webViewLink as string;
+
+    // Make readable by anyone with the link (so portal can open it)
+    await drive.permissions.create({
+      fileId,
+      requestBody: { role: "reader", type: "anyone" },
+    });
+
+    return res.json({ ok: true, fileId, viewUrl, fileName });
+  } catch (e: any) {
+    console.error("[DriveUpload]", e?.message || e);
+    return res.status(502).json({ error: "Drive upload failed", details: e?.message });
+  }
+});
+
+// =============================================================================
 // Timesheet Scanner — Gemini Vision API
 // =============================================================================
 
