@@ -9,6 +9,10 @@ import {
 } from "lucide-react";
 import { PageRoute } from "../../types";
 
+// Module-level: tracks which email has already seen the briefing this JS session.
+// Resets to null on logout so the next login always triggers the modal again.
+let _lastBriefEmail: string | null = null;
+
 export const HubPage: React.FC = () => {
   const {
     setCurrentPage, apBills, bankAccounts, loans, arItems,
@@ -23,19 +27,22 @@ export const HubPage: React.FC = () => {
     return () => clearInterval(t);
   }, []);
 
-  // Daily briefing modal — shows once per session
-  const SESSION_KEY = "briefing_shown_" + new Date().toDateString();
+  // Briefing modal — fires on every login / user switch / re-auth.
+  // Module-level _lastBriefEmail resets on logout so next login always triggers.
   const [showBriefing, setShowBriefing] = useState(false);
   useEffect(() => {
-    if (!sessionStorage.getItem(SESSION_KEY)) {
-      const t = setTimeout(() => setShowBriefing(true), 1400);
-      return () => clearTimeout(t);
+    const email = googleUser?.email ?? null;
+    if (!email) {
+      // Logged out — clear tracker so next login shows the modal
+      _lastBriefEmail = null;
+      return;
     }
-  }, []);
-  const dismissBriefing = () => {
-    sessionStorage.setItem(SESSION_KEY, "1");
-    setShowBriefing(false);
-  };
+    if (email === _lastBriefEmail) return; // already shown for this login session
+    _lastBriefEmail = email;
+    const t = setTimeout(() => setShowBriefing(true), 1400);
+    return () => clearTimeout(t);
+  }, [googleUser?.email]);
+  const dismissBriefing = () => setShowBriefing(false);
 
   const greetingName = getUserGreetingName(userEmail, googleUser?.displayName);
 
