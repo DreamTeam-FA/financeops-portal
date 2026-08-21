@@ -1584,22 +1584,39 @@ export function FourYrPayrollPage() {
                             if (/am/i.test(t) && h === 12) h = 0;
                             return `${String(h).padStart(2, "0")}:${m}`;
                           };
-                          // Parse date from timesheet (YYYY-MM-DD or MM/DD/YYYY)
-                          let dateFmt = day.date || "";
-                          if (/^\d{4}-\d{2}-\d{2}$/.test(dateFmt)) {
-                            const [y,m,d] = dateFmt.split("-");
+                          // Parse date → MM/DD/YYYY for the form
+                          const inferYear = () => {
+                            // Try to get year from weekStart/weekEnd if they have it
+                            const ws = tscanResult.weekStart || tscanResult.weekEnd || "";
+                            const y = ws.match(/(\d{4})/);
+                            return y ? y[1] : String(new Date().getFullYear());
+                          };
+                          let dateFmt = "";
+                          const raw = (day.date || "").trim();
+                          if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+                            // YYYY-MM-DD → MM/DD/YYYY
+                            const [y,m,d] = raw.split("-");
                             dateFmt = `${m}/${d}/${y}`;
+                          } else if (/^\d{1,2}[-/]\d{1,2}$/.test(raw)) {
+                            // MM-DD or MM/DD → MM/DD/YYYY using inferred year
+                            const [m,d] = raw.split(/[-/]/);
+                            dateFmt = `${m.padStart(2,"0")}/${d.padStart(2,"0")}/${inferYear()}`;
+                          } else if (/^\d{1,2}[-/]\d{1,2}[-/]\d{2,4}$/.test(raw)) {
+                            // MM/DD/YY or MM/DD/YYYY
+                            const parts = raw.split(/[-/]/);
+                            const y = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
+                            dateFmt = `${parts[0].padStart(2,"0")}/${parts[1].padStart(2,"0")}/${y}`;
                           }
                           setForm(f => ({
                             ...f,
                             name: tscanResult.employeeName || f.name,
-                            date: dateFmt,
+                            date: dateFmt || f.date,
                             started: normTime(day.clockIn || ""),
                             finished: normTime(day.clockOut || "", true),
                             hours: day.totalHours != null ? String(day.totalHours) : f.hours,
                             job: tscanResult.job || f.job,
                           }));
-                          setTscanResult(null);
+                          // Keep picker open — user can pick next day after submitting this one
                         }}
                         className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-colors ${isLight ? "bg-white border-green-300 text-green-800 hover:bg-green-100" : "bg-[#0d1a14] border-[#1e4028] text-green-300 hover:bg-[#143020]"}`}>
                         <span className="font-bold">{day.dayOfWeek}</span>
