@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect, useMemo } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { EntityName } from "../../types";
-import { X, Check } from "lucide-react";
+import { X, Check, Paperclip, FileCheck2 } from "lucide-react";
 import { ScanToFill } from "../ScanToFill";
 
 interface AddBillModalProps {
@@ -382,6 +382,29 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
               </div>
             )}
           </div>
+
+          {/* Attach bill copy (manual upload — separate from scan-to-fill) */}
+          {!scanFilled && (
+            <div>
+              <label className={lbl}>Attach Bill Copy</label>
+              {pendingFile ? (
+                <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold ${isLight ? "bg-green-50 border-green-200 text-green-700" : "bg-[#0a1a10] border-[#1a3a20] text-green-400"}`}>
+                  <FileCheck2 className="w-4 h-4 shrink-0" />
+                  <span className="truncate">{pendingFile.name}</span>
+                  <button type="button" onClick={() => setPendingFile(null)} className="ml-auto opacity-60 hover:opacity-100 shrink-0">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <label className={`flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed cursor-pointer text-xs transition-colors ${isLight ? "border-slate-300 text-slate-500 hover:border-slate-400 hover:bg-slate-50" : "border-[#2a2a2a] text-[#666] hover:border-[#444] hover:bg-[#1a1a1a]"}`}>
+                  <Paperclip className="w-4 h-4 shrink-0" />
+                  <span>Attach image or PDF copy</span>
+                  <input type="file" accept="image/*,application/pdf" className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) setPendingFile(f); e.target.value = ""; }} />
+                </label>
+              )}
+            </div>
+          )}
 
           <div className="flex items-center justify-end gap-2 pt-4 border-t border-[#333]">
             <button type="button" onClick={onClose}
