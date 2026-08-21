@@ -6,20 +6,10 @@ interface LogoProps {
   size?: "sm" | "md" | "lg";
 }
 
-const W = 110, H = 28, MAX_H = 26, MAX_W = 106;
-
-const wrap: React.CSSProperties = {
-  width: W, height: H, borderRadius: 6, flexShrink: 0,
-  display: "flex", alignItems: "center", justifyContent: "center",
-};
-
-const img: React.CSSProperties = {
-  maxHeight: MAX_H, maxWidth: MAX_W, objectFit: "contain",
-};
-
 // Module-level cache so canvas work is done once per session per image
 const _cache = new Map<string, string>();
 
+/** Remove near-white pixels AND crop to tight bounding box of remaining content */
 function removeWhiteBg(src: string, threshold = 238): Promise<string> {
   if (_cache.has(src)) return Promise.resolve(_cache.get(src)!);
   return new Promise((resolve) => {
@@ -34,15 +24,43 @@ function removeWhiteBg(src: string, threshold = 238): Promise<string> {
       try {
         const id = ctx.getImageData(0, 0, c.width, c.height);
         const d = id.data;
+
+        // 1. Remove near-white pixels
         for (let i = 0; i < d.length; i += 4) {
           if (d[i] >= threshold && d[i + 1] >= threshold && d[i + 2] >= threshold) {
-            d[i + 3] = 0; // make near-white pixels transparent
+            d[i + 3] = 0;
           }
         }
         ctx.putImageData(id, 0, 0);
-        const url = c.toDataURL("image/png");
-        _cache.set(src, url);
-        resolve(url);
+
+        // 2. Find tight bounding box of non-transparent pixels
+        let minX = c.width, maxX = 0, minY = c.height, maxY = 0;
+        for (let y = 0; y < c.height; y++) {
+          for (let x = 0; x < c.width; x++) {
+            if (d[(y * c.width + x) * 4 + 3] > 10) {
+              if (x < minX) minX = x;
+              if (x > maxX) maxX = x;
+              if (y < minY) minY = y;
+              if (y > maxY) maxY = y;
+            }
+          }
+        }
+
+        // 3. Crop to bounding box (removes invisible whitespace padding)
+        const cropW = maxX - minX + 1;
+        const cropH = maxY - minY + 1;
+        if (cropW > 4 && cropH > 4) {
+          const c2 = document.createElement("canvas");
+          c2.width = cropW; c2.height = cropH;
+          c2.getContext("2d")!.drawImage(c, minX, minY, cropW, cropH, 0, 0, cropW, cropH);
+          const url = c2.toDataURL("image/png");
+          _cache.set(src, url);
+          resolve(url);
+        } else {
+          const url = c.toDataURL("image/png");
+          _cache.set(src, url);
+          resolve(url);
+        }
       } catch {
         resolve(src); // CORS fallback — show original
       }
@@ -52,52 +70,77 @@ function removeWhiteBg(src: string, threshold = 238): Promise<string> {
   });
 }
 
-// Hook: returns transparent version in dark mode, original in light mode
+/** Returns null while processing (hides flicker), then the processed URL */
 function useDarkLogo(src: string, isLight: boolean) {
-  const [processed, setProcessed] = useState(src);
+  // In light mode, cache hit, or first paint: resolve synchronously from cache
+  const cached = _cache.get(src);
+  const [processed, setProcessed] = useState<string | null>(
+    isLight ? src : (cached ?? null)
+  );
+
   useEffect(() => {
     if (isLight) { setProcessed(src); return; }
+    if (_cache.has(src)) { setProcessed(_cache.get(src)!); return; }
+    setProcessed(null);
     removeWhiteBg(src).then(setProcessed);
   }, [src, isLight]);
-  return processed;
+
+  return processed; // null = still processing, render nothing until ready
 }
+
+const wrapStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  height: "100%",
+  flexShrink: 0,
+};
+const imgStyle: React.CSSProperties = {
+  maxHeight: 30,
+  maxWidth: 148,
+  width: "auto",
+  height: "auto",
+  objectFit: "contain",
+  display: "block",
+};
 
 export const RubysLogo: React.FC<LogoProps> = ({ isLight = false }) => {
   const src = useDarkLogo("/logos/rubys.png", isLight);
-  return <div style={wrap}><img src={src} alt="Ruby's Pizzeria & Grill" style={img} /></div>;
+  if (!src) return <div style={{ width: 110, height: 30 }} />;
+  return <div style={wrapStyle}><img src={src} alt="Ruby's Pizzeria & Grill" style={imgStyle} /></div>;
 };
 
 export const TILogo: React.FC<LogoProps> = ({ isLight = false }) => {
   const src = useDarkLogo("/logos/ti.png", isLight);
-  return <div style={wrap}><img src={src} alt="Timm Investments LLC" style={img} /></div>;
+  if (!src) return <div style={{ width: 110, height: 30 }} />;
+  return <div style={wrapStyle}><img src={src} alt="Timm Investments LLC" style={imgStyle} /></div>;
 };
 
-// MSDx has a DARK background with white text — canvas white-removal would erase the text.
-// Instead: in light mode invert so the dark bg flips to white and text becomes dark/readable.
-// In dark mode: dark bg blends naturally with the dark sidebar — no processing needed.
+// MSDx has a dark background — canvas white-removal would erase the text.
+// Light mode: invert so dark bg → white. Dark mode: blends naturally with sidebar.
 export const MSDxLogo: React.FC<LogoProps> = ({ isLight = false }) => (
-  <div style={wrap}>
+  <div style={wrapStyle}>
     <img
       src="/logos/msdx.png"
       alt="Mobile Swallowing Diagnostics"
-      style={{ ...img, filter: isLight ? "invert(1) hue-rotate(180deg)" : "none" }}
+      style={{ ...imgStyle, filter: isLight ? "invert(1) hue-rotate(180deg)" : "none" }}
     />
   </div>
 );
 
-const curcuminImg: React.CSSProperties = { maxHeight: 42, maxWidth: 130, objectFit: "contain" };
-
 export const CurcuminLogo: React.FC<LogoProps> = ({ isLight = false }) => {
   const src = useDarkLogo("/logos/curcuminpro.jpg", isLight);
-  return <div style={wrap}><img src={src} alt="CurcuminPRO" style={curcuminImg} /></div>;
+  if (!src) return <div style={{ width: 130, height: 36 }} />;
+  return <div style={wrapStyle}><img src={src} alt="CurcuminPRO" style={{ ...imgStyle, maxHeight: 36, maxWidth: 155 }} /></div>;
 };
 
 export const ZiglarLogo: React.FC<LogoProps> = ({ isLight = false }) => {
   const src = useDarkLogo("/logos/ziglar.jpg", isLight);
-  return <div style={wrap}><img src={src} alt="Ziglar" style={img} /></div>;
+  if (!src) return <div style={{ width: 110, height: 30 }} />;
+  return <div style={wrapStyle}><img src={src} alt="Ziglar" style={imgStyle} /></div>;
 };
 
 export const FourYrLogo: React.FC<LogoProps> = ({ isLight = false }) => {
   const src = useDarkLogo("/logos/4yr.png", isLight);
-  return <div style={wrap}><img src={src} alt="4You Pros" style={img} /></div>;
+  if (!src) return <div style={{ width: 110, height: 30 }} />;
+  return <div style={wrapStyle}><img src={src} alt="4You Pros" style={imgStyle} /></div>;
 };
