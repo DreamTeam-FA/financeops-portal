@@ -622,9 +622,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => {
     const unsubscribe = initAuthListener(
       (user, _token) => {
+        // Restore user/token silently for Sheets access, but do NOT dismiss
+        // the login gate — the gate only opens after an explicit button click.
         setGoogleUser(user);
-        setUserEmail(user.email || "accounting@marktimm.com");
-        setNeedsAuth(false);
         startAutoTokenRefresh();
         // Fetch available AP sheet tabs so the portal picks up any new entities
         const tok = getAccessToken();
@@ -842,7 +842,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setGoogleUser(res.user);
         setUserEmail(res.user.email || "accounting@marktimm.com");
         setNeedsAuth(false);
-        sessionStorage.setItem("financeops_session_authed", "true");
         // Tell other open tabs that we're now authenticated
         try {
           const ch = new BroadcastChannel("financeops_auth");
