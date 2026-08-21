@@ -2,12 +2,13 @@
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { Users, Filter, CheckCircle2 } from "lucide-react";
+import { TimesheetScanner } from "./TimesheetScanner";
 
 export const PayrollPage: React.FC = () => {
   const { payrollWeeks, payrollPivot, apBills, theme } = useFinance();
   const isLight = theme === "light";
 
-  const [activeTab, setActiveTab] = useState<"weekly" | "detail" | "history">("weekly");
+  const [activeTab, setActiveTab] = useState<"weekly" | "detail" | "history" | "scan">("weekly");
   const [selectedWeekNum, setSelectedWeekNum] = useState<string>("W28");
   const [selectedCompany, setSelectedCompany] = useState<string>("ALL");
 
@@ -73,7 +74,8 @@ export const PayrollPage: React.FC = () => {
         tabs={[
           { id: "weekly", label: "Weekly Summary Pivot" },
           { id: "detail", label: "Employee Line Items" },
-          { id: "history", label: "Payroll History Log" }
+          { id: "history", label: "Payroll History Log" },
+          { id: "scan", label: "📷 Scan Timesheet" }
         ]}
         activeTab={activeTab}
         onTabChange={(t) => setActiveTab(t as any)}
@@ -224,6 +226,19 @@ export const PayrollPage: React.FC = () => {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Timesheet Scanner */}
+        {activeTab === "scan" && (
+          <div className={`border rounded-xl p-4 ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"}`}>
+            <div className="mb-4">
+              <h4 className={`font-bold text-sm ${isLight ? "text-slate-900" : "text-white"}`}>Handwritten Timesheet Scanner</h4>
+              <p className={`text-xs mt-1 ${isLight ? "text-slate-500" : "text-[#888]"}`}>
+                Drop or tap a photo of any handwritten timesheet — the AI reads the employee name, dates, clock-in/out times, and daily hours automatically.
+              </p>
+            </div>
+            <TimesheetScanner isLight={isLight} />
           </div>
         )}
 

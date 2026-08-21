@@ -19,6 +19,7 @@ import { FourYrPayrollPage } from "./components/pages/FourYrPayrollPage";
 import { LogsPage } from "./components/pages/LogsPage";
 import { NotesFloatingWidget } from "./components/modals/NotesFloatingWidget";
 import { AlertsProvider, AlertsToasts } from "./components/AlertsCenter";
+import { TooltipProvider } from "./components/Tooltip";
 import { LoginModal } from "./components/modals/LoginModal";
 import {
   LayoutDashboard,
@@ -344,7 +345,9 @@ export default function App() {
   return (
     <FinanceProvider>
       <AlertsProvider>
-        <PortalContent />
+        <TooltipProvider>
+          <PortalContent />
+        </TooltipProvider>
       </AlertsProvider>
     </FinanceProvider>
   );

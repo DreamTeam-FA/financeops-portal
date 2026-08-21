@@ -8,6 +8,7 @@ import { Search, ChevronDown, ChevronRight, PauseCircle, Eye, AlertTriangle, X, 
 import { AddBillModal } from "../modals/AddBillModal";
 import { EditBillModal } from "../modals/EditBillModal";
 import { BillDetailsModal } from "../modals/BillDetailsModal";
+import { InvoiceScanner } from "./InvoiceScanner";
 
 export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filterEntityOverride }) => {
   const {
@@ -22,7 +23,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
 
   const isLight = theme === "light";
 
-  const [activeTab, setActiveTab] = useState<"due" | "paid" | "summary">("due");
+  const [activeTab, setActiveTab] = useState<"due" | "paid" | "summary" | "scan">("due");
   const [searchTerm, setSearchTerm] = useState("");
   const [companyFilter, setCompanyFilter] = useState("ALL");
   const [vendorFilter, setVendorFilter] = useState("ALL");
@@ -452,7 +453,8 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
         tabs={[
           { id: "due", label: "Due Bills" },
           { id: "paid", label: "Paid Bills" },
-          { id: "summary", label: "Summary KPI" }
+          { id: "summary", label: "Summary KPI" },
+          { id: "scan", label: "📷 Scan Bill" }
         ]}
         activeTab={activeTab}
         onTabChange={(tab) => setActiveTab(tab as any)}
@@ -708,6 +710,19 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* SCAN BILL TAB */}
+        {activeTab === "scan" && (
+          <div className={`border rounded-xl p-4 ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"}`}>
+            <div className="mb-4">
+              <h4 className={`font-bold text-sm ${isLight ? "text-slate-900" : "text-white"}`}>Invoice & Bill Scanner</h4>
+              <p className={`text-xs mt-1 ${isLight ? "text-slate-500" : "text-[#888]"}`}>
+                Drop a photo of a printed or handwritten bill — AI reads the vendor, amount, due date, and invoice number. Verify the details, then save directly to your AP bills.
+              </p>
+            </div>
+            <InvoiceScanner isLight={isLight} />
           </div>
         )}
       </div>

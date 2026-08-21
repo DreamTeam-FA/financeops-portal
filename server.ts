@@ -477,6 +477,202 @@ app.post("/api/audit-log", (req, res) => {
   res.json({ success: true, log: newLog });
 });
 
+// =============================================================================
+// Timesheet Scanner — Gemini Vision API
+// =============================================================================
+
+// POST /api/invoice/scan — Gemini Vision extracts bill/invoice data
+app.post("/api/invoice/scan", async (req, res) => {
+  const { imageBase64, mimeType } = req.body || {};
+  if (!imageBase64) return res.status(400).json({ error: "imageBase64 required" });
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return res.status(500).json({ error: "GEMINI_API_KEY not configured" });
+
+  const prompt = `You are a bill/invoice data extraction assistant. Extract all data from this invoice or bill image.
+
+Return ONLY valid JSON matching this exact schema (no markdown, no explanation):
+{
+  "vendor": "string",
+  "invoiceNo": "string or null",
+  "amount": number or null,
+  "dueDate": "YYYY-MM-DD or MM/DD/YYYY or string, null if not found",
+  "issueDate": "YYYY-MM-DD or string, null if not found",
+  "entity": "string (which company this bill belongs to, e.g. Ruby's, TI, MSDx — infer from context if possible, otherwise empty string)",
+  "description": "string (short description of what the bill is for)",
+  "remarks": "string (any additional notes, payment instructions, or reference numbers)"
+}
+
+Notes:
+- "amount" should be the total due as a number (no $ symbol), null if not clearly readable
+- "invoiceNo" is the invoice number, bill number, or reference number — null if absent
+- "entity" try to infer from the recipient name on the bill
+- Be as accurate as possible; leave fields null rather than guessing incorrectly`;
+
+  try {
+    const body = {
+      contents: [{
+        parts: [
+          { text: prompt },
+          { inline_data: { mime_type: mimeType || "image/jpeg", data: imageBase64 } }
+        ]
+      }],
+      generationConfig: { temperature: 0.1, maxOutputTokens: 512 }
+    };
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+
+    if (!r.ok) {
+      const txt = await r.text();
+      return res.status(502).json({ error: "Gemini API error", details: txt });
+    }
+
+    const geminiResp = await r.json() as any;
+    const raw = geminiResp?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const cleaned = raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
+    let parsed: any;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch {
+      return res.status(422).json({ error: "Could not parse Gemini response as JSON", raw });
+    }
+    res.json({ ok: true, invoice: parsed });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || String(e) });
+  }
+});
+
+// POST /api/ap/add-scanned-bill — save an AI-scanned bill to AP data
+app.post("/api/ap/add-scanned-bill", (req, res) => {
+  const bill = req.body || {};
+  if (!bill.vendor) return res.status(400).json({ error: "vendor required" });
+  const data = getStoredData();
+  const newBill = {
+    id: `ap-scan-${Date.now()}`,
+    vendor: bill.vendor,
+    entity: bill.entity || "",
+    company: bill.entity || "",
+    amount: typeof bill.amount === "number" ? bill.amount : 0,
+    dueDate: bill.dueDate || "",
+    issueDate: bill.issueDate || "",
+    status: "open",
+    sheet: "Scanned",
+    invoiceNo: bill.invoiceNo || "",
+    remarks: bill.remarks || "",
+    description: bill.description || "",
+    createdAt: new Date().toISOString(),
+    scanned: true,
+  };
+  data.ap = [newBill, ...(data.ap || [])];
+  saveStoredData(data);
+  res.json({ ok: true, bill: newBill });
+});
+
+app.post("/api/timesheet/scan", async (req, res) => {
+  const { imageBase64, mimeType } = req.body || {};
+  if (!imageBase64) return res.status(400).json({ error: "imageBase64 required" });
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return res.status(500).json({ error: "GEMINI_API_KEY not configured" });
+
+  const prompt = `You are a timesheet data extraction assistant. Extract all data from this handwritten timesheet image.
+
+Return ONLY valid JSON matching this exact schema (no markdown, no explanation):
+{
+  "employeeName": "string",
+  "weekStart": "YYYY-MM-DD or MM/DD",
+  "weekEnd": "YYYY-MM-DD or MM/DD",
+  "submittedOn": "MM/DD/YYYY or string",
+  "job": "string",
+  "weeklyTotalHours": number or null,
+  "days": [
+    {
+      "dayOfWeek": "string",
+      "date": "string (MM/DD or MM-DD)",
+      "clockIn": "string (HH:MM or H:MM)",
+      "clockOut": "string (HH:MM or H:MM)",
+      "totalHours": number or null
+    }
+  ]
+}
+
+Notes:
+- Extract employee name from the top area
+- "weeklyTotalHours" is the grand weekly total, usually at the bottom
+- For "totalHours" in each day, try to parse values like "8½" as 8.5
+- If a day column is blank/empty, omit it from the days array
+- Time like "6:30" stays as "6:30", do not add AM/PM`;
+
+  try {
+    const body = {
+      contents: [{
+        parts: [
+          { text: prompt },
+          { inline_data: { mime_type: mimeType || "image/jpeg", data: imageBase64 } }
+        ]
+      }],
+      generationConfig: { temperature: 0.1, maxOutputTokens: 1024 }
+    };
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+
+    if (!r.ok) {
+      const txt = await r.text();
+      console.error("[TimesheetScan] Gemini error:", txt);
+      return res.status(502).json({ error: "Gemini API error", details: txt });
+    }
+
+    const geminiResp = await r.json() as any;
+    const raw = geminiResp?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+    // Strip markdown fences if present
+    const cleaned = raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
+    let parsed: any;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch {
+      return res.status(422).json({ error: "Could not parse Gemini response as JSON", raw });
+    }
+
+    res.json({ ok: true, timesheet: parsed });
+  } catch (e: any) {
+    console.error("[TimesheetScan] Unexpected error:", e);
+    res.status(500).json({ error: e?.message || String(e) });
+  }
+});
+
+// POST /api/timesheet/save — saves a verified scanned timesheet to a local log
+app.post("/api/timesheet/save", (req, res) => {
+  const entry = req.body || {};
+  if (!entry.employeeName) return res.status(400).json({ error: "employeeName required" });
+  const data = getStoredData() as any;
+  if (!data.scannedTimesheets) data.scannedTimesheets = [];
+  const saved = {
+    id: `ts-${Date.now()}`,
+    savedAt: new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }),
+    ...entry
+  };
+  data.scannedTimesheets = [saved, ...data.scannedTimesheets.slice(0, 199)];
+  saveStoredData(data);
+  res.json({ ok: true, entry: saved });
+});
+
+// GET /api/timesheet/saved — list saved scanned timesheets
+app.get("/api/timesheet/saved", (_req, res) => {
+  const data = getStoredData() as any;
+  res.json(data.scannedTimesheets || []);
+});
+
 // Logs sheet ID — persists the ID of the Google Sheet used as the permanent log store
 app.get("/api/logs-sheet-id", (_req, res) => {
   const data = getStoredData();
