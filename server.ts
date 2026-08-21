@@ -819,11 +819,13 @@ Notes:
     const start = raw.indexOf("{");
     const end   = raw.lastIndexOf("}");
     const cleaned = start !== -1 && end > start ? raw.slice(start, end + 1) : raw.trim();
+    console.log(`[TimesheetScan] Full cleaned (first 800): ${cleaned.slice(0, 800)}`);
     let parsed: any;
     try {
       parsed = JSON.parse(cleaned);
-    } catch {
-      return res.status(422).json({ error: "Could not parse response as JSON", raw });
+    } catch (parseErr: any) {
+      console.error(`[TimesheetScan] JSON.parse failed: ${parseErr?.message} | cleaned length: ${cleaned.length}`);
+      return res.status(422).json({ error: "Could not parse response as JSON", raw, cleaned: cleaned.slice(0, 500) });
     }
 
     res.json({ ok: true, timesheet: parsed });
