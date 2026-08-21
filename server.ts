@@ -612,7 +612,7 @@ async function callGemini(apiKey: string, prompt: string, imageBase64: string, m
       if (r.ok) {
         const resp = await r.json() as any;
         const text = resp?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-        console.log(`[Vision] Gemini model used: ${model}`);
+        console.log(`[Vision] Gemini model used: ${model} | raw response (first 300): ${text.slice(0, 300)}`);
         return { ok: true, text };
       }
       const errBody = await r.json().catch(() => ({})) as any;
@@ -710,9 +710,9 @@ app.post("/api/invoice/scan", async (req, res) => {
   const { imageBase64, mimeType } = req.body || {};
   if (!imageBase64) return res.status(400).json({ error: "imageBase64 required" });
 
-  const prompt = `You are a bill/invoice data extraction assistant. Extract all data from this invoice or bill image.
+  const prompt = `Extract invoice/bill data from this image. Respond with ONLY a raw JSON object — no markdown fences, no explanation, no preamble, just the JSON object starting with { and ending with }.
 
-Return ONLY valid JSON matching this exact schema (no markdown, no explanation):
+Schema:
 {
   "vendor": "string",
   "invoiceNo": "string or null",
@@ -780,9 +780,9 @@ app.post("/api/timesheet/scan", async (req, res) => {
   const { imageBase64, mimeType } = req.body || {};
   if (!imageBase64) return res.status(400).json({ error: "imageBase64 required" });
 
-  const prompt = `You are a timesheet data extraction assistant. Extract all data from this handwritten timesheet image.
+  const prompt = `Extract timesheet data from this image. Respond with ONLY a raw JSON object — no markdown fences, no explanation, no preamble, just the JSON object starting with { and ending with }.
 
-Return ONLY valid JSON matching this exact schema (no markdown, no explanation):
+Schema:
 {
   "employeeName": "string",
   "weekStart": "YYYY-MM-DD or MM/DD",
