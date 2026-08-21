@@ -737,12 +737,19 @@ Notes:
     const raw = result.text;
     const start = raw.indexOf("{");
     const end   = raw.lastIndexOf("}");
-    const cleaned = start !== -1 && end > start ? raw.slice(start, end + 1) : raw.trim();
+    let cleaned = start !== -1 && end > start ? raw.slice(start, end + 1) : raw.trim();
+    cleaned = cleaned
+      .replace(/(\d+)½/g, (_, n) => String(parseFloat(n) + 0.5))
+      .replace(/(\d+)¼/g, (_, n) => String(parseFloat(n) + 0.25))
+      .replace(/(\d+)¾/g, (_, n) => String(parseFloat(n) + 0.75))
+      .replace(/½/g, "0.5").replace(/¼/g, "0.25").replace(/¾/g, "0.75");
+    console.log(`[InvoiceScan] Full cleaned (first 800): ${cleaned.slice(0, 800)}`);
     let parsed: any;
     try {
       parsed = JSON.parse(cleaned);
-    } catch {
-      return res.status(422).json({ error: "Could not parse response as JSON", raw });
+    } catch (parseErr: any) {
+      console.error(`[InvoiceScan] JSON.parse failed: ${parseErr?.message} | cleaned length: ${cleaned.length}`);
+      return res.status(422).json({ error: "Could not parse response as JSON", raw, cleaned: cleaned.slice(0, 500) });
     }
     res.json({ ok: true, invoice: parsed });
   } catch (e: any) {
