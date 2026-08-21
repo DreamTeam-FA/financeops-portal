@@ -520,7 +520,7 @@ Notes:
       generationConfig: { temperature: 0.1, maxOutputTokens: 512 }
     };
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     const r = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -619,7 +619,7 @@ Notes:
       generationConfig: { temperature: 0.1, maxOutputTokens: 1024 }
     };
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     const r = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
