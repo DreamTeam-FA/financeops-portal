@@ -209,7 +209,7 @@ export const AlertsPanel: React.FC<{ isLight: boolean }> = ({ isLight }) => {
   return (
     <div
       ref={ref}
-      className={`absolute bottom-full left-0 right-0 mb-2 mx-1 rounded-xl overflow-hidden z-50 shadow-2xl border ${
+      className={`absolute top-full left-0 right-0 mt-1 mx-1 rounded-xl overflow-hidden z-50 shadow-2xl border ${
         isLight ? "bg-white border-slate-200" : "border-[#1e2d45]"
       }`}
       style={isLight ? {} : {

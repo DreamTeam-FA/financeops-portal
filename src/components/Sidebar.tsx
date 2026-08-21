@@ -203,11 +203,13 @@ export const Sidebar: React.FC = () => {
       </div>
 
       {/* Main Dashboards Section */}
-      <div className="px-2 pt-3 pb-2">
+      <div className="px-2 pt-3 pb-2 relative">
+        <AlertsPanel isLight={isLight} />
         {!isSidebarFolded && (
           <div className={`flex items-center gap-2 px-3 mb-1.5`}>
             <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#3d5478]"}`}>Dashboards</span>
             <div className={`flex-1 h-px ${isLight ? "bg-slate-200" : "bg-[#1a2235]"}`} />
+            <AlertsBell isLight={isLight} />
           </div>
         )}
         {navItems.map((item) => {
@@ -709,8 +711,7 @@ export const Sidebar: React.FC = () => {
       <div className="flex-1 min-h-[16px]" />
 
       {/* Sidebar Footer */}
-      <div className={`border-t ${isLight ? "border-slate-200" : "border-[#1a2235]"} p-2 shrink-0 relative ${isLight ? "" : "bg-[#060a11]"}`}>
-        <AlertsPanel isLight={isLight} />
+      <div className={`border-t ${isLight ? "border-slate-200" : "border-[#1a2235]"} p-2 shrink-0 ${isLight ? "" : "bg-[#060a11]"}`}>
         {!isSidebarFolded ? (
           <>
             <div className="flex items-center gap-2.5 px-2 pb-2">
@@ -733,7 +734,6 @@ export const Sidebar: React.FC = () => {
                 <UserIcon className="w-3.5 h-3.5 text-purple-500" />
                 Change User
               </button>
-              <AlertsBell isLight={isLight} />
               <GearDropdown variant="wide" />
               <button
                 onClick={syncAllFromGoogleSheets}
