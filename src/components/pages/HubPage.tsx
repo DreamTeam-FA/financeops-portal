@@ -4,7 +4,8 @@ import { PageHeader } from "../PageHeader";
 import { getUserGreetingName, getViewerFormattedTime } from "../../utils/userGreeting";
 import {
   CreditCard, Building2, Receipt, Users, Landmark, TrendingDown,
-  FileText, CalendarDays, Activity, ArrowUpRight, ShieldCheck
+  FileText, CalendarDays, Activity, ArrowUpRight, ShieldCheck,
+  X, AlertTriangle, CheckCircle2, Info, Zap
 } from "lucide-react";
 import { PageRoute } from "../../types";
 
@@ -21,6 +22,20 @@ export const HubPage: React.FC = () => {
     const t = setInterval(() => setCurrentTimeStr(getViewerFormattedTime()), 10000);
     return () => clearInterval(t);
   }, []);
+
+  // Daily briefing modal — shows once per session
+  const SESSION_KEY = "briefing_shown_" + new Date().toDateString();
+  const [showBriefing, setShowBriefing] = useState(false);
+  useEffect(() => {
+    if (!sessionStorage.getItem(SESSION_KEY)) {
+      const t = setTimeout(() => setShowBriefing(true), 1400);
+      return () => clearTimeout(t);
+    }
+  }, []);
+  const dismissBriefing = () => {
+    sessionStorage.setItem(SESSION_KEY, "1");
+    setShowBriefing(false);
+  };
 
   const greetingName = getUserGreetingName(userEmail, googleUser?.displayName);
 
@@ -117,9 +132,116 @@ export const HubPage: React.FC = () => {
   const kpiCard = (bg: string) =>
     `kpi-card ${bg}`;
 
+  // ── Daily briefing data ───────────────────────────────────────────────────
+  const briefingHour = new Date().getHours();
+  const briefingCtx  = briefingHour < 12 ? "morning" : briefingHour < 17 ? "afternoon" : "evening";
+  const briefingIntro: Record<string, string> = {
+    morning:   "Here's what's on your plate today.",
+    afternoon: "Here's where things stand right now.",
+    evening:   "Here's your end-of-day snapshot.",
+  };
+
+  type BriefItem = { icon: React.ReactNode; label: string; detail: string; level: "critical" | "warn" | "ok" | "info"; page?: PageRoute };
+  const briefItems: BriefItem[] = [];
+
+  if (overdueBills.length > 0)
+    briefItems.push({ icon: <AlertTriangle className="w-3.5 h-3.5" />, label: "Overdue AP Bills", detail: `${overdueBills.length} bill${overdueBills.length > 1 ? "s" : ""} past due`, level: "critical", page: "ap" });
+  if (dueSoon.length > 0)
+    briefItems.push({ icon: <CreditCard className="w-3.5 h-3.5" />, label: "Bills Due This Week", detail: `${dueSoon.length} upcoming payment${dueSoon.length > 1 ? "s" : ""}`, level: "warn", page: "ap" });
+  if (overdueAR.length > 0)
+    briefItems.push({ icon: <Receipt className="w-3.5 h-3.5" />, label: "Overdue AR", detail: `${overdueAR.length} invoice${overdueAR.length > 1 ? "s" : ""} uncollected`, level: "critical", page: "ar" });
+  if (criticalAccounts.length > 0)
+    briefItems.push({ icon: <Landmark className="w-3.5 h-3.5" />, label: "Low Bank Accounts", detail: `${criticalAccounts.length} account${criticalAccounts.length > 1 ? "s" : ""} below $500`, level: "critical", page: "bank" });
+  else if (lowAccounts.length > 0)
+    briefItems.push({ icon: <Landmark className="w-3.5 h-3.5" />, label: "Watch: Bank Balances", detail: `${lowAccounts.length} account${lowAccounts.length > 1 ? "s" : ""} below $1,000`, level: "warn", page: "bank" });
+  if (todayEvents.length > 0)
+    briefItems.push({ icon: <CalendarDays className="w-3.5 h-3.5" />, label: "Events Today", detail: `${todayEvents.length} item${todayEvents.length > 1 ? "s" : ""} on the calendar`, level: "info", page: "calendar" });
+  if (openNotes.length > 0)
+    briefItems.push({ icon: <FileText className="w-3.5 h-3.5" />, label: "Open Tasks", detail: `${openNotes.length} pending note${openNotes.length > 1 ? "s" : ""}`, level: "info" });
+  if (briefItems.length === 0)
+    briefItems.push({ icon: <CheckCircle2 className="w-3.5 h-3.5" />, label: "All Clear", detail: "No urgent items — you're in good shape today.", level: "ok" });
+
+  const levelStyle: Record<BriefItem["level"], { dot: string; text: string; bg: string }> = {
+    critical: { dot: "bg-red-500",    text: "text-red-400",    bg: isLight ? "bg-red-50 border-red-200"    : "bg-red-500/8 border-red-500/20" },
+    warn:     { dot: "bg-amber-400",  text: "text-amber-400",  bg: isLight ? "bg-amber-50 border-amber-200" : "bg-amber-500/8 border-amber-500/20" },
+    info:     { dot: "bg-blue-400",   text: "text-blue-400",   bg: isLight ? "bg-blue-50 border-blue-200"   : "bg-blue-500/8 border-blue-500/20" },
+    ok:       { dot: "bg-emerald-400",text: "text-emerald-400",bg: isLight ? "bg-emerald-50 border-emerald-200" : "bg-emerald-500/8 border-emerald-500/20" },
+  };
+
   return (
     <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#070b12] text-[#e2e8f0]"}`}>
       <PageHeader title="Finance Overview" bgClass="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 border-b border-white/10" />
+
+      {/* ── Daily Briefing Modal ─────────────────────────────────────────── */}
+      {showBriefing && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(4,7,14,0.72)", backdropFilter: "blur(6px)" }}
+          onClick={dismissBriefing}
+        >
+          <div
+            className={`relative w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl ${isLight ? "bg-white border border-slate-200" : "border border-[#1e2d45]"}`}
+            style={isLight ? {} : { background: "linear-gradient(145deg, #0d1525 0%, #0a1020 100%)", boxShadow: "0 24px 64px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.04)" }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="px-5 pt-5 pb-3 flex items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 mb-0.5">
+                  <Zap className="w-4 h-4 text-amber-400" />
+                  <span className={`text-[11px] font-bold uppercase tracking-widest ${isLight ? "text-slate-400" : "text-[#4a6080]"}`}>Daily Briefing</span>
+                </div>
+                <h3 className={`text-[17px] font-bold leading-snug ${isLight ? "text-slate-900" : "text-white"}`}>
+                  {getTimeGreeting()}, <span className={isLight ? "text-blue-600" : "text-blue-400"}>{greetingName}</span>
+                </h3>
+                <p className={`text-[12px] mt-0.5 ${isLight ? "text-slate-500" : "text-[#5a7090]"}`}>{briefingIntro[briefingCtx]}</p>
+              </div>
+              <button
+                onClick={dismissBriefing}
+                className={`mt-0.5 p-1.5 rounded-lg transition-colors shrink-0 ${isLight ? "hover:bg-slate-100 text-slate-400" : "hover:bg-white/6 text-[#4a6080]"}`}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Divider */}
+            <div className={`mx-5 h-px ${isLight ? "bg-slate-100" : "bg-[#1a2a3a]"}`} />
+
+            {/* Items */}
+            <div className="px-4 py-3 space-y-2 max-h-72 overflow-y-auto">
+              {briefItems.map((item, i) => {
+                const s = levelStyle[item.level];
+                return (
+                  <div
+                    key={i}
+                    onClick={() => { if (item.page) { setCurrentPage(item.page); dismissBriefing(); } }}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all ${s.bg} ${item.page ? "cursor-pointer hover:scale-[1.01]" : ""}`}
+                    style={{ transition: "transform 0.15s ease, box-shadow 0.15s ease" }}
+                  >
+                    <span className={`${s.text} shrink-0`}>{item.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className={`text-[12px] font-semibold leading-tight ${isLight ? "text-slate-800" : "text-[#c8d8e8]"}`}>{item.label}</div>
+                      <div className={`text-[11px] mt-0.5 ${isLight ? "text-slate-500" : "text-[#5a7090]"}`}>{item.detail}</div>
+                    </div>
+                    {item.page && <ArrowUpRight className={`w-3 h-3 shrink-0 ${s.text} opacity-60`} />}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer */}
+            <div className={`px-5 py-3 border-t flex items-center justify-between ${isLight ? "border-slate-100" : "border-[#1a2a3a]"}`}>
+              <span className={`text-[11px] ${isLight ? "text-slate-400" : "text-[#3d5478]"}`}>{currentTimeStr}</span>
+              <button
+                onClick={dismissBriefing}
+                className={`text-[12px] font-semibold px-3 py-1.5 rounded-lg transition-colors ${isLight ? "bg-slate-900 text-white hover:bg-slate-700" : "bg-white/8 text-[#a0b8d0] hover:bg-white/12"}`}
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
 
