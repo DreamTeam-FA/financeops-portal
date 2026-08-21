@@ -1570,6 +1570,20 @@ export function FourYrPayrollPage() {
                     {tscanResult.days.map((day: any, i: number) => (
                       <button key={i} type="button"
                         onClick={() => {
+                          // Normalize time to HH:MM 24-hour format for <input type="time">
+                          const normTime = (t: string, isEnd = false) => {
+                            if (!t) return "";
+                            // Strip seconds if present (HH:MM:SS → HH:MM)
+                            const parts = t.replace(/[ap]m/i, "").trim().split(":");
+                            let h = parseInt(parts[0] || "0", 10);
+                            const m = (parts[1] || "00").slice(0, 2).padStart(2, "0");
+                            // If hour is suspiciously small for an end time, assume PM
+                            if (isEnd && h > 0 && h < 7) h += 12;
+                            // If AM/PM present in original, handle it
+                            if (/pm/i.test(t) && h < 12) h += 12;
+                            if (/am/i.test(t) && h === 12) h = 0;
+                            return `${String(h).padStart(2, "0")}:${m}`;
+                          };
                           // Parse date from timesheet (YYYY-MM-DD or MM/DD/YYYY)
                           let dateFmt = day.date || "";
                           if (/^\d{4}-\d{2}-\d{2}$/.test(dateFmt)) {
@@ -1580,8 +1594,8 @@ export function FourYrPayrollPage() {
                             ...f,
                             name: tscanResult.employeeName || f.name,
                             date: dateFmt,
-                            started: day.clockIn || "",
-                            finished: day.clockOut || "",
+                            started: normTime(day.clockIn || ""),
+                            finished: normTime(day.clockOut || "", true),
                             hours: day.totalHours != null ? String(day.totalHours) : f.hours,
                             job: tscanResult.job || f.job,
                           }));

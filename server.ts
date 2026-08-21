@@ -815,7 +815,8 @@ Notes:
 - "weeklyTotalHours" is the grand weekly total, usually at the bottom
 - For "totalHours" in each day, try to parse values like "8½" as 8.5
 - If a day column is blank/empty, omit it from the days array
-- Time like "6:30" stays as "6:30", do not add AM/PM`;
+- Output all times in 24-hour HH:MM format with leading zeros: "06:30" not "6:30", "15:00" not "3:00"
+- Clock-in times are typically morning (06:00–09:00), clock-out times are typically afternoon (14:00–18:00) — use this to infer AM vs PM when converting to 24-hour`;
 
   try {
     const result = await callVisionLLM(prompt, imageBase64, mimeType || "image/jpeg", 8192);
