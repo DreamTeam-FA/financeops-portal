@@ -502,9 +502,12 @@ async function getOrCreateFolder(drive: any, parentId: string, name: string): Pr
   return created.data.id as string;
 }
 
-/** Ensure the full path exists under root, return the leaf folder ID. */
+// Shared central Drive folder — all bill copies go here regardless of who's logged in
+const BILLS_ROOT_FOLDER_ID = "1AzwpWEMdyp1SEeNtXrie5171cSk5L7Za";
+
+/** Ensure the full path exists under the bills root folder, return the leaf folder ID. */
 async function ensurePath(drive: any, segments: string[]): Promise<string> {
-  let parentId = "root";
+  let parentId = BILLS_ROOT_FOLDER_ID;
   for (const seg of segments) parentId = await getOrCreateFolder(drive, parentId, seg);
   return parentId;
 }
@@ -540,8 +543,6 @@ app.post("/api/drive/upload-bill", async (req, res) => {
     const entityFolder = (entity || "Other").replace(/[/\\:*?"<>|]/g, "-");
 
     const folderId = await ensurePath(drive, [
-      "FinanceOps Portal",
-      "Bills & Invoices",
       entityFolder,
       year,
       month,
