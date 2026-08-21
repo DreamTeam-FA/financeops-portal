@@ -393,14 +393,14 @@ export const CalendarPage: React.FC = () => {
   };
 
   const getChipStyle = (type: string, category?: string, urgency?: string) => {
-    if (type === "loan")    return { border: "border-l-2 border-purple-500", bg: isLight ? "bg-purple-500/15" : "bg-purple-500/20", text: isLight ? "text-purple-900" : "text-purple-200", shadow: "shadow-[0_1px_4px_rgba(168,85,247,.25)]" };
-    if (type === "ar")      return { border: "border-l-2 border-emerald-500", bg: isLight ? "bg-emerald-500/15" : "bg-emerald-500/20", text: isLight ? "text-emerald-900" : "text-emerald-200", shadow: "shadow-[0_1px_4px_rgba(16,185,129,.25)]" };
-    if (type === "payroll") return { border: "border-l-2 border-blue-500", bg: isLight ? "bg-blue-500/15" : "bg-blue-500/20", text: isLight ? "text-blue-900" : "text-blue-200", shadow: "shadow-[0_1px_4px_rgba(59,130,246,.25)]" };
-    if (type === "google" && !category) return { border: "border-l-2 border-sky-400", bg: isLight ? "bg-sky-400/15" : "bg-sky-400/20", text: isLight ? "text-sky-900" : "text-sky-200", shadow: "shadow-[0_1px_4px_rgba(56,189,248,.25)]" };
-    if (urgency === "critical") return { border: "border-l-2 border-red-500", bg: isLight ? "bg-red-500/15" : "bg-red-500/20", text: isLight ? "text-red-900" : "text-red-200", shadow: "shadow-[0_1px_4px_rgba(239,68,68,.3)]" };
-    if (urgency === "high")     return { border: "border-l-2 border-orange-500", bg: isLight ? "bg-orange-500/15" : "bg-orange-500/20", text: isLight ? "text-orange-900" : "text-orange-200", shadow: "shadow-[0_1px_4px_rgba(249,115,22,.3)]" };
-    if (urgency === "low")      return { border: "border-l-2 border-slate-400", bg: isLight ? "bg-slate-400/15" : "bg-slate-400/15", text: isLight ? "text-slate-600" : "text-slate-300", shadow: "" };
-    return { border: "border-l-2 border-teal-500", bg: isLight ? "bg-teal-500/15" : "bg-teal-500/20", text: isLight ? "text-teal-900" : "text-teal-200", shadow: "shadow-[0_1px_4px_rgba(20,184,166,.25)]" };
+    if (type === "loan")    return { border: "border-l-[3px] border-purple-500", bg: isLight ? "bg-purple-100 ring-1 ring-purple-200" : "bg-purple-500/25 ring-1 ring-purple-500/30", text: isLight ? "text-purple-900" : "text-purple-100", shadow: "shadow-[0_1px_6px_rgba(168,85,247,.35)]" };
+    if (type === "ar")      return { border: "border-l-[3px] border-emerald-500", bg: isLight ? "bg-emerald-100 ring-1 ring-emerald-200" : "bg-emerald-500/25 ring-1 ring-emerald-500/30", text: isLight ? "text-emerald-900" : "text-emerald-100", shadow: "shadow-[0_1px_6px_rgba(16,185,129,.35)]" };
+    if (type === "payroll") return { border: "border-l-[3px] border-blue-500", bg: isLight ? "bg-blue-100 ring-1 ring-blue-200" : "bg-blue-500/25 ring-1 ring-blue-500/30", text: isLight ? "text-blue-900" : "text-blue-100", shadow: "shadow-[0_1px_6px_rgba(59,130,246,.35)]" };
+    if (type === "google" && !category) return { border: "border-l-[3px] border-sky-400", bg: isLight ? "bg-sky-100 ring-1 ring-sky-200" : "bg-sky-500/25 ring-1 ring-sky-500/30", text: isLight ? "text-sky-900" : "text-sky-100", shadow: "shadow-[0_1px_6px_rgba(56,189,248,.35)]" };
+    if (urgency === "critical") return { border: "border-l-[3px] border-red-500", bg: isLight ? "bg-red-100 ring-1 ring-red-200" : "bg-red-500/25 ring-1 ring-red-500/30", text: isLight ? "text-red-900" : "text-red-100", shadow: "shadow-[0_1px_6px_rgba(239,68,68,.4)]" };
+    if (urgency === "high")     return { border: "border-l-[3px] border-orange-500", bg: isLight ? "bg-orange-100 ring-1 ring-orange-200" : "bg-orange-500/25 ring-1 ring-orange-500/30", text: isLight ? "text-orange-900" : "text-orange-100", shadow: "shadow-[0_1px_6px_rgba(249,115,22,.4)]" };
+    if (urgency === "low")      return { border: "border-l-[3px] border-slate-400", bg: isLight ? "bg-slate-100 ring-1 ring-slate-200" : "bg-slate-500/20 ring-1 ring-slate-500/20", text: isLight ? "text-slate-600" : "text-slate-300", shadow: "" };
+    return { border: "border-l-[3px] border-teal-500", bg: isLight ? "bg-teal-100 ring-1 ring-teal-200" : "bg-teal-500/25 ring-1 ring-teal-500/30", text: isLight ? "text-teal-900" : "text-teal-100", shadow: "shadow-[0_1px_6px_rgba(20,184,166,.35)]" };
   };
 
   const getEventIcon = (type: string, category?: string) =>
@@ -1176,8 +1176,8 @@ export const CalendarPage: React.FC = () => {
                                   ) : null;
                                 })()}
                                 {icon && <span className="shrink-0 text-[10px] leading-none">{icon}</span>}
-                                {ev.time && <span className={`font-mono text-[8px] shrink-0 ${isLight ? "text-slate-400" : "text-slate-500"}`}>{to12h(ev.time)}</span>}
-                                <span className={`truncate font-medium ${style.text} ${ev.done ? "line-through" : ""} leading-tight`}>
+                                {ev.time && <span className={`font-mono text-[8px] shrink-0 font-bold ${style.text} opacity-70`}>{to12h(ev.time)}</span>}
+                                <span className={`truncate font-semibold ${style.text} ${ev.done ? "line-through" : ""} leading-tight`}>
                                   {ev.label.replace(/^\[[^\]]+\]\s*/, "")}
                                 </span>
                               </div>
