@@ -798,12 +798,12 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                           </span>
                         </div>
                         <div className="col-span-2 flex items-center justify-end gap-1.5">
-                          {/* View scanned file in Drive */}
+                          {/* View bill copy in Drive */}
                           {(bill as any).driveViewUrl && (
                             <a href={(bill as any).driveViewUrl} target="_blank" rel="noopener noreferrer"
-                              title="View scanned bill in Drive"
-                              className={`p-1 rounded transition-colors ${isLight ? "text-blue-500 hover:bg-blue-50" : "text-blue-400 hover:bg-blue-400/10"}`}>
-                              <Eye className="w-3.5 h-3.5" />
+                              title="View bill copy in Drive"
+                              className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border transition-colors ${isLight ? "text-blue-600 border-blue-300 bg-blue-50 hover:bg-blue-100" : "text-blue-400 border-blue-500/40 bg-blue-500/10 hover:bg-blue-500/20"}`}>
+                              <Eye className="w-3 h-3" /> Bill
                             </a>
                           )}
                           {/* Edit */}
