@@ -665,7 +665,10 @@ Notes:
 
     const geminiResp = await r.json() as any;
     const raw = geminiResp?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    const cleaned = raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
+    // Extract JSON object robustly: find first { and last } in case model adds preamble/thinking
+    const start = raw.indexOf("{");
+    const end   = raw.lastIndexOf("}");
+    const cleaned = start !== -1 && end > start ? raw.slice(start, end + 1) : raw.trim();
     let parsed: any;
     try {
       parsed = JSON.parse(cleaned);
@@ -766,8 +769,10 @@ Notes:
     const geminiResp = await r.json() as any;
     const raw = geminiResp?.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
-    // Strip markdown fences if present
-    const cleaned = raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
+    // Extract JSON object robustly: find first { and last } in case model adds preamble/thinking
+    const start = raw.indexOf("{");
+    const end   = raw.lastIndexOf("}");
+    const cleaned = start !== -1 && end > start ? raw.slice(start, end + 1) : raw.trim();
     let parsed: any;
     try {
       parsed = JSON.parse(cleaned);
