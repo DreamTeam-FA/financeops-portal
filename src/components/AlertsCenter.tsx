@@ -139,126 +139,123 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   );
 };
 
-// ─── Bell icon (for Sidebar) ──────────────────────────────────────────────────
+// ─── Bell + Panel (self-contained, fixed-position popup anchored to bell) ─────
 
 export const AlertsBell: React.FC<{ isLight: boolean }> = ({ isLight }) => {
   const { open, setOpen, alerts } = useContext(AlertsPanelCtx);
+  const { setCurrentPage } = useFinance();
+  const bellRef  = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+
   const criticalCount = alerts.filter(a => a.level === "critical").length;
   const totalCount    = alerts.length;
 
-  return (
-    <button
-      onClick={() => setOpen(!open)}
-      className={`relative flex items-center justify-center w-7 h-7 rounded-lg transition-colors ${
-        open
-          ? isLight ? "bg-slate-200 text-slate-800" : "bg-white/10 text-white"
-          : isLight ? "hover:bg-slate-100 text-slate-500" : "hover:bg-white/6 text-[#5a7090]"
-      }`}
-      title="Alerts"
-    >
-      <Bell className="w-3.5 h-3.5" />
-      {totalCount > 0 && (
-        <span
-          className={`absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-0.5 rounded-full text-[9px] font-extrabold flex items-center justify-center text-white ${
-            criticalCount > 0 ? "bg-red-500" : "bg-amber-500"
-          }`}
-        >
-          {totalCount > 9 ? "9+" : totalCount}
-        </span>
-      )}
-    </button>
-  );
-};
+  // Compute panel position from bell's bounding rect
+  const openPanel = () => {
+    if (!open && bellRef.current) {
+      const r = bellRef.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 8, left: r.left });
+    }
+    setOpen(!open);
+  };
 
-// ─── Alerts panel (dropdown from bell) ───────────────────────────────────────
-
-export const AlertsPanel: React.FC<{ isLight: boolean }> = ({ isLight }) => {
-  const { open, setOpen, alerts } = useContext(AlertsPanelCtx);
-  const { setCurrentPage } = useFinance();
-  const ref = useRef<HTMLDivElement>(null);
-
+  // Close on outside click
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (!bellRef.current?.contains(t) && !panelRef.current?.contains(t)) setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [open, setOpen]);
 
-  if (!open) return null;
-
   const levelStyle = {
-    critical: {
-      icon: "text-red-400",
-      dot:  "bg-red-500",
-      row:  isLight ? "bg-red-50 border-red-200 hover:bg-red-100" : "bg-red-500/8 border-red-500/20 hover:bg-red-500/14",
-    },
-    warn: {
-      icon: "text-amber-400",
-      dot:  "bg-amber-400",
-      row:  isLight ? "bg-amber-50 border-amber-200 hover:bg-amber-100" : "bg-amber-500/8 border-amber-500/20 hover:bg-amber-500/14",
-    },
-    info: {
-      icon: "text-blue-400",
-      dot:  "bg-blue-400",
-      row:  isLight ? "bg-blue-50 border-blue-200 hover:bg-blue-100" : "bg-blue-500/8 border-blue-500/20 hover:bg-blue-500/14",
-    },
+    critical: { icon: "text-red-400",    row: isLight ? "bg-red-50 border-red-200 hover:bg-red-100"       : "bg-red-500/8 border-red-500/20 hover:bg-red-500/14" },
+    warn:     { icon: "text-amber-400",  row: isLight ? "bg-amber-50 border-amber-200 hover:bg-amber-100" : "bg-amber-500/8 border-amber-500/20 hover:bg-amber-500/14" },
+    info:     { icon: "text-blue-400",   row: isLight ? "bg-blue-50 border-blue-200 hover:bg-blue-100"    : "bg-blue-500/8 border-blue-500/20 hover:bg-blue-500/14" },
   };
 
   return (
-    <div
-      ref={ref}
-      className={`absolute top-full left-0 right-0 mt-1 mx-1 rounded-xl overflow-hidden z-50 shadow-2xl border ${
-        isLight ? "bg-white border-slate-200" : "border-[#1e2d45]"
-      }`}
-      style={isLight ? {} : {
-        background: "linear-gradient(145deg, #0d1525 0%, #0a1020 100%)",
-        boxShadow: "0 -16px 48px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.04)",
-      }}
-    >
-      {/* Header */}
-      <div className={`flex items-center justify-between px-4 py-3 border-b ${isLight ? "border-slate-100" : "border-[#1a2a3a]"}`}>
-        <div className="flex items-center gap-2">
-          <Bell className={`w-3.5 h-3.5 ${isLight ? "text-slate-500" : "text-[#4a6080]"}`} />
-          <span className={`text-[12px] font-bold ${isLight ? "text-slate-700" : "text-[#a0b8cc]"}`}>Active Alerts</span>
-          {alerts.length > 0 && (
-            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isLight ? "bg-slate-100 text-slate-500" : "bg-white/8 text-[#5a7090]"}`}>
-              {alerts.length}
-            </span>
-          )}
-        </div>
-        <button onClick={() => setOpen(false)} className={`p-1 rounded-md ${isLight ? "hover:bg-slate-100 text-slate-400" : "hover:bg-white/6 text-[#4a6080]"}`}>
-          <X className="w-3 h-3" />
-        </button>
-      </div>
+    <>
+      {/* Bell button */}
+      <button
+        ref={bellRef}
+        onClick={openPanel}
+        className={`relative flex items-center justify-center w-7 h-7 rounded-lg transition-colors ${
+          open
+            ? isLight ? "bg-slate-200 text-slate-800" : "bg-white/10 text-white"
+            : isLight ? "hover:bg-slate-100 text-slate-500" : "hover:bg-white/6 text-[#5a7090]"
+        }`}
+        title="Alerts"
+      >
+        <Bell className="w-3.5 h-3.5" />
+        {totalCount > 0 && (
+          <span className={`absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-0.5 rounded-full text-[9px] font-extrabold flex items-center justify-center text-white ${criticalCount > 0 ? "bg-red-500" : "bg-amber-500"}`}>
+            {totalCount > 9 ? "9+" : totalCount}
+          </span>
+        )}
+      </button>
 
-      {/* Alert list */}
-      <div className="px-3 py-2.5 space-y-1.5 max-h-72 overflow-y-auto">
-        {alerts.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-6">
-            <CheckCircle2 className="w-8 h-8 text-emerald-400 opacity-60" />
-            <span className={`text-[12px] font-medium ${isLight ? "text-slate-400" : "text-[#4a6080]"}`}>All clear — no active alerts</span>
-          </div>
-        ) : alerts.map(alert => {
-          const s = levelStyle[alert.level];
-          return (
-            <div
-              key={alert.id}
-              onClick={() => { if (alert.page) { setCurrentPage(alert.page); setOpen(false); } }}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all ${s.row} ${alert.page ? "cursor-pointer" : ""}`}
-            >
-              <span className={`shrink-0 ${s.icon}`}>{alert.icon}</span>
-              <div className="flex-1 min-w-0">
-                <div className={`text-[12px] font-semibold leading-tight truncate ${isLight ? "text-slate-800" : "text-[#c0d4e8]"}`}>{alert.title}</div>
-                <div className={`text-[11px] mt-0.5 truncate ${isLight ? "text-slate-500" : "text-[#4a6080]"}`}>{alert.detail}</div>
-              </div>
-              {alert.page && <ChevronRight className={`w-3 h-3 shrink-0 ${s.icon} opacity-50`} />}
+      {/* Floating popup — fixed-positioned next to the bell */}
+      {open && pos && (
+        <div
+          ref={panelRef}
+          className={`fixed z-[999] w-72 rounded-xl overflow-hidden shadow-2xl border ${isLight ? "bg-white border-slate-200" : "border-[#1e2d45]"}`}
+          style={{
+            top:  pos.top,
+            left: pos.left,
+            ...(isLight ? {} : {
+              background: "linear-gradient(145deg, #0d1525 0%, #0a1020 100%)",
+              boxShadow:  "0 16px 48px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.04)",
+            }),
+          }}
+        >
+          {/* Header */}
+          <div className={`flex items-center justify-between px-4 py-3 border-b ${isLight ? "border-slate-100" : "border-[#1a2a3a]"}`}>
+            <div className="flex items-center gap-2">
+              <Bell className={`w-3.5 h-3.5 ${isLight ? "text-slate-500" : "text-[#4a6080]"}`} />
+              <span className={`text-[12px] font-bold ${isLight ? "text-slate-700" : "text-[#a0b8cc]"}`}>Active Alerts</span>
+              {alerts.length > 0 && (
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isLight ? "bg-slate-100 text-slate-500" : "bg-white/8 text-[#5a7090]"}`}>
+                  {alerts.length}
+                </span>
+              )}
             </div>
-          );
-        })}
-      </div>
-    </div>
+            <button onClick={() => setOpen(false)} className={`p-1 rounded-md ${isLight ? "hover:bg-slate-100 text-slate-400" : "hover:bg-white/6 text-[#4a6080]"}`}>
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+
+          {/* Alert list */}
+          <div className="px-3 py-2.5 space-y-1.5 max-h-80 overflow-y-auto">
+            {alerts.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-6">
+                <CheckCircle2 className="w-8 h-8 text-emerald-400 opacity-60" />
+                <span className={`text-[12px] font-medium ${isLight ? "text-slate-400" : "text-[#4a6080]"}`}>All clear — no active alerts</span>
+              </div>
+            ) : alerts.map(alert => {
+              const s = levelStyle[alert.level];
+              return (
+                <div
+                  key={alert.id}
+                  onClick={() => { if (alert.page) { setCurrentPage(alert.page); setOpen(false); } }}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all ${s.row} ${alert.page ? "cursor-pointer" : ""}`}
+                >
+                  <span className={`shrink-0 ${s.icon}`}>{alert.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className={`text-[12px] font-semibold leading-tight truncate ${isLight ? "text-slate-800" : "text-[#c0d4e8]"}`}>{alert.title}</div>
+                    <div className={`text-[11px] mt-0.5 truncate ${isLight ? "text-slate-500" : "text-[#4a6080]"}`}>{alert.detail}</div>
+                  </div>
+                  {alert.page && <ChevronRight className={`w-3 h-3 shrink-0 ${s.icon} opacity-50`} />}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

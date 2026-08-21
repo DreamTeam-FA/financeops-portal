@@ -1,5 +1,5 @@
 ﻿import React, { useState } from "react";
-import { AlertsBell, AlertsPanel } from "./AlertsCenter";
+import { AlertsBell } from "./AlertsCenter";
 import { useFinance } from "../context/FinanceContext";
 import { getUserGreetingName } from "../utils/userGreeting";
 import { formatPossessiveName, formatCleanName } from "../utils/formatters";
@@ -203,8 +203,7 @@ export const Sidebar: React.FC = () => {
       </div>
 
       {/* Main Dashboards Section */}
-      <div className="px-2 pt-3 pb-2 relative">
-        <AlertsPanel isLight={isLight} />
+      <div className="px-2 pt-3 pb-2">
         {!isSidebarFolded && (
           <div className={`flex items-center gap-2 px-3 mb-1.5`}>
             <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#3d5478]"}`}>Dashboards</span>
