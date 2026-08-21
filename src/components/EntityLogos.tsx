@@ -33,34 +33,11 @@ function removeWhiteBg(src: string, threshold = 238): Promise<string> {
         }
         ctx.putImageData(id, 0, 0);
 
-        // 2. Find tight bounding box of non-transparent pixels
-        let minX = c.width, maxX = 0, minY = c.height, maxY = 0;
-        for (let y = 0; y < c.height; y++) {
-          for (let x = 0; x < c.width; x++) {
-            if (d[(y * c.width + x) * 4 + 3] > 10) {
-              if (x < minX) minX = x;
-              if (x > maxX) maxX = x;
-              if (y < minY) minY = y;
-              if (y > maxY) maxY = y;
-            }
-          }
-        }
-
-        // 3. Crop to bounding box (removes invisible whitespace padding)
-        const cropW = maxX - minX + 1;
-        const cropH = maxY - minY + 1;
-        if (cropW > 4 && cropH > 4) {
-          const c2 = document.createElement("canvas");
-          c2.width = cropW; c2.height = cropH;
-          c2.getContext("2d")!.drawImage(c, minX, minY, cropW, cropH, 0, 0, cropW, cropH);
-          const url = c2.toDataURL("image/png");
-          _cache.set(src, url);
-          resolve(url);
-        } else {
-          const url = c.toDataURL("image/png");
-          _cache.set(src, url);
-          resolve(url);
-        }
+        // No crop — keep original dimensions so dark/light mode logos are the same visual size.
+        // Whitespace pixels are now transparent (invisible on dark bg) but image dimensions unchanged.
+        const url = c.toDataURL("image/png");
+        _cache.set(src, url);
+        resolve(url);
       } catch {
         resolve(src); // CORS fallback — show original
       }
