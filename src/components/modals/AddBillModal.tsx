@@ -192,6 +192,7 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
           imageBase64: base64,
           mimeType: attachFile.type || "image/jpeg",
           entity: entityName,
+          userAccessToken: localStorage.getItem("google_access_token") || "",
         }),
       });
       if (resp.ok) {
@@ -270,6 +271,7 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
             invoiceNo: invoiceNo || undefined,
             dueDate,
             amount: parseFloat(amount) || 0,
+            userAccessToken: localStorage.getItem("google_access_token") || "",
           }),
         });
         if (resp.ok) {

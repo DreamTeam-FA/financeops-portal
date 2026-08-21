@@ -483,15 +483,10 @@ app.post("/api/audit-log", (req, res) => {
 
 import { google } from "googleapis";
 
-/** Build an authenticated Drive client from the service-account JSON env var. */
-function getDriveClient() {
-  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-  if (!raw) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON not configured");
-  const creds = JSON.parse(raw);
-  const auth = new google.auth.GoogleAuth({
-    credentials: creds,
-    scopes: ["https://www.googleapis.com/auth/drive"],
-  });
+/** Build an authenticated Drive client from the user's OAuth access token. */
+function getDriveClient(userAccessToken: string) {
+  const auth = new google.auth.OAuth2();
+  auth.setCredentials({ access_token: userAccessToken });
   return google.drive({ version: "v3", auth });
 }
 
@@ -527,11 +522,12 @@ const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct"
  *   {Entity}_{Vendor}_{InvoiceNo}_{YYYY-MM-DD}.{ext}
  */
 app.post("/api/drive/upload-bill", async (req, res) => {
-  const { imageBase64, mimeType, entity, vendor, invoiceNo, dueDate, amount } = req.body || {};
+  const { imageBase64, mimeType, entity, vendor, invoiceNo, dueDate, amount, userAccessToken } = req.body || {};
   if (!imageBase64) return res.status(400).json({ error: "imageBase64 required" });
+  if (!userAccessToken) return res.status(401).json({ error: "userAccessToken required" });
 
   let drive: any;
-  try { drive = getDriveClient(); }
+  try { drive = getDriveClient(userAccessToken); }
   catch (e: any) { return res.status(500).json({ error: e.message }); }
 
   try {

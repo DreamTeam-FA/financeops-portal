@@ -20,8 +20,9 @@ const provider = new GoogleAuthProvider();
 provider.addScope("https://www.googleapis.com/auth/spreadsheets");
 provider.addScope("https://www.googleapis.com/auth/calendar");
 provider.addScope("https://www.googleapis.com/auth/calendar.events");
+provider.addScope("https://www.googleapis.com/auth/drive.file");
 
-const SCOPES = "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events";
+const SCOPES = "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/drive.file";
 const TOKEN_REFRESH_MS = 55 * 60 * 1000; // refresh 5 min before 1-hour expiry
 
 let isSigningIn = false;
