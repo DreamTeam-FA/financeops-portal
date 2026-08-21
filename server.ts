@@ -728,6 +728,8 @@ Notes:
 - "amount" should be the total due as a number (no $ symbol), null if not clearly readable
 - "invoiceNo" is the invoice number, bill number, or reference number — null if absent
 - "entity" try to infer from the recipient name on the bill
+- All dates must be in YYYY-MM-DD format (e.g. 2026-08-21). If a date is printed as MM/DD/YYYY or "Month DD, YYYY", convert it
+- If the due date is expressed as a NET term (e.g. "NET 30", "Net 60"), output it literally as "NET 30" — the app will compute the actual date
 - Be as accurate as possible; leave fields null rather than guessing incorrectly`;
 
   try {

@@ -119,14 +119,48 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
     setScanFilled(false);
   };
 
+  /** Convert any date string to YYYY-MM-DD for <input type="date"> */
+  const toISODate = (raw: string | null | undefined): string => {
+    if (!raw) return "";
+    const s = String(raw).trim();
+    // Already YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    // MM/DD/YYYY or M/D/YYYY
+    const mdy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (mdy) return `${mdy[3]}-${mdy[1].padStart(2,"0")}-${mdy[2].padStart(2,"0")}`;
+    // Month DD, YYYY  or  DD Month YYYY
+    const months: Record<string,string> = { jan:"01",feb:"02",mar:"03",apr:"04",may:"05",jun:"06",jul:"07",aug:"08",sep:"09",oct:"10",nov:"11",dec:"12" };
+    const longMdy = s.match(/^([A-Za-z]+)\.?\s+(\d{1,2}),?\s+(\d{4})$/);
+    if (longMdy) { const m = months[longMdy[1].toLowerCase().slice(0,3)]; if (m) return `${longMdy[3]}-${m}-${longMdy[2].padStart(2,"0")}`; }
+    // Try native Date parse as last resort
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
+    return "";
+  };
+
   const handleScanFill = (data: any, file: File) => {
     if (!data) return;
     if (data.vendor)         setVendor(data.vendor);
     if (data.invoiceNo)      setInvoiceNo(String(data.invoiceNo));
     if (data.amount != null) setAmount(String(data.amount));
-    if (data.issueDate)      setInvoiceDate(data.issueDate);
-    if (data.dueDate)        setDueDate(data.dueDate);
     if (data.description)    setDescription(data.description);
+
+    const issueDateISO = toISODate(data.issueDate);
+    if (issueDateISO) setInvoiceDate(issueDateISO);
+
+    // Handle NET terms: "NET 30", "Net 60", etc. — compute from invoice date
+    const rawDue = String(data.dueDate || "").trim();
+    const netMatch = rawDue.match(/net\s*(\d+)/i);
+    if (netMatch) {
+      const days = parseInt(netMatch[1], 10);
+      const base = issueDateISO ? new Date(issueDateISO) : new Date();
+      base.setDate(base.getDate() + days);
+      setDueDate(base.toISOString().split("T")[0]);
+    } else {
+      const dueDateISO = toISODate(data.dueDate);
+      if (dueDateISO) setDueDate(dueDateISO);
+    }
+
     setPendingFile(file);
     setScanFilled(true);
   };
