@@ -1,5 +1,6 @@
 ﻿import React, { useState } from "react";
 import { AlertsBell } from "./AlertsCenter";
+import { Tooltip } from "./Tooltip";
 import { useFinance } from "../context/FinanceContext";
 import { getUserGreetingName } from "../utils/userGreeting";
 import { formatPossessiveName, formatCleanName } from "../utils/formatters";
@@ -214,15 +215,14 @@ export const Sidebar: React.FC = () => {
         {navItems.map((item) => {
           const isActive = currentPage === item.id;
           return (
+            <Tooltip key={item.id} label={item.label} disabled={!isSidebarFolded}>
             <button
-              key={item.id}
               onClick={() => {
                 if (item.id === "ap") {
                   setSelectedEntities(new Set(["ALL"]));
                 }
                 setCurrentPage(item.id);
               }}
-              title={item.label}
               className={`w-full flex items-center ${
                 isSidebarFolded ? "justify-center px-0 py-2" : "gap-2.5 px-3 py-1.5"
               } rounded-md text-[13px] font-medium transition-all duration-150 relative ${
@@ -240,6 +240,7 @@ export const Sidebar: React.FC = () => {
                 <span className="flex-1 text-left truncate">{item.label}</span>
               )}
             </button>
+            </Tooltip>
           );
         })}
       </div>
@@ -256,6 +257,7 @@ export const Sidebar: React.FC = () => {
         {(() => {
           const isRubysActive = currentPage === "rubys" || (currentPage === "ap" && selectedEntities.has("Ruby's") && selectedEntities.size === 1);
           return (
+            <Tooltip label="Ruby's Pizzeria & Grill" sublabel="Accounts Payable View" color="#ec4899">
             <button
               onClick={() => { setSelectedEntities(new Set(["Ruby's"])); setCurrentPage("rubys"); }}
               className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all relative overflow-hidden ${
@@ -265,7 +267,6 @@ export const Sidebar: React.FC = () => {
                     : "bg-pink-900/30 border border-pink-700/50 shadow-[0_2px_10px_rgba(236,72,153,.25)]"
                   : isLight ? "hover:bg-slate-50 border border-transparent" : "hover:bg-[#0a1220] border border-transparent"
               }`}
-              title="Ruby's AP View"
             >
               {isRubysActive && !isSidebarFolded && (
                 <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-pink-500 rounded-r" />
@@ -283,6 +284,7 @@ export const Sidebar: React.FC = () => {
                 </>
               )}
             </button>
+            </Tooltip>
           );
         })()}
 
@@ -290,6 +292,7 @@ export const Sidebar: React.FC = () => {
         {(() => {
           const isTIActive = currentPage === "ti" || (currentPage === "ap" && selectedEntities.has("TI") && selectedEntities.size === 1);
           return (
+            <Tooltip label="Timm Investments LLC" sublabel="Accounts Payable View" color="#3b82f6">
             <button
               onClick={() => { setSelectedEntities(new Set(["TI"])); setCurrentPage("ti"); }}
               className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all relative overflow-hidden ${
@@ -299,7 +302,6 @@ export const Sidebar: React.FC = () => {
                     : "bg-blue-900/30 border border-blue-700/50 shadow-[0_2px_10px_rgba(59,130,246,.25)]"
                   : isLight ? "hover:bg-slate-50 border border-transparent" : "hover:bg-[#0a1220] border border-transparent"
               }`}
-              title="TI AP View"
             >
               {isTIActive && !isSidebarFolded && (
                 <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-blue-500 rounded-r" />
@@ -317,6 +319,7 @@ export const Sidebar: React.FC = () => {
                 </>
               )}
             </button>
+            </Tooltip>
           );
         })()}
 
@@ -324,6 +327,7 @@ export const Sidebar: React.FC = () => {
         {(() => {
           const isMSDxActive = currentPage === "msdx" || (currentPage === "ap" && selectedEntities.has("MSDx") && selectedEntities.size === 1);
           return (
+            <Tooltip label="Mobile Swallowing Diagnostics" sublabel="Accounts Payable View" color="#14b8a6">
             <button
               onClick={() => { setSelectedEntities(new Set(["MSDx"])); setCurrentPage("msdx"); }}
               className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all relative overflow-hidden ${
@@ -333,7 +337,6 @@ export const Sidebar: React.FC = () => {
                     : "bg-teal-900/30 border border-teal-700/50 shadow-[0_2px_10px_rgba(20,184,166,.25)]"
                   : isLight ? "hover:bg-slate-50 border border-transparent" : "hover:bg-[#0a1220] border border-transparent"
               }`}
-              title="MSDx AP View"
             >
               {isMSDxActive && !isSidebarFolded && (
                 <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-teal-500 rounded-r" />
@@ -351,6 +354,7 @@ export const Sidebar: React.FC = () => {
                 </>
               )}
             </button>
+            </Tooltip>
           );
         })()}
       </div>
@@ -364,6 +368,7 @@ export const Sidebar: React.FC = () => {
           </div>
         )}
 
+        <Tooltip label="CurcuminPRO" sublabel="Dashboard" color="#f59e0b">
         <button
           onClick={() => {
             setSelectedEntities(new Set(["CurcuminPro"]));
@@ -374,7 +379,6 @@ export const Sidebar: React.FC = () => {
               ? isLight ? "bg-amber-100 border border-amber-300 shadow-[0_2px_10px_rgba(245,158,11,.2)]" : "bg-amber-900/30 border border-amber-700/50 shadow-[0_2px_10px_rgba(245,158,11,.25)]"
               : isLight ? "hover:bg-slate-50 border border-transparent" : "hover:bg-[#0a1220] border border-transparent"
           }`}
-          title="CurcuminPRO Dashboard"
         >
           {currentPage === "curcumin" && !isSidebarFolded && (
             <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-amber-500 rounded-r" />
@@ -388,7 +392,9 @@ export const Sidebar: React.FC = () => {
             </>
           )}
         </button>
+        </Tooltip>
 
+        <Tooltip label="4You Pros" sublabel="4-Year Payroll Dashboard" color="#22c55e">
         <button
           onClick={() => setCurrentPage("fouryr-payroll")}
           className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all relative overflow-hidden ${
@@ -396,7 +402,6 @@ export const Sidebar: React.FC = () => {
               ? isLight ? "bg-green-100 border border-green-300 shadow-[0_2px_10px_rgba(34,197,94,.2)]" : "bg-green-900/30 border border-green-700/50 shadow-[0_2px_10px_rgba(34,197,94,.25)]"
               : isLight ? "hover:bg-slate-50 border border-transparent" : "hover:bg-[#0a1220] border border-transparent"
           }`}
-          title="4You Pros Dashboard"
         >
           {currentPage === "fouryr-payroll" && !isSidebarFolded && (
             <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-green-500 rounded-r" />
@@ -410,7 +415,9 @@ export const Sidebar: React.FC = () => {
             </>
           )}
         </button>
+        </Tooltip>
 
+        <Tooltip label="Ziglar" sublabel="Dashboard" color="#6366f1">
         <button
           onClick={() => {
             setSelectedEntities(new Set(["Ziglar"]));
@@ -421,7 +428,6 @@ export const Sidebar: React.FC = () => {
               ? isLight ? "bg-indigo-100 border border-indigo-300 shadow-[0_2px_10px_rgba(99,102,241,.2)]" : "bg-indigo-900/30 border border-indigo-700/50 shadow-[0_2px_10px_rgba(99,102,241,.25)]"
               : isLight ? "hover:bg-slate-50 border border-transparent" : "hover:bg-[#0a1220] border border-transparent"
           }`}
-          title="Ziglar Dashboard"
         >
           {currentPage === "ziglar" && (
             <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-indigo-500 rounded-r" />
@@ -429,6 +435,7 @@ export const Sidebar: React.FC = () => {
           <ZiglarLogo className="h-7 max-w-[170px]" isLight={isLight} />
           <ChevronRight className="w-3.5 h-3.5 text-[#666] shrink-0" />
         </button>
+        </Tooltip>
       </div>
 
       {/* WORKSPACE Section */}
@@ -512,8 +519,8 @@ export const Sidebar: React.FC = () => {
           } : {};
 
           return (
+            <Tooltip key={mem.id} label={`${formatPossessiveName(mem.name)} Workspace`} sublabel="Member Dashboard" color={mem.color}>
             <button
-              key={mem.id}
               onClick={() => {
                 setActiveMember({ id: mem.id, name: mem.name, color: mem.color });
                 setCurrentPage("member-workspace");
@@ -539,6 +546,7 @@ export const Sidebar: React.FC = () => {
                 }}
               />
             </button>
+            </Tooltip>
           );
         })}
       </div>
@@ -723,63 +731,69 @@ export const Sidebar: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-1.5 pt-1.5">
+              <Tooltip label="Change User" sublabel="Switch Google account">
               <button
                 onClick={signOutUser}
                 className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg ${
                   isLight ? "bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200" : "bg-purple-950/30 hover:bg-purple-900/40 text-purple-300 border border-purple-800/40"
                 } text-[11px] font-extrabold transition-colors`}
-                title="Change User Profile"
               >
                 <UserIcon className="w-3.5 h-3.5 text-purple-500" />
                 Change User
               </button>
+              </Tooltip>
               <GearDropdown variant="wide" />
+              <Tooltip label="Sync Data" sublabel="Pull live data from Google Sheets" color="#10b981">
               <button
                 onClick={syncAllFromGoogleSheets}
                 disabled={isSyncing}
                 className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg ${
                   isLight ? "hover:bg-emerald-50 text-emerald-600 disabled:text-slate-400" : "hover:bg-emerald-950/30 text-emerald-400 disabled:text-[#444]"
                 } text-[11px] font-bold transition-colors disabled:cursor-not-allowed`}
-                title="Pull live data from Google Sheets"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin" : ""}`} />
               </button>
+              </Tooltip>
+              <Tooltip label="Sign Out" sublabel="End your session" color="#ef4444">
               <button
                 onClick={signOutUser}
                 className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg ${
                   isLight ? "hover:bg-red-50 text-red-600" : "hover:bg-red-950/30 text-red-400"
                 } text-[11px] font-bold transition-colors`}
-                title="Sign Out"
               >
                 <LogOut className="w-3.5 h-3.5" />
               </button>
+              </Tooltip>
             </div>
           </>
         ) : (
           <div className="flex flex-col items-center gap-2 py-1">
+            <Tooltip label={greetingName} sublabel={userEmail} color="#3b82f6">
             <button
               onClick={signOutUser}
               className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-700 flex items-center justify-center text-xs font-extrabold text-white shadow-md shadow-blue-500/30 ring-2 ring-blue-500/20"
-              title={`Active User: ${greetingName} (${userEmail})`}
             >
               {greetingName.charAt(0).toUpperCase()}
             </button>
+            </Tooltip>
             <GearDropdown variant="collapsed" />
+            <Tooltip label="Sync Data" sublabel="Pull live from Google Sheets" color="#10b981">
             <button
               onClick={syncAllFromGoogleSheets}
               disabled={isSyncing}
               className={`p-1.5 rounded-lg ${isLight ? "hover:bg-emerald-50 text-emerald-600 disabled:text-slate-400" : "hover:bg-emerald-950/30 text-emerald-400 disabled:text-[#444]"} disabled:cursor-not-allowed`}
-              title="Pull live data from Google Sheets"
             >
               <RefreshCw className={`w-4 h-4 ${isSyncing ? "animate-spin" : ""}`} />
             </button>
+            </Tooltip>
+            <Tooltip label="Sign Out" sublabel="End your session" color="#ef4444">
             <button
               onClick={signOutUser}
               className={`p-1.5 rounded-lg ${isLight ? "hover:bg-red-50 text-red-600" : "hover:bg-red-950/30 text-red-400"}`}
-              title="Sign Out"
             >
               <LogOut className="w-4 h-4" />
             </button>
+            </Tooltip>
           </div>
         )}
       </div>
