@@ -586,7 +586,7 @@ app.post("/api/drive/upload-bill", async (req, res) => {
 });
 
 // =============================================================================
-// Gemini Vision helper — tries models in order until one succeeds
+// Vision LLM helper — tries OpenAI first, falls back to Gemini
 // =============================================================================
 
 const GEMINI_MODELS = [
@@ -597,35 +597,83 @@ const GEMINI_MODELS = [
   { version: "v1beta", model: "gemini-2.5-pro"   },
 ];
 
-async function callGemini(apiKey: string, body: any): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
+async function callGemini(apiKey: string, prompt: string, imageBase64: string, mimeType: string, maxTokens: number): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
+  const body = {
+    contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType || "image/jpeg", data: imageBase64 } }] }],
+    generationConfig: { temperature: 0.1, maxOutputTokens: maxTokens }
+  };
   let lastError = "No available Gemini model";
   for (const { version, model } of GEMINI_MODELS) {
     const url = `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${apiKey}`;
     try {
-      const r = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (r.ok) {
         const resp = await r.json() as any;
         const text = resp?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-        console.log(`[Gemini] Used model: ${model}`);
+        console.log(`[Vision] Gemini model used: ${model}`);
         return { ok: true, text };
       }
       const errBody = await r.json().catch(() => ({})) as any;
       const status = errBody?.error?.status || "";
       lastError = errBody?.error?.message || `HTTP ${r.status}`;
-      console.warn(`[Gemini] ${model} → ${status || r.status}: ${lastError}`);
-      // NOT_FOUND or UNAVAILABLE → try next model; anything else → stop (auth error, quota, etc.)
-      if (status !== "NOT_FOUND" && status !== "UNAVAILABLE" && r.status !== 404) {
-        return { ok: false, error: lastError };
-      }
-    } catch (e: any) {
-      lastError = e?.message || String(e);
-    }
+      console.warn(`[Vision] Gemini ${model} → ${status || r.status}: ${lastError}`);
+      if (status !== "NOT_FOUND" && status !== "UNAVAILABLE" && r.status !== 404) return { ok: false, error: lastError };
+    } catch (e: any) { lastError = e?.message || String(e); }
   }
   return { ok: false, error: lastError };
+}
+
+/**
+ * Unified vision LLM call.
+ * Uses OpenAI gpt-4o-mini if OPENAI_API_KEY is set; otherwise falls back to Gemini.
+ * PDFs are only supported by Gemini — OpenAI will receive image/jpeg for non-image types.
+ */
+async function callVisionLLM(
+  prompt: string,
+  imageBase64: string,
+  mimeType: string,
+  maxTokens: number
+): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
+  const openaiKey = process.env.OPENAI_API_KEY;
+
+  if (openaiKey) {
+    try {
+      // OpenAI vision supports image/* only; treat PDF/unknown as jpeg
+      const imgMime = mimeType.startsWith("image/") ? mimeType : "image/jpeg";
+      const body = {
+        model: "gpt-4o-mini",
+        messages: [{
+          role: "user",
+          content: [
+            { type: "text", text: prompt },
+            { type: "image_url", image_url: { url: `data:${imgMime};base64,${imageBase64}` } }
+          ]
+        }],
+        max_tokens: maxTokens,
+        temperature: 0.1
+      };
+      const r = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${openaiKey}` },
+        body: JSON.stringify(body)
+      });
+      if (r.ok) {
+        const resp = await r.json() as any;
+        const text = resp?.choices?.[0]?.message?.content || "";
+        console.log("[Vision] Used OpenAI gpt-4o-mini");
+        return { ok: true, text };
+      }
+      const err = await r.json().catch(() => ({})) as any;
+      console.warn("[Vision] OpenAI failed:", err?.error?.message || r.status, "— falling back to Gemini");
+    } catch (e: any) {
+      console.warn("[Vision] OpenAI error:", e?.message, "— falling back to Gemini");
+    }
+  }
+
+  // Fallback: Gemini
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (!geminiKey) return { ok: false, error: "No vision API key configured. Set OPENAI_API_KEY or GEMINI_API_KEY in Render." };
+  return callGemini(geminiKey, prompt, imageBase64, mimeType, maxTokens);
 }
 
 // =============================================================================
@@ -660,9 +708,6 @@ app.post("/api/invoice/scan", async (req, res) => {
   const { imageBase64, mimeType } = req.body || {};
   if (!imageBase64) return res.status(400).json({ error: "imageBase64 required" });
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: "GEMINI_API_KEY not configured" });
-
   const prompt = `You are a bill/invoice data extraction assistant. Extract all data from this invoice or bill image.
 
 Return ONLY valid JSON matching this exact schema (no markdown, no explanation):
@@ -684,18 +729,8 @@ Notes:
 - Be as accurate as possible; leave fields null rather than guessing incorrectly`;
 
   try {
-    const body = {
-      contents: [{
-        parts: [
-          { text: prompt },
-          { inline_data: { mime_type: mimeType || "image/jpeg", data: imageBase64 } }
-        ]
-      }],
-      generationConfig: { temperature: 0.1, maxOutputTokens: 512 }
-    };
-
-    const result = await callGemini(apiKey, body);
-    if (!result.ok) return res.status(502).json({ error: "Gemini API error", details: result.error });
+    const result = await callVisionLLM(prompt, imageBase64, mimeType || "image/jpeg", 512);
+    if (!result.ok) return res.status(502).json({ error: "Vision API error", details: result.error });
 
     const raw = result.text;
     const start = raw.indexOf("{");
@@ -705,7 +740,7 @@ Notes:
     try {
       parsed = JSON.parse(cleaned);
     } catch {
-      return res.status(422).json({ error: "Could not parse Gemini response as JSON", raw });
+      return res.status(422).json({ error: "Could not parse response as JSON", raw });
     }
     res.json({ ok: true, invoice: parsed });
   } catch (e: any) {
@@ -743,9 +778,6 @@ app.post("/api/timesheet/scan", async (req, res) => {
   const { imageBase64, mimeType } = req.body || {};
   if (!imageBase64) return res.status(400).json({ error: "imageBase64 required" });
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: "GEMINI_API_KEY not configured" });
-
   const prompt = `You are a timesheet data extraction assistant. Extract all data from this handwritten timesheet image.
 
 Return ONLY valid JSON matching this exact schema (no markdown, no explanation):
@@ -775,20 +807,10 @@ Notes:
 - Time like "6:30" stays as "6:30", do not add AM/PM`;
 
   try {
-    const body = {
-      contents: [{
-        parts: [
-          { text: prompt },
-          { inline_data: { mime_type: mimeType || "image/jpeg", data: imageBase64 } }
-        ]
-      }],
-      generationConfig: { temperature: 0.1, maxOutputTokens: 1024 }
-    };
-
-    const result = await callGemini(apiKey, body);
+    const result = await callVisionLLM(prompt, imageBase64, mimeType || "image/jpeg", 1024);
     if (!result.ok) {
-      console.error("[TimesheetScan] Gemini error:", result.error);
-      return res.status(502).json({ error: "Gemini API error", details: result.error });
+      console.error("[TimesheetScan] Vision error:", result.error);
+      return res.status(502).json({ error: "Vision API error", details: result.error });
     }
 
     const raw = result.text;
@@ -799,7 +821,7 @@ Notes:
     try {
       parsed = JSON.parse(cleaned);
     } catch {
-      return res.status(422).json({ error: "Could not parse Gemini response as JSON", raw });
+      return res.status(422).json({ error: "Could not parse response as JSON", raw });
     }
 
     res.json({ ok: true, timesheet: parsed });
