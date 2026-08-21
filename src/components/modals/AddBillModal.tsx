@@ -22,7 +22,7 @@ const DEFAULT_TI_COMPANIES = ["4G", "4YR", "Corner Property Group", "E1", "TI"];
 const PAY_VIA_OPTIONS = ["ACH", "Check", "Wire", "Credit Card", "Online", "Cash", "Auto-Debit", "Manual"];
 
 export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, defaultEntity = "Ruby's" }) => {
-  const { apBills, addBill, theme, availableAPEntities } = useFinance();
+  const { apBills, addBill, updateBill, theme, availableAPEntities } = useFinance();
   const isLight = theme === "light";
 
   const [selectedSheet, setSelectedSheet] = useState(`${defaultEntity} Bills`);
@@ -42,6 +42,10 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
   const [scanFilled, setScanFilled] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  // "attach-prompt" phase: shown after bill saved when no scan file exists
+  const [savedBillId, setSavedBillId] = useState<string | null>(null);
+  const [attachPhase, setAttachPhase] = useState(false);
+  const [attachFile, setAttachFile] = useState<File | null>(null);
 
   useEffect(() => {
     setSelectedSheet(`${defaultEntity} Bills`);
@@ -165,6 +169,44 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
     setScanFilled(true);
   };
 
+  const resetForm = () => {
+    setVendor(""); setAmount(""); setRemarks(""); setInvoiceNo("");
+    setInvoiceDate(""); setPaymentDate(""); setDescription(""); setCategory("");
+    setScanKey(k => k + 1); setScanFilled(false); setPendingFile(null);
+  };
+
+  const handleAttachUpload = async () => {
+    if (!attachFile || !savedBillId) { onClose(); setAttachPhase(false); return; }
+    setUploading(true);
+    try {
+      const reader = new FileReader();
+      const base64: string = await new Promise((res, rej) => {
+        reader.onload = (ev) => res((ev.target?.result as string).split(",")[1]);
+        reader.onerror = rej;
+        reader.readAsDataURL(attachFile);
+      });
+      const resp = await fetch("/api/drive/upload-bill", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageBase64: base64,
+          mimeType: attachFile.type || "image/jpeg",
+          entity: entityName,
+        }),
+      });
+      if (resp.ok) {
+        const { viewUrl, fileName } = await resp.json();
+        const saved = apBills.find(b => b.id === savedBillId);
+        if (saved) updateBill({ ...saved, driveViewUrl: viewUrl, driveFileName: fileName });
+      }
+    } catch { /* don't block close */ }
+    setUploading(false);
+    setAttachPhase(false);
+    setAttachFile(null);
+    setSavedBillId(null);
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   const theme2 = SHEET_THEMES[selectedSheet] || DEFAULT_SHEET_THEME;
@@ -207,7 +249,7 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
       }
     }
 
-    // Upload scanned file to Google Drive if one exists
+    // Upload scanned file to Google Drive if scan produced a file
     if (pendingFile) {
       setUploading(true);
       try {
@@ -237,16 +279,65 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
         }
       } catch { /* upload failure shouldn't block bill save */ }
       setUploading(false);
+      addBill(billData);
+      resetForm();
+      onClose();
+      return;
     }
 
-    addBill(billData);
-    onClose();
-    setVendor(""); setAmount(""); setRemarks(""); setInvoiceNo("");
-    setInvoiceDate(""); setPaymentDate(""); setDescription(""); setCategory("");
-    setScanKey(k => k + 1); setScanFilled(false); setPendingFile(null);
+    // No scan file — save bill, then show attach prompt
+    const newBill = addBill(billData);
+    setSavedBillId(newBill.id);
+    resetForm();
+    setAttachPhase(true);
   };
 
   return (
+    <>
+    {/* Attach-phase: shown after bill is saved when no scan file was used */}
+    {attachPhase && (
+      <div className="fixed inset-0 z-60 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className={`w-full max-w-sm rounded-2xl shadow-2xl p-6 space-y-4 border ${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#121212] border-[#2a2a2a] text-white"}`}>
+          <div className="text-center space-y-1">
+            <div className="text-2xl">✅</div>
+            <h3 className="text-base font-black">Bill Saved!</h3>
+            <p className={`text-xs ${isLight ? "text-slate-500" : "text-[#888]"}`}>
+              Do you want to attach a bill copy to Google Drive?
+            </p>
+          </div>
+
+          {attachFile ? (
+            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold ${isLight ? "bg-green-50 border-green-200 text-green-700" : "bg-[#0a1a10] border-[#1a3a20] text-green-400"}`}>
+              <FileCheck2 className="w-4 h-4 shrink-0" />
+              <span className="truncate">{attachFile.name}</span>
+              <button type="button" onClick={() => setAttachFile(null)} className="ml-auto opacity-60 hover:opacity-100">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <label className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border border-dashed cursor-pointer text-xs transition-colors ${isLight ? "border-slate-300 text-slate-500 hover:border-blue-400 hover:bg-blue-50" : "border-[#333] text-[#666] hover:border-[#555] hover:bg-[#1a1a1a]"}`}>
+              <Paperclip className="w-4 h-4 shrink-0" />
+              <span>Choose image or PDF to attach</span>
+              <input type="file" accept="image/*,application/pdf" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) setAttachFile(f); e.target.value = ""; }} />
+            </label>
+          )}
+
+          <div className="flex gap-2">
+            <button type="button" onClick={() => { setAttachPhase(false); setAttachFile(null); setSavedBillId(null); onClose(); }}
+              className={`flex-1 py-2 rounded-xl text-xs font-semibold ${isLight ? "bg-slate-100 hover:bg-slate-200 text-slate-700" : "bg-[#222] hover:bg-[#333] text-[#aaa]"}`}>
+              Skip
+            </button>
+            <button type="button" onClick={handleAttachUpload} disabled={!attachFile || uploading}
+              className="flex-1 py-2 rounded-xl bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-1.5">
+              <Paperclip className="w-3.5 h-3.5" />
+              {uploading ? "Uploading…" : "Attach & Save"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
     <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4">
       <div className={`w-full max-w-lg border border-[#333] rounded-2xl shadow-2xl overflow-hidden ${isLight ? "bg-white text-slate-900" : "bg-[#121212] text-white"}`}>
 
@@ -417,28 +508,6 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
             )}
           </div>
 
-          {/* Attach bill copy (manual upload — separate from scan-to-fill) */}
-          {!scanFilled && (
-            <div>
-              <label className={lbl}>Attach Bill Copy</label>
-              {pendingFile ? (
-                <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold ${isLight ? "bg-green-50 border-green-200 text-green-700" : "bg-[#0a1a10] border-[#1a3a20] text-green-400"}`}>
-                  <FileCheck2 className="w-4 h-4 shrink-0" />
-                  <span className="truncate">{pendingFile.name}</span>
-                  <button type="button" onClick={() => setPendingFile(null)} className="ml-auto opacity-60 hover:opacity-100 shrink-0">
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ) : (
-                <label className={`flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed cursor-pointer text-xs transition-colors ${isLight ? "border-slate-300 text-slate-500 hover:border-slate-400 hover:bg-slate-50" : "border-[#2a2a2a] text-[#666] hover:border-[#444] hover:bg-[#1a1a1a]"}`}>
-                  <Paperclip className="w-4 h-4 shrink-0" />
-                  <span>Attach image or PDF copy</span>
-                  <input type="file" accept="image/*,application/pdf" className="hidden"
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) setPendingFile(f); e.target.value = ""; }} />
-                </label>
-              )}
-            </div>
-          )}
 
           <div className="flex items-center justify-end gap-2 pt-4 border-t border-[#333]">
             <button type="button" onClick={onClose}
@@ -452,5 +521,6 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
         </form>
       </div>
     </div>
+    </>
   );
 };

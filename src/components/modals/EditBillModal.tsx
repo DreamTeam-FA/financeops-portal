@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect, useMemo } from "react";
 import { APBill, EntityName } from "../../types";
 import { useFinance } from "../../context/FinanceContext";
-import { X, Check } from "lucide-react";
+import { X, Check, Paperclip, FileCheck2, ExternalLink } from "lucide-react";
 
 interface EditBillModalProps {
   bill: APBill | null;
@@ -41,9 +41,12 @@ export const EditBillModal: React.FC<EditBillModalProps> = ({ bill, isOpen, onCl
   const [remarksTarget, setRemarksTarget] = useState<"payvia" | "remarks" | "instr" | "status1">("instr");
   const [status, setStatus] = useState<"unpaid" | "paid" | "hold">("unpaid");
   const [inQBO, setInQBO] = useState(false);
+  const [attachFile, setAttachFile] = useState<File | null>(null);
+  const [attachUploading, setAttachUploading] = useState(false);
 
   useEffect(() => {
     if (!bill) return;
+    setAttachFile(null);
     const sheetName = bill.sheet || `${bill.entity} Bills`;
     setSelectedSheet(sheetName);
     setSubCompany(bill.company || bill.entity || "TI");
@@ -115,7 +118,7 @@ export const EditBillModal: React.FC<EditBillModalProps> = ({ bill, isOpen, onCl
   }`;
   const lbl = `block text-[11px] font-bold uppercase tracking-wider mb-1 ${isLight ? "text-slate-600" : "text-[#aaa]"}`;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!vendor || !amount || !dueDate) return;
 
@@ -152,6 +155,38 @@ export const EditBillModal: React.FC<EditBillModalProps> = ({ bill, isOpen, onCl
         if (remarksTarget === "instr") updated.paymentInstructions = remarks;
         else updated.status1 = remarks;
       }
+    }
+
+    // Upload new bill copy to Drive if one was selected
+    if (attachFile) {
+      setAttachUploading(true);
+      try {
+        const reader = new FileReader();
+        const base64: string = await new Promise((res, rej) => {
+          reader.onload = (ev) => res((ev.target?.result as string).split(",")[1]);
+          reader.onerror = rej;
+          reader.readAsDataURL(attachFile);
+        });
+        const resp = await fetch("/api/drive/upload-bill", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            imageBase64: base64,
+            mimeType: attachFile.type || "image/jpeg",
+            entity: entityName,
+            vendor,
+            invoiceNo: invoiceNo || undefined,
+            dueDate,
+            amount: parseFloat(amount) || 0,
+          }),
+        });
+        if (resp.ok) {
+          const { viewUrl, fileName } = await resp.json();
+          updated.driveViewUrl = viewUrl;
+          updated.driveFileName = fileName;
+        }
+      } catch { /* upload failure shouldn't block bill save */ }
+      setAttachUploading(false);
     }
 
     updateBill(updated);
@@ -324,14 +359,45 @@ export const EditBillModal: React.FC<EditBillModalProps> = ({ bill, isOpen, onCl
             )}
           </div>
 
+          {/* Attach Bill Copy */}
+          <div>
+            <label className={lbl}>Attach Bill Copy</label>
+            {bill?.driveViewUrl && !attachFile ? (
+              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs ${isLight ? "bg-green-50 border-green-200 text-green-700" : "bg-[#0a1a10] border-[#1a3a20] text-green-400"}`}>
+                <FileCheck2 className="w-4 h-4 shrink-0" />
+                <span className="truncate flex-1">{bill.driveFileName || "Bill copy on file"}</span>
+                <a href={bill.driveViewUrl} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-0.5 underline opacity-80 hover:opacity-100 shrink-0">
+                  <ExternalLink className="w-3 h-3" /> View
+                </a>
+              </div>
+            ) : null}
+            {attachFile ? (
+              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold ${isLight ? "bg-blue-50 border-blue-200 text-blue-700" : "bg-[#0d1a2e] border-[#1a3a5c] text-[#4fa3e0]"}`}>
+                <FileCheck2 className="w-4 h-4 shrink-0" />
+                <span className="truncate flex-1">{attachFile.name}</span>
+                <button type="button" onClick={() => setAttachFile(null)} className="opacity-60 hover:opacity-100 shrink-0">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <label className={`mt-1.5 flex items-center gap-2 px-3 py-2.5 rounded-lg border border-dashed cursor-pointer text-xs transition-colors ${isLight ? "border-slate-300 text-slate-500 hover:border-blue-400 hover:bg-blue-50" : "border-[#333] text-[#666] hover:border-[#555] hover:bg-[#1a1a1a]"}`}>
+                <Paperclip className="w-4 h-4 shrink-0" />
+                <span>{bill?.driveViewUrl ? "Replace with new file…" : "Attach image or PDF…"}</span>
+                <input type="file" accept="image/*,application/pdf" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) setAttachFile(f); e.target.value = ""; }} />
+              </label>
+            )}
+          </div>
+
           <div className="flex items-center justify-end gap-2 pt-4 border-t border-[#333]">
             <button type="button" onClick={onClose}
               className={`px-4 py-2 rounded-xl text-xs font-semibold ${isLight ? "bg-slate-100 hover:bg-slate-200 text-slate-700" : "bg-[#222] hover:bg-[#333] text-[#aaa]"}`}>
               Cancel
             </button>
-            <button type="submit"
-              className={`px-5 py-2 rounded-xl ${currentTheme.btn} text-xs font-bold text-white shadow-md flex items-center gap-1.5`}>
-              <Check className="w-4 h-4" /> Save Changes
+            <button type="submit" disabled={attachUploading}
+              className={`px-5 py-2 rounded-xl ${currentTheme.btn} text-xs font-bold text-white shadow-md flex items-center gap-1.5 disabled:opacity-70`}>
+              <Check className="w-4 h-4" /> {attachUploading ? "Uploading…" : "Save Changes"}
             </button>
           </div>
         </form>

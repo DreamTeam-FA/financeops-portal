@@ -122,7 +122,7 @@ interface FinanceContextType {
   availableAPEntities: string[];
 
   // CRUD Actions
-  addBill: (bill: Omit<APBill, "id">) => void;
+  addBill: (bill: Omit<APBill, "id">) => APBill;
   updateBill: (bill: APBill) => void;
   toggleBillStatus: (id: string, status: "unpaid" | "paid" | "hold", paidDate?: string) => void;
   deleteBill: (id: string) => void;
@@ -1705,7 +1705,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // --- CRUD FUNCTIONS WITH EDIT SUPPORT ---
 
-  const addBill = (newBillData: Omit<APBill, "id">) => {
+  const addBill = (newBillData: Omit<APBill, "id">): APBill => {
     const id = "ap-" + Date.now();
     const bucket = computeBucket(newBillData.dueDate, newBillData.status);
     const newBill: APBill = { ...newBillData, id, bucket };
@@ -1714,6 +1714,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     persistChanges({ ap: nextBills });
     logAction("Added Bill", `${newBill.vendor} (${newBill.entity}) - $${newBill.amount}`);
     pushSingleAPBillToSheet(newBill, "append");
+    return newBill;
   };
 
   const updateBill = (updatedBill: APBill) => {
