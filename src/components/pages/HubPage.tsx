@@ -24,6 +24,14 @@ export const HubPage: React.FC = () => {
 
   const greetingName = getUserGreetingName(userEmail, googleUser?.displayName);
 
+  const getTimeGreeting = () => {
+    const h = new Date().getHours();
+    if (h < 12) return "Good morning";
+    if (h < 17) return "Good afternoon";
+    if (h < 21) return "Good evening";
+    return "Good night";
+  };
+
   const fmt = (v: number) => "$" + Math.abs(Math.round(v)).toLocaleString("en-US");
 
   // ── Pre-computed metrics ──────────────────────────────────────────────────
@@ -80,7 +88,7 @@ export const HubPage: React.FC = () => {
         <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b ${isLight ? "border-slate-200" : "border-[#1a2235]"}`}>
           <div>
             <h2 className={`text-xl font-bold tracking-tight ${isLight ? "text-slate-900" : "text-white"}`}>
-              Welcome back, <span className={isLight ? "text-blue-700" : "text-blue-400"}>{greetingName}</span>
+              {getTimeGreeting()}, <span className={isLight ? "text-blue-700" : "text-blue-400"}>{greetingName}</span>
             </h2>
             <p className={`text-xs mt-0.5 font-medium flex items-center gap-1.5 ${isLight ? "text-slate-500" : "text-[#6a7f9e]"}`}>
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
