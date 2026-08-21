@@ -531,7 +531,6 @@ export const Sidebar: React.FC = () => {
                   : isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900 border-transparent" : "text-[#7a90b0] hover:bg-[#0d1525] hover:text-[#c8d4e8] border-transparent"
               }`}
               style={activeStyle}
-              title={`Open Workspace for ${mem.name}`}
             >
               <UserIcon
                 className="w-3.5 h-3.5 shrink-0"
