@@ -7,7 +7,6 @@ import { useFinance } from "../../context/FinanceContext";
 import { getAccessToken } from "../../services/googleAuth";
 import { FourYrLogo } from "../EntityLogos";
 import { capturePage } from "../../lib/pageScreenshot";
-import { ScanToFill } from "../ScanToFill";
 
 const fmt2   = (n: number) => n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 const fmtAmt = (n: number) => `$${fmt2(n)}`;
@@ -174,8 +173,6 @@ export function FourYrPayrollPage() {
   const [editVal,       setEditVal]       = useState("");
   const editInputRef                      = useRef<HTMLInputElement>(null);
   const [addModalOpen,  setAddModalOpen]  = useState(false);
-  const [scanKey, setScanKey] = useState(0);
-  const [tscanResult, setTscanResult] = useState<any>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<RawRow|null>(null);
   const [editingRow,    setEditingRow]    = useState<RawRow|null>(null);
@@ -209,8 +206,7 @@ export function FourYrPayrollPage() {
     if (res.status === 500) {
       try { const b = await res.clone().json();
         if (b?.error && /401|token|credential|auth/i.test(String(b.error))) { setAuthError(true); throw new Error("reconnect"); }
-        else if (b?.error) throw new Error(`${path} → 500: ${b.error}`);
-      } catch(inner: any) { if (inner.message) throw inner; }
+      } catch {}
     }
     if (!res.ok) throw new Error(`${path} → ${res.status}`);
     return res.json();
@@ -327,9 +323,9 @@ export function FourYrPayrollPage() {
       setWeekContext(data.weekContext||{});
       // Auto-select current week
       const now = new Date();
-      const toDate = (mmddyyyy: string) => { const p = mmddyyyy.split('/'); return new Date(+p[2], +p[0]-1, +p[1]); };
       const cur = (data.weeks as WeekMeta[]).find(w => {
-        const s = toDate(w.startDate), e = toDate(w.endDate);
+        const s = new Date(w.startDate.replace(/(\d+)\/(\d+)\/(\d+)/, "$3-$1-$2"));
+        const e = new Date(w.endDate.replace(/(\d+)\/(\d+)\/(\d+)/, "$3-$1-$2"));
         e.setHours(23,59,59,999); return now >= s && now <= e;
       });
       if (cur) {
@@ -1544,63 +1540,15 @@ export function FourYrPayrollPage() {
       {/* ── Add Modal ── */}
       {addModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={()=>{ setAddModalOpen(false); setTscanResult(null); setScanKey(k=>k+1); }} />
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={()=>setAddModalOpen(false)} />
           <div className={`relative z-10 rounded-xl shadow-2xl border ${bdr} ${bg} w-full max-w-lg overflow-hidden`}>
             <div className="flex items-center justify-between px-5 py-4 border-b" style={{ background:TH1 }}>
               <div><h2 className="font-bold text-sm text-white">➕ Add Record</h2><p className="text-[11px] text-green-200 mt-0.5">Payroll, deduction, or non-payroll entry</p></div>
-              <button onClick={()=>{ setAddModalOpen(false); setTscanResult(null); setScanKey(k=>k+1); }} className="w-7 h-7 flex items-center justify-center rounded text-white/70 hover:text-white text-xl" style={{ background:"rgba(255,255,255,.1)" }}>×</button>
+              <button onClick={()=>setAddModalOpen(false)} className="w-7 h-7 flex items-center justify-center rounded text-white/70 hover:text-white text-xl" style={{ background:"rgba(255,255,255,.1)" }}>×</button>
             </div>
-            <div className="px-5 py-4 overflow-y-auto space-y-4" style={{ maxHeight:"65vh" }}>
-              {/* Scan timesheet to auto-fill */}
-              <ScanToFill
-                type="timesheet"
-                isLight={isLight}
-                resetKey={scanKey}
-                onFill={(data) => {
-                  setTscanResult(data);
-                }}
-              />
-              {/* Day picker after scan */}
-              {tscanResult && tscanResult.days && tscanResult.days.length > 0 && (
-                <div className={`rounded-lg border p-3 space-y-2 text-xs ${isLight ? "bg-green-50 border-green-200" : "bg-[#0a1a10] border-[#1a3a20]"}`}>
-                  <div className={`text-[11px] font-bold uppercase tracking-wider ${isLight ? "text-green-700" : "text-green-400"}`}>
-                    ✓ Scanned: <span className="normal-case font-black">{tscanResult.employeeName}</span> — pick a day to fill the form
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {tscanResult.days.map((day: any, i: number) => (
-                      <button key={i} type="button"
-                        onClick={() => {
-                          // Parse date from timesheet (YYYY-MM-DD or MM/DD/YYYY)
-                          let dateFmt = day.date || "";
-                          if (/^\d{4}-\d{2}-\d{2}$/.test(dateFmt)) {
-                            const [y,m,d] = dateFmt.split("-");
-                            dateFmt = `${m}/${d}/${y}`;
-                          }
-                          setForm(f => ({
-                            ...f,
-                            name: tscanResult.employeeName || f.name,
-                            date: dateFmt,
-                            started: day.clockIn || "",
-                            finished: day.clockOut || "",
-                            hours: day.totalHours != null ? String(day.totalHours) : f.hours,
-                            job: tscanResult.job || f.job,
-                          }));
-                          setTscanResult(null);
-                        }}
-                        className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-colors ${isLight ? "bg-white border-green-300 text-green-800 hover:bg-green-100" : "bg-[#0d1a14] border-[#1e4028] text-green-300 hover:bg-[#143020]"}`}>
-                        <span className="font-bold">{day.dayOfWeek}</span>
-                        {day.date ? ` · ${day.date}` : ""}
-                        {day.totalHours != null ? <span className="ml-1 opacity-70">({day.totalHours}h)</span> : ""}
-                      </button>
-                    ))}
-                  </div>
-                  <button type="button" onClick={() => { setTscanResult(null); setScanKey(k => k + 1); }} className={`text-[10px] underline opacity-60 hover:opacity-100 ${isLight ? "text-green-700" : "text-green-400"}`}>Dismiss & scan again</button>
-                </div>
-              )}
-              {renderForm(false)}
-            </div>
+            <div className="px-5 py-4 overflow-y-auto" style={{ maxHeight:"65vh" }}>{renderForm(false)}</div>
             <div className={`flex items-center justify-end gap-2 px-5 py-3 border-t ${bdr} ${bg3}`}>
-              <button onClick={()=>{ setAddModalOpen(false); setTscanResult(null); setScanKey(k => k+1); }} className={`text-xs px-4 py-2 rounded border ${bdr} ${txt2}`}>Cancel</button>
+              <button onClick={()=>setAddModalOpen(false)} className={`text-xs px-4 py-2 rounded border ${bdr} ${txt2}`}>Cancel</button>
               <button onClick={submitAdd} className="text-xs px-5 py-2 rounded text-white font-semibold" style={{ background:TH1 }}>💾 Add to Sheet</button>
             </div>
           </div>

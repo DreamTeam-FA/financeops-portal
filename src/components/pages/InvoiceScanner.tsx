@@ -79,7 +79,7 @@ export const InvoiceScanner: React.FC<Props> = ({ isLight }) => {
     });
 
   const processFiles = useCallback(async (files: File[]) => {
-    const imageFiles = files.filter(f => f.type.startsWith("image/"));
+    const imageFiles = files.filter(f => f.type.startsWith("image/") || f.type === "application/pdf");
     if (imageFiles.length === 0) return;
 
     const newItems: ScanItem[] = await Promise.all(
@@ -173,7 +173,7 @@ export const InvoiceScanner: React.FC<Props> = ({ isLight }) => {
               : "border-[#1a2235] bg-[#0d111a] hover:border-[#1a73e8] hover:bg-[#1a73e8]/5",
         ].join(" ")}
       >
-        <input ref={inputRef} type="file" accept="image/*" multiple className="hidden" onChange={onFileChange} />
+        <input ref={inputRef} type="file" accept="image/*,application/pdf" multiple className="hidden" onChange={onFileChange} />
 
         <div className="w-12 h-12 rounded-2xl bg-[#1a73e8]/15 flex items-center justify-center">
           {scanningCount > 0

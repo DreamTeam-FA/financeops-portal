@@ -2,6 +2,7 @@
 import { useFinance } from "../../context/FinanceContext";
 import { EntityName } from "../../types";
 import { X, Check } from "lucide-react";
+import { ScanToFill } from "../ScanToFill";
 
 interface AddBillModalProps {
   isOpen: boolean;
@@ -37,6 +38,8 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
   const [remarks, setRemarks] = useState("");
   // TI: "payvia" | "remarks"   Ruby's/MSDx: "instr" | "status1"
   const [remarksTarget, setRemarksTarget] = useState<"payvia" | "remarks" | "instr" | "status1">("instr");
+  const [scanKey, setScanKey] = useState(0);
+  const [scanFilled, setScanFilled] = useState(false);
 
   useEffect(() => {
     setSelectedSheet(`${defaultEntity} Bills`);
@@ -110,6 +113,19 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
     setCategory("");
     setRemarks("");
     setRemarksTarget(sheet === "TI Bills" ? "payvia" : "instr");
+    setScanKey(k => k + 1);
+    setScanFilled(false);
+  };
+
+  const handleScanFill = (data: any) => {
+    if (!data) return;
+    if (data.vendor)      setVendor(data.vendor);
+    if (data.invoiceNo)   setInvoiceNo(String(data.invoiceNo));
+    if (data.amount != null) setAmount(String(data.amount));
+    if (data.issueDate)   setInvoiceDate(data.issueDate);
+    if (data.dueDate)     setDueDate(data.dueDate);
+    if (data.description) setDescription(data.description);
+    setScanFilled(true);
   };
 
   if (!isOpen) return null;
@@ -158,6 +174,7 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
     onClose();
     setVendor(""); setAmount(""); setRemarks(""); setInvoiceNo("");
     setInvoiceDate(""); setPaymentDate(""); setDescription(""); setCategory("");
+    setScanKey(k => k + 1); setScanFilled(false);
   };
 
   return (
@@ -183,6 +200,20 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
               ))}
             </select>
           </div>
+
+          {/* Scan to fill */}
+          <ScanToFill
+            type="invoice"
+            isLight={isLight}
+            onFill={handleScanFill}
+            resetKey={scanKey}
+          />
+          {scanFilled && (
+            <div className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-[11px] font-semibold ${isLight ? "bg-blue-50 border border-blue-200 text-blue-700" : "bg-[#0d1a2e] border border-[#1a3a5c] text-[#4fa3e0]"}`}>
+              <span>✓ Fields auto-filled from scan — verify and adjust before submitting</span>
+              <button type="button" onClick={() => { setScanKey(k => k + 1); setScanFilled(false); }} className="text-[10px] underline opacity-70 hover:opacity-100 shrink-0">Scan again</button>
+            </div>
+          )}
 
           {/* Company — TI only */}
           {isTI && (
