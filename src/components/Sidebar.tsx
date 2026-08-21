@@ -1,4 +1,5 @@
 ﻿import React, { useState } from "react";
+import { AlertsBell, AlertsPanel } from "./AlertsCenter";
 import { useFinance } from "../context/FinanceContext";
 import { getUserGreetingName } from "../utils/userGreeting";
 import { formatPossessiveName, formatCleanName } from "../utils/formatters";
@@ -708,7 +709,8 @@ export const Sidebar: React.FC = () => {
       <div className="flex-1 min-h-[16px]" />
 
       {/* Sidebar Footer */}
-      <div className={`border-t ${isLight ? "border-slate-200" : "border-[#1a2235]"} p-2 shrink-0 ${isLight ? "" : "bg-[#060a11]"}`}>
+      <div className={`border-t ${isLight ? "border-slate-200" : "border-[#1a2235]"} p-2 shrink-0 relative ${isLight ? "" : "bg-[#060a11]"}`}>
+        <AlertsPanel isLight={isLight} />
         {!isSidebarFolded ? (
           <>
             <div className="flex items-center gap-2.5 px-2 pb-2">
@@ -731,6 +733,7 @@ export const Sidebar: React.FC = () => {
                 <UserIcon className="w-3.5 h-3.5 text-purple-500" />
                 Change User
               </button>
+              <AlertsBell isLight={isLight} />
               <GearDropdown variant="wide" />
               <button
                 onClick={syncAllFromGoogleSheets}

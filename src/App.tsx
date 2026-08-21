@@ -18,6 +18,7 @@ import { HeadleysPage } from "./components/pages/HeadleysPage";
 import { FourYrPayrollPage } from "./components/pages/FourYrPayrollPage";
 import { LogsPage } from "./components/pages/LogsPage";
 import { NotesFloatingWidget } from "./components/modals/NotesFloatingWidget";
+import { AlertsProvider, AlertsToasts } from "./components/AlertsCenter";
 import { LoginModal } from "./components/modals/LoginModal";
 import {
   LayoutDashboard,
@@ -277,6 +278,9 @@ const PortalContent: React.FC = () => {
       {/* Floating Notes Widget */}
       <NotesFloatingWidget />
 
+      {/* Alert Toasts — fires on login for critical/warn items */}
+      <AlertsToasts isLight={theme === "light"} />
+
       {/* Sync Toast Notification */}
       <SyncToastBanner />
       <GlobalDatePickerModal />
@@ -339,7 +343,9 @@ const PortalContent: React.FC = () => {
 export default function App() {
   return (
     <FinanceProvider>
-      <PortalContent />
+      <AlertsProvider>
+        <PortalContent />
+      </AlertsProvider>
     </FinanceProvider>
   );
 }
