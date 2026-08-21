@@ -259,8 +259,8 @@ export const Sidebar: React.FC = () => {
               className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all relative overflow-hidden ${
                 isRubysActive
                   ? isLight
-                    ? "bg-pink-50 border border-pink-200 shadow-[0_2px_10px_rgba(236,72,153,.12)]"
-                    : "bg-pink-950/20 border border-pink-900/40 shadow-[0_2px_10px_rgba(236,72,153,.15)]"
+                    ? "bg-pink-100 border border-pink-300 shadow-[0_2px_10px_rgba(236,72,153,.2)]"
+                    : "bg-pink-900/30 border border-pink-700/50 shadow-[0_2px_10px_rgba(236,72,153,.25)]"
                   : isLight ? "hover:bg-slate-50 border border-transparent" : "hover:bg-[#0a1220] border border-transparent"
               }`}
               title="Ruby's AP View"
@@ -293,8 +293,8 @@ export const Sidebar: React.FC = () => {
               className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all relative overflow-hidden ${
                 isTIActive
                   ? isLight
-                    ? "bg-blue-50 border border-blue-200 shadow-[0_2px_10px_rgba(59,130,246,.12)]"
-                    : "bg-blue-950/20 border border-blue-900/40 shadow-[0_2px_10px_rgba(59,130,246,.15)]"
+                    ? "bg-blue-100 border border-blue-300 shadow-[0_2px_10px_rgba(59,130,246,.2)]"
+                    : "bg-blue-900/30 border border-blue-700/50 shadow-[0_2px_10px_rgba(59,130,246,.25)]"
                   : isLight ? "hover:bg-slate-50 border border-transparent" : "hover:bg-[#0a1220] border border-transparent"
               }`}
               title="TI AP View"
@@ -327,8 +327,8 @@ export const Sidebar: React.FC = () => {
               className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all relative overflow-hidden ${
                 isMSDxActive
                   ? isLight
-                    ? "bg-teal-50 border border-teal-200 shadow-[0_2px_10px_rgba(20,184,166,.12)]"
-                    : "bg-teal-950/20 border border-teal-900/40 shadow-[0_2px_10px_rgba(20,184,166,.15)]"
+                    ? "bg-teal-100 border border-teal-300 shadow-[0_2px_10px_rgba(20,184,166,.2)]"
+                    : "bg-teal-900/30 border border-teal-700/50 shadow-[0_2px_10px_rgba(20,184,166,.25)]"
                   : isLight ? "hover:bg-slate-50 border border-transparent" : "hover:bg-[#0a1220] border border-transparent"
               }`}
               title="MSDx AP View"
@@ -369,7 +369,7 @@ export const Sidebar: React.FC = () => {
           }}
           className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all relative overflow-hidden ${
             currentPage === "curcumin"
-              ? isLight ? "bg-amber-50 border border-amber-200 shadow-[0_2px_10px_rgba(245,158,11,.12)]" : "bg-amber-950/20 border border-amber-900/40 shadow-[0_2px_10px_rgba(245,158,11,.15)]"
+              ? isLight ? "bg-amber-100 border border-amber-300 shadow-[0_2px_10px_rgba(245,158,11,.2)]" : "bg-amber-900/30 border border-amber-700/50 shadow-[0_2px_10px_rgba(245,158,11,.25)]"
               : isLight ? "hover:bg-slate-50 border border-transparent" : "hover:bg-[#0a1220] border border-transparent"
           }`}
           title="CurcuminPRO Dashboard"
@@ -391,7 +391,7 @@ export const Sidebar: React.FC = () => {
           onClick={() => setCurrentPage("fouryr-payroll")}
           className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all relative overflow-hidden ${
             currentPage === "fouryr-payroll"
-              ? isLight ? "bg-purple-50 border border-purple-200 shadow-[0_2px_10px_rgba(168,85,247,.12)]" : "bg-purple-950/20 border border-purple-900/40 shadow-[0_2px_10px_rgba(168,85,247,.15)]"
+              ? isLight ? "bg-purple-100 border border-purple-300 shadow-[0_2px_10px_rgba(168,85,247,.2)]" : "bg-purple-900/30 border border-purple-700/50 shadow-[0_2px_10px_rgba(168,85,247,.25)]"
               : isLight ? "hover:bg-slate-50 border border-transparent" : "hover:bg-[#0a1220] border border-transparent"
           }`}
           title="4You Pros Dashboard"
@@ -416,7 +416,7 @@ export const Sidebar: React.FC = () => {
           }}
           className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-all relative overflow-hidden ${
             currentPage === "ziglar"
-              ? isLight ? "bg-emerald-50 border border-emerald-200 shadow-[0_2px_10px_rgba(16,185,129,.12)]" : "bg-emerald-950/20 border border-emerald-900/40 shadow-[0_2px_10px_rgba(16,185,129,.15)]"
+              ? isLight ? "bg-emerald-100 border border-emerald-300 shadow-[0_2px_10px_rgba(16,185,129,.2)]" : "bg-emerald-900/30 border border-emerald-700/50 shadow-[0_2px_10px_rgba(16,185,129,.25)]"
               : isLight ? "hover:bg-slate-50 border border-transparent" : "hover:bg-[#0a1220] border border-transparent"
           }`}
           title="Ziglar Dashboard"
