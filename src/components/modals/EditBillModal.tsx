@@ -43,6 +43,7 @@ export const EditBillModal: React.FC<EditBillModalProps> = ({ bill, isOpen, onCl
   const [inQBO, setInQBO] = useState(false);
   const [attachFile, setAttachFile] = useState<File | null>(null);
   const [attachUploading, setAttachUploading] = useState(false);
+  const [attachError, setAttachError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!bill) return;
@@ -160,6 +161,7 @@ export const EditBillModal: React.FC<EditBillModalProps> = ({ bill, isOpen, onCl
     // Upload new bill copy to Drive if one was selected
     if (attachFile) {
       setAttachUploading(true);
+      setAttachError(null);
       try {
         const reader = new FileReader();
         const base64: string = await new Promise((res, rej) => {
@@ -185,8 +187,17 @@ export const EditBillModal: React.FC<EditBillModalProps> = ({ bill, isOpen, onCl
           const { viewUrl, fileName } = await resp.json();
           updated.driveViewUrl = viewUrl;
           updated.driveFileName = fileName;
+        } else {
+          const err = await resp.json().catch(() => ({}));
+          setAttachUploading(false);
+          setAttachError(`Drive upload failed: ${err.error || resp.statusText}`);
+          return; // don't close — let user see the error
         }
-      } catch { /* upload failure shouldn't block bill save */ }
+      } catch (e: any) {
+        setAttachUploading(false);
+        setAttachError(`Drive upload error: ${e?.message || "unknown error"}`);
+        return;
+      }
       setAttachUploading(false);
     }
 
@@ -386,10 +397,16 @@ export const EditBillModal: React.FC<EditBillModalProps> = ({ bill, isOpen, onCl
                 <Paperclip className="w-4 h-4 shrink-0" />
                 <span>{bill?.driveViewUrl ? "Replace with new file…" : "Attach image or PDF…"}</span>
                 <input type="file" accept="image/*,application/pdf" className="hidden"
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) setAttachFile(f); e.target.value = ""; }} />
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) { setAttachFile(f); setAttachError(null); } e.target.value = ""; }} />
               </label>
             )}
           </div>
+
+          {attachError && (
+            <div className="px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs">
+              {attachError}
+            </div>
+          )}
 
           <div className="flex items-center justify-end gap-2 pt-4 border-t border-[#333]">
             <button type="button" onClick={onClose}
