@@ -798,7 +798,7 @@ export const CalendarPage: React.FC = () => {
 
   return (
     <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#070b12] text-[#e8e8e8]"}`}>
-      <PageHeader title="Integrated Finance & Schedule Calendar" bgClass="bg-[#2563eb]" sheetUrl="https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit" />
+      <PageHeader title="Integrated Finance & Schedule Calendar" bgClass="bg-[#2563eb]" sheetUrl="https://docs.google.com/spreadsheets/d/1ChoHr7dsfai0Unl-Gk-HyPmgrpWOYu07gllY9PA8epo/edit#gid=0" />
 
       <div className="flex-1 flex overflow-hidden">
         {/* Main Calendar Content Area */}
