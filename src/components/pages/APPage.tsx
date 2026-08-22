@@ -724,6 +724,81 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                 );
               })}
             </div>
+
+            {/* ── Recurring Bill Tracker ───────────────────────────── */}
+            {(() => {
+              const now = new Date();
+              const thisYear  = now.getFullYear();
+              const thisMonth = now.getMonth(); // 0-based
+
+              // Find all unique vendor+entity combos flagged as Recurring
+              const recurringKey = new Map<string, { vendor: string; entity: string; typicalAmount: number }>();
+              apBills.forEach(b => {
+                if (b.recurringType !== "Recurring") return;
+                const key = `${b.vendor}||${b.entity}`;
+                if (!recurringKey.has(key)) {
+                  recurringKey.set(key, { vendor: b.vendor, entity: b.entity, typicalAmount: b.amount });
+                }
+              });
+
+              // Check which ones have a bill in the current month (any status)
+              const allBills = apBills; // use all bills, not just filtered
+              const missingThisMonth = [...recurringKey.entries()].filter(([key, meta]) => {
+                const hasThisMonth = allBills.some(b => {
+                  const k = `${b.vendor}||${b.entity}`;
+                  if (k !== key) return false;
+                  if (!b.dueDate) return false;
+                  const d = new Date(b.dueDate + "T00:00:00");
+                  return d.getFullYear() === thisYear && d.getMonth() === thisMonth;
+                });
+                return !hasThisMonth;
+              }).map(([, meta]) => meta);
+
+              if (missingThisMonth.length === 0) {
+                return (
+                  <div className={`rounded-xl border px-4 py-3 flex items-center gap-3 ${isLight ? "bg-emerald-50 border-emerald-200" : "bg-emerald-500/8 border-emerald-500/20"}`}>
+                    <span className="text-emerald-500">✓</span>
+                    <div>
+                      <p className={`text-[12px] font-semibold ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>All recurring bills entered this month</p>
+                      <p className={`text-[11px] mt-0.5 ${isLight ? "text-emerald-600/70" : "text-emerald-500/60"}`}>{recurringKey.size} recurring vendors tracked</p>
+                    </div>
+                  </div>
+                );
+              }
+
+              const monthName = now.toLocaleString("default", { month: "long" });
+              const card2 = isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]";
+
+              return (
+                <div className={`rounded-xl border overflow-hidden ${isLight ? "border-amber-200" : "border-amber-500/25"}`}>
+                  {/* Header */}
+                  <div className={`flex items-center gap-2 px-4 py-2.5 ${isLight ? "bg-amber-50" : "bg-amber-500/10"}`}>
+                    <span className="text-amber-500">⚠</span>
+                    <span className={`text-[11px] font-bold uppercase tracking-widest ${isLight ? "text-amber-700" : "text-amber-400"}`}>
+                      Recurring Bills Missing — {monthName}
+                    </span>
+                    <span className={`ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isLight ? "bg-amber-200 text-amber-800" : "bg-amber-500/20 text-amber-400"}`}>
+                      {missingThisMonth.length}
+                    </span>
+                  </div>
+                  {/* Rows */}
+                  <div className="divide-y divide-inherit">
+                    {missingThisMonth.map((m, i) => (
+                      <div key={i} className={`flex items-center justify-between px-4 py-2.5 text-[12px] ${isLight ? "hover:bg-amber-50/50 border-amber-100" : "hover:bg-amber-500/5 border-amber-500/10"}`}>
+                        <div>
+                          <span className={`font-semibold ${isLight ? "text-slate-800" : "text-slate-200"}`}>{m.vendor}</span>
+                          <span className={`ml-2 ${isLight ? "text-slate-400" : "text-[#4a6080]"}`}>{m.entity}</span>
+                        </div>
+                        <span className={`font-semibold tabular-nums ${isLight ? "text-amber-700" : "text-amber-400"}`}>
+                          ~{formatCurrency(m.typicalAmount)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
           </div>
         )}
 
