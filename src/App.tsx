@@ -19,6 +19,7 @@ import { FourYrPayrollPage } from "./components/pages/FourYrPayrollPage";
 import { LogsPage } from "./components/pages/LogsPage";
 import { ServiceLimitsPage } from "./components/pages/ServiceLimitsPage";
 import { HelpPage } from "./components/pages/HelpPage";
+import { GlobalSearchModal } from "./components/GlobalSearchModal";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { NotesFloatingWidget } from "./components/modals/NotesFloatingWidget";
 import { AlertsProvider, AlertsToasts } from "./components/AlertsCenter";
@@ -297,6 +298,9 @@ const PortalContent: React.FC = () => {
 
       {/* Global Confirm Modal — replaces all window.confirm native dialogs */}
       <GlobalConfirmModal />
+
+      {/* Global Search — Ctrl+K */}
+      <GlobalSearchModal />
 
       {/* Mobile Bottom Navigation */}
       <nav className={`md:hidden fixed bottom-0 left-0 right-0 ${theme === "light" ? "bg-white border-slate-200" : "bg-[#0f0f0f] border-[#262626]"} border-t flex justify-around items-center py-2 px-1 z-50 text-[10px]`}>

@@ -43,7 +43,8 @@ import {
   BarChart3,
   Layers,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  Search
 } from "lucide-react";
 import { PageRoute, ExternalLinkItem } from "../types";
 
@@ -201,6 +202,30 @@ export const Sidebar: React.FC = () => {
         >
           {isSidebarFolded ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
         </button>
+      </div>
+
+      {/* Global Search trigger */}
+      <div className={`px-2 pt-2.5 pb-1 border-b ${isLight ? "border-slate-200" : "border-[#1a2235]"}`}>
+        <Tooltip label="Search (Ctrl+K)" disabled={!isSidebarFolded}>
+          <button
+            onClick={() => window.dispatchEvent(new Event("open-global-search"))}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all text-left group ${
+              isLight
+                ? "bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700"
+                : "bg-[#0d111a] hover:bg-[#151c29] text-[#4a6080] hover:text-[#7a90b0] border border-[#1a2235]"
+            }`}
+          >
+            <Search className="w-3.5 h-3.5 shrink-0" />
+            {!isSidebarFolded && (
+              <>
+                <span className="text-[12px] flex-1">Search…</span>
+                <kbd className={`text-[9px] font-mono px-1 py-0.5 rounded ${
+                  isLight ? "bg-slate-200 text-slate-500" : "bg-[#1a2235] text-[#4a6080]"
+                }`}>⌃K</kbd>
+              </>
+            )}
+          </button>
+        </Tooltip>
       </div>
 
       {/* Main Dashboards Section */}
