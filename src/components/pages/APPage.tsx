@@ -472,7 +472,13 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
         onAddClick={() => setIsAddModalOpen(true)}
         sheetUrl={
           "https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit#gid=" +
-          (selectedEntities.has("MSDx") ? "626198915" : selectedEntities.has("Ruby's") ? "1244424272" : "1881273371")
+          (
+            (filterEntityOverride ?? (selectedEntities.has("MSDx") ? "MSDx" : selectedEntities.has("Ruby's") ? "Ruby's" : null)) === "MSDx"
+              ? "626198915"
+              : (filterEntityOverride ?? (selectedEntities.has("Ruby's") ? "Ruby's" : null)) === "Ruby's"
+                ? "1244424272"
+                : "1881273371"
+          )
         }
       />
 

@@ -216,6 +216,25 @@ html, body, #root {
   transform: none !important;
   opacity: 0.8;
 }
+/* Light theme: override to dark-text row */
+[data-theme="light"] .ph-more-menu .btn-3d,
+[data-theme="light"] .ph-more-menu .btn-3d-ghost {
+  color: #334155 !important;
+}
+[data-theme="light"] .ph-more-menu .btn-3d:hover,
+[data-theme="light"] .ph-more-menu .btn-3d-ghost:hover {
+  background: #f1f5f9 !important;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .ph-more-menu .btn-3d,
+  :root:not([data-theme="dark"]) .ph-more-menu .btn-3d-ghost {
+    color: #334155 !important;
+  }
+  :root:not([data-theme="dark"]) .ph-more-menu .btn-3d:hover,
+  :root:not([data-theme="dark"]) .ph-more-menu .btn-3d-ghost:hover {
+    background: #f1f5f9 !important;
+  }
+}
 /* Always show button text inside the dropdown (override hidden sm:inline) */
 .ph-more-menu span {
   display: inline !important;

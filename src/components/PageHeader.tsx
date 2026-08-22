@@ -51,6 +51,8 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
     toggleTheme
   } = useFinance();
 
+  const isLight = theme === "light";
+
   const [tokenFlash, setTokenFlash] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
@@ -195,23 +197,29 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
 
             {moreOpen && (
               <div
-                className="ph-more-menu absolute right-0 top-full mt-2 z-50 min-w-[190px] rounded-xl border border-[#1a2235] bg-[#0d111a] shadow-[0_8px_32px_rgba(0,0,0,.6)] py-1.5 overflow-hidden"
+                className={`ph-more-menu absolute right-0 top-full mt-2 z-50 min-w-[190px] rounded-xl border py-1.5 overflow-hidden ${
+                  isLight
+                    ? "bg-white border-slate-200 shadow-[0_8px_32px_rgba(0,0,0,.15)]"
+                    : "bg-[#0d111a] border-[#1a2235] shadow-[0_8px_32px_rgba(0,0,0,.6)]"
+                }`}
                 onClick={() => setMoreOpen(false)}
               >
                 {/* Theme toggle */}
                 <button
                   onClick={toggleTheme}
-                  className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-[#c8d4e8] hover:bg-[#1a2235] transition-colors"
+                  className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] transition-colors ${
+                    isLight ? "text-slate-700 hover:bg-slate-100" : "text-[#c8d4e8] hover:bg-[#1a2235]"
+                  }`}
                 >
                   {theme === "dark"
                     ? <Sun className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                    : <Moon className="w-3.5 h-3.5 text-slate-300 shrink-0" />}
+                    : <Moon className="w-3.5 h-3.5 text-slate-500 shrink-0" />}
                   Switch to {theme === "dark" ? "Light" : "Dark"} Mode
                 </button>
 
                 {/* Divider before page-specific extras */}
                 {(extraButtons || sheetUrl) && (
-                  <div className="my-1 mx-3 border-t border-[#1a2235]" />
+                  <div className={`my-1 mx-3 border-t ${isLight ? "border-slate-200" : "border-[#1a2235]"}`} />
                 )}
 
                 {/* Extra buttons (CSV, etc.) — passed as ReactNode; wrap in a context div */}
@@ -227,7 +235,9 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
                     href={sheetUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] text-[#c8d4e8] hover:bg-[#1a2235] transition-colors no-underline"
+                    className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] transition-colors no-underline ${
+                      isLight ? "text-slate-700 hover:bg-slate-100" : "text-[#c8d4e8] hover:bg-[#1a2235]"
+                    }`}
                   >
                     <ExternalLink className="w-3.5 h-3.5 text-blue-400 shrink-0" />
                     Open Source Sheet
