@@ -175,6 +175,8 @@ interface FinanceContextType {
   updateQuickNote: (id: string, updates: Partial<DashboardNote>) => void;
   deleteQuickNote: (id: string) => void;
   clearAllQuickNotes: () => void;
+  bulkSeedWorkspace: (items: DashboardNote[]) => void;
+  reorderQuickNotes: (orderedIds: string[]) => void;
 
   // GAS Dashboard URLs
   gasUrls: { curcumin: string; fouryr: string; ziglar: string };
@@ -589,6 +591,44 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     localStorage.setItem("financeops_quick_notes", JSON.stringify([]));
     persistChanges({ quickNotes: [] } as any);
     logAction("Cleared Notes", "All quick notes cleared");
+  };
+
+  /** Bulk-load workspace items (e.g. from Tabme seed) without sheet API calls.
+   *  Items whose IDs already exist are skipped so re-running is idempotent. */
+  const bulkSeedWorkspace = (items: DashboardNote[]) => {
+    const existingIds = new Set(quickNotes.map((n) => n.id));
+    const fresh = items.filter((i) => !existingIds.has(i.id));
+    if (fresh.length === 0) return;
+    const updated = [...quickNotes, ...fresh];
+    setQuickNotes(updated);
+    localStorage.setItem("financeops_quick_notes", JSON.stringify(updated));
+    persistChanges({ quickNotes: updated } as any);
+    logAction("Seeded Workspace", `Loaded ${fresh.length} items`);
+  };
+
+  /** Reorder a subset of quickNotes by supplying their IDs in the desired order.
+   *  Items not in orderedIds are untouched; those that are get re-inserted at the
+   *  same index slots they originally occupied (preserving interleaving with others). */
+  const reorderQuickNotes = (orderedIds: string[]) => {
+    if (orderedIds.length === 0) return;
+    const idSet = new Set(orderedIds);
+
+    // Original positions (indices in quickNotes) of the items to reorder
+    const slots: number[] = [];
+    quickNotes.forEach((n, i) => { if (idSet.has(n.id)) slots.push(i); });
+
+    // Build the reordered items in the requested sequence
+    const byId: Record<string, DashboardNote> = {};
+    quickNotes.forEach((n) => { byId[n.id] = n; });
+    const reordered = orderedIds.map((id) => byId[id]).filter(Boolean);
+
+    // Place reordered items back into their original slots
+    const newNotes = [...quickNotes];
+    slots.forEach((slotIdx, i) => { newNotes[slotIdx] = reordered[i]; });
+
+    setQuickNotes(newNotes);
+    localStorage.setItem("financeops_quick_notes", JSON.stringify(newNotes));
+    persistChanges({ quickNotes: newNotes } as any);
   };
 
   // State collections
@@ -2028,6 +2068,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         updateQuickNote,
         deleteQuickNote,
         clearAllQuickNotes,
+        bulkSeedWorkspace,
+        reorderQuickNotes,
         gasUrls,
         updateGasUrl,
         switchUser,

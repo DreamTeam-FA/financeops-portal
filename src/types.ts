@@ -203,6 +203,7 @@ export interface DashboardNote {
   memberId?: string;
   row?: number;       // 1-indexed sheet row for write-back
   weekLabel?: string; // week group label from sheet
+  sortOrder?: number; // drag-to-reorder position (lower = higher in list)
 }
 
 export interface ExternalLinkItem {

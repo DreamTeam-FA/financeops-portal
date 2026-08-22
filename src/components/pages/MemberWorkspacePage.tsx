@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { DashboardNote } from "../../types";
@@ -20,8 +20,11 @@ import {
   ArrowLeft,
   ChevronRight,
   Calendar,
-  X
+  X,
+  GripVertical,
+  Download
 } from "lucide-react";
+import { NORLAN_WORKSPACE_SEED } from "../../data/norlanWorkspaceSeed";
 
 interface MemberWorkspacePageProps {
   memberId: string;
@@ -34,7 +37,16 @@ export const MemberWorkspacePage: React.FC<MemberWorkspacePageProps> = ({
   memberName: initialMemberName,
   memberColor = "#1a73e8"
 }) => {
-  const { theme, quickNotes, addQuickNote, updateQuickNote, deleteQuickNote, setActiveMember } = useFinance();
+  const {
+    theme,
+    quickNotes,
+    addQuickNote,
+    updateQuickNote,
+    deleteQuickNote,
+    setActiveMember,
+    bulkSeedWorkspace,
+    reorderQuickNotes
+  } = useFinance();
   const isLight = theme === "light";
 
   // Editable Member Name State
@@ -56,6 +68,11 @@ export const MemberWorkspacePage: React.FC<MemberWorkspacePageProps> = ({
   const [newCategory, setNewCategory] = useState("General");
   const [targetFolderId, setTargetFolderId] = useState<string>("");
 
+  // Drag-to-reorder state
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const dragMode = useRef(false);
+
   // Clean current display name
   const displayName = formatCleanName(currentMemberName);
   const possessiveTitle = `${formatPossessiveName(displayName)} Workspace`;
@@ -67,6 +84,9 @@ export const MemberWorkspacePage: React.FC<MemberWorkspacePageProps> = ({
 
   // Folders for dropdown/navigation
   const folders = memberItems.filter((i) => i.itemType === "folder");
+
+  // Whether Norlan's seed is already loaded
+  const seedAlreadyLoaded = memberItems.some((i) => i.id === "seed-f-dashboards");
 
   const handleSaveNameEdit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,21 +128,17 @@ export const MemberWorkspacePage: React.FC<MemberWorkspacePageProps> = ({
 
   // Filter items based on activeTab, selectedFolderId, and searchTerm
   const filteredItems = memberItems.filter((item) => {
-    // If inside a folder, only show items belonging to that folder
     if (selectedFolderId) {
       if (item.id === selectedFolderId) return false;
       if (item.folderId !== selectedFolderId) return false;
     } else {
-      // If at root and viewing all/folder tabs, show folders or items not in subfolders
       if (item.itemType !== "folder" && item.folderId) return false;
     }
 
-    // Filter by tab
     if (activeTab === "note" && (item.itemType || "note") !== "note") return false;
     if (activeTab === "link" && item.itemType !== "link") return false;
     if (activeTab === "folder" && item.itemType !== "folder") return false;
 
-    // Search query
     const q = searchTerm.toLowerCase().trim();
     if (!q) return true;
     return (
@@ -135,6 +151,56 @@ export const MemberWorkspacePage: React.FC<MemberWorkspacePageProps> = ({
 
   const selectedFolderObj = folders.find((f) => f.id === selectedFolderId);
 
+  // ── Drag-to-reorder handlers ──────────────────────────────────────────────
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    dragMode.current = true;
+    setDraggedId(id);
+    e.dataTransfer.effectAllowed = "move";
+    // Needed for Firefox
+    e.dataTransfer.setData("text/plain", id);
+  };
+
+  const handleDragOver = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (id !== dragOverId) setDragOverId(id);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    const srcId = draggedId;
+    setDraggedId(null);
+    setDragOverId(null);
+    dragMode.current = false;
+    if (!srcId || srcId === targetId) return;
+
+    const oldOrder = filteredItems.map((i) => i.id);
+    const srcIdx = oldOrder.indexOf(srcId);
+    const tgtIdx = oldOrder.indexOf(targetId);
+    if (srcIdx === -1 || tgtIdx === -1) return;
+
+    const newOrder = [...oldOrder];
+    newOrder.splice(srcIdx, 1);
+    newOrder.splice(tgtIdx, 0, srcId);
+
+    reorderQuickNotes(newOrder);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedId(null);
+    setDragOverId(null);
+    dragMode.current = false;
+  };
+
+  // Drag-handle style helper
+  const dragBorderClass = (id: string) =>
+    dragOverId === id && draggedId !== id
+      ? "border-[#1a73e8] ring-2 ring-[#1a73e8]/30"
+      : "";
+
+  const dragOpacityClass = (id: string) =>
+    draggedId === id ? "opacity-40 scale-95" : "opacity-100 scale-100";
+
   return (
     <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#070b12] text-[#e8e8e8]"}`}>
       <PageHeader
@@ -146,9 +212,9 @@ export const MemberWorkspacePage: React.FC<MemberWorkspacePageProps> = ({
         addLabel="Add Note / Link / Folder"
       />
 
-      {/* Top Bar with Name Editing & Workspace Tabs */}
+      {/* Top Bar */}
       <div className={`flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 border-b ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} shrink-0`}>
-        {/* Workspace Identity & Edit Button */}
+        {/* Workspace Identity */}
         <div className="flex items-center gap-2">
           <span className="w-3.5 h-3.5 rounded-full shrink-0 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]" style={{ backgroundColor: memberColor }} />
           {isEditingName ? (
@@ -162,17 +228,10 @@ export const MemberWorkspacePage: React.FC<MemberWorkspacePageProps> = ({
                 } focus:outline-none focus:border-[#1a73e8]`}
                 autoFocus
               />
-              <button
-                type="submit"
-                className="px-2 py-1 bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs font-bold rounded-md flex items-center gap-1"
-              >
+              <button type="submit" className="px-2 py-1 bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs font-bold rounded-md flex items-center gap-1">
                 <Check className="w-3 h-3" /> Save
               </button>
-              <button
-                type="button"
-                onClick={() => setIsEditingName(false)}
-                className="px-2 py-1 bg-slate-200 dark:bg-[#222] text-xs font-bold rounded-md"
-              >
+              <button type="button" onClick={() => setIsEditingName(false)} className="px-2 py-1 bg-slate-200 dark:bg-[#222] text-xs font-bold rounded-md">
                 Cancel
               </button>
             </form>
@@ -180,10 +239,7 @@ export const MemberWorkspacePage: React.FC<MemberWorkspacePageProps> = ({
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-extrabold">{formatPossessiveName(displayName)} Personal Space</span>
               <button
-                onClick={() => {
-                  setEditedNameInput(displayName);
-                  setIsEditingName(true);
-                }}
+                onClick={() => { setEditedNameInput(displayName); setIsEditingName(true); }}
                 className="p-1 rounded hover:bg-slate-100 dark:hover:bg-[#222] text-slate-400 hover:text-[#1a73e8] transition-colors"
                 title="Edit Label / Member Name"
               >
@@ -194,9 +250,19 @@ export const MemberWorkspacePage: React.FC<MemberWorkspacePageProps> = ({
           <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${isLight ? "bg-slate-100 text-slate-600" : "bg-[#222] text-gray-300"}`}>
             {memberItems.length} total
           </span>
+          {/* Norlan-only: Load My Links from Tabme */}
+          {memberId === "mem-norlan" && !seedAlreadyLoaded && (
+            <button
+              onClick={() => bulkSeedWorkspace(NORLAN_WORKSPACE_SEED)}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-600 dark:text-amber-400 border border-amber-500/30 text-[10px] font-bold transition-colors"
+              title="Load links imported from your Tabme bookmark manager"
+            >
+              <Download className="w-3 h-3" /> Load My Links
+            </button>
+          )}
         </div>
 
-        {/* Tab Filters: All, Notes, Links, Folders */}
+        {/* Tab Filters */}
         <div className="flex items-center gap-1">
           {(
             [
@@ -245,15 +311,20 @@ export const MemberWorkspacePage: React.FC<MemberWorkspacePageProps> = ({
       {/* Breadcrumb Navigation if inside folder */}
       {selectedFolderId && selectedFolderObj && (
         <div className={`flex items-center gap-2 px-4 py-2 border-b text-xs font-bold ${isLight ? "bg-blue-50/50 border-blue-100 text-blue-900" : "bg-[#141d2b] border-[#1e2a3a] text-blue-300"}`}>
-          <button
-            onClick={() => setSelectedFolderId(null)}
-            className="flex items-center gap-1 text-[#1a73e8] hover:underline"
-          >
+          <button onClick={() => setSelectedFolderId(null)} className="flex items-center gap-1 text-[#1a73e8] hover:underline">
             <ArrowLeft className="w-3.5 h-3.5" /> Root Space
           </button>
           <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
           <Folder className="w-4 h-4 text-amber-500 fill-amber-500/20" />
           <span>{selectedFolderObj.title}</span>
+        </div>
+      )}
+
+      {/* Drag-to-reorder hint */}
+      {filteredItems.length > 1 && !searchTerm && (
+        <div className={`px-4 py-1 text-[10px] flex items-center gap-1 ${isLight ? "bg-slate-50 text-slate-400 border-b border-slate-200" : "bg-[#0a0e17] text-[#555] border-b border-[#111827]"}`}>
+          <GripVertical className="w-3 h-3" />
+          Drag cards to reorder
         </div>
       )}
 
@@ -268,17 +339,49 @@ export const MemberWorkspacePage: React.FC<MemberWorkspacePageProps> = ({
             <p className={`text-xs max-w-sm mx-auto ${isLight ? "text-slate-500" : "text-gray-400"}`}>
               No items found. Click below to add a note, URL link, or folder specifically for {displayName}.
             </p>
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="px-4 py-2 rounded-xl bg-[#1a73e8] hover:bg-[#1557b0] text-white font-bold text-xs inline-flex items-center gap-1.5 transition-colors shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
-            >
-              <Plus className="w-4 h-4" /> Add Item for {displayName}
-            </button>
+            <div className="flex items-center justify-center gap-2 flex-wrap">
+              <button
+                onClick={() => setIsAddModalOpen(true)}
+                className="px-4 py-2 rounded-xl bg-[#1a73e8] hover:bg-[#1557b0] text-white font-bold text-xs inline-flex items-center gap-1.5 transition-colors shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
+              >
+                <Plus className="w-4 h-4" /> Add Item for {displayName}
+              </button>
+              {memberId === "mem-norlan" && !seedAlreadyLoaded && (
+                <button
+                  onClick={() => bulkSeedWorkspace(NORLAN_WORKSPACE_SEED)}
+                  className="px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-600 dark:text-amber-400 font-bold text-xs inline-flex items-center gap-1.5 border border-amber-500/30 transition-colors"
+                >
+                  <Download className="w-4 h-4" /> Load My Links from Tabme
+                </button>
+              )}
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
             {filteredItems.map((item) => {
               const type = item.itemType || "note";
+              const isDragged = draggedId === item.id;
+              const isDragOver = dragOverId === item.id && draggedId !== item.id;
+
+              // Common drag props for each card
+              const dragProps = {
+                draggable: true,
+                onDragStart: (e: React.DragEvent) => handleDragStart(e, item.id),
+                onDragOver: (e: React.DragEvent) => handleDragOver(e, item.id),
+                onDrop: (e: React.DragEvent) => handleDrop(e, item.id),
+                onDragEnd: handleDragEnd,
+              };
+
+              // Drag handle icon shared across card types
+              const DragHandle = () => (
+                <span
+                  className="cursor-grab active:cursor-grabbing text-slate-300 dark:text-[#444] hover:text-slate-500 dark:hover:text-[#666] select-none shrink-0"
+                  title="Drag to reorder"
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  <GripVertical className="w-3.5 h-3.5" />
+                </span>
+              );
 
               // 1. FOLDER CARD
               if (type === "folder") {
@@ -286,10 +389,13 @@ export const MemberWorkspacePage: React.FC<MemberWorkspacePageProps> = ({
                 return (
                   <div
                     key={item.id}
-                    onClick={() => setSelectedFolderId(item.id)}
-                    className={`border rounded-xl p-4 flex flex-col justify-between space-y-3 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] cursor-pointer transition-all hover:border-[#1a73e8] ${
-                      isLight ? "bg-white hover:bg-slate-50 border-slate-200" : "bg-[#0d111a] hover:bg-[#0d111a] border-[#1a2235]"
-                    }`}
+                    {...dragProps}
+                    onClick={() => { if (!isDragged) setSelectedFolderId(item.id); }}
+                    className={`border rounded-xl p-4 flex flex-col justify-between space-y-3 cursor-pointer transition-all
+                      ${isLight ? "bg-white border-slate-200 hover:bg-slate-50" : "bg-[#0d111a] border-[#1a2235]"}
+                      ${isDragOver ? "border-[#1a73e8] ring-2 ring-[#1a73e8]/30 shadow-[0_0_0_2px_rgba(26,115,232,.2)]" : "hover:border-[#1a73e8] shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"}
+                      ${isDragged ? "opacity-40 scale-95" : "opacity-100 scale-100"}
+                    `}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2.5">
@@ -297,30 +403,26 @@ export const MemberWorkspacePage: React.FC<MemberWorkspacePageProps> = ({
                           <Folder className="w-5 h-5 fill-amber-500/20" />
                         </div>
                         <div>
-                          <h4 className={`text-sm font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
-                            {item.title}
-                          </h4>
+                          <h4 className={`text-sm font-bold ${isLight ? "text-slate-900" : "text-white"}`}>{item.title}</h4>
                           <p className={`text-[11px] ${isLight ? "text-slate-500" : "text-gray-400"}`}>
                             {subItemsCount} item{subItemsCount === 1 ? "" : "s"} inside
                           </p>
                         </div>
                       </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteQuickNote(item.id);
-                        }}
-                        className="text-slate-400 hover:text-red-500 p-1"
-                        title="Delete Folder"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <DragHandle />
+                        <button
+                          onClick={(e) => { e.stopPropagation(); deleteQuickNote(item.id); }}
+                          className="text-slate-400 hover:text-red-500 p-1"
+                          title="Delete Folder"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
 
                     {item.content && (
-                      <p className={`text-xs line-clamp-2 ${isLight ? "text-slate-600" : "text-gray-300"}`}>
-                        {item.content}
-                      </p>
+                      <p className={`text-xs line-clamp-2 ${isLight ? "text-slate-600" : "text-gray-300"}`}>{item.content}</p>
                     )}
 
                     <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 dark:border-[#222] text-[11px] text-blue-600 dark:text-blue-400 font-bold">
@@ -343,32 +445,34 @@ export const MemberWorkspacePage: React.FC<MemberWorkspacePageProps> = ({
                 return (
                   <div
                     key={item.id}
-                    className={`border rounded-xl p-4 flex flex-col justify-between space-y-3 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] ${
-                      isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"
-                    }`}
+                    {...dragProps}
+                    className={`border rounded-xl p-4 flex flex-col justify-between space-y-3 transition-all
+                      ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"}
+                      ${isDragOver ? "border-[#1a73e8] ring-2 ring-[#1a73e8]/30 shadow-[0_0_0_2px_rgba(26,115,232,.2)]" : "shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"}
+                      ${isDragged ? "opacity-40 scale-95" : "opacity-100 scale-100"}
+                    `}
                   >
                     <div>
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <span className="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                           <Globe className="w-3 h-3" /> {item.category || "URL Link"}
                         </span>
-                        <button
-                          onClick={() => deleteQuickNote(item.id)}
-                          className="text-slate-400 hover:text-red-500 transition-colors"
-                          title="Delete Link"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <DragHandle />
+                          <button
+                            onClick={() => deleteQuickNote(item.id)}
+                            className="text-slate-400 hover:text-red-500 transition-colors"
+                            title="Delete Link"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
 
-                      <h4 className={`text-sm font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
-                        {item.title}
-                      </h4>
+                      <h4 className={`text-sm font-bold ${isLight ? "text-slate-900" : "text-white"}`}>{item.title}</h4>
 
                       {item.content && (
-                        <p className={`text-xs mt-1 leading-relaxed ${isLight ? "text-slate-600" : "text-gray-300"}`}>
-                          {item.content}
-                        </p>
+                        <p className={`text-xs mt-1 leading-relaxed ${isLight ? "text-slate-600" : "text-gray-300"}`}>{item.content}</p>
                       )}
 
                       {item.url && (
@@ -377,6 +481,7 @@ export const MemberWorkspacePage: React.FC<MemberWorkspacePageProps> = ({
                           target="_blank"
                           rel="noopener noreferrer"
                           className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-[#1a73e8] text-xs font-bold border border-blue-500/20 transition-colors break-all"
+                          onClick={(e) => e.stopPropagation()}
                         >
                           <ExternalLink className="w-3.5 h-3.5 shrink-0" />
                           <span className="truncate max-w-[200px]">{domain || item.url}</span>
@@ -397,28 +502,34 @@ export const MemberWorkspacePage: React.FC<MemberWorkspacePageProps> = ({
               return (
                 <div
                   key={item.id}
-                  className={`border rounded-xl p-4 flex flex-col justify-between space-y-3 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] ${
-                    isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"
-                  }`}
+                  {...dragProps}
+                  className={`border rounded-xl p-4 flex flex-col justify-between space-y-3 transition-all
+                    ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"}
+                    ${isDragOver ? "border-[#1a73e8] ring-2 ring-[#1a73e8]/30 shadow-[0_0_0_2px_rgba(26,115,232,.2)]" : "shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"}
+                    ${isDragged ? "opacity-40 scale-95" : "opacity-100 scale-100"}
+                  `}
                 >
                   <div>
                     <div className="flex items-center justify-between gap-2 mb-2">
                       <span className="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-blue-500/15 text-blue-600 dark:text-blue-400">
                         {item.category || "General Note"}
                       </span>
-                      <button
-                        onClick={() => deleteQuickNote(item.id)}
-                        className="text-slate-400 hover:text-red-500 transition-colors"
-                        title="Delete Note"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <DragHandle />
+                        <button
+                          onClick={() => deleteQuickNote(item.id)}
+                          className="text-slate-400 hover:text-red-500 transition-colors"
+                          title="Delete Note"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                     <h4 className={`text-sm font-bold ${item.status === "done" ? "line-through text-slate-400" : isLight ? "text-slate-900" : "text-white"}`}>
                       {item.title}
                     </h4>
                     {item.content && (
-                      <p className={`text-xs mt-1 leading-relaxed ${isLight ? "text-slate-600" : "text-gray-300"}`}>
+                      <p className={`text-xs mt-1 leading-relaxed whitespace-pre-line ${isLight ? "text-slate-600" : "text-gray-300"}`}>
                         {item.content}
                       </p>
                     )}
@@ -456,7 +567,7 @@ export const MemberWorkspacePage: React.FC<MemberWorkspacePageProps> = ({
         )}
       </div>
 
-      {/* Add Item Modal (Notes, Links, Folders) */}
+      {/* Add Item Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className={`w-full max-w-md rounded-xl border p-5 space-y-4 shadow-2xl ${
@@ -561,7 +672,7 @@ export const MemberWorkspacePage: React.FC<MemberWorkspacePageProps> = ({
                 </div>
               )}
 
-              {/* Folder Selector if folders exist */}
+              {/* Folder Selector */}
               {folders.length > 0 && itemType !== "folder" && (
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 mb-1">Place Inside Folder (Optional)</label>
@@ -582,7 +693,7 @@ export const MemberWorkspacePage: React.FC<MemberWorkspacePageProps> = ({
                 </div>
               )}
 
-              {/* Details / Content */}
+              {/* Details */}
               <div>
                 <label className="block text-xs font-semibold text-slate-500 mb-1">Description / Notes</label>
                 <textarea
