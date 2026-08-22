@@ -28,6 +28,57 @@ import {
 } from "lucide-react";
 import { NORLAN_WORKSPACE_SEED } from "../../data/norlanWorkspaceSeed";
 
+// ── Live drag-from-bookmarks-bar extractor ────────────────────────────────────
+// Reads from the browser's native dataTransfer when a bookmark is dragged
+// directly from the bookmarks bar or bookmarks manager into the portal.
+// Supports Chrome/Edge (text/uri-list) and Firefox (text/x-moz-url with title).
+
+interface DroppedLink { url: string; title: string; }
+
+function extractDroppedLinks(e: DragEvent | React.DragEvent): DroppedLink[] {
+  const dt = e.dataTransfer;
+  if (!dt) return [];
+
+  // Firefox: "text/x-moz-url" = "URL\nTitle\nURL\nTitle\n…" (pairs per line)
+  const mozUrl = dt.getData("text/x-moz-url");
+  if (mozUrl) {
+    const lines = mozUrl.split("\n").map((s) => s.trim()).filter(Boolean);
+    const results: DroppedLink[] = [];
+    for (let i = 0; i < lines.length; i += 2) {
+      const url = lines[i];
+      const title = lines[i + 1] || url;
+      if (url.startsWith("http")) results.push({ url, title });
+    }
+    if (results.length) return results;
+  }
+
+  // Chrome/Edge: text/uri-list (one URL per line; title may be in text/html)
+  const uriList = dt.getData("text/uri-list");
+  if (uriList) {
+    const htmlSnippet = dt.getData("text/html") || "";
+    // Try to pull a title from the <a> in the HTML snippet
+    const titleMatch = htmlSnippet.match(/<a[^>]*>([\s\S]*?)<\/a>/i);
+    const htmlTitle = titleMatch
+      ? titleMatch[1].replace(/<[^>]+>/g, "").trim()
+      : "";
+
+    const urls = uriList
+      .split(/\r?\n/)
+      .map((u) => u.trim())
+      .filter((u) => u && !u.startsWith("#") && u.startsWith("http"));
+
+    return urls.map((url) => ({ url, title: htmlTitle || url }));
+  }
+
+  // Fallback: plain text URL
+  const plain = dt.getData("text/plain") || "";
+  if (plain.startsWith("http")) {
+    return [{ url: plain.trim(), title: plain.trim() }];
+  }
+
+  return [];
+}
+
 // ── Browser bookmark HTML parser ──────────────────────────────────────────────
 // Standard format produced by Chrome, Firefox, Edge, and Safari.
 // Structure: <DL> → <DT><H3>FolderName</H3><DL>…</DL>  or  <DT><A href=…>Title</A>
@@ -174,11 +225,17 @@ export const MemberWorkspacePage: React.FC<MemberWorkspacePageProps> = ({
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const dragMode = useRef(false);
 
-  // Bookmark import state
+  // Bookmark import state (HTML file)
   const bookmarkInputRef = useRef<HTMLInputElement>(null);
   const [importPreview, setImportPreview] = useState<DashboardNote[] | null>(null);
   const [importFileName, setImportFileName] = useState("");
   const [importError, setImportError] = useState("");
+
+  // Live drag-from-browser-bar state
+  const [dropZoneActive, setDropZoneActive] = useState(false);
+  const [recentDrops, setRecentDrops] = useState<DroppedLink[]>([]);
+  const [dropSuccess, setDropSuccess] = useState<number>(0); // count of last batch added
+  const dropSuccessTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Clean current display name
   const displayName = formatCleanName(currentMemberName);
@@ -343,6 +400,55 @@ export const MemberWorkspacePage: React.FC<MemberWorkspacePageProps> = ({
   const folderCount = importPreview?.filter((n) => n.itemType === "folder").length ?? 0;
   const linkCount = importPreview?.filter((n) => n.itemType === "link").length ?? 0;
 
+  // ── Live drop-from-bookmarks-bar handlers ────────────────────────────────────
+  const handleDropZoneDragOver = (e: React.DragEvent) => {
+    // Only activate for bookmark / URI drops, not our own card reordering
+    const types = Array.from(e.dataTransfer.types);
+    const isBookmark =
+      types.includes("text/uri-list") ||
+      types.includes("text/x-moz-url") ||
+      types.includes("text/plain");
+    if (!isBookmark) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+    setDropZoneActive(true);
+  };
+
+  const handleDropZoneDragLeave = () => setDropZoneActive(false);
+
+  const handleDropZoneDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDropZoneActive(false);
+
+    const links = extractDroppedLinks(e);
+    if (links.length === 0) return;
+
+    const today = new Date().toISOString().split("T")[0];
+    const newNotes: DashboardNote[] = links.map((lnk, i) => ({
+      id: `bm-drop-${Date.now()}-${i}`,
+      title: lnk.title,
+      content: "",
+      itemType: "link" as const,
+      url: lnk.url,
+      folderId: selectedFolderId ?? undefined,
+      category: "General",
+      entity: "TI",
+      memberId,
+      status: "open" as const,
+      createdAt: today,
+    }));
+
+    bulkSeedWorkspace(newNotes);
+    setRecentDrops(links);
+    setDropSuccess(links.length);
+
+    if (dropSuccessTimer.current) clearTimeout(dropSuccessTimer.current);
+    dropSuccessTimer.current = setTimeout(() => {
+      setDropSuccess(0);
+      setRecentDrops([]);
+    }, 3500);
+  };
+
   // Drag-handle style helper
   const dragBorderClass = (id: string) =>
     dragOverId === id && draggedId !== id
@@ -486,13 +592,41 @@ export const MemberWorkspacePage: React.FC<MemberWorkspacePageProps> = ({
         </div>
       )}
 
-      {/* Drag-to-reorder hint */}
-      {filteredItems.length > 1 && !searchTerm && (
-        <div className={`px-4 py-1 text-[10px] flex items-center gap-1 ${isLight ? "bg-slate-50 text-slate-400 border-b border-slate-200" : "bg-[#0a0e17] text-[#555] border-b border-[#111827]"}`}>
-          <GripVertical className="w-3 h-3" />
-          Drag cards to reorder
-        </div>
-      )}
+      {/* Bookmark Drop Zone + drag-reorder hint bar */}
+      <div
+        onDragOver={handleDropZoneDragOver}
+        onDragLeave={handleDropZoneDragLeave}
+        onDrop={handleDropZoneDrop}
+        className={`relative px-4 py-2 border-b text-[10px] flex items-center justify-between gap-2 transition-colors
+          ${dropZoneActive
+            ? "bg-violet-500/15 border-violet-400 dark:border-violet-500"
+            : isLight
+            ? "bg-slate-50 border-slate-200 text-slate-400"
+            : "bg-[#0a0e17] border-[#111827] text-[#555]"
+          }`}
+      >
+        {/* Left: drop prompt */}
+        <span className={`flex items-center gap-1.5 font-semibold transition-colors ${dropZoneActive ? "text-violet-600 dark:text-violet-400" : ""}`}>
+          <BookMarked className="w-3 h-3" />
+          {dropZoneActive
+            ? "Release to add bookmark(s) here"
+            : "Drop bookmarks from your browser bar here to add them instantly"}
+        </span>
+
+        {/* Right: reorder hint */}
+        {filteredItems.length > 1 && !searchTerm && (
+          <span className="flex items-center gap-1 shrink-0">
+            <GripVertical className="w-3 h-3" /> Drag cards to reorder
+          </span>
+        )}
+
+        {/* Success flash */}
+        {dropSuccess > 0 && (
+          <span className="absolute right-4 top-1/2 -translate-y-1/2 px-2 py-0.5 rounded-full bg-emerald-500 text-white text-[10px] font-bold animate-pulse">
+            ✓ {dropSuccess} bookmark{dropSuccess !== 1 ? "s" : ""} added
+          </span>
+        )}
+      </div>
 
       {/* Main Grid Content */}
       <div className="flex-1 overflow-y-auto p-4">
