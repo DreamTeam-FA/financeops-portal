@@ -1,11 +1,11 @@
-/**
- * AlertsCenter — global alert system for FinanceOps Portal
+﻿/**
+ * AlertsCenter â€” global alert system for FinanceOps Portal
  *
  * Two surfaces:
  *  1. Bell icon with badge count (render <AlertsBell> in the Sidebar footer)
  *  2. Toast stack (render <AlertsToasts> in App.tsx, appears bottom-right)
  *
- * Alerts are derived live from FinanceContext data. No logic changes — read-only.
+ * Alerts are derived live from FinanceContext data. No logic changes â€” read-only.
  */
 import React, { useState, useEffect, useCallback, createContext, useContext, useRef } from "react";
 import { useFinance } from "../context/FinanceContext";
@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { PageRoute } from "../types";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export type AlertLevel = "critical" | "warn" | "info";
 
@@ -28,7 +28,7 @@ export interface Alert {
   icon: React.ReactNode;
 }
 
-// ─── Compute alerts from live data ────────────────────────────────────────────
+// â”€â”€â”€ Compute alerts from live data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function useComputedAlerts(): Alert[] {
   const { apBills, arItems, bankAccounts, calendarLocalEvents, loans } = useFinance();
@@ -39,7 +39,7 @@ function useComputedAlerts(): Alert[] {
 
   const alerts: Alert[] = [];
 
-  // Overdue AP bills — critical
+  // Overdue AP bills â€” critical
   const overdueBills = (apBills || []).filter(
     b => b.status !== "paid" && b.dueDate && new Date(b.dueDate + "T00:00:00") < today
   );
@@ -48,12 +48,12 @@ function useComputedAlerts(): Alert[] {
       id: "ap-overdue",
       level: "critical",
       title: `${overdueBills.length} Overdue Bill${overdueBills.length > 1 ? "s" : ""}`,
-      detail: `AP payments past due — action needed`,
+      detail: `AP payments past due â€” action needed`,
       page: "ap",
       icon: <AlertCircle className="w-4 h-4" />,
     });
 
-  // Bills due this week — warn
+  // Bills due this week â€” warn
   const dueSoon = (apBills || []).filter(b => {
     const d = b.status !== "paid" && b.dueDate ? new Date(b.dueDate + "T00:00:00") : null;
     return d && d >= today && d <= nextWeek;
@@ -68,7 +68,7 @@ function useComputedAlerts(): Alert[] {
       icon: <CreditCard className="w-4 h-4" />,
     });
 
-  // Overdue AR — critical
+  // Overdue AR â€” critical
   const overdueAR = (arItems || []).filter(
     a => !a.payment && a.dueDate && new Date(a.dueDate + "T00:00:00") < today
   );
@@ -82,15 +82,15 @@ function useComputedAlerts(): Alert[] {
       icon: <Receipt className="w-4 h-4" />,
     });
 
-  // Critical bank accounts — critical
+  // Critical bank accounts â€” critical
   const critical = (bankAccounts || []).filter(a => a.balance < 500);
   if (critical.length > 0)
     alerts.push({
       id: "bank-critical",
       level: "critical",
       title: `${critical.length} Account${critical.length > 1 ? "s" : ""} Below $500`,
-      detail: critical.map(a => a.name || a.bank).join(", "),
-      page: "bank",
+      detail: critical.map(a => a.bank).join(", "),
+      page: "banks",
       icon: <Landmark className="w-4 h-4" />,
     });
   else {
@@ -100,20 +100,20 @@ function useComputedAlerts(): Alert[] {
         id: "bank-low",
         level: "warn",
         title: `${low.length} Account${low.length > 1 ? "s" : ""} Below $1,000`,
-        detail: low.map(a => a.name || a.bank).join(", "),
-        page: "bank",
+        detail: low.map(a => a.bank).join(", "),
+        page: "banks",
         icon: <Landmark className="w-4 h-4" />,
       });
   }
 
-  // Today's calendar events — info
+  // Today's calendar events â€” info
   const todayEvents = (calendarLocalEvents || []).filter(e => e.date === todayStr && !e.done);
   if (todayEvents.length > 0)
     alerts.push({
       id: "cal-today",
       level: "info",
       title: `${todayEvents.length} Event${todayEvents.length > 1 ? "s" : ""} Today`,
-      detail: todayEvents.slice(0, 2).map(e => e.title).join(" · ") + (todayEvents.length > 2 ? ` +${todayEvents.length - 2} more` : ""),
+      detail: todayEvents.slice(0, 2).map(e => e.description).join(" Â· ") + (todayEvents.length > 2 ? ` +${todayEvents.length - 2} more` : ""),
       page: "calendar",
       icon: <CalendarDays className="w-4 h-4" />,
     });
@@ -121,7 +121,7 @@ function useComputedAlerts(): Alert[] {
   return alerts;
 }
 
-// ─── Shared panel state (open/close bell panel) ───────────────────────────────
+// â”€â”€â”€ Shared panel state (open/close bell panel) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const AlertsPanelCtx = createContext<{
   open: boolean;
@@ -139,7 +139,7 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   );
 };
 
-// ─── Bell + Panel (self-contained, fixed-position popup anchored to bell) ─────
+// â”€â”€â”€ Bell + Panel (self-contained, fixed-position popup anchored to bell) â”€â”€â”€â”€â”€
 
 export const AlertsBell: React.FC<{ isLight: boolean }> = ({ isLight }) => {
   const { open, setOpen, alerts } = useContext(AlertsPanelCtx);
@@ -198,7 +198,7 @@ export const AlertsBell: React.FC<{ isLight: boolean }> = ({ isLight }) => {
         )}
       </button>
 
-      {/* Floating popup — fixed-positioned next to the bell */}
+      {/* Floating popup â€” fixed-positioned next to the bell */}
       {open && pos && (
         <div
           ref={panelRef}
@@ -233,7 +233,7 @@ export const AlertsBell: React.FC<{ isLight: boolean }> = ({ isLight }) => {
             {alerts.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-6">
                 <CheckCircle2 className="w-8 h-8 text-emerald-400 opacity-60" />
-                <span className={`text-[12px] font-medium ${isLight ? "text-slate-400" : "text-[#4a6080]"}`}>All clear — no active alerts</span>
+                <span className={`text-[12px] font-medium ${isLight ? "text-slate-400" : "text-[#4a6080]"}`}>All clear â€” no active alerts</span>
               </div>
             ) : alerts.map(alert => {
               const s = levelStyle[alert.level];
@@ -259,7 +259,7 @@ export const AlertsBell: React.FC<{ isLight: boolean }> = ({ isLight }) => {
   );
 };
 
-// ─── Toast stack (bottom-right corner, shows on login for critical items) ─────
+// â”€â”€â”€ Toast stack (bottom-right corner, shows on login for critical items) â”€â”€â”€â”€â”€
 
 let _toastsShownForEmail: string | null = null;
 
@@ -269,7 +269,7 @@ export const AlertsToasts: React.FC<{ isLight: boolean }> = ({ isLight }) => {
   const [visible, setVisible] = useState<Alert[]>([]);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
-  // Show critical+warn toasts once per login session — but ONLY after the login gate is dismissed
+  // Show critical+warn toasts once per login session â€” but ONLY after the login gate is dismissed
   useEffect(() => {
     const email = googleUser?.email ?? null;
     // Don't fire while the login modal is still open
@@ -366,3 +366,5 @@ export const AlertsToasts: React.FC<{ isLight: boolean }> = ({ isLight }) => {
     </div>
   );
 };
+
+

@@ -2,7 +2,7 @@ services:
   - type: web
     name: financeops-portal
     runtime: node
-    buildCommand: npm run build
+    buildCommand: npm install --include=dev && npm run build
     startCommand: node dist/server.cjs
     envVars:
       - key: NODE_ENV

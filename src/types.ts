@@ -38,6 +38,8 @@ export interface APBill {
   paymentType?: "Auto-Debit" | "Manual";
   recurringType?: "Recurring" | "Non-Recurring";
   costType?: "Fixed" | "Estimate";
+  driveViewUrl?: string;   // Google Drive view URL for attached bill file
+  driveFileName?: string;  // Original filename of the attached bill
 }
 
 export interface BankAccount {

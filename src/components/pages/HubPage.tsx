@@ -160,9 +160,9 @@ export const HubPage: React.FC = () => {
   if (overdueAR.length > 0)
     briefItems.push({ icon: <Receipt className="w-3.5 h-3.5" />, label: "Overdue AR", detail: `${overdueAR.length} invoice${overdueAR.length > 1 ? "s" : ""} uncollected`, level: "critical", page: "ar" });
   if (criticalAccounts.length > 0)
-    briefItems.push({ icon: <Landmark className="w-3.5 h-3.5" />, label: "Low Bank Accounts", detail: `${criticalAccounts.length} account${criticalAccounts.length > 1 ? "s" : ""} below $500`, level: "critical", page: "bank" });
+    briefItems.push({ icon: <Landmark className="w-3.5 h-3.5" />, label: "Low Bank Accounts", detail: `${criticalAccounts.length} account${criticalAccounts.length > 1 ? "s" : ""} below $500`, level: "critical", page: "banks" });
   else if (lowAccounts.length > 0)
-    briefItems.push({ icon: <Landmark className="w-3.5 h-3.5" />, label: "Watch: Bank Balances", detail: `${lowAccounts.length} account${lowAccounts.length > 1 ? "s" : ""} below $1,000`, level: "warn", page: "bank" });
+    briefItems.push({ icon: <Landmark className="w-3.5 h-3.5" />, label: "Watch: Bank Balances", detail: `${lowAccounts.length} account${lowAccounts.length > 1 ? "s" : ""} below $1,000`, level: "warn", page: "banks" });
   if (todayEvents.length > 0)
     briefItems.push({ icon: <CalendarDays className="w-3.5 h-3.5" />, label: "Events Today", detail: `${todayEvents.length} item${todayEvents.length > 1 ? "s" : ""} on the calendar`, level: "info", page: "calendar" });
   if (openNotes.length > 0)
@@ -750,3 +750,4 @@ export const HubPage: React.FC = () => {
     </div>
   );
 };
+
