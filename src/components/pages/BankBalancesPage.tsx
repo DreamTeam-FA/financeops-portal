@@ -5,6 +5,7 @@ import { getBankBalanceWarning } from "../../utils/bankWarning";
 import { Landmark, TrendingUp, TrendingDown, Edit2, BarChart3, Trash2, LayoutGrid, Table as TableIcon, AlertTriangle, Download } from "lucide-react";
 import { exportBanksCSV } from "../../utils/exportUtils";
 import { AddBankModal } from "../modals/AddBankModal";
+import { Tooltip as AppTooltip } from "../Tooltip";
 import { formatCurrency } from "../../utils/formatters";
 import {
   BarChart,
@@ -311,24 +312,26 @@ export const BankBalancesPage: React.FC = () => {
                               Save
                             </button>
                           ) : (
-                            <button
-                              onClick={() => {
-                                setEditingId(b.id);
-                                setNewVal(String(b.balance));
-                              }}
-                              className="p-1.5 rounded hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 transition-colors"
-                              title="Edit"
-                            >
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
+                            <AppTooltip label="Edit">
+                              <button
+                                onClick={() => {
+                                  setEditingId(b.id);
+                                  setNewVal(String(b.balance));
+                                }}
+                                className="p-1.5 rounded hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 transition-colors"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                            </AppTooltip>
                           )}
-                          <button
-                            onClick={() => showConfirm("Delete this bank account?", () => deleteBankAccount(b.id))}
-                            className="p-2 text-red-500 hover:text-red-600 transition-colors touch-manipulation"
-                            title="Delete Bank Account"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <AppTooltip label="Delete Bank Account">
+                            <button
+                              onClick={() => showConfirm("Delete this bank account?", () => deleteBankAccount(b.id))}
+                              className="p-2 text-red-500 hover:text-red-600 transition-colors touch-manipulation"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </AppTooltip>
                         </div>
                       </td>
                     </tr>

@@ -2,6 +2,7 @@
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { TrendingDown, Calendar, ShieldAlert, Clock, LayoutGrid, Table, Edit2, Trash2, X, AlertTriangle, CheckCircle2, Download } from "lucide-react";
+import { Tooltip } from "../Tooltip";
 import { exportLoansCSV } from "../../utils/exportUtils";
 import { AddLoanModal, EditLoanModal } from "../modals/AddBankModal";
 import { Loan } from "../../types";
@@ -385,12 +386,16 @@ export const LoansPage: React.FC = () => {
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-1">
-                                <button onClick={() => setEditingLoan(l)} className="p-1.5 rounded hover:bg-blue-500/10 text-blue-600 dark:text-blue-400" title="Edit">
-                                  <Edit2 className="w-3.5 h-3.5" />
-                                </button>
-                                <button onClick={() => setDeletingLoanId(l.id)} className="p-1.5 rounded hover:bg-red-500/10 text-red-600 dark:text-red-400" title="Delete">
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                                <Tooltip label="Edit">
+                                  <button onClick={() => setEditingLoan(l)} className="p-1.5 rounded hover:bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </Tooltip>
+                                <Tooltip label="Delete">
+                                  <button onClick={() => setDeletingLoanId(l.id)} className="p-1.5 rounded hover:bg-red-500/10 text-red-600 dark:text-red-400">
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </Tooltip>
                               </div>
                             </td>
                           </tr>

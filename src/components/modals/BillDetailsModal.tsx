@@ -5,6 +5,7 @@ import {
   X, Pencil, Trash2, CheckCircle2, PauseCircle, Zap, FileText,
   ChevronDown, ExternalLink, FileImage, Search
 } from "lucide-react";
+import { Tooltip } from "../Tooltip";
 
 interface BillDetailsModalProps {
   vendorBills: APBill[];
@@ -248,18 +249,19 @@ const BillDetail: React.FC<{
                 <span className={`text-[12px] font-bold ${isLight ? "text-emerald-800" : "text-emerald-300"}`}>
                   {fmtDate(paidDate)}
                 </span>
-                <input
-                  type="date"
-                  value={paidDate}
-                  onChange={(e) => {
-                    setPaidDate(e.target.value);
-                    toggleBillStatus(bill.id, "paid", e.target.value);
-                  }}
-                  title="Edit payment date"
-                  className={`text-[11px] font-semibold border rounded px-2 py-0.5 focus:outline-none ${
-                    isLight ? "bg-white border-emerald-300 text-emerald-700" : "bg-[#0d111a] border-emerald-700 text-emerald-300"
-                  }`}
-                />
+                <Tooltip label="Edit payment date">
+                  <input
+                    type="date"
+                    value={paidDate}
+                    onChange={(e) => {
+                      setPaidDate(e.target.value);
+                      toggleBillStatus(bill.id, "paid", e.target.value);
+                    }}
+                    className={`text-[11px] font-semibold border rounded px-2 py-0.5 focus:outline-none ${
+                      isLight ? "bg-white border-emerald-300 text-emerald-700" : "bg-[#0d111a] border-emerald-700 text-emerald-300"
+                    }`}
+                  />
+                </Tooltip>
               </>
             ) : (
               <>
@@ -475,15 +477,16 @@ const AccordionItem: React.FC<{
             </button>
             {/* If both a Drive copy AND a pasted remarks link exist, show a small icon to access the original source link */}
             {bill.driveViewUrl && isLink && (
-              <a
-                href={remarks}
-                target="_blank"
-                rel="noopener noreferrer"
-                title="View original source link (from remarks)"
-                className={`p-1.5 rounded-lg transition-colors ${isLight ? "text-slate-400 hover:bg-slate-100" : "text-[#556] hover:bg-white/5"}`}
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
+              <Tooltip label="View original source link (from remarks)">
+                <a
+                  href={remarks}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`p-1.5 rounded-lg transition-colors ${isLight ? "text-slate-400 hover:bg-slate-100" : "text-[#556] hover:bg-white/5"}`}
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </Tooltip>
             )}
             <button
               onClick={onEdit}
@@ -496,17 +499,18 @@ const AccordionItem: React.FC<{
               <Pencil className="w-3.5 h-3.5" />
               Edit Bill
             </button>
-            <button
-              onClick={handleDelete}
-              className={`p-2 rounded-lg border transition-colors ${
-                isLight
-                  ? "border-red-200 text-red-500 hover:bg-red-50"
-                  : "border-red-900/40 text-red-400 hover:bg-red-900/20"
-              }`}
-              title="Delete bill"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
+            <Tooltip label="Delete bill">
+              <button
+                onClick={handleDelete}
+                className={`p-2 rounded-lg border transition-colors ${
+                  isLight
+                    ? "border-red-200 text-red-500 hover:bg-red-50"
+                    : "border-red-900/40 text-red-400 hover:bg-red-900/20"
+                }`}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </Tooltip>
           </div>
         </>
       )}
@@ -656,17 +660,18 @@ export const BillDetailsModal: React.FC<BillDetailsModalProps> = ({
                 <Pencil className="w-3.5 h-3.5" />
                 Edit Bill
               </button>
-              <button
-                onClick={handleSingleDelete}
-                className={`p-2 rounded-lg border transition-colors ${
-                  isLight
-                    ? "border-red-200 text-red-500 hover:bg-red-50"
-                    : "border-red-900/40 text-red-400 hover:bg-red-900/20"
-                }`}
-                title="Delete bill"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+              <Tooltip label="Delete bill">
+                <button
+                  onClick={handleSingleDelete}
+                  className={`p-2 rounded-lg border transition-colors ${
+                    isLight
+                      ? "border-red-200 text-red-500 hover:bg-red-50"
+                      : "border-red-900/40 text-red-400 hover:bg-red-900/20"
+                  }`}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </Tooltip>
             </div>
           </>
         )}

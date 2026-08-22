@@ -3,6 +3,7 @@ import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { ARItem, EntityName } from "../../types";
 import { Receipt, CheckSquare, Square, Edit3, AlertTriangle, Plus, X, Pencil, Trash2, FileText, ChevronRight, Download } from "lucide-react";
+import { Tooltip } from "../Tooltip";
 import { exportARItemsCSV } from "../../utils/exportUtils";
 import { formatCurrency, formatTimestampLocal } from "../../utils/formatters";
 
@@ -355,20 +356,22 @@ export const ARPage: React.FC = () => {
 
                       <td className="p-3">
                         <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => setEditingAR(a)}
-                            className="text-[#38bdf8] hover:text-sky-300"
-                            title="Edit Invoice"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => showConfirm("Delete this invoice?", () => deleteARItem(a.id))}
-                            className="text-red-500 hover:text-red-400"
-                            title="Delete Invoice"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <Tooltip label="Edit Invoice">
+                            <button
+                              onClick={() => setEditingAR(a)}
+                              className="text-[#38bdf8] hover:text-sky-300"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          </Tooltip>
+                          <Tooltip label="Delete Invoice">
+                            <button
+                              onClick={() => showConfirm("Delete this invoice?", () => deleteARItem(a.id))}
+                              className="text-red-500 hover:text-red-400"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </Tooltip>
                         </div>
                       </td>
                     </tr>

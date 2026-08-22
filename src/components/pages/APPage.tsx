@@ -5,6 +5,7 @@ import { APBill, EntityName } from "../../types";
 import { normalizeEntityName } from "../../services/googleSheetsService";
 import { formatCurrency } from "../../utils/formatters";
 import { Search, ChevronDown, ChevronRight, PauseCircle, Eye, AlertTriangle, X, Pencil, Trash2, Download } from "lucide-react";
+import { Tooltip } from "../Tooltip";
 import { exportAPBillsCSV } from "../../utils/exportUtils";
 import { AddBillModal } from "../modals/AddBillModal";
 import { EditBillModal } from "../modals/EditBillModal";
@@ -1044,20 +1045,22 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                         <div className="col-span-2 flex items-center justify-end gap-1.5">
                           {/* View bill copy in Drive */}
                           {(bill as any).driveViewUrl && (
-                            <a href={(bill as any).driveViewUrl} target="_blank" rel="noopener noreferrer"
-                              title="View bill copy in Drive"
-                              className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border transition-colors ${isLight ? "text-blue-600 border-blue-300 bg-blue-50 hover:bg-blue-100" : "text-blue-400 border-blue-500/40 bg-blue-500/10 hover:bg-blue-500/20"}`}>
-                              <Eye className="w-3 h-3" /> Bill
-                            </a>
+                            <Tooltip label="View bill copy in Drive">
+                              <a href={(bill as any).driveViewUrl} target="_blank" rel="noopener noreferrer"
+                                className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border transition-colors ${isLight ? "text-blue-600 border-blue-300 bg-blue-50 hover:bg-blue-100" : "text-blue-400 border-blue-500/40 bg-blue-500/10 hover:bg-blue-500/20"}`}>
+                                <Eye className="w-3 h-3" /> Bill
+                              </a>
+                            </Tooltip>
                           )}
                           {/* Edit */}
-                          <button
-                            onClick={() => { setDuplicatesModalOpen(false); setEditingBill(bill); }}
-                            title="Edit bill"
-                            className={`p-1 rounded transition-colors ${isLight ? "text-slate-500 hover:bg-slate-200 hover:text-slate-700" : "text-gray-500 hover:bg-white/10 hover:text-gray-200"}`}
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
+                          <Tooltip label="Edit bill">
+                            <button
+                              onClick={() => { setDuplicatesModalOpen(false); setEditingBill(bill); }}
+                              className={`p-1 rounded transition-colors ${isLight ? "text-slate-500 hover:bg-slate-200 hover:text-slate-700" : "text-gray-500 hover:bg-white/10 hover:text-gray-200"}`}
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          </Tooltip>
                           {/* Delete */}
                           {deleteConfirmId === bill.id ? (
                             <div className="flex items-center gap-1">
@@ -1075,13 +1078,14 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                               </button>
                             </div>
                           ) : (
-                            <button
-                              onClick={() => setDeleteConfirmId(bill.id)}
-                              title="Delete bill"
-                              className="p-1 rounded text-gray-500 hover:text-red-500 hover:bg-red-500/10 transition-colors"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            <Tooltip label="Delete bill">
+                              <button
+                                onClick={() => setDeleteConfirmId(bill.id)}
+                                className="p-1 rounded text-gray-500 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </Tooltip>
                           )}
                         </div>
                       </div>
