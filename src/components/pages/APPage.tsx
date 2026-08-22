@@ -449,7 +449,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
         title={pageTitle}
         bgClass={headerBg}
         moduleId="ap"
-        showEntityPills={true}
+        showEntityPills={!filterEntityOverride}
         showPayToggle={false}
         tabs={[
           { id: "due", label: "Due Bills" },
