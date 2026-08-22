@@ -191,6 +191,36 @@ html, body, #root {
   transform: translateY(-1px);
 }
 
+/* ─── More-dropdown: reset btn-3d / btn-3d-ghost into flat menu rows ─ */
+.ph-more-menu .btn-3d,
+.ph-more-menu .btn-3d-ghost {
+  width: 100%;
+  justify-content: flex-start;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  color: #c8d4e8 !important;
+  padding: 0.5rem 0.875rem !important;
+  font-size: 13px;
+  font-weight: 500;
+  transform: none !important;
+}
+.ph-more-menu .btn-3d:hover,
+.ph-more-menu .btn-3d-ghost:hover {
+  background: #1a2235 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+.ph-more-menu .btn-3d:active {
+  transform: none !important;
+  opacity: 0.8;
+}
+/* Always show button text inside the dropdown (override hidden sm:inline) */
+.ph-more-menu span {
+  display: inline !important;
+}
+
 /* ─── Monospace number font ───────────────────────────────────────── */
 .font-mono-num {
   font-family: var(--font-mono);
