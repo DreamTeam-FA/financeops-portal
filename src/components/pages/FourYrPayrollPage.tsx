@@ -1307,7 +1307,7 @@ export function FourYrPayrollPage() {
 
         {/* Right side: Open Dashboard link + trademark */}
         <div className="ml-auto flex flex-col items-end gap-0.5">
-          <a href="https://docs.google.com/spreadsheets/d/1SITtQDT3iFo5yIOBgjbERbqJjYJ8rk6drXwkLm3sAGE/edit"
+          <a href="https://docs.google.com/spreadsheets/d/1SITtQDT3iFo5yIOBgjbERbqJjYJ8rk6drXwkLm3sAGE/edit#gid=1484569924"
             target="_blank" rel="noopener noreferrer"
             className="flex items-center gap-1.5 px-3 py-1 rounded text-[11px] font-semibold text-white no-underline transition-all"
             style={{ background:"rgba(255,255,255,.18)", border:"1px solid rgba(255,255,255,.3)", height:28 }}>

@@ -457,7 +457,10 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
         activeTab={activeTab}
         onTabChange={(tab) => setActiveTab(tab as any)}
         onAddClick={() => setIsAddModalOpen(true)}
-        sheetUrl="https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit"
+        sheetUrl={
+          "https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit#gid=" +
+          (selectedEntities.has("MSDx") ? "626198915" : selectedEntities.has("Ruby's") ? "1244424272" : "1881273371")
+        }
       />
 
       {/* Filter Bar */}

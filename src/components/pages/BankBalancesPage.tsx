@@ -108,7 +108,7 @@ export const BankBalancesPage: React.FC = () => {
         showEntityPills={true}
         onAddClick={() => setIsAddOpen(true)}
         addLabel="Add Bank Account"
-        sheetUrl="https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit"
+        sheetUrl="https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit#gid=573058575"
       />
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">

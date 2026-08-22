@@ -164,7 +164,7 @@ export const ARPage: React.FC = () => {
         showEntityPills={true}
         onAddClick={() => setShowTemplatePicker(true)}
         addLabel="Add Receivable"
-        sheetUrl="https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit"
+        sheetUrl="https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit#gid=1095820813"
       />
 
       {/* Monthly Tracking Filter Bar */}
