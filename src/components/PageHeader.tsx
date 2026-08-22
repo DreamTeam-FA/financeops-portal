@@ -183,7 +183,17 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
             <span className="hidden sm:inline">{theme === "dark" ? "Light" : "Dark"}</span>
           </button>
 
-          {/* Open Source Sheet */}
+          {onAddClick && (
+            <button
+              onClick={onAddClick}
+              className="btn-3d btn-3d-ghost font-bold"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              {addLabel}
+            </button>
+          )}
+
+          {/* Open Source Sheet — always last */}
           {sheetUrl && (
             <a
               href={sheetUrl}
@@ -195,16 +205,6 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
               <ExternalLink className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Open Source Sheet</span>
             </a>
-          )}
-
-          {onAddClick && (
-            <button
-              onClick={onAddClick}
-              className="btn-3d btn-3d-ghost font-bold"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              {addLabel}
-            </button>
           )}
         </div>
       </div>

@@ -18,6 +18,7 @@ import { HeadleysPage } from "./components/pages/HeadleysPage";
 import { FourYrPayrollPage } from "./components/pages/FourYrPayrollPage";
 import { LogsPage } from "./components/pages/LogsPage";
 import { ServiceLimitsPage } from "./components/pages/ServiceLimitsPage";
+import { HelpPage } from "./components/pages/HelpPage";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { NotesFloatingWidget } from "./components/modals/NotesFloatingWidget";
 import { AlertsProvider, AlertsToasts } from "./components/AlertsCenter";
@@ -260,6 +261,8 @@ const PortalContent: React.FC = () => {
         return <LogsPage />;
       case "service-limits":
         return <ServiceLimitsPage />;
+      case "help":
+        return <HelpPage />;
       default:
         return <HubPage />;
     }

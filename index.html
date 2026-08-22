@@ -10,10 +10,151 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <script src="https://accounts.google.com/gsi/client" async></script>
+    <style>
+      /* ── Fallback screen — replaced by React on mount ── */
+      #fo-fallback {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        background: #070b12;
+        color: #e8e8e8;
+        font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+        padding: 2rem 1rem;
+        box-sizing: border-box;
+      }
+      #fo-fallback .logo-ring {
+        width: 64px; height: 64px;
+        border-radius: 16px;
+        background: linear-gradient(135deg,#1a3a6b 0%,#0d1f40 100%);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 28px;
+        box-shadow: 0 0 0 1px rgba(255,255,255,.08), 0 8px 32px rgba(0,0,0,.6);
+        margin-bottom: 1.25rem;
+      }
+      #fo-fallback h1 {
+        font-size: 1.25rem; font-weight: 800; letter-spacing: -.02em;
+        margin: 0 0 .35rem;
+        background: linear-gradient(90deg,#4da3ff,#a78bfa);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      }
+      #fo-fallback .subtitle {
+        font-size: .8rem; color: #7a90b0; margin: 0 0 2.5rem; text-align: center;
+      }
+      /* Spinner */
+      #fo-fallback .spinner-wrap { display: flex; flex-direction: column; align-items: center; gap: .75rem; margin-bottom: 2.5rem; }
+      #fo-fallback .spinner {
+        width: 36px; height: 36px;
+        border: 3px solid rgba(26,115,232,.15);
+        border-top-color: #1a73e8;
+        border-radius: 50%;
+        animation: fo-spin 1s linear infinite;
+      }
+      @keyframes fo-spin { to { transform: rotate(360deg); } }
+      #fo-fallback .spin-label { font-size: .75rem; color: #5a6a80; }
+      /* Timer */
+      #fo-fallback .timer { font-size: .7rem; color: #3a4a5e; margin-top: .25rem; }
+      /* Sheet cards */
+      #fo-fallback .sheets-section { width: 100%; max-width: 520px; }
+      #fo-fallback .sheets-label {
+        font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em;
+        color: #3a4a5e; margin-bottom: 1rem; text-align: center;
+      }
+      #fo-fallback .sheet-card {
+        display: flex; align-items: center; gap: .9rem;
+        padding: .875rem 1rem;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,.06);
+        background: rgba(255,255,255,.025);
+        text-decoration: none;
+        color: inherit;
+        margin-bottom: .625rem;
+        transition: background .15s, border-color .15s;
+      }
+      #fo-fallback .sheet-card:hover { background: rgba(26,115,232,.08); border-color: rgba(26,115,232,.3); }
+      #fo-fallback .sheet-icon {
+        width: 36px; height: 36px; border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 16px; flex-shrink: 0;
+      }
+      #fo-fallback .sheet-info { flex: 1; min-width: 0; }
+      #fo-fallback .sheet-name { font-size: .8rem; font-weight: 700; margin: 0 0 .15rem; color: #d0dced; }
+      #fo-fallback .sheet-desc { font-size: .68rem; color: #5a6a80; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      #fo-fallback .sheet-arrow { font-size: .75rem; color: #3a4a5e; }
+      #fo-fallback .apology {
+        margin-top: 2rem; max-width: 400px; text-align: center;
+        font-size: .72rem; color: #3a4a5e; line-height: 1.7;
+      }
+    </style>
   </head>
-  <body>
-    <div id="root"></div>
+  <body style="margin:0;padding:0;">
+    <div id="root">
+      <!-- Static fallback — React replaces this on mount -->
+      <div id="fo-fallback">
+        <div class="logo-ring">📊</div>
+        <h1>FinanceOps Portal</h1>
+        <p class="subtitle">Finance &amp; Operations Hub</p>
+
+        <div class="spinner-wrap">
+          <div class="spinner"></div>
+          <span class="spin-label">Starting up the portal…</span>
+          <span class="timer" id="fo-timer">This may take up to 60 seconds on first load.</span>
+        </div>
+
+        <div class="sheets-section">
+          <p class="sheets-label">Access your sheets directly while you wait</p>
+
+          <a class="sheet-card" href="https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit" target="_blank" rel="noopener">
+            <div class="sheet-icon" style="background:rgba(26,115,232,.12);color:#4da3ff;">📋</div>
+            <div class="sheet-info">
+              <p class="sheet-name">Main F&amp;A Sheet</p>
+              <p class="sheet-desc">AP Bills · AR · Bank Balances · Loans · Meeting Notes · Statements</p>
+            </div>
+            <span class="sheet-arrow">↗</span>
+          </a>
+
+          <a class="sheet-card" href="https://docs.google.com/spreadsheets/d/1SITtQDT3iFo5yIOBgjbERbqJjYJ8rk6drXwkLm3sAGE/edit" target="_blank" rel="noopener">
+            <div class="sheet-icon" style="background:rgba(16,185,129,.12);color:#34d399;">💼</div>
+            <div class="sheet-info">
+              <p class="sheet-name">4YR Payroll Sheet</p>
+              <p class="sheet-desc">4You Pros payroll raw data &amp; weekly summaries</p>
+            </div>
+            <span class="sheet-arrow">↗</span>
+          </a>
+
+          <a class="sheet-card" href="https://docs.google.com/spreadsheets/d/1ChoHr7dsfai0Unl-Gk-HyPmgrpWOYu07gllY9PA8epo/edit" target="_blank" rel="noopener">
+            <div class="sheet-icon" style="background:rgba(139,92,246,.12);color:#a78bfa;">📅</div>
+            <div class="sheet-info">
+              <p class="sheet-name">Calendar Sheet</p>
+              <p class="sheet-desc">Finance &amp; schedule events · Calendar notes</p>
+            </div>
+            <span class="sheet-arrow">↗</span>
+          </a>
+        </div>
+
+        <p class="apology">
+          We apologize for the delay. The portal is hosted on Render's free tier,
+          which sleeps after 15 minutes of inactivity.
+          Your data in Google Sheets is always safe and accessible above.
+          The portal will be fully operational in just a moment.
+        </p>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Elapsed-time counter for the fallback screen
+      (function () {
+        var start = Date.now();
+        var el = document.getElementById('fo-timer');
+        if (!el) return;
+        var iv = setInterval(function () {
+          if (!document.getElementById('fo-fallback')) { clearInterval(iv); return; }
+          var s = Math.floor((Date.now() - start) / 1000);
+          if (s < 5) return;
+          el.textContent = 'Still loading… (' + s + 's elapsed)';
+        }, 1000);
+      })();
+    </script>
   </body>
 </html>
-

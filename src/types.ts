@@ -256,4 +256,5 @@ export type PageRoute =
   | "headleys"
   | "fouryr-payroll"
   | "logs"
-  | "service-limits";
+  | "service-limits"
+  | "help";
