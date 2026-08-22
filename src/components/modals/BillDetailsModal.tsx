@@ -151,7 +151,24 @@ const BillDetail: React.FC<{
           <span className="text-2xl font-black" style={{ color: accentColor }}>
             {fmt(bill.amount)}
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* View Bill — surfaces the URL from remarks/paymentInstructions */}
+            {isLink && (
+              <a
+                href={remarks}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="View source bill / invoice"
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-all no-underline ${
+                  isLight
+                    ? "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                    : "bg-blue-500/10 border-blue-500/25 text-blue-400 hover:bg-blue-500/20"
+                }`}
+              >
+                <ExternalLink className="w-3 h-3" />
+                View Bill
+              </a>
+            )}
             <button
               onClick={handleQBO}
               title={bill.inQBO ? "In QBO — click to toggle" : "Not in QBO"}
