@@ -4,7 +4,8 @@ import { PageHeader } from "../PageHeader";
 import { APBill, EntityName } from "../../types";
 import { normalizeEntityName } from "../../services/googleSheetsService";
 import { formatCurrency } from "../../utils/formatters";
-import { Search, ChevronDown, ChevronRight, PauseCircle, Eye, AlertTriangle, X, Pencil, Trash2 } from "lucide-react";
+import { Search, ChevronDown, ChevronRight, PauseCircle, Eye, AlertTriangle, X, Pencil, Trash2, Download } from "lucide-react";
+import { exportAPBillsCSV } from "../../utils/exportUtils";
 import { AddBillModal } from "../modals/AddBillModal";
 import { EditBillModal } from "../modals/EditBillModal";
 import { BillDetailsModal } from "../modals/BillDetailsModal";
@@ -457,6 +458,16 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
         ]}
         activeTab={activeTab}
         onTabChange={(tab) => setActiveTab(tab as any)}
+        extraButtons={
+          <button
+            onClick={() => exportAPBillsCSV(filteredBills, pageTitle)}
+            className="btn-3d btn-3d-ghost font-semibold"
+            title="Export filtered bills to CSV"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">CSV</span>
+          </button>
+        }
         onAddClick={() => setIsAddModalOpen(true)}
         sheetUrl={
           "https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit#gid=" +

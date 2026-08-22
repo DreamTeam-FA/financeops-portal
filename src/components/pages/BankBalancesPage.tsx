@@ -2,7 +2,8 @@
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { getBankBalanceWarning } from "../../utils/bankWarning";
-import { Landmark, TrendingUp, TrendingDown, Edit2, BarChart3, Trash2, LayoutGrid, Table as TableIcon, AlertTriangle } from "lucide-react";
+import { Landmark, TrendingUp, TrendingDown, Edit2, BarChart3, Trash2, LayoutGrid, Table as TableIcon, AlertTriangle, Download } from "lucide-react";
+import { exportBanksCSV } from "../../utils/exportUtils";
 import { AddBankModal } from "../modals/AddBankModal";
 import { formatCurrency } from "../../utils/formatters";
 import {
@@ -106,6 +107,11 @@ export const BankBalancesPage: React.FC = () => {
         bgClass="bg-[#0891b2]"
         moduleId="banks"
         showEntityPills={true}
+        extraButtons={
+          <button onClick={() => exportBanksCSV(bankAccounts)} className="btn-3d btn-3d-ghost font-semibold" title="Export to CSV">
+            <Download className="w-3.5 h-3.5" /><span className="hidden sm:inline">CSV</span>
+          </button>
+        }
         onAddClick={() => setIsAddOpen(true)}
         addLabel="Add Bank Account"
         sheetUrl="https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit#gid=573058575"

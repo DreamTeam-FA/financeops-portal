@@ -1,7 +1,8 @@
 ﻿import React, { useState } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
-import { TrendingDown, Calendar, ShieldAlert, Clock, LayoutGrid, Table, Edit2, Trash2, X, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { TrendingDown, Calendar, ShieldAlert, Clock, LayoutGrid, Table, Edit2, Trash2, X, AlertTriangle, CheckCircle2, Download } from "lucide-react";
+import { exportLoansCSV } from "../../utils/exportUtils";
 import { AddLoanModal, EditLoanModal } from "../modals/AddBankModal";
 import { Loan } from "../../types";
 import { formatCurrency, getDaysRemaining } from "../../utils/formatters";
@@ -128,6 +129,11 @@ export const LoansPage: React.FC = () => {
         bgClass="bg-[#dc2626]"
         moduleId="loans"
         showEntityPills={true}
+        extraButtons={
+          <button onClick={() => exportLoansCSV(loans)} className="btn-3d btn-3d-ghost font-semibold" title="Export to CSV">
+            <Download className="w-3.5 h-3.5" /><span className="hidden sm:inline">CSV</span>
+          </button>
+        }
         onAddClick={() => setIsAddOpen(true)}
         addLabel="Add Loan"
         sheetUrl="https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit#gid=860453470"

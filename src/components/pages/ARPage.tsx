@@ -2,7 +2,8 @@
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { ARItem, EntityName } from "../../types";
-import { Receipt, CheckSquare, Square, Edit3, AlertTriangle, Plus, X, Pencil, Trash2, FileText, ChevronRight } from "lucide-react";
+import { Receipt, CheckSquare, Square, Edit3, AlertTriangle, Plus, X, Pencil, Trash2, FileText, ChevronRight, Download } from "lucide-react";
+import { exportARItemsCSV } from "../../utils/exportUtils";
 import { formatCurrency, formatTimestampLocal } from "../../utils/formatters";
 
 export const ARPage: React.FC = () => {
@@ -162,6 +163,11 @@ export const ARPage: React.FC = () => {
         bgClass="bg-[#16a34a]"
         moduleId="ar"
         showEntityPills={true}
+        extraButtons={
+          <button onClick={() => exportARItemsCSV(arItems)} className="btn-3d btn-3d-ghost font-semibold" title="Export to CSV">
+            <Download className="w-3.5 h-3.5" /><span className="hidden sm:inline">CSV</span>
+          </button>
+        }
         onAddClick={() => setShowTemplatePicker(true)}
         addLabel="Add Receivable"
         sheetUrl="https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit#gid=1095820813"

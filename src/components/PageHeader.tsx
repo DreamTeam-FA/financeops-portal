@@ -16,6 +16,8 @@ interface PageHeaderProps {
   moduleId?: string;
   /** Google Sheets URL — renders an "Open Source Sheet ↗" button in the header */
   sheetUrl?: string;
+  /** Extra action buttons rendered before the Add button */
+  extraButtons?: React.ReactNode;
 }
 
 export const PageHeader: React.FC<PageHeaderProps> = ({
@@ -29,7 +31,8 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   onAddClick,
   addLabel = "Add Bill",
   moduleId,
-  sheetUrl
+  sheetUrl,
+  extraButtons
 }) => {
   const {
     selectedEntities,
@@ -182,6 +185,8 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
             {theme === "dark" ? <Sun className="w-3.5 h-3.5 text-amber-300" /> : <Moon className="w-3.5 h-3.5 text-slate-100" />}
             <span className="hidden sm:inline">{theme === "dark" ? "Light" : "Dark"}</span>
           </button>
+
+          {extraButtons}
 
           {onAddClick && (
             <button
