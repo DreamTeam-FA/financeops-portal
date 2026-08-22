@@ -1003,16 +1003,15 @@ export async function saveRecordEdit(params: {
       // 4-decimal precision preserves seconds (e.g. 1h 44m 15s = 1.7375)
       const jHours = Math.round(diff * 24 * 10000) / 10000;
       await sheetsRawPut(`'raw'!J${sheetRow}`, [[jHours]], token);
-      // ALWAYS write Col O (displayed hours) from start/end diff so the
-      // portal reflects updated seconds even when hours wasn't manually edited
-      await sheetsRawPut(`'raw'!O${sheetRow}`, [[jHours]], token);
+      // O is now a formula (=IF(G<I,...)) — no hardcoded write needed
     }
 
     if (params.hoursExplicitlyEdited && params.hours !== undefined) {
-      // User manually overrode the hours field — their value takes priority
+      // User manually overrode hours — write to J (raw hours) so L=K*J picks it up.
+      // O stays as formula deriving from clock times; Q shows the variance.
       const hrsDecimal = parseHoursToDecimal(params.hours);
       const hrs = hrsDecimal !== '' ? hrsDecimal : 0;
-      await sheetsRawPut(`'raw'!O${sheetRow}`, [[hrs]], token);
+      await sheetsRawPut(`'raw'!J${sheetRow}`, [[hrs]], token);
     }
   }
 
@@ -1029,12 +1028,42 @@ export async function saveRecordEdit(params: {
     } catch { /* formatting is best-effort */ }
   }
 
-  // Col N — Company (if explicitly overridden)
+  // Col N — Company: use formula unless explicitly overridden by the user
   if (params.company && String(params.company).trim()) {
+    // Explicit override — write hardcoded value
     await sheetsPut(`'raw'!N${sheetRow}`, [[String(params.company).trim()]], token);
+  } else {
+    // Apply formula so it auto-derives from job name
+    await applyFormulaColumns(sheetRow, isNoTime, token);
   }
 
   return { ok: true, row: sheetRow };
+}
+
+// ── applyFormulaColumns ───────────────────────────────────────────────────────
+// Writes Google Sheets formulas to L, N, O, P, Q for a given sheet row.
+// For noTime records (deductions/non-payroll) only N is written; L/O/P/Q keep
+// their hardcoded values since there are no clock-in/out times to derive from.
+async function applyFormulaColumns(sheetRow: number, isNoTime: boolean, token: string): Promise<void> {
+  const r = sheetRow;
+  try {
+    // N: company — case-insensitive in Sheets so no LOWER() needed
+    await sheetsPut(`'raw'!N${r}`, [[
+      `=IF(OR(D${r}="timm barn",D${r}="Skating Rink"),"TI","4YR")`
+    ]], token);
+    if (!isNoTime) {
+      // L = rate × raw hours
+      await sheetsPut(`'raw'!L${r}`, [[`=K${r}*J${r}`]], token);
+      // O = hours derived from clock-in (G) and clock-out (I)
+      await sheetsPut(`'raw'!O${r}`, [[
+        `=IF(G${r}<I${r},ROUND((I${r}-G${r})*24,2),ROUND(((I${r}-G${r})*24)+24,2))*1`
+      ]], token);
+      // P = displayed hours × rate
+      await sheetsPut(`'raw'!P${r}`, [[`=O${r}*K${r}`]], token);
+      // Q = variance (raw total − displayed total)
+      await sheetsPut(`'raw'!Q${r}`, [[`=L${r}-P${r}`]], token);
+    }
+  } catch { /* formula writes are best-effort; record is already saved */ }
 }
 
 // ── addRawEntry ───────────────────────────────────────────────────────────────
@@ -1158,6 +1187,14 @@ export async function addRawEntry(params: {
   ];
 
   const appendResult = await sheetsAppend("'raw'!A:S", [row], token);
+
+  // Parse appended row number from updatedRange e.g. "'raw'!A102:S102" → 102
+  const updatedRange0: string = appendResult?.updates?.updatedRange || '';
+  const appendedRowMatch = updatedRange0.match(/(\d+)$/);
+  if (appendedRowMatch) {
+    const appendedRow = parseInt(appendedRowMatch[1], 10);
+    await applyFormulaColumns(appendedRow, isNoTime, token);
+  }
 
   // Apply red foreground to remarks cell (col M) if remark was provided
   if (params.remarks && params.remarks.trim()) {
