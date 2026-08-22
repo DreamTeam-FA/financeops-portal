@@ -3,7 +3,7 @@ import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { getUserGreetingName, getViewerFormattedTime } from "../../utils/userGreeting";
 import {
-  CreditCard, Building2, Receipt, Users, Landmark, TrendingDown,
+  CreditCard, Building2, Receipt, Users, Landmark, TrendingDown, TrendingUp,
   FileText, CalendarDays, Activity, ArrowUpRight, ShieldCheck,
   X, AlertTriangle, CheckCircle2, Info, Zap
 } from "lucide-react";
@@ -113,6 +113,8 @@ export const HubPage: React.FC = () => {
   const tiBills   = unpaidBills.filter(b => b.entity === "TI");
 
   const totalCash = bankAccounts.reduce((s, a) => s + a.balance, 0);
+  const totalYesterday = bankAccounts.reduce((s, a) => s + (a.yesterday ?? a.balance), 0);
+  const cashDelta = totalCash - totalYesterday;
   const lowAccounts = bankAccounts.filter(a => a.balance < 1000);
   const criticalAccounts = bankAccounts.filter(a => a.balance < 500);
 
@@ -274,32 +276,89 @@ export const HubPage: React.FC = () => {
 
         {/* Top KPI strip */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className={kpiCard("bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-900")}>
-            <div className="text-[9px] font-extrabold uppercase tracking-widest opacity-55 mb-2">Cash Balance</div>
-            <div className="text-[26px] leading-none font-black font-mono-num drop-shadow-sm">{fmt(totalCash)}</div>
-            <div className="mt-3 pt-2.5 border-t border-white/15 text-[11px] opacity-70">
-              {criticalAccounts.length > 0
-                ? `⚠ ${criticalAccounts.length} critical account(s)`
-                : lowAccounts.length > 0
-                ? `⚠ ${lowAccounts.length} low balance(s)`
-                : `${bankAccounts.length} active accounts`}
+
+          {/* Cash Balance */}
+          <div
+            className={`${kpiCard("bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-900")} cursor-pointer group`}
+            onClick={() => setCurrentPage("banks")}
+            title="View bank balances"
+          >
+            <div className="flex items-start justify-between mb-1">
+              <div className="text-[9px] font-extrabold uppercase tracking-widest opacity-55">Cash Balance</div>
+              {cashDelta !== 0 && (
+                <div className={`flex items-center gap-0.5 text-[10px] font-bold ${cashDelta > 0 ? "text-emerald-300" : "text-red-300"}`}>
+                  {cashDelta > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                  {cashDelta > 0 ? "+" : ""}{fmt(cashDelta)}
+                </div>
+              )}
+            </div>
+            <div className="text-[26px] leading-none font-black font-mono-num drop-shadow-sm mt-1">{fmt(totalCash)}</div>
+            <div className="mt-3 pt-2.5 border-t border-white/15 flex items-center justify-between">
+              <span className="text-[11px] opacity-70">
+                {criticalAccounts.length > 0
+                  ? `⚠ ${criticalAccounts.length} critical`
+                  : lowAccounts.length > 0
+                  ? `⚠ ${lowAccounts.length} low`
+                  : `${bankAccounts.length} accounts`}
+              </span>
+              <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
             </div>
           </div>
-          <div className={kpiCard("bg-gradient-to-br from-rose-600 via-rose-700 to-red-950")}>
-            <div className="text-[9px] font-extrabold uppercase tracking-widest opacity-55 mb-2">AP Unpaid</div>
-            <div className="text-[26px] leading-none font-black font-mono-num drop-shadow-sm">{fmt(unpaidBills.reduce((s,b) => s+b.amount, 0))}</div>
-            <div className="mt-3 pt-2.5 border-t border-white/15 text-[11px] opacity-70">{overdueBills.length} overdue · {dueSoon.length} due this week</div>
+
+          {/* AP Unpaid */}
+          <div
+            className={`${kpiCard("bg-gradient-to-br from-rose-600 via-rose-700 to-red-950")} cursor-pointer group`}
+            onClick={() => setCurrentPage("ap")}
+            title="View AP bills"
+          >
+            <div className="text-[9px] font-extrabold uppercase tracking-widest opacity-55 mb-1">AP Unpaid</div>
+            <div className="text-[26px] leading-none font-black font-mono-num drop-shadow-sm mt-1">{fmt(unpaidBills.reduce((s,b) => s+b.amount, 0))}</div>
+            <div className="mt-3 pt-2.5 border-t border-white/15 flex items-center justify-between">
+              <span className="text-[11px]">
+                {overdueBills.length > 0
+                  ? <span className="text-red-200 font-bold">⚠ {overdueBills.length} overdue</span>
+                  : <span className="opacity-70">0 overdue</span>}
+                <span className="opacity-50 mx-1">·</span>
+                <span className="opacity-70">{dueSoon.length} this week</span>
+              </span>
+              <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+            </div>
           </div>
-          <div className={kpiCard("bg-gradient-to-br from-violet-600 via-indigo-700 to-slate-900")}>
-            <div className="text-[9px] font-extrabold uppercase tracking-widest opacity-55 mb-2">AR Outstanding</div>
-            <div className="text-[26px] leading-none font-black font-mono-num drop-shadow-sm">{fmt(totalAR)}</div>
-            <div className="mt-3 pt-2.5 border-t border-white/15 text-[11px] opacity-70">{overdueAR.length} overdue invoices</div>
+
+          {/* AR Outstanding */}
+          <div
+            className={`${kpiCard("bg-gradient-to-br from-violet-600 via-indigo-700 to-slate-900")} cursor-pointer group`}
+            onClick={() => setCurrentPage("ar")}
+            title="View AR"
+          >
+            <div className="text-[9px] font-extrabold uppercase tracking-widest opacity-55 mb-1">AR Outstanding</div>
+            <div className="text-[26px] leading-none font-black font-mono-num drop-shadow-sm mt-1">{fmt(totalAR)}</div>
+            <div className="mt-3 pt-2.5 border-t border-white/15 flex items-center justify-between">
+              <span className="text-[11px]">
+                {overdueAR.length > 0
+                  ? <span className="text-red-300 font-bold">⚠ {overdueAR.length} overdue</span>
+                  : <span className="opacity-70">{unpaidAR.length} open</span>}
+                <span className="opacity-50 mx-1">·</span>
+                <span className="opacity-70">{unpaidAR.length - overdueAR.length} current</span>
+              </span>
+              <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+            </div>
           </div>
-          <div className={kpiCard("bg-gradient-to-br from-amber-600 via-orange-600 to-stone-900")}>
-            <div className="text-[9px] font-extrabold uppercase tracking-widest opacity-55 mb-2">Loans & CC Dues</div>
-            <div className="text-[26px] leading-none font-black font-mono-num drop-shadow-sm">{fmt(totalLoans || totalMonthlyPayments)}</div>
-            <div className="mt-3 pt-2.5 border-t border-white/15 text-[11px] opacity-70">{loans.length} active facilities · {fmt(totalMonthlyPayments)}/mo</div>
+
+          {/* Loans */}
+          <div
+            className={`${kpiCard("bg-gradient-to-br from-amber-600 via-orange-600 to-stone-900")} cursor-pointer group`}
+            onClick={() => setCurrentPage("loans")}
+            title="View loans"
+          >
+            <div className="text-[9px] font-extrabold uppercase tracking-widest opacity-55 mb-1">Loans Outstanding</div>
+            <div className="text-[26px] leading-none font-black font-mono-num drop-shadow-sm mt-1">{fmt(totalLoans || totalMonthlyPayments)}</div>
+            <div className="mt-3 pt-2.5 border-t border-white/15 flex items-center justify-between">
+              <span className="text-[11px] opacity-70">{loans.length} facilities · {fmt(totalMonthlyPayments)}/mo</span>
+              <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+            </div>
           </div>
+
         </div>
 
         {/* ── Overdue AP Alert Banner — always visible when bills are past due ── */}
