@@ -284,7 +284,7 @@ export const HubPage: React.FC = () => {
             title="View bank balances"
           >
             <div className="flex items-start justify-between mb-1">
-              <div className="text-[9px] font-extrabold uppercase tracking-widest opacity-55">Cash Balance</div>
+              <div className="text-[10px] font-extrabold uppercase tracking-widest opacity-55">Cash Balance</div>
               {cashDelta !== 0 && (
                 <div className={`flex items-center gap-0.5 text-[10px] font-bold ${cashDelta > 0 ? "text-emerald-300" : "text-red-300"}`}>
                   {cashDelta > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
@@ -301,7 +301,7 @@ export const HubPage: React.FC = () => {
                   ? `⚠ ${lowAccounts.length} low`
                   : `${bankAccounts.length} accounts`}
               </span>
-              <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+              <ArrowUpRight className="w-3 h-3 opacity-30 group-hover:opacity-70 transition-opacity" />
             </div>
           </div>
 
@@ -311,7 +311,7 @@ export const HubPage: React.FC = () => {
             onClick={() => setCurrentPage("ap")}
             title="View AP bills"
           >
-            <div className="text-[9px] font-extrabold uppercase tracking-widest opacity-55 mb-1">AP Unpaid</div>
+            <div className="text-[10px] font-extrabold uppercase tracking-widest opacity-55 mb-1">AP Unpaid</div>
             <div className="text-[26px] leading-none font-black font-mono-num drop-shadow-sm mt-1">{fmt(unpaidBills.reduce((s,b) => s+b.amount, 0))}</div>
             <div className="mt-3 pt-2.5 border-t border-white/15 flex items-center justify-between">
               <span className="text-[11px]">
@@ -321,7 +321,7 @@ export const HubPage: React.FC = () => {
                 <span className="opacity-50 mx-1">·</span>
                 <span className="opacity-70">{dueSoon.length} this week</span>
               </span>
-              <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+              <ArrowUpRight className="w-3 h-3 opacity-30 group-hover:opacity-70 transition-opacity" />
             </div>
           </div>
 
@@ -331,7 +331,7 @@ export const HubPage: React.FC = () => {
             onClick={() => setCurrentPage("ar")}
             title="View AR"
           >
-            <div className="text-[9px] font-extrabold uppercase tracking-widest opacity-55 mb-1">AR Outstanding</div>
+            <div className="text-[10px] font-extrabold uppercase tracking-widest opacity-55 mb-1">AR Outstanding</div>
             <div className="text-[26px] leading-none font-black font-mono-num drop-shadow-sm mt-1">{fmt(totalAR)}</div>
             <div className="mt-3 pt-2.5 border-t border-white/15 flex items-center justify-between">
               <span className="text-[11px]">
@@ -341,7 +341,7 @@ export const HubPage: React.FC = () => {
                 <span className="opacity-50 mx-1">·</span>
                 <span className="opacity-70">{unpaidAR.length - overdueAR.length} current</span>
               </span>
-              <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+              <ArrowUpRight className="w-3 h-3 opacity-30 group-hover:opacity-70 transition-opacity" />
             </div>
           </div>
 
@@ -351,11 +351,11 @@ export const HubPage: React.FC = () => {
             onClick={() => setCurrentPage("loans")}
             title="View loans"
           >
-            <div className="text-[9px] font-extrabold uppercase tracking-widest opacity-55 mb-1">Loans Outstanding</div>
+            <div className="text-[10px] font-extrabold uppercase tracking-widest opacity-55 mb-1">Loans Outstanding</div>
             <div className="text-[26px] leading-none font-black font-mono-num drop-shadow-sm mt-1">{fmt(totalLoans || totalMonthlyPayments)}</div>
             <div className="mt-3 pt-2.5 border-t border-white/15 flex items-center justify-between">
               <span className="text-[11px] opacity-70">{loans.length} facilities · {fmt(totalMonthlyPayments)}/mo</span>
-              <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+              <ArrowUpRight className="w-3 h-3 opacity-30 group-hover:opacity-70 transition-opacity" />
             </div>
           </div>
 

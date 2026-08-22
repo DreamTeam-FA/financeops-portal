@@ -89,7 +89,7 @@ export const PayrollPage: React.FC = () => {
           <select
             value={selectedWeekNum}
             onChange={(e) => setSelectedWeekNum(e.target.value)}
-            className={`border rounded px-2.5 py-1 text-xs ${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"}`}
+            className={`border rounded px-2.5 py-2 text-xs ${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"}`}
           >
             {payrollWeeks.map((w) => (
               <option key={w.weekNum} value={w.weekNum}>
@@ -101,7 +101,7 @@ export const PayrollPage: React.FC = () => {
           <select
             value={selectedCompany}
             onChange={(e) => setSelectedCompany(e.target.value)}
-            className={`border rounded px-2.5 py-1 text-xs ${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"}`}
+            className={`border rounded px-2.5 py-2 text-xs ${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"}`}
           >
             <option value="ALL">All Entities / Companies</option>
             <option value="Ruby's">Ruby's</option>
@@ -251,3 +251,4 @@ export const PayrollPage: React.FC = () => {
     </div>
   );
 };
+

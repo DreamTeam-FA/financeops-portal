@@ -238,9 +238,9 @@ export const BankBalancesPage: React.FC = () => {
                   <th className="p-3">Account Type</th>
                   <th className="p-3">Account #</th>
                   <th className="p-3">Current Balance</th>
-                  <th className="p-3">Yesterday's Balance</th>
-                  <th className="p-3">As Of Date</th>
-                  <th className="p-3">Trend</th>
+                  <th className="p-3 hidden md:table-cell">Yesterday</th>
+                  <th className="p-3 hidden sm:table-cell">As Of</th>
+                  <th className="p-3 hidden md:table-cell">Trend</th>
                   <th className="p-3">Actions</th>
                 </tr>
               </thead>
@@ -286,11 +286,11 @@ export const BankBalancesPage: React.FC = () => {
                           </div>
                         )}
                       </td>
-                      <td className={`p-3 font-medium ${isLight ? "text-slate-600" : "text-[#aaa]"}`}>
+                      <td className={`p-3 font-medium hidden md:table-cell ${isLight ? "text-slate-600" : "text-[#aaa]"}`}>
                         {formatCurrency(yestVal)}
                       </td>
-                      <td className={`p-3 ${isLight ? "text-slate-500" : "text-[#888]"}`}>{b.asOf}</td>
-                      <td className="p-3">
+                      <td className={`p-3 hidden sm:table-cell ${isLight ? "text-slate-500" : "text-[#888]"}`}>{b.asOf}</td>
+                      <td className="p-3 hidden md:table-cell">
                         {diff >= 0 ? (
                           <span className="text-emerald-600 dark:text-[#4ade80] flex items-center gap-1 font-semibold">
                             <TrendingUp className="w-3.5 h-3.5" /> +{formatCurrency(diff)}
@@ -324,7 +324,7 @@ export const BankBalancesPage: React.FC = () => {
                           )}
                           <button
                             onClick={() => showConfirm("Delete this bank account?", () => deleteBankAccount(b.id))}
-                            className="p-1 text-red-500 hover:text-red-600 transition-colors"
+                            className="p-2 text-red-500 hover:text-red-600 transition-colors touch-manipulation"
                             title="Delete Bank Account"
                           >
                             <Trash2 className="w-3.5 h-3.5" />

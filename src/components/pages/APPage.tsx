@@ -24,6 +24,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
   const isLight = theme === "light";
 
   const [activeTab, setActiveTab] = useState<"due" | "paid" | "summary" | "aging">("due");
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [companyFilter, setCompanyFilter] = useState("ALL");
   const [vendorFilter, setVendorFilter] = useState("ALL");
@@ -476,99 +477,108 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
       />
 
       {/* Filter Bar */}
-      <div className={`flex flex-wrap items-center gap-2 px-4 py-2 ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border-b shrink-0`}>
-        {/* Search */}
-        <div className="relative min-w-[160px] max-w-[260px]">
-          <Search className={`w-3.5 h-3.5 absolute left-2.5 top-2 ${isLight ? "text-slate-400" : "text-[#666]"}`} />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search vendor, invoice #, amount..."
-            className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400" : "bg-[#0d111a] border-[#1a2235] text-white placeholder-[#666]"} border rounded-md pl-8 pr-3 py-1 text-xs focus:outline-none focus:border-[#1a73e8]`}
-          />
+      <div className={`px-3 py-2 ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border-b shrink-0`}>
+        {/* Row 1 — always visible: Search + Company + Vendor + More toggle */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Search */}
+          <div className="relative flex-1 min-w-[140px] max-w-[260px]">
+            <Search className={`w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 ${isLight ? "text-slate-400" : "text-[#666]"}`} />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search vendor, invoice #…"
+              className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400" : "bg-[#0d111a] border-[#1a2235] text-white placeholder-[#666]"} border rounded-md pl-8 pr-3 py-2 text-xs focus:outline-none focus:border-[#1a73e8]`}
+            />
+          </div>
+
+          {/* Company / Sub-entity */}
+          <select
+            value={companyFilter}
+            onChange={(e) => setCompanyFilter(e.target.value)}
+            className={`${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"} border rounded-md px-2.5 py-2 text-xs focus:outline-none focus:border-[#1a73e8]`}
+          >
+            <option value="ALL">All Companies</option>
+            <option value="rubys">Ruby's</option>
+            <option value="4g">4G</option>
+            <option value="4yr">4YR</option>
+            <option value="corner">Corner Property</option>
+            <option value="e1">E1</option>
+            <option value="ti">TI</option>
+            <option value="ti-bills">TI Bills</option>
+            {dynamicSubKeys.map((k) => (
+              <option key={k} value={k}>{k.replace(/^ti-sub:/, "")}</option>
+            ))}
+            <option value="msdx">MSDx</option>
+            <option value="curcumin">CurcuminPro</option>
+            <option value="ziglar">Ziglar</option>
+          </select>
+
+          {/* Vendor */}
+          <select
+            value={vendorFilter}
+            onChange={(e) => setVendorFilter(e.target.value)}
+            className={`${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"} border rounded-md px-2.5 py-2 text-xs focus:outline-none focus:border-[#1a73e8] max-w-[160px]`}
+          >
+            <option value="ALL">All Vendors</option>
+            {uniqueVendors.map((v) => (
+              <option key={v} value={v}>{v}</option>
+            ))}
+          </select>
+
+          {/* More Filters toggle — only shows on small screens */}
+          <button
+            onClick={() => setShowMoreFilters(f => !f)}
+            className={`sm:hidden flex items-center gap-1 px-2.5 py-2 rounded-md border text-xs font-medium transition-colors ${
+              showMoreFilters || monthFilter !== "ALL" || yearFilter !== "ALL" || typeFilter !== "ALL" || qboFilter !== "ALL"
+                ? isLight ? "bg-blue-50 border-blue-300 text-blue-700" : "bg-blue-500/15 border-blue-500/30 text-blue-400"
+                : isLight ? "bg-slate-50 border-slate-300 text-slate-600" : "bg-[#0d111a] border-[#1a2235] text-[#666]"
+            }`}
+          >
+            Filters {showMoreFilters ? "▲" : "▼"}
+            {(monthFilter !== "ALL" || yearFilter !== "ALL" || typeFilter !== "ALL" || qboFilter !== "ALL") && (
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ml-0.5" />
+            )}
+          </button>
+
+          {/* Secondary filters — always on sm+, hidden by default on mobile */}
+          <div className={`hidden sm:flex flex-wrap items-center gap-2`}>
+            <select value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} className={`${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"} border rounded-md px-2.5 py-2 text-xs focus:outline-none focus:border-[#1a73e8]`}>
+              <option value="ALL">All Months</option>
+              {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map((m, i) => <option key={i} value={String(i + 1)}>{m}</option>)}
+            </select>
+            <select value={yearFilter} onChange={(e) => setYearFilter(e.target.value)} className={`${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"} border rounded-md px-2.5 py-2 text-xs focus:outline-none focus:border-[#1a73e8]`}>
+              <option value="ALL">All Years</option>
+              <option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option>
+            </select>
+            <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as any)} className={`${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"} border rounded-md px-2.5 py-2 text-xs focus:outline-none focus:border-[#1a73e8]`}>
+              <option value="ALL">All Types</option><option value="Auto">Auto-Debit</option><option value="Manual">Manual</option>
+            </select>
+            <select value={qboFilter} onChange={(e) => setQboFilter(e.target.value as any)} className={`${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"} border rounded-md px-2.5 py-2 text-xs focus:outline-none focus:border-[#1a73e8]`}>
+              <option value="ALL">All QBO</option><option value="In QBO">In QBO</option><option value="Not in QBO">Not in QBO</option>
+            </select>
+          </div>
         </div>
 
-        {/* Company / Sub-entity */}
-        <select
-          value={companyFilter}
-          onChange={(e) => setCompanyFilter(e.target.value)}
-          className={`${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"} border rounded-md px-2.5 py-1 text-xs focus:outline-none focus:border-[#1a73e8]`}
-        >
-          <option value="ALL">All Companies</option>
-          <option value="rubys">Ruby's</option>
-          <option value="4g">4G</option>
-          <option value="4yr">4YR</option>
-          <option value="corner">Corner Property</option>
-          <option value="e1">E1</option>
-          <option value="ti">TI</option>
-          <option value="ti-bills">TI Bills</option>
-          {dynamicSubKeys.map((k) => (
-            <option key={k} value={k}>{k.replace(/^ti-sub:/, "")}</option>
-          ))}
-          <option value="msdx">MSDx</option>
-          <option value="curcumin">CurcuminPro</option>
-          <option value="ziglar">Ziglar</option>
-        </select>
-
-        {/* Vendor */}
-        <select
-          value={vendorFilter}
-          onChange={(e) => setVendorFilter(e.target.value)}
-          className={`${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"} border rounded-md px-2.5 py-1 text-xs focus:outline-none focus:border-[#1a73e8] max-w-[180px]`}
-        >
-          <option value="ALL">All Vendors</option>
-          {uniqueVendors.map((v) => (
-            <option key={v} value={v}>{v}</option>
-          ))}
-        </select>
-
-        {/* Month */}
-        <select
-          value={monthFilter}
-          onChange={(e) => setMonthFilter(e.target.value)}
-          className={`${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"} border rounded-md px-2.5 py-1 text-xs focus:outline-none focus:border-[#1a73e8]`}
-        >
-          <option value="ALL">All Months</option>
-          {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map((m, i) => (
-            <option key={i} value={String(i + 1)}>{m}</option>
-          ))}
-        </select>
-
-        {/* Year */}
-        <select
-          value={yearFilter}
-          onChange={(e) => setYearFilter(e.target.value)}
-          className={`${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"} border rounded-md px-2.5 py-1 text-xs focus:outline-none focus:border-[#1a73e8]`}
-        >
-          <option value="ALL">All Years</option>
-          <option value="2024">2024</option>
-          <option value="2025">2025</option>
-          <option value="2026">2026</option>
-          <option value="2027">2027</option>
-        </select>
-
-        {/* Type */}
-        <select
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value as any)}
-          className={`${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"} border rounded-md px-2.5 py-1 text-xs focus:outline-none focus:border-[#1a73e8]`}
-        >
-          <option value="ALL">All Types</option>
-          <option value="Auto">Auto-Debit</option>
-          <option value="Manual">Manual</option>
-        </select>
-
-        {/* QBO */}
-        <select
-          value={qboFilter}
-          onChange={(e) => setQboFilter(e.target.value as any)}
-          className={`${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"} border rounded-md px-2.5 py-1 text-xs focus:outline-none focus:border-[#1a73e8]`}
-        >
-          <option value="ALL">All QBO</option>
-          <option value="In QBO">In QBO</option>
-          <option value="Not in QBO">Not in QBO</option>
-        </select>
+        {/* Row 2 — expanded filters on mobile only */}
+        {showMoreFilters && (
+          <div className="flex flex-wrap items-center gap-2 mt-2 sm:hidden">
+            <select value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} className={`${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"} border rounded-md px-2.5 py-2 text-xs focus:outline-none focus:border-[#1a73e8]`}>
+              <option value="ALL">All Months</option>
+              {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map((m, i) => <option key={i} value={String(i + 1)}>{m}</option>)}
+            </select>
+            <select value={yearFilter} onChange={(e) => setYearFilter(e.target.value)} className={`${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"} border rounded-md px-2.5 py-2 text-xs focus:outline-none focus:border-[#1a73e8]`}>
+              <option value="ALL">All Years</option>
+              <option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option>
+            </select>
+            <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as any)} className={`${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"} border rounded-md px-2.5 py-2 text-xs focus:outline-none focus:border-[#1a73e8]`}>
+              <option value="ALL">All Types</option><option value="Auto">Auto-Debit</option><option value="Manual">Manual</option>
+            </select>
+            <select value={qboFilter} onChange={(e) => setQboFilter(e.target.value as any)} className={`${isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"} border rounded-md px-2.5 py-2 text-xs focus:outline-none focus:border-[#1a73e8]`}>
+              <option value="ALL">All QBO</option><option value="In QBO">In QBO</option><option value="Not in QBO">Not in QBO</option>
+            </select>
+          </div>
+        )}
 
         {/* Duplicates alert button */}
         {duplicateGroups.length > 0 && (
