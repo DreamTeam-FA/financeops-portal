@@ -135,6 +135,9 @@ const BillDetail: React.FC<{
 
   const remarks = bill.paymentInstructions || bill.remarks || bill.notes || "";
   const isLink = remarks.startsWith("http");
+  // driveViewUrl = uploaded copy (portal Drive feature); isLink = URL pasted in remarks.
+  // Prefer the uploaded copy; fall back to the pasted link.
+  const billViewUrl = bill.driveViewUrl || (isLink ? remarks : null);
 
   const handleQBO = () => updateBill({ ...bill, inQBO: !bill.inQBO });
 
@@ -152,13 +155,12 @@ const BillDetail: React.FC<{
             {fmt(bill.amount)}
           </span>
           <div className="flex items-center gap-2 flex-wrap">
-            {/* View Bill — surfaces the URL from remarks/paymentInstructions */}
-            {isLink && (
+            {/* View Bill — prefers uploaded Drive copy; falls back to pasted link in remarks */}
+            {billViewUrl && (
               <a
-                href={remarks}
+                href={billViewUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                title="View source bill / invoice"
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-all no-underline ${
                   isLight
                     ? "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
@@ -166,7 +168,7 @@ const BillDetail: React.FC<{
                 }`}
               >
                 <ExternalLink className="w-3 h-3" />
-                View Bill
+                {bill.driveViewUrl ? "View Bill Copy" : "View Bill"}
               </a>
             )}
             <button
@@ -471,16 +473,16 @@ const AccordionItem: React.FC<{
               <PauseCircle className="w-3.5 h-3.5" />
               {bill.status === "hold" ? "Remove Hold" : "Put On Hold"}
             </button>
-            {/* View invoice in Drive */}
-            {(bill as any).driveViewUrl && (
+            {/* If both a Drive copy AND a pasted remarks link exist, show a small icon to access the original source link */}
+            {bill.driveViewUrl && isLink && (
               <a
-                href={(bill as any).driveViewUrl}
+                href={remarks}
                 target="_blank"
                 rel="noopener noreferrer"
-                title="View Invoice"
-                className={`p-1.5 rounded-lg transition-colors ${isLight ? "text-blue-500 hover:bg-blue-50" : "text-blue-400 hover:bg-blue-400/10"}`}
+                title="View original source link (from remarks)"
+                className={`p-1.5 rounded-lg transition-colors ${isLight ? "text-slate-400 hover:bg-slate-100" : "text-[#556] hover:bg-white/5"}`}
               >
-                <Search className="w-4 h-4" />
+                <ExternalLink className="w-3.5 h-3.5" />
               </a>
             )}
             <button
