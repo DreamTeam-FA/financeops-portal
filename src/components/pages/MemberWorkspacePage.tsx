@@ -864,37 +864,40 @@ export const MemberWorkspacePage: React.FC<MemberWorkspacePageProps> = ({
             </div>
           </div>
         ) : activeTab === "all" ? (
-          /* â”€â”€ Organised view: Folders â†’ URLs & Links â†’ Notes â”€â”€ */
-          <div className="space-y-6">
+          /* -- 3-column layout: Folders | Links | Notes -- */
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
             {(
               [
-                { key: "folder" as const, label: "Folders",      Icon: Folder,     color: "text-amber-500"  },
-                { key: "link"   as const, label: "URLs & Links", Icon: Globe,      color: "text-emerald-500" },
-                { key: "note"   as const, label: "Notes",        Icon: StickyNote, color: "text-blue-400"   },
+                { key: "folder" as const, label: "Folders",      Icon: Folder,     color: "text-amber-500",   border: isLight ? "border-amber-200/60"   : "border-amber-500/20"   },
+                { key: "link"   as const, label: "URLs & Links", Icon: Globe,      color: "text-emerald-500", border: isLight ? "border-emerald-200/60" : "border-emerald-500/20" },
+                { key: "note"   as const, label: "Notes",        Icon: StickyNote, color: "text-blue-400",    border: isLight ? "border-blue-200/60"    : "border-blue-500/20"    },
               ]
-            ).map(({ key, label, Icon, color }) => {
+            ).map(({ key, label, Icon, color, border }) => {
               const section = filteredItems.filter((i) =>
                 key === "note" ? (!i.itemType || i.itemType === "note") : i.itemType === key
               );
-              if (section.length === 0) return null;
               return (
-                <div key={key}>
-                  <div className={`flex items-center gap-2 mb-3 pb-2 border-b ${isLight ? "border-slate-200" : "border-[#1a2235]"}`}>
+                <div key={key} className={`flex flex-col rounded-xl border ${border} ${isLight ? "bg-white/60" : "bg-[#0a0e17]/60"} overflow-hidden`}>
+                  {/* Column header */}
+                  <div className={`flex items-center gap-2 px-3.5 py-2.5 border-b ${border}`}>
                     <Icon className={`w-3.5 h-3.5 ${color}`} />
                     <span className={`text-[11px] font-bold uppercase tracking-widest ${color}`}>{label}</span>
-                    <span className="text-[10px] text-slate-400 ml-0.5">({section.length})</span>
+                    <span className={`text-[10px] ml-0.5 ${isLight ? "text-slate-400" : "text-slate-500"}`}>({section.length})</span>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                    {section.map(renderItemCard)}
+                  {/* Column body */}
+                  <div className="flex flex-col gap-2.5 p-2.5">
+                    {section.length === 0 ? (
+                      <div className={`text-center py-8 text-[11px] ${isLight ? "text-slate-400" : "text-slate-600"}`}>
+                        No {label.toLowerCase()} yet
+                      </div>
+                    ) : (
+                      section.map(renderItemCard)
+                    )}
                   </div>
                 </div>
               );
             })}
-            {filteredItems.length === 0 && (
-              <p className="text-center py-12 text-sm text-slate-400">Nothing here yet â€” add a note, link, or folder.</p>
-            )}
-          </div>
-        ) : (
+          </div>        ) : (
           /* â”€â”€ Flat grid for type-filtered tabs â”€â”€ */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
             {filteredItems.map(renderItemCard)}
