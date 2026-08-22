@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect } from "react";
 import { useFinance } from "../context/FinanceContext";
-import { Plus, RefreshCw, ArrowDownToLine, ArrowUpFromLine, CheckCircle2, AlertCircle, Sun, Moon, RefreshCcw } from "lucide-react";
+import { Plus, RefreshCw, ArrowDownToLine, ArrowUpFromLine, CheckCircle2, AlertCircle, Sun, Moon, RefreshCcw, ExternalLink } from "lucide-react";
 import { ScreenshotButton } from "./ScreenshotButton";
 
 interface PageHeaderProps {
@@ -14,6 +14,8 @@ interface PageHeaderProps {
   onAddClick?: () => void;
   addLabel?: string;
   moduleId?: string;
+  /** Google Sheets URL — renders an "Open Source Sheet ↗" button in the header */
+  sheetUrl?: string;
 }
 
 export const PageHeader: React.FC<PageHeaderProps> = ({
@@ -26,7 +28,8 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   showPayToggle = false,
   onAddClick,
   addLabel = "Add Bill",
-  moduleId
+  moduleId,
+  sheetUrl
 }) => {
   const {
     selectedEntities,
@@ -179,6 +182,20 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
             {theme === "dark" ? <Sun className="w-3.5 h-3.5 text-amber-300" /> : <Moon className="w-3.5 h-3.5 text-slate-100" />}
             <span className="hidden sm:inline">{theme === "dark" ? "Light" : "Dark"}</span>
           </button>
+
+          {/* Open Source Sheet */}
+          {sheetUrl && (
+            <a
+              href={sheetUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-3d btn-3d-ghost font-semibold no-underline flex items-center gap-1"
+              title="Open the source Google Sheet"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Open Source Sheet</span>
+            </a>
+          )}
 
           {onAddClick && (
             <button

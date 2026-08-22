@@ -293,6 +293,7 @@ export const NotesPage: React.FC = () => {
         bgClass="bg-purple-700"
         onAddClick={openCreateModal}
         addLabel="New Note"
+        sheetUrl="https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit"
       />
 
       {/* Filter Toolbar */}
