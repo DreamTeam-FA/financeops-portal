@@ -22,9 +22,110 @@ import {
   Calendar,
   X,
   GripVertical,
-  Download
+  Download,
+  BookMarked,
+  AlertCircle
 } from "lucide-react";
 import { NORLAN_WORKSPACE_SEED } from "../../data/norlanWorkspaceSeed";
+
+// ── Browser bookmark HTML parser ──────────────────────────────────────────────
+// Standard format produced by Chrome, Firefox, Edge, and Safari.
+// Structure: <DL> → <DT><H3>FolderName</H3><DL>…</DL>  or  <DT><A href=…>Title</A>
+
+interface ParsedBookmark {
+  title: string;
+  url?: string;
+  isFolder?: boolean;
+  children?: ParsedBookmark[];
+}
+
+function parseBookmarkHtml(html: string): ParsedBookmark[] {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, "text/html");
+
+  function parseDL(dl: Element): ParsedBookmark[] {
+    const results: ParsedBookmark[] = [];
+    const children = Array.from(dl.children);
+    for (const child of children) {
+      if (child.tagName !== "DT") continue;
+      const h3 = child.querySelector(":scope > H3");
+      const a  = child.querySelector(":scope > A");
+      const nestedDl = child.querySelector(":scope > DL");
+
+      if (h3) {
+        results.push({
+          title: h3.textContent?.trim() || "Untitled Folder",
+          isFolder: true,
+          children: nestedDl ? parseDL(nestedDl) : [],
+        });
+      } else if (a) {
+        const href = a.getAttribute("href") || "";
+        if (!href || href.startsWith("place:") || href.startsWith("javascript:")) continue;
+        results.push({
+          title: a.textContent?.trim() || href,
+          url: href,
+          isFolder: false,
+        });
+      }
+    }
+    return results;
+  }
+
+  const topDl = doc.querySelector("DL");
+  return topDl ? parseDL(topDl) : [];
+}
+
+function flattenToNotes(
+  items: ParsedBookmark[],
+  memberId: string,
+  today: string,
+  prefix: string = "bm",
+  parentFolderId?: string
+): DashboardNote[] {
+  const notes: DashboardNote[] = [];
+  let counter = Date.now();
+
+  function process(list: ParsedBookmark[], pfId?: string) {
+    for (const item of list) {
+      const id = `${prefix}-${counter++}`;
+      if (item.isFolder) {
+        const folderNote: DashboardNote = {
+          id,
+          title: item.title,
+          content: "",
+          itemType: "folder",
+          category: "General",
+          entity: "TI",
+          memberId,
+          status: "open",
+          createdAt: today,
+          ...(pfId ? { folderId: pfId } : {}),
+        };
+        notes.push(folderNote);
+        if (item.children && item.children.length > 0) {
+          process(item.children, id);
+        }
+      } else if (item.url) {
+        notes.push({
+          id,
+          title: item.title,
+          content: "",
+          itemType: "link",
+          url: item.url,
+          category: "General",
+          entity: "TI",
+          memberId,
+          status: "open",
+          createdAt: today,
+          ...(pfId ? { folderId: pfId } : {}),
+        });
+      }
+    }
+  }
+
+  process(items, parentFolderId);
+  return notes;
+}
 
 interface MemberWorkspacePageProps {
   memberId: string;
@@ -72,6 +173,12 @@ export const MemberWorkspacePage: React.FC<MemberWorkspacePageProps> = ({
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const dragMode = useRef(false);
+
+  // Bookmark import state
+  const bookmarkInputRef = useRef<HTMLInputElement>(null);
+  const [importPreview, setImportPreview] = useState<DashboardNote[] | null>(null);
+  const [importFileName, setImportFileName] = useState("");
+  const [importError, setImportError] = useState("");
 
   // Clean current display name
   const displayName = formatCleanName(currentMemberName);
@@ -192,6 +299,50 @@ export const MemberWorkspacePage: React.FC<MemberWorkspacePageProps> = ({
     dragMode.current = false;
   };
 
+  // ── Bookmark import ─────────────────────────────────────────────────────────
+  const handleBookmarkFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setImportError("");
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImportFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const html = ev.target?.result as string;
+        const parsed = parseBookmarkHtml(html);
+        if (parsed.length === 0) {
+          setImportError("No bookmarks found in this file. Make sure it's a browser bookmark export (.html).");
+          return;
+        }
+        const today = new Date().toISOString().split("T")[0];
+        const notes = flattenToNotes(parsed, memberId, today);
+        setImportPreview(notes);
+      } catch {
+        setImportError("Could not parse bookmark file. Please export from your browser as HTML and try again.");
+      }
+    };
+    reader.readAsText(file);
+    // Reset input so same file can be re-selected
+    e.target.value = "";
+  };
+
+  const confirmImport = () => {
+    if (!importPreview) return;
+    bulkSeedWorkspace(importPreview);
+    setImportPreview(null);
+    setImportFileName("");
+  };
+
+  const cancelImport = () => {
+    setImportPreview(null);
+    setImportFileName("");
+    setImportError("");
+  };
+
+  const folderCount = importPreview?.filter((n) => n.itemType === "folder").length ?? 0;
+  const linkCount = importPreview?.filter((n) => n.itemType === "link").length ?? 0;
+
   // Drag-handle style helper
   const dragBorderClass = (id: string) =>
     dragOverId === id && draggedId !== id
@@ -260,6 +411,21 @@ export const MemberWorkspacePage: React.FC<MemberWorkspacePageProps> = ({
               <Download className="w-3 h-3" /> Load My Links
             </button>
           )}
+          {/* Import Bookmarks from browser export (all members) */}
+          <button
+            onClick={() => bookmarkInputRef.current?.click()}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-violet-500/15 hover:bg-violet-500/25 text-violet-600 dark:text-violet-400 border border-violet-500/30 text-[10px] font-bold transition-colors"
+            title="Import bookmarks from a browser bookmark HTML export (Chrome, Firefox, Edge)"
+          >
+            <BookMarked className="w-3 h-3" /> Import Bookmarks
+          </button>
+          <input
+            ref={bookmarkInputRef}
+            type="file"
+            accept=".html,.htm"
+            className="hidden"
+            onChange={handleBookmarkFileChange}
+          />
         </div>
 
         {/* Tab Filters */}
@@ -354,6 +520,12 @@ export const MemberWorkspacePage: React.FC<MemberWorkspacePageProps> = ({
                   <Download className="w-4 h-4" /> Load My Links from Tabme
                 </button>
               )}
+              <button
+                onClick={() => bookmarkInputRef.current?.click()}
+                className="px-4 py-2 rounded-xl bg-violet-500/20 hover:bg-violet-500/30 text-violet-600 dark:text-violet-400 font-bold text-xs inline-flex items-center gap-1.5 border border-violet-500/30 transition-colors"
+              >
+                <BookMarked className="w-4 h-4" /> Import Browser Bookmarks
+              </button>
             </div>
           </div>
         ) : (
@@ -725,6 +897,98 @@ export const MemberWorkspacePage: React.FC<MemberWorkspacePageProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Bookmark Import Error Toast */}
+      {importError && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 text-white text-xs font-bold shadow-xl max-w-sm">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{importError}</span>
+          <button onClick={() => setImportError("")} className="ml-2 text-white/70 hover:text-white">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* Bookmark Import Preview Modal */}
+      {importPreview && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className={`w-full max-w-lg rounded-xl border p-5 space-y-4 shadow-2xl ${
+            isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#121212] border-[#2d2d2d] text-white"
+          }`}>
+            <div className="flex items-center justify-between border-b pb-3 border-slate-200 dark:border-[#1a2235]">
+              <h3 className="text-sm font-bold flex items-center gap-2 text-violet-600 dark:text-violet-400">
+                <BookMarked className="w-4 h-4" /> Import Browser Bookmarks
+              </h3>
+              <button onClick={cancelImport} className="text-slate-400 hover:text-slate-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className={`rounded-lg p-3 border flex items-start gap-3 ${isLight ? "bg-violet-50 border-violet-200" : "bg-violet-900/10 border-violet-500/20"}`}>
+                <BookMarked className="w-4 h-4 text-violet-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-violet-600 dark:text-violet-400">File: {importFileName}</p>
+                  <p className={isLight ? "text-slate-600 mt-1" : "text-gray-400 mt-1"}>
+                    Found <strong>{folderCount} folder{folderCount !== 1 ? "s" : ""}</strong> and{" "}
+                    <strong>{linkCount} link{linkCount !== 1 ? "s" : ""}</strong> to import.
+                    All items will be added to {displayName}'s workspace.
+                  </p>
+                </div>
+              </div>
+
+              {/* Preview: top-level folders */}
+              <div>
+                <p className="font-semibold text-slate-500 mb-1.5">Top-level folders:</p>
+                <div className="max-h-40 overflow-y-auto space-y-1">
+                  {importPreview
+                    .filter((n) => n.itemType === "folder" && !n.folderId)
+                    .map((folder) => {
+                      const childCount = importPreview.filter((n) => n.folderId === folder.id).length;
+                      return (
+                        <div key={folder.id} className={`flex items-center gap-2 px-2 py-1 rounded ${isLight ? "bg-slate-50" : "bg-[#1a1a1a]"}`}>
+                          <Folder className="w-3.5 h-3.5 text-amber-500" />
+                          <span className="truncate">{folder.title}</span>
+                          <span className={`ml-auto text-[10px] ${isLight ? "text-slate-400" : "text-gray-500"}`}>{childCount} items</span>
+                        </div>
+                      );
+                    })}
+                  {/* Root-level links (not in any folder) */}
+                  {(() => {
+                    const rootLinks = importPreview.filter((n) => n.itemType === "link" && !n.folderId);
+                    return rootLinks.length > 0 ? (
+                      <div className={`flex items-center gap-2 px-2 py-1 rounded ${isLight ? "bg-slate-50" : "bg-[#1a1a1a]"}`}>
+                        <LinkIcon className="w-3.5 h-3.5 text-emerald-500" />
+                        <span className="text-slate-500 dark:text-gray-400">{rootLinks.length} link{rootLinks.length !== 1 ? "s" : ""} at root level</span>
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+              </div>
+
+              <p className={`text-[11px] ${isLight ? "text-slate-500" : "text-gray-500"}`}>
+                ℹ️ Already-imported items (same ID) will be skipped. You can delete any unwanted items afterward.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-[#1a2235]">
+              <button
+                onClick={cancelImport}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium ${
+                  isLight ? "hover:bg-slate-100 text-slate-600" : "hover:bg-white/10 text-gray-300"
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmImport}
+                className="px-4 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold flex items-center gap-1.5"
+              >
+                <Download className="w-3.5 h-3.5" /> Import {folderCount + linkCount} Items
+              </button>
+            </div>
           </div>
         </div>
       )}
