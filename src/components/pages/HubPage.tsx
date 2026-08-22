@@ -292,7 +292,7 @@ export const HubPage: React.FC = () => {
                 </div>
               )}
             </div>
-            <div className="text-[26px] leading-none font-black font-mono-num drop-shadow-sm mt-1">{fmt(totalCash)}</div>
+            <div className="text-[22px] sm:text-[26px] leading-none font-black font-mono-num drop-shadow-sm mt-1 whitespace-nowrap overflow-hidden text-ellipsis">{fmt(totalCash)}</div>
             <div className="mt-3 pt-2.5 border-t border-white/15 flex items-center justify-between">
               <span className="text-[11px] opacity-70">
                 {criticalAccounts.length > 0
@@ -312,7 +312,7 @@ export const HubPage: React.FC = () => {
             title="View AP bills"
           >
             <div className="text-[10px] font-extrabold uppercase tracking-widest opacity-55 mb-1">AP Unpaid</div>
-            <div className="text-[26px] leading-none font-black font-mono-num drop-shadow-sm mt-1">{fmt(unpaidBills.reduce((s,b) => s+b.amount, 0))}</div>
+            <div className="text-[22px] sm:text-[26px] leading-none font-black font-mono-num drop-shadow-sm mt-1 whitespace-nowrap overflow-hidden text-ellipsis">{fmt(unpaidBills.reduce((s,b) => s+b.amount, 0))}</div>
             <div className="mt-3 pt-2.5 border-t border-white/15 flex items-center justify-between">
               <span className="text-[11px]">
                 {overdueBills.length > 0
@@ -332,7 +332,7 @@ export const HubPage: React.FC = () => {
             title="View AR"
           >
             <div className="text-[10px] font-extrabold uppercase tracking-widest opacity-55 mb-1">AR Outstanding</div>
-            <div className="text-[26px] leading-none font-black font-mono-num drop-shadow-sm mt-1">{fmt(totalAR)}</div>
+            <div className="text-[22px] sm:text-[26px] leading-none font-black font-mono-num drop-shadow-sm mt-1 whitespace-nowrap overflow-hidden text-ellipsis">{fmt(totalAR)}</div>
             <div className="mt-3 pt-2.5 border-t border-white/15 flex items-center justify-between">
               <span className="text-[11px]">
                 {overdueAR.length > 0
@@ -352,7 +352,7 @@ export const HubPage: React.FC = () => {
             title="View loans"
           >
             <div className="text-[10px] font-extrabold uppercase tracking-widest opacity-55 mb-1">Loans Outstanding</div>
-            <div className="text-[26px] leading-none font-black font-mono-num drop-shadow-sm mt-1">{fmt(totalLoans || totalMonthlyPayments)}</div>
+            <div className="text-[22px] sm:text-[26px] leading-none font-black font-mono-num drop-shadow-sm mt-1 whitespace-nowrap overflow-hidden text-ellipsis">{fmt(totalLoans || totalMonthlyPayments)}</div>
             <div className="mt-3 pt-2.5 border-t border-white/15 flex items-center justify-between">
               <span className="text-[11px] opacity-70">{loans.length} facilities · {fmt(totalMonthlyPayments)}/mo</span>
               <ArrowUpRight className="w-3 h-3 opacity-30 group-hover:opacity-70 transition-opacity" />

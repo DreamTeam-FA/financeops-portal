@@ -367,9 +367,9 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                     isLight ? "bg-slate-50 border-slate-200 text-slate-500" : "bg-[#1c1c1c] border-[#1a2235] text-gray-400"
                   }`}>
                     <div className="col-span-5">VENDOR</div>
-                    <div className="col-span-3 text-center">{isPaidTab ? "PAID DATE" : "DUE"}</div>
-                    <div className="col-span-2 text-center">BILLS</div>
-                    <div className="col-span-2 text-right">AMOUNT</div>
+                    <div className="col-span-3 text-center whitespace-nowrap">{isPaidTab ? "PAID DATE" : "DUE"}</div>
+                    <div className="col-span-2 text-center whitespace-nowrap">BILLS</div>
+                    <div className="col-span-2 text-right whitespace-nowrap">AMOUNT</div>
                   </div>
 
                   {/* Vendor rows */}
@@ -419,7 +419,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                               </span>
                             </div>
                             {/* Amount — orange for on-hold, otherwise entity color */}
-                            <div className={`col-span-2 text-right font-bold ${bucketId === "on-hold-sec" ? "text-orange-500" : vCfg.textClass}`}>
+                            <div className={`col-span-2 text-right font-bold whitespace-nowrap ${bucketId === "on-hold-sec" ? "text-orange-500" : vCfg.textClass}`}>
                               {formatCurrency(vTotal)}
                             </div>
                           </div>
@@ -606,18 +606,18 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
         {activeTab === "due" && (
           <>
             {/* Top KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-4 flex flex-col justify-between border-l-4 border-l-blue-500 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]`}>
-                <div className="text-[11px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">OUTSTANDING BILLS</div>
-                <div className="text-3xl font-extrabold text-blue-600 dark:text-blue-400 mt-1">{unpaidBills.length + onHoldBills.length}</div>
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
+              <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-3 sm:p-4 flex flex-col justify-between border-l-4 border-l-blue-500 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]`}>
+                <div className="text-[10px] sm:text-[11px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">OUTSTANDING</div>
+                <div className="text-xl sm:text-3xl font-extrabold text-blue-600 dark:text-blue-400 mt-1 whitespace-nowrap">{unpaidBills.length + onHoldBills.length}</div>
               </div>
-              <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-4 flex flex-col justify-between border-l-4 border-l-red-500 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]`}>
-                <div className="text-[11px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">UNPAID TOTAL</div>
-                <div className="text-3xl font-extrabold text-red-600 dark:text-red-400 mt-1">{formatCurrency(unpaidBills.reduce((s, b) => s + b.amount, 0))}</div>
+              <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-3 sm:p-4 flex flex-col justify-between border-l-4 border-l-red-500 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]`}>
+                <div className="text-[10px] sm:text-[11px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">UNPAID</div>
+                <div className="text-base sm:text-3xl font-extrabold text-red-600 dark:text-red-400 mt-1 whitespace-nowrap overflow-hidden text-ellipsis">{formatCurrency(unpaidBills.reduce((s, b) => s + b.amount, 0))}</div>
               </div>
-              <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-4 flex flex-col justify-between border-l-4 border-l-amber-500 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]`}>
-                <div className="text-[11px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">ON HOLD TOTAL</div>
-                <div className="text-3xl font-extrabold text-amber-600 dark:text-amber-400 mt-1">{formatCurrency(onHoldBills.reduce((s, b) => s + b.amount, 0))}</div>
+              <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-3 sm:p-4 flex flex-col justify-between border-l-4 border-l-amber-500 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]`}>
+                <div className="text-[10px] sm:text-[11px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">ON HOLD</div>
+                <div className="text-base sm:text-3xl font-extrabold text-amber-600 dark:text-amber-400 mt-1 whitespace-nowrap overflow-hidden text-ellipsis">{formatCurrency(onHoldBills.reduce((s, b) => s + b.amount, 0))}</div>
               </div>
             </div>
 
