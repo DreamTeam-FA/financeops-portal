@@ -961,7 +961,21 @@ export async function saveRecordEdit(params: {
     await sheetsPut(`'raw'!F${sheetRow}`, [[dateVal]], token);
     await sheetsPut(`'raw'!H${sheetRow}`, [[dateVal]], token);
 
-    // R and S are now formula-driven (applyFormulaColumns writes them at the end)
+    // R: week number — look up the date in Master List week ranges
+    const iso = mmDdYyyyToIso(params.date);
+    let weekNum = '';
+    try {
+      const weeks = await getMasterListWeeks(token);
+      const d = new Date(iso + 'T00:00:00');
+      const matched = weeks.find(w => {
+        const start = new Date(mmDdYyyyToIso(w.startDate) + 'T00:00:00');
+        const end   = new Date(mmDdYyyyToIso(w.endDate)   + 'T23:59:59');
+        return d >= start && d <= end;
+      });
+      if (matched) weekNum = matched.weekNum;
+    } catch (e) { /* ignore */ }
+    await sheetsPut(`'raw'!R${sheetRow}`, [[weekNum]], token);
+    // S is handled by the formula in applyFormulaColumns
   }
 
   if (isNoTime) {
@@ -1027,19 +1041,13 @@ export async function saveRecordEdit(params: {
 }
 
 // ── applyFormulaColumns ───────────────────────────────────────────────────────
-// Writes Google Sheets formulas to A, K, N, R, S (all records) and
+// Writes Google Sheets formulas to K, N, S (all records) and
 // L, O, P, Q (payroll records only — noTime keeps hardcoded amount/zeros).
-// A spills into B, so B is cleared first to avoid #SPILL! errors.
+// A and B are left untouched (managed by sheet-level formulas).
+// R is written as a hardcoded value by addRawEntry/saveRecordEdit (not a formula).
 async function applyFormulaColumns(sheetRow: number, isNoTime: boolean, token: string): Promise<void> {
   const r = sheetRow;
   try {
-    // A & B: first/last name lookup from Master List col E (full name) → cols F, G
-    // Clear B first so the spill formula in A can populate it
-    await sheetsRawPut(`'raw'!B${r}`, [['']], token);
-    await sheetsPut(`'raw'!A${r}`, [[
-      `=IF(C${r}="","",CHOOSECOLS(XLOOKUP(C${r},'Master List'!$E$3:$E$14,'Master List'!$F$3:$G$14,""),1,2))`
-    ]], token);
-
     // K: rate — match name+job first, fall back to name-only
     await sheetsPut(`'raw'!K${r}`, [[
       `=IF(C${r}="","",IFERROR(XLOOKUP(C${r}&D${r},ARRAYFORMULA(TRIM('Master List'!$L$3:$L$15)&TRIM('Master List'!$O$3:$O$15)),'Master List'!$P$3:$P$15,XLOOKUP(C${r},ARRAYFORMULA(TRIM('Master List'!$L$3:$L$15)),'Master List'!$P$3:$P$15,"")),XLOOKUP(C${r},ARRAYFORMULA(TRIM('Master List'!$L$3:$L$15)),'Master List'!$P$3:$P$15,"")))`
@@ -1048,11 +1056,6 @@ async function applyFormulaColumns(sheetRow: number, isNoTime: boolean, token: s
     // N: company — derives from job name (case-insensitive match in Sheets)
     await sheetsPut(`'raw'!N${r}`, [[
       `=IF(OR(D${r}="timm barn",D${r}="Skating Rink"),"TI","4YR")`
-    ]], token);
-
-    // R: week number — lookup date (F) against Master List week ranges (B=start, C=end)
-    await sheetsPut(`'raw'!R${r}`, [[
-      `=IFERROR(XLOOKUP(1,(F${r}>='Master List'!$B$2:$B$200)*(F${r}<='Master List'!$C$2:$C$200),'Master List'!$A$2:$A$200),"")`
     ]], token);
 
     // S: month abbreviation derived from date in F
@@ -1172,8 +1175,8 @@ export async function addRawEntry(params: {
 
   const dateStr   = params.date || '';
   const row: any[] = [
-    nm.first,             // A: first — formula in applyFormulaColumns will overwrite
-    '',                   // B: last  — cleared so A's spill formula can populate it
+    nm.first,             // A: first
+    nm.last,              // B: last
     params.name || '',    // C: name
     params.job  || '',    // D: job
     params.subCat || '',  // E: subCat

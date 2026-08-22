@@ -184,6 +184,7 @@ export function FourYrPayrollPage() {
   const [hoursExplicit, setHoursExplicit] = useState(false); // mirrors GAS _editHoursExplicit
   const [namePickerOpen, setNamePickerOpen] = useState(false);
   const [startingWeek,   setStartingWeek]   = useState(false);
+  const [modalBusy,      setModalBusy]      = useState(false); // loading state for add/edit/delete modals
 
   const debounceRef  = useRef<ReturnType<typeof setTimeout>>();
   const lastKeyRef   = useRef("");
@@ -498,12 +499,14 @@ export function FourYrPayrollPage() {
     // Mirror submitEdit: negate amount for deductions so they subtract from totals
     let finalAmount: number | null = noTime ? parseFloat(form.amount) || null : null;
     if (form.recordType === "deduction" && finalAmount !== null && finalAmount > 0) finalAmount = -finalAmount;
+    setModalBusy(true);
     try {
       await apiPost("/api/4yr/add-entry", { ...form, amount: finalAmount });
       showToast("Entry added", "success");
       setAddModalOpen(false);
       doLoad(true); // force: skip dedup + wait 1.2 s for Sheets to commit
     } catch(e:any) { showToast(`Add failed: ${e.message}`,"error"); }
+    finally { setModalBusy(false); }
   };
 
   const submitEdit = async () => {
@@ -524,6 +527,7 @@ export function FourYrPayrollPage() {
       // Mirror GAS _doSaveEditCommit: negate amount for deductions
       let finalAmount: number | null = noTime ? parseFloat(form.amount) || null : null;
       if (form.recordType === "deduction" && finalAmount !== null && finalAmount > 0) finalAmount = -finalAmount;
+      setModalBusy(true);
       try {
         await apiPost("/api/4yr/save-edit", {
           ...form,
@@ -535,6 +539,7 @@ export function FourYrPayrollPage() {
         setEditModalOpen(false);
         doLoad(true); // force: skip dedup + wait 1.2 s for Sheets to commit
       } catch(e:any) { showToast(`Edit failed: ${e.message}`, "error"); }
+      finally { setModalBusy(false); }
     };
     if (missing.length) {
       showConfirm(`Missing fields: ${missing.join(", ")}. Save anyway?`, doSave);
@@ -545,8 +550,10 @@ export function FourYrPayrollPage() {
 
   const confirmDelete = async () => {
     if (!deleteConfirm) return;
+    setModalBusy(true);
     try { await apiPost("/api/4yr/delete-entry", {rowIndex:deleteConfirm.rowIndex}); showToast("Deleted", "success"); setDeleteConfirm(null); doLoad(true); }
     catch(e:any) { showToast(`Delete failed: ${e.message}`,"error"); setDeleteConfirm(null); }
+    finally { setModalBusy(false); }
   };
 
   // ── Start New Week ────────────────────────────────────────────────────────
@@ -1300,11 +1307,11 @@ export function FourYrPayrollPage() {
 
         {/* Right side: Open Dashboard link + trademark */}
         <div className="ml-auto flex flex-col items-end gap-0.5">
-          <a href="https://script.google.com/macros/s/AKfycbxa-kql1pMbkZzKjdqcc0t2S7_TgJG-A6dWHmlz2z4xIfLmPTaWpMAO3rmB5CmeDG00/exec"
+          <a href="https://docs.google.com/spreadsheets/d/1SITtQDT3iFo5yIOBgjbERbqJjYJ8rk6drXwkLm3sAGE/edit"
             target="_blank" rel="noopener noreferrer"
             className="flex items-center gap-1.5 px-3 py-1 rounded text-[11px] font-semibold text-white no-underline transition-all"
             style={{ background:"rgba(255,255,255,.18)", border:"1px solid rgba(255,255,255,.3)", height:28 }}>
-            Open Dashboard ↗
+            Open Source Sheet ↗
           </a>
           <span className="text-[9px] font-light opacity-50 tracking-wide text-white pr-0.5">® Made by Finance Team</span>
         </div>
@@ -1631,8 +1638,10 @@ export function FourYrPayrollPage() {
               {renderForm(false)}
             </div>
             <div className={`flex items-center justify-end gap-2 px-5 py-3 border-t ${bdr} ${bg3}`}>
-              <button onClick={()=>{ setAddModalOpen(false); setTscanResult(null); setScanKey(k => k+1); }} className={`text-xs px-4 py-2 rounded border ${bdr} ${txt2}`}>Cancel</button>
-              <button onClick={submitAdd} className="text-xs px-5 py-2 rounded text-white font-semibold" style={{ background:TH1 }}>💾 Add to Sheet</button>
+              <button disabled={modalBusy} onClick={()=>{ setAddModalOpen(false); setTscanResult(null); setScanKey(k => k+1); }} className={`text-xs px-4 py-2 rounded border ${bdr} ${txt2} disabled:opacity-40`}>Cancel</button>
+              <button disabled={modalBusy} onClick={submitAdd} className="text-xs px-5 py-2 rounded text-white font-semibold flex items-center gap-1.5 disabled:opacity-60" style={{ background:TH1 }}>
+                {modalBusy ? <><span className="inline-block w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />Saving…</> : <>💾 Add to Sheet</>}
+              </button>
             </div>
           </div>
         </div>
@@ -1649,8 +1658,10 @@ export function FourYrPayrollPage() {
             </div>
             <div className="px-5 py-4 overflow-y-auto" style={{ maxHeight:"65vh" }}>{renderForm(true)}</div>
             <div className={`flex items-center justify-end gap-2 px-5 py-3 border-t ${bdr} ${bg3}`}>
-              <button onClick={()=>setEditModalOpen(false)} className={`text-xs px-4 py-2 rounded border ${bdr} ${txt2}`}>Cancel</button>
-              <button onClick={submitEdit} className="text-xs px-5 py-2 rounded text-white font-semibold" style={{ background:TH1 }}>💾 Save Changes</button>
+              <button disabled={modalBusy} onClick={()=>setEditModalOpen(false)} className={`text-xs px-4 py-2 rounded border ${bdr} ${txt2} disabled:opacity-40`}>Cancel</button>
+              <button disabled={modalBusy} onClick={submitEdit} className="text-xs px-5 py-2 rounded text-white font-semibold flex items-center gap-1.5 disabled:opacity-60" style={{ background:TH1 }}>
+                {modalBusy ? <><span className="inline-block w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />Saving…</> : <>💾 Save Changes</>}
+              </button>
             </div>
           </div>
         </div>
@@ -1777,8 +1788,10 @@ export function FourYrPayrollPage() {
             </div>
             <p className="text-xs mb-5" style={{ color:"#c62828", fontWeight:600 }}>⚠ This permanently deletes this row from the sheet and cannot be undone.</p>
             <div className="flex items-center justify-end gap-2">
-              <button onClick={()=>setDeleteConfirm(null)} className={`text-xs px-4 py-2 rounded border ${bdr} ${txt2}`}>Cancel</button>
-              <button onClick={confirmDelete} className="text-xs px-5 py-2 rounded text-white font-semibold" style={{ background:"#e53935" }}>🗑️ Yes, Delete</button>
+              <button disabled={modalBusy} onClick={()=>setDeleteConfirm(null)} className={`text-xs px-4 py-2 rounded border ${bdr} ${txt2} disabled:opacity-40`}>Cancel</button>
+              <button disabled={modalBusy} onClick={confirmDelete} className="text-xs px-5 py-2 rounded text-white font-semibold flex items-center gap-1.5 disabled:opacity-60" style={{ background:"#e53935" }}>
+                {modalBusy ? <><span className="inline-block w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />Deleting…</> : <>🗑️ Yes, Delete</>}
+              </button>
             </div>
           </div>
         </div>
