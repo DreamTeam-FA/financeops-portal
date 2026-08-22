@@ -759,8 +759,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const hasCalendarData = data.calendarLocalEvents && Array.isArray(data.calendarLocalEvents) && data.calendarLocalEvents.length > 0;
         if (hasSufficientData) {
           setIsLoading(false);
-          // Always do a background pull to refresh notes from the sheet (include token so server can reach Sheets)
+          // Stale-while-revalidate: show cached data instantly, then silently replace ALL
+          // data with live Sheets values so the portal is always up-to-date on load.
           const startupTok = getAccessToken();
+          setIsSyncing(true);
           fetch("/api/pull-live", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -768,17 +770,30 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           })
             .then((res) => res.json())
             .then((resp) => {
-              if (resp?.data?.quickNotes && Array.isArray(resp.data.quickNotes) && resp.data.quickNotes.length > 0) {
-                const merged = mergeSheetNotes(resp.data.quickNotes as DashboardNote[]);
-                setQuickNotes(merged);
-                localStorage.setItem("financeops_quick_notes", JSON.stringify(merged));
-              }
-              // Always refresh calendar events so timezone fixes apply without a manual force-sync
-              if (resp?.data?.calendarLocalEvents && Array.isArray(resp.data.calendarLocalEvents)) {
-                setCalendarLocalEvents(resp.data.calendarLocalEvents);
+              if (resp?.data) {
+                const live = resp.data;
+                // Refresh all main financial data in the background
+                if (live.ap) setApBills(recomputeBills(live.ap));
+                if (live.banks) setBankAccounts(live.banks);
+                if (live.loans) setLoans(live.loans);
+                if (live.ar) setArItems(live.ar);
+                if (live.statements) setBankStatements(live.statements);
+                if (live.headleys) setHeadleys(live.headleys);
+                if (live.payrollPivot) setPayrollPivot(live.payrollPivot);
+                if (live.payrollWeeks) setPayrollWeeks(live.payrollWeeks);
+                if (live.lastSyncedAt) setLastSyncedAt(live.lastSyncedAt);
+                if (live.quickNotes && Array.isArray(live.quickNotes) && live.quickNotes.length > 0) {
+                  const merged = mergeSheetNotes(live.quickNotes as DashboardNote[]);
+                  setQuickNotes(merged);
+                  localStorage.setItem("financeops_quick_notes", JSON.stringify(merged));
+                }
+                if (live.calendarLocalEvents && Array.isArray(live.calendarLocalEvents)) {
+                  setCalendarLocalEvents(live.calendarLocalEvents);
+                }
               }
             })
-            .catch(() => {}); // silent — notes will still load from backend JSON
+            .catch(() => {}) // silent — cached data already shown
+            .finally(() => setIsSyncing(false));
         } else {
           setIsSyncing(true);
           fetch("/api/pull-live", { method: "POST" })
