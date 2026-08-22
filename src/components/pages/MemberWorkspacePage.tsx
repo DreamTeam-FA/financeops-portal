@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { DashboardNote } from "../../types";
@@ -251,6 +251,14 @@ export const MemberWorkspacePage: React.FC<MemberWorkspacePageProps> = ({
 
   // Whether Norlan's seed is already loaded
   const seedAlreadyLoaded = memberItems.some((i) => i.id === "seed-f-dashboards");
+
+  // Auto-load Norlan's Tabme links on first visit (runs once when the seed is absent)
+  useEffect(() => {
+    if (memberId === "mem-norlan" && !seedAlreadyLoaded) {
+      bulkSeedWorkspace(NORLAN_WORKSPACE_SEED);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [memberId]);
 
   const handleSaveNameEdit = (e: React.FormEvent) => {
     e.preventDefault();
