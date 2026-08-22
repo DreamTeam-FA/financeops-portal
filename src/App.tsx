@@ -17,6 +17,7 @@ import { GasDashboardView } from "./components/pages/GasDashboardView";
 import { HeadleysPage } from "./components/pages/HeadleysPage";
 import { FourYrPayrollPage } from "./components/pages/FourYrPayrollPage";
 import { LogsPage } from "./components/pages/LogsPage";
+import { ServiceLimitsPage } from "./components/pages/ServiceLimitsPage";
 import { NotesFloatingWidget } from "./components/modals/NotesFloatingWidget";
 import { AlertsProvider, AlertsToasts } from "./components/AlertsCenter";
 import { TooltipProvider } from "./components/Tooltip";
@@ -256,6 +257,8 @@ const PortalContent: React.FC = () => {
         return <FourYrPayrollPage />;
       case "logs":
         return <LogsPage />;
+      case "service-limits":
+        return <ServiceLimitsPage />;
       default:
         return <HubPage />;
     }

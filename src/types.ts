@@ -255,4 +255,5 @@ export type PageRoute =
   | "notes"
   | "headleys"
   | "fouryr-payroll"
-  | "logs";
+  | "logs"
+  | "service-limits";

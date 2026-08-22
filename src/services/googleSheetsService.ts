@@ -10,6 +10,7 @@ import {
   DashboardNote
 } from "../types";
 import { extractInvoiceNumber } from "./liveSheetsFetcher";
+import { bumpApiCounter } from "../utils/apiCounter";
 
 // Extract Google Spreadsheet ID from URL or return ID as-is
 export const extractSpreadsheetId = (urlOrId: string): string => {
@@ -151,6 +152,7 @@ export const fetchSheetValues = async (
   }
 
   const data = await res.json();
+  bumpApiCounter("read");
   return data.values || [];
 };
 
@@ -183,6 +185,7 @@ export const updateSheetValues = async (
     throw new Error(errorBody?.error?.message || `Google Sheets Update Failed (${res.status})`);
   }
 
+  bumpApiCounter("write");
   return await res.json();
 };
 
@@ -215,6 +218,7 @@ export const appendSheetValues = async (
     throw new Error(errorBody?.error?.message || `Google Sheets Append Failed (${res.status})`);
   }
 
+  bumpApiCounter("write");
   return await res.json();
 };
 
