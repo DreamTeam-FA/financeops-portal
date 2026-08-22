@@ -22,7 +22,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
 
   const isLight = theme === "light";
 
-  const [activeTab, setActiveTab] = useState<"due" | "paid" | "summary">("due");
+  const [activeTab, setActiveTab] = useState<"due" | "paid" | "summary" | "aging">("due");
   const [searchTerm, setSearchTerm] = useState("");
   const [companyFilter, setCompanyFilter] = useState("ALL");
   const [vendorFilter, setVendorFilter] = useState("ALL");
@@ -452,7 +452,8 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
         tabs={[
           { id: "due", label: "Due Bills" },
           { id: "paid", label: "Paid Bills" },
-          { id: "summary", label: "Summary KPI" }
+          { id: "summary", label: "Summary KPI" },
+          { id: "aging", label: "Aging Report" }
         ]}
         activeTab={activeTab}
         onTabChange={(tab) => setActiveTab(tab as any)}
@@ -714,6 +715,143 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
             </div>
           </div>
         )}
+
+        {/* ── AGING REPORT TAB ─────────────────────────────────────── */}
+        {activeTab === "aging" && (() => {
+          const todayMs = new Date().setHours(0, 0, 0, 0);
+          type AgingRow = {
+            vendor: string;
+            entity: string;
+            current: number;   // not yet due
+            d1_30: number;
+            d31_60: number;
+            d61_90: number;
+            d90p: number;
+            total: number;
+          };
+
+          // Build vendor-level rows across unpaid + hold bills
+          const agingMap = new Map<string, AgingRow>();
+          const allAging = filteredBills.filter(b => b.status !== "paid");
+
+          allAging.forEach(b => {
+            const key = `${b.vendor}||${b.entity}`;
+            if (!agingMap.has(key)) {
+              agingMap.set(key, { vendor: b.vendor, entity: b.entity, current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90p: 0, total: 0 });
+            }
+            const row = agingMap.get(key)!;
+            const dueMs  = b.dueDate ? new Date(b.dueDate + "T00:00:00").getTime() : null;
+            const days   = dueMs != null ? Math.floor((todayMs - dueMs) / 86400000) : -1;
+            const amount = b.amount;
+            if (days <= 0)       row.current += amount;
+            else if (days <= 30) row.d1_30   += amount;
+            else if (days <= 60) row.d31_60  += amount;
+            else if (days <= 90) row.d61_90  += amount;
+            else                 row.d90p    += amount;
+            row.total += amount;
+          });
+
+          const rows = [...agingMap.values()].sort((a, b) => b.total - a.total);
+
+          // Column totals
+          const totals = rows.reduce(
+            (t, r) => ({ current: t.current + r.current, d1_30: t.d1_30 + r.d1_30, d31_60: t.d31_60 + r.d31_60, d61_90: t.d61_90 + r.d61_90, d90p: t.d90p + r.d90p, total: t.total + r.total }),
+            { current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90p: 0, total: 0 }
+          );
+
+          const fmtC = (n: number) => n === 0 ? <span className="opacity-20">—</span> : <>{formatCurrency(n)}</>;
+
+          const COLS: { key: keyof Omit<AgingRow, "vendor" | "entity">; label: string; color: string }[] = [
+            { key: "current", label: "Current",  color: isLight ? "text-emerald-700" : "text-emerald-400" },
+            { key: "d1_30",   label: "1–30 d",   color: isLight ? "text-amber-700"   : "text-amber-400"   },
+            { key: "d31_60",  label: "31–60 d",  color: isLight ? "text-orange-700"  : "text-orange-400"  },
+            { key: "d61_90",  label: "61–90 d",  color: isLight ? "text-red-700"     : "text-red-400"     },
+            { key: "d90p",    label: "90+ d",    color: isLight ? "text-red-900"     : "text-red-300"     },
+            { key: "total",   label: "Total",    color: isLight ? "text-slate-900"   : "text-white"       },
+          ];
+
+          const card2 = isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]";
+          const th    = isLight ? "text-slate-500 bg-slate-50 border-slate-200" : "text-[#4a6080] bg-[#080c14] border-[#1a2235]";
+          const tr    = isLight ? "hover:bg-slate-50 border-slate-100" : "hover:bg-[#0f1520] border-[#1a2235]";
+          const trFoot = isLight ? "bg-slate-100 border-slate-200" : "bg-[#101827] border-[#1a2235]";
+
+          // Summary KPI cards at top
+          const kpiCfg = [
+            { label: "Current (not due)", value: totals.current, colorClass: "from-emerald-700 to-emerald-900" },
+            { label: "1–30 Days Past Due", value: totals.d1_30, colorClass: "from-amber-600 to-amber-800" },
+            { label: "31–60 Days Past Due", value: totals.d31_60, colorClass: "from-orange-600 to-orange-900" },
+            { label: "61–90 Days Past Due", value: totals.d61_90, colorClass: "from-red-600 to-red-900" },
+            { label: "90+ Days Past Due", value: totals.d90p, colorClass: "from-rose-800 to-red-950" },
+          ];
+
+          return (
+            <div className="space-y-4">
+              {/* KPI strip */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                {kpiCfg.map(kpi => (
+                  <div
+                    key={kpi.label}
+                    className={`rounded-xl px-4 py-3 text-white bg-gradient-to-br ${kpi.colorClass} shadow-md`}
+                  >
+                    <div className="text-[9px] font-extrabold uppercase tracking-widest opacity-60 mb-1">{kpi.label}</div>
+                    <div className="text-[20px] font-black font-mono-num leading-none">{formatCurrency(kpi.value)}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Vendor table */}
+              <div className={`border rounded-xl overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] ${card2}`}>
+                {rows.length === 0 ? (
+                  <div className="py-10 text-center text-sm text-[#4a6080]">No unpaid bills in current filter.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-[12px] border-collapse">
+                      <thead>
+                        <tr className={`border-b text-[10px] font-bold uppercase tracking-wider ${th}`}>
+                          <th className="text-left px-4 py-2.5 border-r border-inherit w-44">Vendor</th>
+                          <th className="text-left px-3 py-2.5 border-r border-inherit">Entity</th>
+                          {COLS.map(c => (
+                            <th key={c.key} className={`text-right px-3 py-2.5 ${c.color} ${c.key !== "total" ? "border-r border-inherit" : ""}`}>
+                              {c.label}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((r, i) => (
+                          <tr key={i} className={`border-b transition-colors ${tr}`}>
+                            <td className={`px-4 py-2 font-semibold border-r ${isLight ? "border-slate-100 text-slate-800" : "border-[#1a2235] text-slate-200"} truncate max-w-[10rem]`}>{r.vendor}</td>
+                            <td className={`px-3 py-2 border-r ${isLight ? "border-slate-100 text-slate-500" : "border-[#1a2235] text-[#4a6080]"} truncate max-w-[8rem]`}>{r.entity}</td>
+                            {COLS.map(c => (
+                              <td key={c.key} className={`px-3 py-2 text-right tabular-nums ${c.color} font-medium ${c.key !== "total" ? `border-r ${isLight ? "border-slate-100" : "border-[#1a2235]"}` : "font-bold"}`}>
+                                {fmtC(r[c.key] as number)}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className={`border-t-2 text-[11px] font-bold ${trFoot} ${isLight ? "border-slate-300" : "border-[#253040]"}`}>
+                          <td className={`px-4 py-2.5 border-r ${isLight ? "border-slate-200 text-slate-700" : "border-[#1a2235] text-slate-300"}`} colSpan={2}>Grand Total</td>
+                          {COLS.map(c => (
+                            <td key={c.key} className={`px-3 py-2.5 text-right tabular-nums ${c.color} ${c.key !== "total" ? `border-r ${isLight ? "border-slate-200" : "border-[#1a2235]"}` : ""}`}>
+                              {fmtC(totals[c.key as keyof typeof totals] as number)}
+                            </td>
+                          ))}
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Legend note */}
+              <p className={`text-[10px] text-center ${isLight ? "text-slate-400" : "text-[#3d5478]"}`}>
+                Days past due calculated from bill due date · Includes unpaid &amp; on-hold bills · Filtered to selected entities
+              </p>
+            </div>
+          );
+        })()}
 
       </div>
 
