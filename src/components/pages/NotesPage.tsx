@@ -2,6 +2,7 @@
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { DashboardNote } from "../../types";
+import { Tooltip } from "../Tooltip";
 import {
   StickyNote,
   Plus,
@@ -437,16 +438,19 @@ export const NotesPage: React.FC = () => {
                                 </>
                               ) : (
                                 <>
-                                  <button onClick={() => openEditModal(note)} className="p-1 text-slate-400 hover:text-purple-500 transition-colors" title="Edit Note">
+                                  <Tooltip label="Edit Note">
+                                  <button onClick={() => openEditModal(note)} className="p-1 text-slate-400 hover:text-purple-500 transition-colors">
                                     <Edit2 className="w-3.5 h-3.5" />
                                   </button>
+                                  </Tooltip>
+                                  <Tooltip label="Delete Note">
                                   <button
                                     onClick={() => setPendingDeleteId(note.id)}
                                     className="p-1 text-slate-400 hover:text-red-500 transition-colors"
-                                    title="Delete Note"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </button>
+                                  </Tooltip>
                                 </>
                               )}
                             </div>
@@ -483,9 +487,11 @@ export const NotesPage: React.FC = () => {
                               <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                                 <Clock className="w-3 h-3" /> {note.completedAt || "Done"}
                               </span>
-                              <button onClick={() => handleMarkOpen(note.id)} className="text-[10px] text-slate-400 hover:text-slate-200 underline" title="Reopen Note">
+                              <Tooltip label="Reopen Note">
+                              <button onClick={() => handleMarkOpen(note.id)} className="text-[10px] text-slate-400 hover:text-slate-200 underline">
                                 Reopen
                               </button>
+                              </Tooltip>
                             </div>
                           ) : (
                             <button

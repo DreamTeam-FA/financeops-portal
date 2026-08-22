@@ -372,7 +372,7 @@ export const LoansPage: React.FC = () => {
                             </td>
                             <td className={`px-4 py-3 font-semibold ${isLight ? "text-slate-900" : "text-white"}`}>{l.lender}</td>
                             <td className={`px-4 py-3 ${isLight ? "text-slate-500" : "text-[#888]"}`}>{l.purpose}</td>
-                            <td className="px-4 py-3 font-bold text-red-600 dark:text-red-400">{formatCurrency(l.monthly)}</td>
+                            <td className="px-4 py-3 font-bold whitespace-nowrap text-red-600 dark:text-red-400">{formatCurrency(l.monthly)}</td>
                             <td className={`px-4 py-3 ${isLight ? "text-slate-600" : "text-[#aaa]"}`}>
                               <span className="flex items-center gap-1 font-semibold">
                                 <Calendar className="w-3 h-3 text-slate-400" />{l.nextPay}

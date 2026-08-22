@@ -288,7 +288,7 @@ export const ARPage: React.FC = () => {
                       </td>
                       <td className={`p-3 font-semibold ${isLight ? "text-slate-900" : "text-white"}`}>{a.customer}</td>
                       <td className={`p-3 max-w-[180px] truncate ${isLight ? "text-slate-600" : "text-[#888]"}`}>{a.description}</td>
-                      <td className={`p-3 font-bold ${isLight ? "text-slate-900" : "text-white"}`}>{formatCurrency(a.amount)}</td>
+                      <td className={`p-3 font-bold whitespace-nowrap ${isLight ? "text-slate-900" : "text-white"}`}>{formatCurrency(a.amount)}</td>
 
                       {/* Invoice Stage Checkbox */}
                       <td className="p-3">
@@ -582,7 +582,7 @@ export const ARPage: React.FC = () => {
                           </td>
                           <td className={`px-4 py-3 font-semibold ${isLight ? "text-slate-900" : "text-white"}`}>{a.customer}</td>
                           <td className={`px-4 py-3 max-w-[180px] truncate ${isLight ? "text-slate-500" : "text-[#888]"}`}>{a.description}</td>
-                          <td className={`px-4 py-3 text-right font-bold ${isLight ? "text-slate-900" : "text-white"}`}>{formatCurrency(a.amount)}</td>
+                          <td className={`px-4 py-3 text-right font-bold whitespace-nowrap ${isLight ? "text-slate-900" : "text-white"}`}>{formatCurrency(a.amount)}</td>
                           <td className={`px-4 py-3 ${isLight ? "text-slate-600" : "text-[#aaa]"}`}>{a.dueDate}</td>
                           <td className="px-4 py-3 font-bold text-red-500">{daysOver}d overdue</td>
                         </tr>

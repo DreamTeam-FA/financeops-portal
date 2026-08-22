@@ -251,20 +251,24 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
 
       {/* Tabs */}
       {tabs && tabs.length > 0 && (
-        <div className="flex px-4 pt-1 gap-1 border-t border-white/10 overflow-x-auto scrollbar-none">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => onTabChange && onTabChange(tab.id)}
-              className={`px-4 py-1.5 text-[13px] font-medium border-b-2 transition-all capitalize whitespace-nowrap ${
-                activeTab === tab.id
-                  ? "border-white text-white font-semibold"
-                  : "border-transparent text-white/60 hover:text-white/90"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+        <div className="relative border-t border-white/10">
+          {/* Fade gradient — hints at horizontal scroll on mobile */}
+          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-black/25 to-transparent z-10 sm:hidden" />
+          <div className="flex px-4 pt-1 gap-1 overflow-x-auto scrollbar-none">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => onTabChange && onTabChange(tab.id)}
+                className={`px-4 py-1.5 text-[13px] font-medium border-b-2 transition-all capitalize whitespace-nowrap ${
+                  activeTab === tab.id
+                    ? "border-white text-white font-semibold"
+                    : "border-transparent text-white/60 hover:text-white/90"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>

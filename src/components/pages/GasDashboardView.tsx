@@ -3,6 +3,7 @@ import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { ExternalLink, Settings, RefreshCw, Edit2, Check, AlertCircle, EyeOff, Eye, Maximize2, Minimize2 } from "lucide-react";
 import { CurcuminLogo, FourYrLogo, ZiglarLogo } from "../EntityLogos";
+import { Tooltip } from "../Tooltip";
 
 interface GasDashboardViewProps {
   entityKey: "curcumin" | "fouryr" | "ziglar";
@@ -65,16 +66,17 @@ export const GasDashboardView: React.FC<GasDashboardViewProps> = ({ entityKey, t
                   <span className="text-xs font-semibold text-slate-500 dark:text-gray-400 truncate max-w-xs md:max-w-md font-mono bg-slate-100 dark:bg-[#0d111a] px-2 py-0.5 rounded border border-slate-200 dark:border-[#333]">
                     {currentUrl}
                   </span>
+                  <Tooltip label="Edit Web App URL">
                   <button
                     onClick={() => {
                       setEditedUrl(currentUrl);
                       setIsEditingUrl(true);
                     }}
                     className="p-1 text-slate-400 hover:text-purple-500 rounded"
-                    title="Edit Web App URL"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
                   </button>
+                  </Tooltip>
                 </div>
               ) : (
                 <div className="flex items-center gap-1.5 flex-1 min-w-[280px]">
@@ -102,27 +104,29 @@ export const GasDashboardView: React.FC<GasDashboardViewProps> = ({ entityKey, t
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
+              <Tooltip label="Hide URL Bar &amp; Maximize Area">
               <button
                 onClick={() => setIsHeaderCollapsed(true)}
                 className={`p-1.5 px-3 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-colors ${
                   isLight ? "bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-800" : "bg-[#222] hover:bg-[#2a2a2a] border-[#444] text-gray-200"
                 }`}
-                title="Hide URL Bar & Maximize Area"
               >
                 <EyeOff className="w-3.5 h-3.5 text-purple-500" />
                 <span>Hide Bar (Maximize)</span>
               </button>
+              </Tooltip>
 
+              <Tooltip label="Reload Embedded Frame">
               <button
                 onClick={() => setKeyCounter((prev) => prev + 1)}
                 className={`p-1.5 px-3 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-colors ${
                   isLight ? "bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700" : "bg-[#1a1a1a] hover:bg-[#222] border-[#333] text-gray-300"
                 }`}
-                title="Reload Embedded Frame"
               >
                 <RefreshCw className="w-3.5 h-3.5 text-blue-500" />
                 <span>Reload</span>
               </button>
+              </Tooltip>
 
               <a
                 href={currentUrl}
@@ -159,13 +163,14 @@ export const GasDashboardView: React.FC<GasDashboardViewProps> = ({ entityKey, t
       {/* Main Full-Height Embedded Web App View */}
       <div className="flex-1 w-full h-full relative overflow-hidden bg-white">
         {isHeaderCollapsed && (
+          <Tooltip label="Show toolbar">
           <button
             onClick={() => setIsHeaderCollapsed(false)}
             className="absolute bottom-3 right-3 z-50 p-1.5 rounded-full bg-black/30 hover:bg-black/60 text-white/60 hover:text-white transition-all backdrop-blur-sm opacity-50 hover:opacity-100"
-            title="Show toolbar"
           >
             <Eye className="w-3.5 h-3.5" />
           </button>
+          </Tooltip>
         )}
         <iframe
           key={keyCounter}

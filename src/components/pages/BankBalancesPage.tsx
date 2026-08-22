@@ -271,7 +271,7 @@ export const BankBalancesPage: React.FC = () => {
                           />
                         ) : (
                           <div className="flex flex-col gap-0.5">
-                            <span className={`font-extrabold ${isLight ? "text-slate-900" : "text-white"} text-sm`}>
+                            <span className={`font-extrabold whitespace-nowrap ${isLight ? "text-slate-900" : "text-white"} text-sm`}>
                               {formatCurrency(b.balance)}
                             </span>
                             {(() => {

@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect, useMemo } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
+import { Tooltip } from "../Tooltip";
 import {
   CalendarDays,
   ChevronLeft,
@@ -808,26 +809,28 @@ export const CalendarPage: React.FC = () => {
             {/* Prev / Next / Today / Month Label */}
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1">
+                <Tooltip label="Previous">
                 <button
                   onClick={handlePrev}
                   className={`p-1.5 rounded-lg border ${isLight ? "bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700" : "bg-[#0d111a] hover:bg-[#222] border-[#1a2235] text-white"}`}
-                  title="Previous"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
+                </Tooltip>
                 <button
                   onClick={handleToday}
                   className="px-3 py-1 rounded-lg bg-[#2563eb] hover:bg-[#1d4ed8] text-xs font-bold text-white shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
                 >
                   Today
                 </button>
+                <Tooltip label="Next">
                 <button
                   onClick={handleNext}
                   className={`p-1.5 rounded-lg border ${isLight ? "bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700" : "bg-[#0d111a] hover:bg-[#222] border-[#1a2235] text-white"}`}
-                  title="Next"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
+                </Tooltip>
               </div>
 
               <h2 className={`text-base font-extrabold tracking-tight ${isLight ? "text-slate-900" : "text-white"}`}>
@@ -1079,16 +1082,17 @@ export const CalendarPage: React.FC = () => {
                                 {dayNum}
                               </span>
                             </div>
+                            <Tooltip label="Add event on this date">
                             <button
                               onClick={() => {
                                 setTaskDate(dateKey);
                                 setShowModal(true);
                               }}
                               className="opacity-0 group-hover:opacity-100 px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold hover:bg-emerald-500/30 transition-colors"
-                              title="Add event on this date"
                             >
                               + Add
                             </button>
+                            </Tooltip>
                           </div>
 
                           <div className="space-y-1.5 max-h-[320px] overflow-y-auto pr-0.5">
@@ -1225,16 +1229,17 @@ export const CalendarPage: React.FC = () => {
                         >
                           {dayNum}
                         </span>
+                        <Tooltip label="Add event on this date">
                         <button
                           onClick={() => {
                             setTaskDate(dateKey);
                             setShowModal(true);
                           }}
                           className="opacity-0 group-hover:opacity-100 text-[10px] text-[#10b981] hover:underline font-bold"
-                          title="Add event on this date"
                         >
                           + Add
                         </button>
+                        </Tooltip>
                       </div>
 
                       <div className="space-y-1 max-h-[140px] overflow-y-auto">

@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
+import { Tooltip } from "../Tooltip";
 import { getUserGreetingName, getViewerFormattedTime } from "../../utils/userGreeting";
 import {
   CreditCard, Building2, Receipt, Users, Landmark, TrendingDown, TrendingUp,
@@ -278,10 +279,10 @@ export const HubPage: React.FC = () => {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
 
           {/* Cash Balance */}
+          <Tooltip label="View bank balances">
           <div
             className={`${kpiCard("bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-900")} cursor-pointer group`}
             onClick={() => setCurrentPage("banks")}
-            title="View bank balances"
           >
             <div className="flex items-start justify-between mb-1">
               <div className="text-[10px] font-extrabold uppercase tracking-widest opacity-55">Cash Balance</div>
@@ -304,12 +305,13 @@ export const HubPage: React.FC = () => {
               <ArrowUpRight className="w-3 h-3 opacity-30 group-hover:opacity-70 transition-opacity" />
             </div>
           </div>
+          </Tooltip>
 
           {/* AP Unpaid */}
+          <Tooltip label="View AP bills">
           <div
             className={`${kpiCard("bg-gradient-to-br from-rose-600 via-rose-700 to-red-950")} cursor-pointer group`}
             onClick={() => setCurrentPage("ap")}
-            title="View AP bills"
           >
             <div className="text-[10px] font-extrabold uppercase tracking-widest opacity-55 mb-1">AP Unpaid</div>
             <div className="text-[22px] sm:text-[26px] leading-none font-black font-mono-num drop-shadow-sm mt-1 whitespace-nowrap overflow-hidden text-ellipsis">{fmt(unpaidBills.reduce((s,b) => s+b.amount, 0))}</div>
@@ -324,12 +326,13 @@ export const HubPage: React.FC = () => {
               <ArrowUpRight className="w-3 h-3 opacity-30 group-hover:opacity-70 transition-opacity" />
             </div>
           </div>
+          </Tooltip>
 
           {/* AR Outstanding */}
+          <Tooltip label="View AR">
           <div
             className={`${kpiCard("bg-gradient-to-br from-violet-600 via-indigo-700 to-slate-900")} cursor-pointer group`}
             onClick={() => setCurrentPage("ar")}
-            title="View AR"
           >
             <div className="text-[10px] font-extrabold uppercase tracking-widest opacity-55 mb-1">AR Outstanding</div>
             <div className="text-[22px] sm:text-[26px] leading-none font-black font-mono-num drop-shadow-sm mt-1 whitespace-nowrap overflow-hidden text-ellipsis">{fmt(totalAR)}</div>
@@ -344,12 +347,13 @@ export const HubPage: React.FC = () => {
               <ArrowUpRight className="w-3 h-3 opacity-30 group-hover:opacity-70 transition-opacity" />
             </div>
           </div>
+          </Tooltip>
 
           {/* Loans */}
+          <Tooltip label="View loans">
           <div
             className={`${kpiCard("bg-gradient-to-br from-amber-600 via-orange-600 to-stone-900")} cursor-pointer group`}
             onClick={() => setCurrentPage("loans")}
-            title="View loans"
           >
             <div className="text-[10px] font-extrabold uppercase tracking-widest opacity-55 mb-1">Loans Outstanding</div>
             <div className="text-[22px] sm:text-[26px] leading-none font-black font-mono-num drop-shadow-sm mt-1 whitespace-nowrap overflow-hidden text-ellipsis">{fmt(totalLoans || totalMonthlyPayments)}</div>
@@ -358,6 +362,7 @@ export const HubPage: React.FC = () => {
               <ArrowUpRight className="w-3 h-3 opacity-30 group-hover:opacity-70 transition-opacity" />
             </div>
           </div>
+          </Tooltip>
 
         </div>
 

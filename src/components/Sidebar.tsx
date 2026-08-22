@@ -470,13 +470,14 @@ export const Sidebar: React.FC = () => {
             <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#3d5478]"}`}>WORKSPACE</span>
             <div className={`flex-1 h-px ${isLight ? "bg-slate-200" : "bg-[#1a2235]"}`} />
           </div>
+          <Tooltip label="Manage Workspace Spaces">
           <button
             onClick={() => setCurrentPage("workspace-tools")}
             className="text-[#1a73e8] hover:text-[#1557b0] p-0.5 rounded hover:bg-slate-100 dark:hover:bg-[#1a1a1a] transition-colors"
-            title="Manage Workspace Spaces"
           >
             <Plus className="w-3.5 h-3.5" />
           </button>
+          </Tooltip>
         </div>
 
         <button
@@ -523,13 +524,14 @@ export const Sidebar: React.FC = () => {
             <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#3d5478]"}`}>MEMBER'S WORKSPACE</span>
             <div className={`flex-1 h-px ${isLight ? "bg-slate-200" : "bg-[#1a2235]"}`} />
           </div>
+          <Tooltip label="Add Team Member Workspace">
           <button
             onClick={() => setShowAddMemberModal(true)}
             className="text-[#1a73e8] hover:text-[#1557b0] p-0.5 rounded hover:bg-slate-100 dark:hover:bg-[#1a1a1a] transition-colors"
-            title="Add Team Member Workspace"
           >
             <Plus className="w-3.5 h-3.5" />
           </button>
+          </Tooltip>
         </div>
 
         {memberWorkspaces.map((mem) => {
