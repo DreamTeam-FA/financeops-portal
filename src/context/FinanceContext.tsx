@@ -1037,7 +1037,21 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
-    }).catch((err) => console.error("Error saving data:", err));
+    })
+      .then((r) => {
+        if (!r.ok) console.warn("[persistChanges] Server responded with", r.status);
+      })
+      .catch((err) => {
+        // Network error — data is safe in localStorage but server-side backup failed.
+        // Show toast only if it's a real network failure (not just the server being unavailable on Free tier).
+        console.error("[persistChanges] Network error — data saved locally only:", err);
+        // Debounce: only fire once per minute to avoid toast storm
+        const lastWarn = Number(sessionStorage.getItem("_persist_warn_ts") || "0");
+        if (Date.now() - lastWarn > 60_000) {
+          sessionStorage.setItem("_persist_warn_ts", String(Date.now()));
+          showToast("Data saved locally. Server backup unavailable — check connection.", "error", 6000);
+        }
+      });
   };
 
   const logAction = (action: string, details: string) => {
@@ -1420,9 +1434,17 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
       }
     } catch (err: any) {
-      console.warn("Server pull-live failed, falling back to client-side sheet fetch:", err);
-      for (const mapping of sheetMappings) {
-        await syncModuleFromGoogleSheet(mapping.module);
+      console.warn("[syncAllFromGoogleSheets] Server pull-live failed, falling back to client-side fetch:", err);
+      // Notify user that the fast path failed so they know something tried
+      showToast("Live sync fell back to direct Sheet fetch — this may be slower.", "info", 4000);
+      try {
+        for (const mapping of sheetMappings) {
+          await syncModuleFromGoogleSheet(mapping.module);
+        }
+      } catch (fallbackErr: any) {
+        const msg = fallbackErr?.message || "unknown error";
+        console.error("[syncAllFromGoogleSheets] Fallback also failed:", fallbackErr);
+        showToast(`Sync failed: ${msg}. Check your Google connection and try again.`, "error", 7000);
       }
     } finally {
       setIsSyncing(false);

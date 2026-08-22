@@ -18,6 +18,7 @@ import { HeadleysPage } from "./components/pages/HeadleysPage";
 import { FourYrPayrollPage } from "./components/pages/FourYrPayrollPage";
 import { LogsPage } from "./components/pages/LogsPage";
 import { ServiceLimitsPage } from "./components/pages/ServiceLimitsPage";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { NotesFloatingWidget } from "./components/modals/NotesFloatingWidget";
 import { AlertsProvider, AlertsToasts } from "./components/AlertsCenter";
 import { TooltipProvider } from "./components/Tooltip";
@@ -273,7 +274,9 @@ const PortalContent: React.FC = () => {
 
       {/* Main Content View */}
       <main className="flex-1 flex flex-col min-w-0 h-full overflow-hidden pb-14 md:pb-0 relative">
-        {renderPage()}
+        <ErrorBoundary label={currentPage}>
+          {renderPage()}
+        </ErrorBoundary>
       </main>
 
       {/* Login Gate Modal */}
