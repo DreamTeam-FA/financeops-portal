@@ -291,13 +291,17 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
 
     } catch (e: any) {
       if (e?.name === "AbortError") return; // user cancelled — do nothing
-      if (e?.name === "TypeError") {
-        // API genuinely doesn't exist (Firefox, Safari) — calling a non-function throws TypeError
+      // Brave at high fingerprinting levels physically REMOVES showDirectoryPicker
+      // from the window object, so calling it throws a real TypeError — same as
+      // Firefox where the API genuinely doesn't exist. Distinguish them via
+      // navigator.brave, which Brave exposes even when fingerprinting is active.
+      const isBrave = !!(navigator as any).brave;
+      if (e?.name === "TypeError" && !isBrave) {
+        // Firefox / Safari — API truly absent in this browser
         setPickError("unsupported");
       } else {
-        // SecurityError / NotAllowedError = Brave Shields or permission denied
-        // NOTE: don't use typeof-check here — Brave hides the API from enumeration
-        // even when it's available, so typeof always returns "undefined" in Brave
+        // Brave fingerprinting removed the API (TypeError in Brave) OR
+        // SecurityError / NotAllowedError from permission denied — show Shields fix
         setPickError("blocked");
       }
     }
