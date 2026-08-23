@@ -215,6 +215,7 @@ export interface ExternalLinkItem {
   iconType?: "sheet" | "mail" | "calendar" | "users" | "link" | "folder" | "wrench" | "globe";
   color?: string;
   category?: "entities" | "quicklinks" | "tools" | "platforms" | "drive";
+  subType?: "tool" | "portal" | "sheet";  // sub-classification within the tools tab
   description?: string;
   embedId?: string;
 }
