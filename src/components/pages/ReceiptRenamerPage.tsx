@@ -48,24 +48,57 @@ interface DriveItem {
   mimeType: string;
 }
 
+interface SharedDrive {
+  id: string;
+  name: string;
+}
+
+type BrowseSection = "myDrive" | "sharedDrives" | "sharedWithMe";
 type Stage = "pick" | "scanning" | "preview" | "applying" | "results";
 
 /* ── Drive API helpers ───────────────────────────────────────────────── */
 const FOLDER_MIME = "application/vnd.google-apps.folder";
+// Always include shared drive support params
+const SD_PARAMS = "supportsAllDrives=true&includeItemsFromAllDrives=true";
 
-async function driveList(folderId: string, token: string): Promise<DriveItem[]> {
+async function driveList(
+  folderId: string,
+  token: string,
+  driveId?: string
+): Promise<DriveItem[]> {
   const q   = `'${folderId}' in parents and trashed=false`;
   const fld = "files(id,name,mimeType)";
-  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=${encodeURIComponent(fld)}&pageSize=500&orderBy=folder,name`;
+  let url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=${encodeURIComponent(fld)}&pageSize=500&orderBy=folder,name&${SD_PARAMS}`;
+  if (driveId) url += `&driveId=${encodeURIComponent(driveId)}&corpora=drive`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) throw new Error(`Drive list error ${res.status}: ${await res.text()}`);
   const json = await res.json();
   return json.files ?? [];
 }
 
+async function listSharedDrives(token: string): Promise<SharedDrive[]> {
+  const res = await fetch(
+    "https://www.googleapis.com/drive/v3/drives?pageSize=100&fields=drives(id,name)",
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!res.ok) throw new Error(`Drive API error ${res.status}: ${await res.text()}`);
+  const json = await res.json();
+  return json.drives ?? [];
+}
+
+async function listSharedWithMe(token: string): Promise<DriveItem[]> {
+  const q   = "sharedWithMe=true and trashed=false and mimeType='application/vnd.google-apps.folder'";
+  const fld = "files(id,name,mimeType)";
+  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=${encodeURIComponent(fld)}&pageSize=200&orderBy=name&${SD_PARAMS}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new Error(`Drive API error ${res.status}: ${await res.text()}`);
+  const json = await res.json();
+  return json.files ?? [];
+}
+
 async function driveDownload(fileId: string, name: string, token: string): Promise<File> {
   const res = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&${SD_PARAMS}`,
     { headers: { Authorization: `Bearer ${token}` } }
   );
   if (!res.ok) throw new Error(`Drive download error ${res.status} for "${name}"`);
@@ -75,7 +108,7 @@ async function driveDownload(fileId: string, name: string, token: string): Promi
 
 async function driveRename(fileId: string, newName: string, token: string): Promise<void> {
   const res = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${fileId}`,
+    `https://www.googleapis.com/drive/v3/files/${fileId}?${SD_PARAMS}`,
     {
       method: "PATCH",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -176,10 +209,13 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
   // Drive folder browser
   const [browseOpen, setBrowseOpen]       = useState(false);
   const [browseLoading, setBrowseLoading] = useState(false);
+  const [browseSection, setBrowseSection] = useState<BrowseSection>("myDrive");
   const [browseFolderId, setBrowseFolderId] = useState("root");
   const [browseFolderName, setBrowseFolderName] = useState("My Drive");
-  const [browsePath, setBrowsePath]       = useState<{ id: string; name: string }[]>([]);
+  const [browseSharedDriveId, setBrowseSharedDriveId] = useState<string | null>(null);
+  const [browsePath, setBrowsePath]       = useState<{ id: string; name: string; driveId?: string }[]>([]);
   const [browseItems, setBrowseItems]     = useState<DriveItem[]>([]);
+  const [browseSharedDrives, setBrowseSharedDrives] = useState<SharedDrive[]>([]);
   const [browseError, setBrowseError]     = useState<string | null>(null);
 
   /* ── Theme ─────────────────────────────────────────────────────────── */
@@ -202,20 +238,39 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
       return;
     }
     setBrowseOpen(true);
+    setBrowseSection("myDrive");
     setBrowsePath([]);
     setBrowseFolderId("root");
     setBrowseFolderName("My Drive");
-    await loadBrowseFolder("root", token);
+    setBrowseSharedDriveId(null);
+    setBrowseSharedDrives([]);
+    await loadBrowseFolder("root", "myDrive", null, token);
   };
 
-  const loadBrowseFolder = async (folderId: string, token?: string) => {
+  const loadBrowseFolder = async (
+    folderId: string,
+    section: BrowseSection,
+    sharedDriveId: string | null,
+    token?: string
+  ) => {
     const tok = token || getAccessToken();
     if (!tok) { setBrowseError("No access token — please sign in again."); return; }
     setBrowseLoading(true);
     setBrowseError(null);
     try {
-      const items = await driveList(folderId, tok);
-      setBrowseItems(items);
+      if (section === "sharedDrives" && folderId === "shared-drives") {
+        // List shared drives themselves
+        const drives = await listSharedDrives(tok);
+        setBrowseSharedDrives(drives);
+        setBrowseItems([]);
+      } else if (section === "sharedWithMe" && folderId === "shared-with-me") {
+        // List folders shared with me
+        const items = await listSharedWithMe(tok);
+        setBrowseItems(items);
+      } else {
+        const items = await driveList(folderId, tok, sharedDriveId ?? undefined);
+        setBrowseItems(items);
+      }
     } catch (e: any) {
       setBrowseError(e?.message || "Failed to load Drive folder.");
     } finally {
@@ -227,27 +282,76 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
     if (item.mimeType !== FOLDER_MIME) return;
     const tok = getAccessToken();
     if (!tok) return;
-    setBrowsePath(prev => [...prev, { id: browseFolderId, name: browseFolderName }]);
+    setBrowsePath(prev => [...prev, { id: browseFolderId, name: browseFolderName, driveId: browseSharedDriveId ?? undefined }]);
     setBrowseFolderId(item.id);
     setBrowseFolderName(item.name);
-    await loadBrowseFolder(item.id, tok);
+    await loadBrowseFolder(item.id, browseSection, browseSharedDriveId, tok);
+  };
+
+  const browseIntoSharedDrive = async (drive: SharedDrive) => {
+    const tok = getAccessToken();
+    if (!tok) return;
+    setBrowsePath([{ id: "shared-drives", name: "Shared drives" }]);
+    setBrowseFolderId(drive.id);
+    setBrowseFolderName(drive.name);
+    setBrowseSharedDriveId(drive.id);
+    setBrowseSection("sharedDrives");
+    await loadBrowseFolder(drive.id, "sharedDrives", drive.id, tok);
+  };
+
+  const goToSection = async (section: BrowseSection) => {
+    const tok = getAccessToken();
+    if (!tok) return;
+    setBrowseSection(section);
+    setBrowsePath([]);
+    setBrowseSharedDriveId(null);
+    if (section === "myDrive") {
+      setBrowseFolderId("root");
+      setBrowseFolderName("My Drive");
+      await loadBrowseFolder("root", "myDrive", null, tok);
+    } else if (section === "sharedDrives") {
+      setBrowseFolderId("shared-drives");
+      setBrowseFolderName("Shared drives");
+      await loadBrowseFolder("shared-drives", "sharedDrives", null, tok);
+    } else {
+      setBrowseFolderId("shared-with-me");
+      setBrowseFolderName("Shared with me");
+      await loadBrowseFolder("shared-with-me", "sharedWithMe", null, tok);
+    }
   };
 
   const browseBack = async (toIndex: number) => {
     const tok = getAccessToken();
     if (!tok) return;
     if (toIndex < 0) {
-      // Go to root
-      setBrowsePath([]);
-      setBrowseFolderId("root");
-      setBrowseFolderName("My Drive");
-      await loadBrowseFolder("root", tok);
+      // Back to section root
+      if (browseSection === "myDrive") {
+        setBrowsePath([]);
+        setBrowseFolderId("root");
+        setBrowseFolderName("My Drive");
+        setBrowseSharedDriveId(null);
+        await loadBrowseFolder("root", "myDrive", null, tok);
+      } else if (browseSection === "sharedDrives") {
+        setBrowsePath([]);
+        setBrowseFolderId("shared-drives");
+        setBrowseFolderName("Shared drives");
+        setBrowseSharedDriveId(null);
+        setBrowseSharedDrives([]);
+        await loadBrowseFolder("shared-drives", "sharedDrives", null, tok);
+      } else {
+        setBrowsePath([]);
+        setBrowseFolderId("shared-with-me");
+        setBrowseFolderName("Shared with me");
+        await loadBrowseFolder("shared-with-me", "sharedWithMe", null, tok);
+      }
     } else {
       const target = browsePath[toIndex];
       setBrowsePath(prev => prev.slice(0, toIndex));
       setBrowseFolderId(target.id);
       setBrowseFolderName(target.name);
-      await loadBrowseFolder(target.id, tok);
+      const driveId = target.driveId ?? browseSharedDriveId;
+      setBrowseSharedDriveId(driveId ?? null);
+      await loadBrowseFolder(target.id, browseSection, driveId ?? null, tok);
     }
   };
 
@@ -255,7 +359,8 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
     const tok = getAccessToken();
     if (!tok) { setBrowseError("No access token."); return; }
 
-    // Filter files in this folder to supported extensions
+    // For shared drive root listing (driveId = folderId), need to list all files in drive root
+    // browseItems already contains the listed files/folders from loadBrowseFolder
     const supportedFiles = browseItems.filter(item => {
       if (item.mimeType === FOLDER_MIME) return false;
       const ext = "." + item.name.split(".").pop()!.toLowerCase();
@@ -831,26 +936,43 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
               </button>
             </div>
 
-            {/* Breadcrumb */}
-            <div className={cl("flex items-center gap-1 px-4 py-2 border-b flex-wrap shrink-0", border, isLight ? "bg-slate-50" : "bg-[#0a0e18]")}>
-              <button onClick={() => browseBack(-1)} className={cl("text-[11px] font-semibold hover:text-emerald-500 transition-colors", muted)}>
-                My Drive
-              </button>
-              {browsePath.map((seg, idx) => (
-                <React.Fragment key={seg.id}>
-                  <ChevronRight className="w-3 h-3 text-[#555]" />
-                  <button onClick={() => browseBack(idx)} className={cl("text-[11px] font-semibold hover:text-emerald-500 transition-colors", muted)}>
-                    {seg.name}
-                  </button>
-                </React.Fragment>
+            {/* Section tabs */}
+            <div className={cl("flex gap-1 px-3 py-2 border-b shrink-0", border, isLight ? "bg-slate-50" : "bg-[#0a0e18]")}>
+              {([
+                { key: "myDrive",      label: "My Drive",        icon: "🗂" },
+                { key: "sharedDrives", label: "Shared drives",   icon: "🏢" },
+                { key: "sharedWithMe", label: "Shared with me",  icon: "👥" },
+              ] as const).map(tab => (
+                <button key={tab.key} onClick={() => goToSection(tab.key)}
+                  className={cl(
+                    "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors whitespace-nowrap",
+                    browseSection === tab.key
+                      ? "bg-emerald-500 text-white"
+                      : isLight ? "text-slate-600 hover:bg-slate-200" : "text-[#888] hover:bg-white/5"
+                  )}>
+                  <span>{tab.icon}</span>{tab.label}
+                </button>
               ))}
-              {browsePath.length > 0 && (
-                <>
-                  <ChevronRight className="w-3 h-3 text-[#555]" />
-                  <span className={cl("text-[11px] font-bold", text)}>{browseFolderName}</span>
-                </>
-              )}
             </div>
+
+            {/* Breadcrumb */}
+            {browsePath.length > 0 && (
+              <div className={cl("flex items-center gap-1 px-4 py-1.5 border-b flex-wrap shrink-0 text-[11px]", border)}>
+                <button onClick={() => browseBack(-1)} className={cl("font-semibold hover:text-emerald-500 transition-colors", muted)}>
+                  {browseSection === "myDrive" ? "My Drive" : browseSection === "sharedDrives" ? "Shared drives" : "Shared with me"}
+                </button>
+                {browsePath.map((seg, idx) => (
+                  <React.Fragment key={seg.id}>
+                    <ChevronRight className="w-3 h-3 text-[#555]" />
+                    <button onClick={() => browseBack(idx)} className={cl("font-semibold hover:text-emerald-500 transition-colors", muted)}>
+                      {seg.name}
+                    </button>
+                  </React.Fragment>
+                ))}
+                <ChevronRight className="w-3 h-3 text-[#555]" />
+                <span className={cl("font-bold", text)}>{browseFolderName}</span>
+              </div>
+            )}
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto p-2">
@@ -866,46 +988,62 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
               )}
               {!browseLoading && !browseError && (
                 <>
-                  {/* Folders */}
-                  {browseFolders.map(item => (
-                    <button key={item.id}
-                      onClick={() => browseInto(item)}
-                      className={cl(
-                        "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors",
-                        isLight ? "hover:bg-slate-100" : "hover:bg-white/5"
-                      )}>
-                      <span className="text-lg shrink-0">📁</span>
-                      <div className="flex-1 min-w-0">
-                        <p className={cl("text-xs font-semibold truncate", text)}>{item.name}</p>
-                        <p className={cl("text-[10px]", muted)}>Folder</p>
-                      </div>
-                      <ChevronRight className="w-3.5 h-3.5 text-[#666] shrink-0" />
-                    </button>
-                  ))}
+                  {/* Shared drives list (root of sharedDrives section) */}
+                  {browseSection === "sharedDrives" && browseFolderId === "shared-drives" && (
+                    <>
+                      {browseSharedDrives.map(drive => (
+                        <button key={drive.id} onClick={() => browseIntoSharedDrive(drive)}
+                          className={cl("w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors", isLight ? "hover:bg-slate-100" : "hover:bg-white/5")}>
+                          <span className="text-lg shrink-0">🏢</span>
+                          <div className="flex-1 min-w-0">
+                            <p className={cl("text-xs font-semibold truncate", text)}>{drive.name}</p>
+                            <p className={cl("text-[10px]", muted)}>Shared drive</p>
+                          </div>
+                          <ChevronRight className="w-3.5 h-3.5 text-[#666] shrink-0" />
+                        </button>
+                      ))}
+                      {browseSharedDrives.length === 0 && (
+                        <p className={cl("text-xs text-center py-8", muted)}>No shared drives found.</p>
+                      )}
+                    </>
+                  )}
 
-                  {/* Supported files */}
-                  {browseFiles.map(item => (
-                    <div key={item.id}
-                      className={cl("flex items-center gap-3 px-3 py-2 rounded-lg", isLight ? "opacity-60" : "opacity-50")}>
-                      <span className="text-lg shrink-0">📄</span>
-                      <div className="flex-1 min-w-0">
-                        <p className={cl("text-xs font-medium truncate", text)}>{item.name}</p>
-                        <p className={cl("text-[10px] text-emerald-500")}>Will be scanned</p>
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Other files */}
-                  {browseOther.map(item => (
-                    <div key={item.id}
-                      className={cl("flex items-center gap-3 px-3 py-2 rounded-lg opacity-30")}>
-                      <span className="text-lg shrink-0">📎</span>
-                      <p className={cl("text-xs truncate flex-1", muted)}>{item.name}</p>
-                    </div>
-                  ))}
-
-                  {browseItems.length === 0 && (
-                    <p className={cl("text-xs text-center py-8", muted)}>This folder is empty.</p>
+                  {/* Regular folder/file listing */}
+                  {!(browseSection === "sharedDrives" && browseFolderId === "shared-drives") && (
+                    <>
+                      {/* Folders */}
+                      {browseFolders.map(item => (
+                        <button key={item.id} onClick={() => browseInto(item)}
+                          className={cl("w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors", isLight ? "hover:bg-slate-100" : "hover:bg-white/5")}>
+                          <span className="text-lg shrink-0">📁</span>
+                          <div className="flex-1 min-w-0">
+                            <p className={cl("text-xs font-semibold truncate", text)}>{item.name}</p>
+                            <p className={cl("text-[10px]", muted)}>Folder</p>
+                          </div>
+                          <ChevronRight className="w-3.5 h-3.5 text-[#666] shrink-0" />
+                        </button>
+                      ))}
+                      {/* Supported files */}
+                      {browseFiles.map(item => (
+                        <div key={item.id} className={cl("flex items-center gap-3 px-3 py-2 rounded-lg", isLight ? "opacity-60" : "opacity-50")}>
+                          <span className="text-lg shrink-0">📄</span>
+                          <div className="flex-1 min-w-0">
+                            <p className={cl("text-xs font-medium truncate", text)}>{item.name}</p>
+                            <p className="text-[10px] text-emerald-500">Will be scanned</p>
+                          </div>
+                        </div>
+                      ))}
+                      {/* Other files */}
+                      {browseOther.map(item => (
+                        <div key={item.id} className="flex items-center gap-3 px-3 py-2 rounded-lg opacity-30">
+                          <span className="text-lg shrink-0">📎</span>
+                          <p className={cl("text-xs truncate flex-1", muted)}>{item.name}</p>
+                        </div>
+                      ))}
+                      {browseItems.length === 0 && (
+                        <p className={cl("text-xs text-center py-8", muted)}>This folder is empty.</p>
+                      )}
+                    </>
                   )}
                 </>
               )}
