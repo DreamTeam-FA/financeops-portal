@@ -1,9 +1,9 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import {
   FolderOpen, FileText, CheckCircle2, AlertTriangle,
-  ChevronLeft, RotateCcw, Sparkles, ScanLine, FileCheck, Loader2,
-  ArrowRight, X, Trash2, Download, Upload
+  ChevronLeft, RotateCcw, Sparkles, ScanLine, FileCheck,
+  Loader2, ArrowRight, X, Trash2, Shield
 } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist";
 import {
@@ -13,7 +13,6 @@ import {
   type CustomVendorEntry,
 } from "../../utils/receiptParser";
 
-// PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.mjs",
   import.meta.url
@@ -23,7 +22,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 interface FileRow {
   id: string;
   fileObj: File;
-  handle?: FileSystemFileHandle;   // only when picked via showDirectoryPicker
+  handle: FileSystemFileHandle;
   original: string;
   ext: string;
   newName: string;
@@ -40,11 +39,8 @@ interface FileRow {
 }
 
 type Stage = "pick" | "scanning" | "preview" | "applying" | "results";
-type PickMode = "input" | "api";   // input = <input webkitdirectory>; api = showDirectoryPicker
 
-const FS_API = typeof window !== "undefined" && "showDirectoryPicker" in window;
-
-/* ── Text extraction ─────────────────────────────────────────────── */
+/* ── Helpers ─────────────────────────────────────────────────────────── */
 async function extractPdfText(file: File): Promise<string> {
   try {
     const ab = await file.arrayBuffer();
@@ -67,134 +63,58 @@ async function extractImageText(file: File): Promise<string> {
   } catch { return ""; }
 }
 
-async function extractText(file: File, ext: string): Promise<string> {
-  return ext === ".pdf" ? extractPdfText(file) : extractImageText(file);
-}
-
 function formatDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/* ── Download helper (fallback mode) ─────────────────────────────── */
-function downloadBlob(file: File, newName: string) {
-  return new Promise<void>((resolve) => {
-    const url = URL.createObjectURL(file);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = newName;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); resolve(); }, 300);
-  });
-}
-
-/* ── Main component ──────────────────────────────────────────────── */
+/* ── Component ───────────────────────────────────────────────────────── */
 export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const { theme } = useFinance();
   const isLight = theme === "light";
 
-  const [stage, setStage]         = useState<Stage>("pick");
-  const [pickMode, setPickMode]   = useState<PickMode>("input");
-  const [dirName, setDirName]     = useState("");
-  const [rows, setRows]           = useState<FileRow[]>([]);
-  const [progress, setProgress]   = useState({ current: 0, total: 0, file: "", substage: "" });
-  const [searchQ, setSearchQ]     = useState("");
-  const [filter, setFilter]       = useState<"all" | "auto" | "review">("all");
-  const [rawPreview, setRawPreview] = useState<{ name: string; text: string } | null>(null);
+  const [stage, setStage]     = useState<Stage>("pick");
+  const [dirName, setDirName] = useState("");
+  const [rows, setRows]       = useState<FileRow[]>([]);
+  const [progress, setProgress] = useState({ current: 0, total: 0, file: "", substage: "" });
+  const [searchQ, setSearchQ] = useState("");
+  const [filter, setFilter]   = useState<"all" | "auto" | "review">("all");
   const [docPreview, setDocPreview] = useState<{ name: string; url: string; isImage: boolean } | null>(null);
-
-  // Cleanup blob URL when modal closes
-  const closeDocPreview = () => {
-    if (docPreview) URL.revokeObjectURL(docPreview.url);
-    setDocPreview(null);
-  };
-
-  const openDocPreview = (row: FileRow) => {
-    const url = URL.createObjectURL(row.fileObj);
-    const isImage = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".heic", ".tiff", ".tif"].includes(row.ext);
-    setDocPreview({ name: row.original, url, isImage });
-  };
   const [showVendorMgr, setShowVendorMgr] = useState(false);
   const [customVendors, setCustomVendors] = useState<CustomVendorEntry[]>([]);
   const [learnPattern, setLearnPattern]   = useState("");
   const [learnName, setLearnName]         = useState("");
-  const [resultSummary, setResultSummary] = useState<{ ok: number; skipped: number; errors: FileRow[] }>({ ok: 0, skipped: 0, errors: [] });
-  const [apiBlocked, setApiBlocked]       = useState(false);
+  const [pickError, setPickError]         = useState<"blocked" | "unsupported" | null>(null);
+  const [resultSummary, setResultSummary] = useState<{ ok: number; errors: FileRow[] }>({ ok: 0, errors: [] });
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  /* ── Theme aliases ──────────────────────────────────────────────── */
-  const bg    = isLight ? "bg-slate-100"  : "bg-[#070b12]";
-  const card  = isLight ? "bg-white border-slate-200"  : "bg-[#0d111a] border-[#1a2235]";
-  const text  = isLight ? "text-slate-900" : "text-white";
-  const muted = isLight ? "text-slate-500" : "text-[#888]";
-  const border = isLight ? "border-slate-200" : "border-[#1a2235]";
-  const inputCls = `w-full border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#1a73e8] ${
+  /* ── Theme ─────────────────────────────────────────────────────────── */
+  const bg    = isLight ? "bg-slate-100"             : "bg-[#070b12]";
+  const card  = isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]";
+  const text  = isLight ? "text-slate-900"            : "text-white";
+  const muted = isLight ? "text-slate-500"            : "text-[#888]";
+  const border = isLight ? "border-slate-200"         : "border-[#1a2235]";
+  const inputCls = `w-full border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-emerald-500 ${
     isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#111] border-[#333] text-white"
   }`;
   const cl = (...cs: (string | false | undefined)[]) => cs.filter(Boolean).join(" ");
 
-  /* ── Process file list ──────────────────────────────────────────── */
-  const processFiles = async (entries: { file: File; handle?: FileSystemFileHandle }[], mode: PickMode, folderName: string) => {
-    setPickMode(mode);
-    setDirName(folderName);
-    setStage("scanning");
-    setProgress({ current: 0, total: entries.length, file: "", substage: "Extracting text…" });
-
-    const newRows: FileRow[] = [];
-
-    for (let i = 0; i < entries.length; i++) {
-      const { file, handle } = entries[i];
-      const name = file.name;
-      const dotIdx = name.lastIndexOf(".");
-      const ext = dotIdx >= 0 ? name.slice(dotIdx).toLowerCase() : "";
-
-      setProgress(p => ({ ...p, current: i + 1, file: name, substage: ext === ".pdf" ? "Reading PDF…" : "Running OCR…" }));
-
-      let rawText = "";
-      try { rawText = await extractText(file, ext); } catch { rawText = ""; }
-
-      const docType = detectDocType(rawText);
-      const vendor  = findVendor(rawText);
-      const dateObj = findDate(rawText, docType);
-      const total   = findTotal(rawText, docType);
-      const newName = sanitizeFilename(buildFilename(vendor, dateObj, total, ext, docType, rawText));
-      const complete = vendor !== null && dateObj !== null && (docType === "other" || total !== null);
-
-      newRows.push({
-        id: `${i}-${name}`,
-        fileObj: file,
-        handle,
-        original: name,
-        ext,
-        newName,
-        vendor: vendor || "",
-        date: dateObj ? formatDate(dateObj) : "",
-        total: total != null ? `$${total.toFixed(2)}` : "",
-        docType,
-        complete,
-        rawText,
-        selected: complete,
-        status: "idle",
-      });
+  /* ── Folder picker ──────────────────────────────────────────────────── */
+  const pickFolder = async () => {
+    if (!("showDirectoryPicker" in window)) {
+      setPickError("unsupported");
+      return;
     }
-
-    setRows(newRows);
-    setStage("preview");
-  };
-
-  /* ── Folder picker via File System Access API ───────────────────── */
-  const pickViaAPI = async () => {
+    setPickError(null);
     try {
       const dirHandle = await (window as any).showDirectoryPicker({ mode: "readwrite" });
       const entries: { file: File; handle: FileSystemFileHandle }[] = [];
+
       async function walk(dh: any) {
         for await (const [, entry] of dh.entries()) {
           if (entry.kind === "file") {
             const ext = "." + (entry.name as string).split(".").pop()!.toLowerCase();
             if (SUPPORTED_EXTS.has(ext)) {
               const file = await entry.getFile();
-              entries.push({ file, handle: entry });
+              entries.push({ file, handle: entry as FileSystemFileHandle });
             }
           } else if (entry.kind === "directory") {
             await walk(entry);
@@ -202,40 +122,66 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
         }
       }
       await walk(dirHandle);
-      if (!entries.length) { alert("No PDF or image files found in that folder."); return; }
-      await processFiles(entries, "api", dirHandle.name);
+
+      if (!entries.length) {
+        alert("No PDF or image files found in that folder.");
+        return;
+      }
+
+      setDirName(dirHandle.name);
+      setStage("scanning");
+      setProgress({ current: 0, total: entries.length, file: "", substage: "Extracting text…" });
+
+      const newRows: FileRow[] = [];
+      for (let i = 0; i < entries.length; i++) {
+        const { file, handle } = entries[i];
+        const name   = file.name;
+        const dotIdx = name.lastIndexOf(".");
+        const ext    = dotIdx >= 0 ? name.slice(dotIdx).toLowerCase() : "";
+
+        setProgress(p => ({ ...p, current: i + 1, file: name, substage: ext === ".pdf" ? "Reading PDF…" : "Running OCR…" }));
+
+        let rawText = "";
+        try { rawText = ext === ".pdf" ? await extractPdfText(file) : await extractImageText(file); } catch {}
+
+        const docType  = detectDocType(rawText);
+        const vendor   = findVendor(rawText);
+        const dateObj  = findDate(rawText, docType);
+        const total    = findTotal(rawText, docType);
+        const newName  = sanitizeFilename(buildFilename(vendor, dateObj, total, ext, docType, rawText));
+        const complete = vendor !== null && dateObj !== null && (docType === "other" || total !== null);
+
+        newRows.push({
+          id: `${i}-${name}`,
+          fileObj: file, handle,
+          original: name, ext, newName,
+          vendor: vendor || "",
+          date: dateObj ? formatDate(dateObj) : "",
+          total: total != null ? `$${total.toFixed(2)}` : "",
+          docType, complete, rawText,
+          selected: complete,
+          status: "idle",
+        });
+      }
+
+      setRows(newRows);
+      setStage("preview");
+
     } catch (e: any) {
-      if (e?.name === "AbortError") return; // user cancelled
-      // Blocked by Brave Shields or unsupported
-      setApiBlocked(true);
-      fileInputRef.current?.click();
+      if (e?.name === "AbortError") return;
+      // SecurityError or NotAllowedError = Shields / permissions blocked
+      setPickError("blocked");
     }
   };
 
-  /* ── File input change (universal fallback) ─────────────────────── */
-  const onFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []).filter(f => {
-      const ext = "." + f.name.split(".").pop()!.toLowerCase();
-      return SUPPORTED_EXTS.has(ext);
-    });
-    if (!files.length) return;
-    const folderName = (files[0] as any).webkitRelativePath?.split("/")[0] || "Selected files";
-    await processFiles(files.map(f => ({ file: f })), "input", folderName);
-    e.target.value = "";
-  };
-
-  /* ── Apply renames (API mode = move; input mode = download) ─────── */
+  /* ── Apply renames in-place ─────────────────────────────────────────── */
   const applyRenames = async () => {
-    const toProcess = rows.filter(r => r.selected && r.newName && r.newName !== r.original);
-    if (!toProcess.length) return;
+    const toRename = rows.filter(r => r.selected && r.newName && r.newName !== r.original);
+    if (!toRename.length) return;
     setStage("applying");
 
-    const updated = [...rows];
-    let ok = 0, skipped = 0;
-    const errors: FileRow[] = [];
-
-    // Learn corrections
-    for (const row of toProcess) {
+    // Learn any manual vendor corrections
+    for (const row of toRename) {
       const autoVendor = findVendor(row.rawText);
       const userVendor = row.newName.split("_")[0];
       if (userVendor && userVendor !== "?" && userVendor !== autoVendor && row.rawText) {
@@ -244,52 +190,47 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
       }
     }
 
-    for (const row of toProcess) {
+    const updated = [...rows];
+    let ok = 0;
+    const errors: FileRow[] = [];
+
+    for (const row of toRename) {
       const idx = updated.findIndex(r => r.id === row.id);
       updated[idx] = { ...updated[idx], status: "processing" };
       setRows([...updated]);
 
       try {
-        if (row.handle && pickMode === "api") {
-          // In-place rename via File System Access API
-          await (row.handle as any).move(sanitizeFilename(row.newName));
-          updated[idx] = { ...updated[idx], status: "done", renamed: true };
-          ok++;
-        } else {
-          // Download with new name
-          await downloadBlob(row.fileObj, sanitizeFilename(row.newName));
-          updated[idx] = { ...updated[idx], status: "done", renamed: true };
-          ok++;
-        }
+        await (row.handle as any).move(sanitizeFilename(row.newName));
+        updated[idx] = { ...updated[idx], status: "done", renamed: true };
+        ok++;
       } catch (err: any) {
-        updated[idx] = { ...updated[idx], status: "error", renameError: err?.message || "Failed" };
+        updated[idx] = { ...updated[idx], status: "error", renameError: err?.message || "Rename failed" };
         errors.push(updated[idx]);
       }
       setRows([...updated]);
     }
 
-    setResultSummary({ ok, skipped, errors });
+    setResultSummary({ ok, errors });
     setStage("results");
   };
 
-  /* ── Row field updates ──────────────────────────────────────────── */
-  const updateRow = (id: string, patch: Partial<FileRow>) => {
+  /* ── Row editing ─────────────────────────────────────────────────────── */
+  const updateRow = (id: string, patch: Partial<FileRow>) =>
     setRows(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r));
-  };
 
   const rebuildName = (row: FileRow, patch: Partial<FileRow>) => {
     const merged = { ...row, ...patch };
-    const vendor = merged.vendor || null;
-    const dateObj = merged.date ? new Date(merged.date + "T00:00:00") : null;
+    const vendor   = merged.vendor || null;
+    const dateObj  = merged.date ? new Date(merged.date + "T00:00:00") : null;
     const totalNum = merged.total ? parseFloat(merged.total.replace(/[^0-9.]/g, "")) || null : null;
-    const newName = sanitizeFilename(buildFilename(vendor, dateObj, totalNum, merged.ext, merged.docType as any, merged.rawText));
+    const newName  = sanitizeFilename(buildFilename(vendor, dateObj, totalNum, merged.ext, merged.docType as any, merged.rawText));
     return { ...patch, newName };
   };
 
-  /* ── Filtered rows ──────────────────────────────────────────────── */
+  /* ── Filtered rows ───────────────────────────────────────────────────── */
   const filteredRows = rows.filter(r => {
-    if (filter === "auto" && !r.complete) return false;
-    if (filter === "review" && r.complete) return false;
+    if (filter === "auto"   && !r.complete) return false;
+    if (filter === "review" &&  r.complete) return false;
     if (searchQ) {
       const q = searchQ.toLowerCase();
       return r.original.toLowerCase().includes(q) || r.newName.toLowerCase().includes(q) || r.vendor.toLowerCase().includes(q);
@@ -298,33 +239,28 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
   });
 
   const selectedCount = rows.filter(r => r.selected && r.newName !== r.original).length;
-  const autoCount   = rows.filter(r => r.complete).length;
-  const reviewCount = rows.length - autoCount;
+  const autoCount     = rows.filter(r => r.complete).length;
+  const reviewCount   = rows.length - autoCount;
 
-  /* ── Vendor manager ─────────────────────────────────────────────── */
-  const openVendorMgr = () => { setCustomVendors(loadCustomVendors()); setShowVendorMgr(true); };
-  const addVendor = () => {
-    if (!learnPattern.trim() || !learnName.trim()) return;
-    saveCustomVendor(learnPattern.trim(), learnName.trim());
-    setCustomVendors(loadCustomVendors());
-    setLearnPattern(""); setLearnName("");
+  /* ── Doc preview ─────────────────────────────────────────────────────── */
+  const openDocPreview = (row: FileRow) => {
+    const url = URL.createObjectURL(row.fileObj);
+    const isImage = [".png",".jpg",".jpeg",".gif",".webp",".bmp",".tiff",".tif"].includes(row.ext);
+    setDocPreview({ name: row.original, url, isImage });
+  };
+  const closeDocPreview = () => {
+    if (docPreview) URL.revokeObjectURL(docPreview.url);
+    setDocPreview(null);
   };
 
-  /* ── Render ─────────────────────────────────────────────────────── */
+  /* ── Vendor manager ──────────────────────────────────────────────────── */
+  const openVendorMgr = () => { setCustomVendors(loadCustomVendors()); setShowVendorMgr(true); };
+
+  /* ── Render ──────────────────────────────────────────────────────────── */
   return (
     <div className={cl("flex-1 flex flex-col h-full overflow-hidden", bg, text)}>
 
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        style={{ display: "none" }}
-        {...{ webkitdirectory: "", multiple: "" } as any}
-        accept=".pdf,.png,.jpg,.jpeg,.tiff,.tif,.heic,.bmp,.gif,.webp"
-        onChange={onFileInputChange}
-      />
-
-      {/* ── Top bar ───────────────────────────────────────────────── */}
+      {/* Top bar */}
       <div className={cl("flex items-center gap-3 px-4 sm:px-6 py-3 border-b shrink-0", card, "border")}>
         <button onClick={onBack} className={cl("p-1.5 rounded-lg transition-colors", isLight ? "hover:bg-slate-100 text-slate-500" : "hover:bg-white/5 text-[#888]")}>
           <ChevronLeft className="w-4 h-4" />
@@ -335,22 +271,17 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
           </div>
           <div>
             <h1 className={cl("text-sm font-bold", text)}>Receipt Renamer</h1>
-            <p className={cl("text-[10px]", muted)}>AI-powered batch rename for receipts, invoices & statements</p>
+            <p className={cl("text-[10px]", muted)}>AI-powered batch rename — renames files directly in your folder</p>
           </div>
         </div>
         <div className="ml-auto flex items-center gap-2">
           {stage === "preview" && (
             <>
-              <span className={cl("text-[11px]", muted)}>{rows.length} files</span>
-              {pickMode === "input" && (
-                <span className={cl("px-2 py-0.5 rounded-full text-[10px] font-bold border", isLight ? "border-amber-300 text-amber-700 bg-amber-50" : "border-amber-700/40 text-amber-400 bg-amber-950/20")}>
-                  ↓ Download mode
-                </span>
-              )}
+              <span className={cl("text-[11px]", muted)}>{rows.length} files · {dirName}</span>
               <button onClick={openVendorMgr} className={cl("px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition-colors", isLight ? "border-slate-200 hover:bg-slate-50 text-slate-600" : "border-[#333] hover:bg-white/5 text-[#aaa]")}>
                 Vendor Library
               </button>
-              <button onClick={() => { setStage("pick"); setRows([]); setDirName(""); setApiBlocked(false); }} className={cl("p-1.5 rounded-lg transition-colors", isLight ? "hover:bg-slate-100 text-slate-500" : "hover:bg-white/5 text-[#888]")} title="Start over">
+              <button onClick={() => { setStage("pick"); setRows([]); setDirName(""); }} className={cl("p-1.5 rounded-lg transition-colors", isLight ? "hover:bg-slate-100 text-slate-500" : "hover:bg-white/5 text-[#888]")} title="Start over">
                 <RotateCcw className="w-4 h-4" />
               </button>
             </>
@@ -358,21 +289,41 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
         </div>
       </div>
 
-      {/* ── Content ───────────────────────────────────────────────── */}
+      {/* Content */}
       <div className="flex-1 overflow-y-auto">
 
-        {/* ════ PICK ══════════════════════════════════════════════ */}
+        {/* ════ PICK ══════════════════════════════════════════════════════ */}
         {stage === "pick" && (
           <div className="flex flex-col items-center justify-center min-h-full p-6 gap-5">
 
-            {/* Brave/shields notice */}
-            {apiBlocked && (
-              <div className={cl("w-full max-w-lg rounded-xl border p-3 flex items-start gap-2.5", isLight ? "bg-amber-50 border-amber-200" : "bg-amber-950/20 border-amber-700/40")}>
-                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+            {/* Brave Shields error */}
+            {pickError === "blocked" && (
+              <div className={cl("w-full max-w-lg rounded-xl border p-4", isLight ? "bg-amber-50 border-amber-200" : "bg-amber-950/20 border-amber-700/40")}>
+                <div className="flex items-start gap-3">
+                  <Shield className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-bold text-amber-600 dark:text-amber-400 mb-1">Folder access blocked</p>
+                    <p className="text-xs text-amber-700 dark:text-amber-300/80 leading-relaxed">
+                      Your browser blocked folder access. To fix this in <strong>Brave</strong>:
+                    </p>
+                    <ol className="text-xs text-amber-700 dark:text-amber-300/80 mt-1.5 space-y-0.5 list-decimal list-inside leading-relaxed">
+                      <li>Click the <strong>Brave lion icon</strong> in the address bar</li>
+                      <li>Toggle <strong>Shields</strong> to Off (or set to "Standard" if on Aggressive)</li>
+                      <li>Click <strong>Select folder</strong> again</li>
+                    </ol>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Unsupported browser */}
+            {pickError === "unsupported" && (
+              <div className={cl("w-full max-w-lg rounded-xl border p-4 flex items-start gap-3", isLight ? "bg-red-50 border-red-200" : "bg-red-950/20 border-red-700/40")}>
+                <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-xs font-bold text-amber-600 dark:text-amber-400">Folder access blocked</p>
-                  <p className="text-xs text-amber-600/80 dark:text-amber-400/70 mt-0.5">
-                    Brave Shields may be blocking the folder picker. Either lower Shields for this site, or use the file selector below instead.
+                  <p className="text-sm font-bold text-red-500 mb-1">Browser not supported</p>
+                  <p className="text-xs text-red-600 dark:text-red-300/80">
+                    Direct file rename requires <strong>Chrome, Brave, or Edge</strong>. Firefox and Safari don't support the File System Access API yet.
                   </p>
                 </div>
               </div>
@@ -384,54 +335,38 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
                 <ScanLine className="w-8 h-8 text-white" />
               </div>
               <h2 className={cl("text-xl font-extrabold mb-2", text)}>Receipt Renamer</h2>
-              <p className={cl("text-sm mb-6", muted)}>
-                Select your receipts, invoices, or statements. The tool reads each file, extracts vendor, date & amount, then renames everything — no uploads, no servers.
+              <p className={cl("text-sm mb-6 leading-relaxed", muted)}>
+                Select a folder of receipts, invoices, or statements. The tool reads each file, extracts vendor, date & amount, then renames them <strong>directly in the folder</strong> — no uploads, no copies.
               </p>
 
-              {/* Primary: select folder (API) */}
-              {FS_API && (
-                <button
-                  onClick={pickViaAPI}
-                  className="w-full py-4 rounded-xl border-2 border-dashed border-emerald-400/60 hover:border-emerald-400 hover:bg-emerald-500/5 transition-all group mb-3"
-                >
-                  <FolderOpen className="w-6 h-6 text-emerald-400 mx-auto mb-1.5 group-hover:scale-110 transition-transform" />
-                  <p className="text-sm font-bold text-emerald-500">Select folder → rename in-place</p>
-                  <p className={cl("text-xs mt-0.5", muted)}>Uses browser folder access for direct rename</p>
-                </button>
-              )}
-
-              {/* Secondary / Universal: file input */}
               <button
-                onClick={() => fileInputRef.current?.click()}
-                className={cl(
-                  "w-full py-4 rounded-xl border-2 border-dashed transition-all group",
-                  FS_API
-                    ? isLight ? "border-slate-200 hover:border-slate-300 hover:bg-slate-50" : "border-[#1a2235] hover:border-[#2a3245] hover:bg-white/[0.02]"
-                    : "border-emerald-400/60 hover:border-emerald-400 hover:bg-emerald-500/5"
-                )}
+                onClick={pickFolder}
+                className="w-full py-5 rounded-xl border-2 border-dashed border-emerald-400/60 hover:border-emerald-400 hover:bg-emerald-500/5 active:scale-[.99] transition-all group mb-4"
               >
-                <Upload className={cl("w-6 h-6 mx-auto mb-1.5 group-hover:scale-110 transition-transform", FS_API ? muted : "text-emerald-400")} />
-                <p className={cl("text-sm font-bold", FS_API ? muted : "text-emerald-500")}>
-                  {FS_API ? "Or select files / folder" : "Select files or folder"}
-                </p>
-                <p className={cl("text-xs mt-0.5", muted)}>
-                  {FS_API ? "Renamed copies downloaded to your Downloads folder" : "Works in all browsers — renamed files download automatically"}
-                </p>
+                <FolderOpen className="w-7 h-7 text-emerald-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
+                <p className="text-sm font-bold text-emerald-500">Select folder</p>
+                <p className={cl("text-xs mt-0.5", muted)}>Renames files in-place · PDF, PNG, JPG, TIFF, HEIC</p>
               </button>
 
-              <p className={cl("text-[11px] mt-4", muted)}>PDF, PNG, JPG, TIFF, HEIC supported</p>
+              <button
+                onClick={pickFolder}
+                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-sm hover:opacity-90 active:scale-[.98] transition-all shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2"
+              >
+                <Sparkles className="w-4 h-4" />
+                Scan & Detect
+                <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
 
-            {/* Feature chips */}
             <div className="flex flex-wrap justify-center gap-2 max-w-lg">
-              {["80+ vendor patterns", "PDF text extraction", "Image OCR", "Invoice vs receipt", "Editable before applying", "Learns vendor names"].map(f => (
+              {["Renames files in-place", "80+ vendor patterns", "PDF text extraction", "Image OCR", "Invoice vs receipt", "Learns vendor names"].map(f => (
                 <span key={f} className={cl("px-3 py-1 rounded-full text-[11px] font-medium border", isLight ? "bg-white border-slate-200 text-slate-500" : "bg-[#0d111a] border-[#1a2235] text-[#888]")}>{f}</span>
               ))}
             </div>
           </div>
         )}
 
-        {/* ════ SCANNING ══════════════════════════════════════════ */}
+        {/* ════ SCANNING ══════════════════════════════════════════════════ */}
         {stage === "scanning" && (
           <div className="flex flex-col items-center justify-center min-h-full p-8">
             <div className={cl("w-full max-w-md rounded-2xl border p-8", card, "border")}>
@@ -447,11 +382,11 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
               <div className={cl("rounded-full h-2 mb-3 overflow-hidden", isLight ? "bg-slate-100" : "bg-[#1a2235]")}>
                 <div
                   className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-300"
-                  style={{ width: progress.total ? `${(progress.current / progress.total) * 100}%` : "10%" }}
+                  style={{ width: progress.total ? `${(progress.current / progress.total) * 100}%` : "5%" }}
                 />
               </div>
               <div className="flex justify-between text-[11px] mb-4">
-                <span className={muted}>{progress.current} of {progress.total || "?"}</span>
+                <span className={muted}>{progress.current} of {progress.total}</span>
                 <span className={muted}>{progress.total ? Math.round((progress.current / progress.total) * 100) : 0}%</span>
               </div>
               {progress.file && (
@@ -463,17 +398,17 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
           </div>
         )}
 
-        {/* ════ PREVIEW ════════════════════════════════════════════ */}
+        {/* ════ PREVIEW ═══════════════════════════════════════════════════ */}
         {stage === "preview" && (
           <div className="p-4 sm:p-6 space-y-4">
 
             {/* Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label: "Total files",   value: rows.length,   color: "from-blue-500 to-blue-600"     },
-                { label: "Auto-detected", value: autoCount,     color: "from-emerald-500 to-teal-600"  },
-                { label: "Needs review",  value: reviewCount,   color: "from-amber-500 to-orange-500"  },
-                { label: pickMode === "api" ? "Will rename" : "Will download", value: selectedCount, color: "from-purple-500 to-violet-600" },
+                { label: "Total files",   value: rows.length,   color: "from-blue-500 to-blue-600"      },
+                { label: "Auto-detected", value: autoCount,     color: "from-emerald-500 to-teal-600"   },
+                { label: "Needs review",  value: reviewCount,   color: "from-amber-500 to-orange-500"   },
+                { label: "Will rename",   value: selectedCount, color: "from-purple-500 to-violet-600"  },
               ].map(({ label, value, color }) => (
                 <div key={label} className={cl("rounded-xl border p-4", card, "border")}>
                   <div className={`text-2xl font-black bg-gradient-to-br ${color} bg-clip-text text-transparent`}>{value}</div>
@@ -482,41 +417,27 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
               ))}
             </div>
 
-            {/* Download-mode notice */}
-            {pickMode === "input" && (
-              <div className={cl("flex items-start gap-2.5 p-3 rounded-xl border", isLight ? "bg-amber-50 border-amber-200" : "bg-amber-950/15 border-amber-700/30")}>
-                <Download className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                <p className="text-xs text-amber-600 dark:text-amber-400">
-                  <strong>Download mode:</strong> Renamed copies will be saved to your Downloads folder. Original files stay untouched.
-                  {FS_API && <span className="ml-1">For in-place rename, use "Select folder" on the previous screen.</span>}
-                </p>
-              </div>
-            )}
-
             {/* Toolbar */}
             <div className={cl("flex flex-wrap items-center gap-2 p-3 rounded-xl border", card, "border")}>
-              <input
-                type="text" value={searchQ} onChange={e => setSearchQ(e.target.value)}
-                placeholder="Search files…"
+              <input type="text" value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="Search files…"
                 className={cl("flex-1 min-w-[160px] border rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-emerald-500",
-                  isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#111] border-[#333] text-white")}
-              />
-              {(["all", "auto", "review"] as const).map(f => (
+                  isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#111] border-[#333] text-white")} />
+              {(["all","auto","review"] as const).map(f => (
                 <button key={f} onClick={() => setFilter(f)}
                   className={cl("px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-colors",
                     filter === f ? "bg-emerald-500 text-white"
-                      : isLight ? "bg-slate-100 text-slate-600 hover:bg-slate-200" : "bg-[#111] text-[#888] hover:bg-[#1a1a1a]"
-                  )}>
+                      : isLight ? "bg-slate-100 text-slate-600 hover:bg-slate-200" : "bg-[#111] text-[#888] hover:bg-[#1a1a1a]")}>
                   {f === "auto" ? "✓ Auto" : f === "review" ? "⚠ Review" : "All"}
                 </button>
               ))}
               <div className="ml-auto flex items-center gap-1.5">
-                {["All", "None", "Auto"].map((lbl) => (
+                {["All","None","Auto"].map(lbl => (
                   <button key={lbl}
                     onClick={() => setRows(prev => prev.map(r => ({ ...r, selected: lbl === "All" ? true : lbl === "None" ? false : r.complete })))}
                     className={cl("px-2.5 py-1.5 text-[11px] font-semibold rounded-lg border",
-                      isLight ? "border-slate-200 hover:bg-slate-50 text-slate-600" : "border-[#333] hover:bg-white/5 text-[#aaa]")}
-                  >{lbl}</button>
+                      isLight ? "border-slate-200 hover:bg-slate-50 text-slate-600" : "border-[#333] hover:bg-white/5 text-[#aaa]")}>
+                    {lbl}
+                  </button>
                 ))}
               </div>
             </div>
@@ -562,8 +483,7 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
                             className={cl("w-full border rounded-md px-2 py-1 text-[11px] font-mono focus:outline-none focus:border-emerald-500 transition-colors",
                               row.newName !== row.original
                                 ? isLight ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-emerald-700/60 bg-emerald-950/20 text-emerald-300"
-                                : isLight ? "border-slate-200 bg-slate-50 text-slate-700" : "border-[#333] bg-[#111] text-[#ccc]"
-                            )} />
+                                : isLight ? "border-slate-200 bg-slate-50 text-slate-700" : "border-[#333] bg-[#111] text-[#ccc]")} />
                         </td>
                         <td className="px-3 py-2">
                           <input type="text" value={row.vendor}
@@ -612,35 +532,30 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
               </div>
             </div>
 
-            {/* Apply button */}
+            {/* Apply */}
             <button
               onClick={applyRenames}
               disabled={selectedCount === 0}
               className="w-full py-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-sm hover:opacity-90 active:scale-[.99] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
             >
-              {pickMode === "api" ? <FileCheck className="w-5 h-5" /> : <Download className="w-5 h-5" />}
-              {pickMode === "api"
-                ? `Rename ${selectedCount} file${selectedCount !== 1 ? "s" : ""} in-place`
-                : `Download ${selectedCount} renamed file${selectedCount !== 1 ? "s" : ""}`
-              }
+              <FileCheck className="w-5 h-5" />
+              Rename {selectedCount} file{selectedCount !== 1 ? "s" : ""} in-place
             </button>
           </div>
         )}
 
-        {/* ════ APPLYING ═══════════════════════════════════════════ */}
+        {/* ════ APPLYING ══════════════════════════════════════════════════ */}
         {stage === "applying" && (
           <div className="flex flex-col items-center justify-center min-h-full p-8">
             <div className={cl("w-full max-w-md rounded-2xl border p-8 text-center", card, "border")}>
               <Loader2 className="w-10 h-10 text-emerald-500 animate-spin mx-auto mb-4" />
-              <p className={cl("text-sm font-bold", text)}>{pickMode === "api" ? "Renaming files…" : "Downloading renamed files…"}</p>
-              <p className={cl("text-xs mt-1", muted)}>
-                {pickMode === "api" ? "Applying changes in-place" : "Files saving to your Downloads folder"}
-              </p>
+              <p className={cl("text-sm font-bold", text)}>Renaming files…</p>
+              <p className={cl("text-xs mt-1", muted)}>Applying changes directly in your folder</p>
             </div>
           </div>
         )}
 
-        {/* ════ RESULTS ════════════════════════════════════════════ */}
+        {/* ════ RESULTS ════════════════════════════════════════════════════ */}
         {stage === "results" && (
           <div className="p-4 sm:p-6 space-y-4 max-w-2xl mx-auto w-full">
             <div className={cl("rounded-2xl border p-6 text-center", card, "border")}>
@@ -648,7 +563,7 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
                 <CheckCircle2 className="w-7 h-7 text-emerald-500" />
               </div>
               <h2 className={cl("text-xl font-extrabold mb-1", text)}>
-                {resultSummary.ok} file{resultSummary.ok !== 1 ? "s" : ""} {pickMode === "api" ? "renamed" : "downloaded"}
+                {resultSummary.ok} file{resultSummary.ok !== 1 ? "s" : ""} renamed
               </h2>
               {resultSummary.errors.length > 0 && (
                 <p className={cl("text-sm", muted)}>{resultSummary.errors.length} error{resultSummary.errors.length > 1 ? "s" : ""}</p>
@@ -656,7 +571,7 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
             </div>
             {resultSummary.errors.length > 0 && (
               <div className={cl("rounded-xl border p-4 space-y-2", card, "border border-red-500/20")}>
-                <p className="text-xs font-bold text-red-400 mb-2">Failed</p>
+                <p className="text-xs font-bold text-red-400 mb-2">Failed renames</p>
                 {resultSummary.errors.map(r => (
                   <div key={r.id} className="flex items-start gap-2 text-xs">
                     <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" />
@@ -667,25 +582,22 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
             )}
             <div className="flex gap-3">
               <button onClick={() => setStage("preview")} className={cl("flex-1 py-3 rounded-xl border font-semibold text-sm transition-colors", isLight ? "border-slate-200 hover:bg-slate-50 text-slate-700" : "border-[#333] hover:bg-white/5 text-[#ccc]")}>
-                ← Back
+                ← Back to preview
               </button>
-              <button onClick={() => { setStage("pick"); setRows([]); setDirName(""); setApiBlocked(false); }}
+              <button onClick={() => { setStage("pick"); setRows([]); setDirName(""); setPickError(null); }}
                 className="flex-1 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-sm hover:opacity-90 transition-all">
-                Process another folder
+                Rename another folder
               </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* ── Document preview modal ──────────────────────────────── */}
+      {/* ── Document preview modal ──────────────────────────────────────── */}
       {docPreview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" onClick={closeDocPreview}>
-          <div
-            className={cl("w-full max-w-3xl flex flex-col shadow-2xl rounded-2xl border overflow-hidden", card, "border")}
-            style={{ height: "85vh" }}
-            onClick={e => e.stopPropagation()}
-          >
+          <div className={cl("w-full max-w-3xl flex flex-col shadow-2xl rounded-2xl border overflow-hidden", card, "border")}
+            style={{ height: "85vh" }} onClick={e => e.stopPropagation()}>
             <div className={cl("flex items-center justify-between px-5 py-3 border-b shrink-0", border)}>
               <div>
                 <p className={cl("text-sm font-bold", text)}>Document preview</p>
@@ -715,7 +627,7 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
         </div>
       )}
 
-      {/* ── Vendor library modal ────────────────────────────────── */}
+      {/* ── Vendor library modal ─────────────────────────────────────────── */}
       {showVendorMgr && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
           <div className={cl("w-full max-w-lg max-h-[80vh] rounded-2xl border flex flex-col shadow-2xl", card, "border")}>
@@ -724,24 +636,34 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
                 <p className={cl("text-sm font-bold", text)}>Vendor Library</p>
                 <p className={cl("text-[11px]", muted)}>Learned mappings — checked first when detecting vendors</p>
               </div>
-              <button onClick={() => setShowVendorMgr(false)} className={cl("p-1.5 rounded-lg", isLight ? "hover:bg-slate-100 text-slate-500" : "hover:bg-white/5 text-[#888]")}><X className="w-4 h-4" /></button>
+              <button onClick={() => setShowVendorMgr(false)} className={cl("p-1.5 rounded-lg", isLight ? "hover:bg-slate-100 text-slate-500" : "hover:bg-white/5 text-[#888]")}>
+                <X className="w-4 h-4" />
+              </button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               <div className={cl("rounded-xl border p-3 space-y-2", isLight ? "bg-slate-50 border-slate-200" : "bg-[#111] border-[#222]")}>
                 <p className={cl("text-[11px] font-bold", muted)}>Add mapping</p>
                 <input value={learnPattern} onChange={e => setLearnPattern(e.target.value)} placeholder="Pattern (text that appears in file)…" className={inputCls} />
                 <input value={learnName} onChange={e => setLearnName(e.target.value)} placeholder="Canonical name (e.g. McDonalds)…" className={inputCls} />
-                <button onClick={addVendor} className="w-full py-1.5 rounded-lg bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 transition-colors">Add to Library</button>
+                <button onClick={() => {
+                  if (!learnPattern.trim() || !learnName.trim()) return;
+                  saveCustomVendor(learnPattern.trim(), learnName.trim());
+                  setCustomVendors(loadCustomVendors());
+                  setLearnPattern(""); setLearnName("");
+                }} className="w-full py-1.5 rounded-lg bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 transition-colors">
+                  Add to Library
+                </button>
               </div>
               {customVendors.length === 0
-                ? <p className={cl("text-xs text-center py-4", muted)}>No custom vendors yet — they're learned automatically when you correct a vendor name.</p>
+                ? <p className={cl("text-xs text-center py-4", muted)}>No custom vendors yet — learned automatically when you correct a name.</p>
                 : customVendors.map(v => (
                   <div key={v.pattern} className={cl("flex items-center gap-3 p-2.5 rounded-lg border", isLight ? "border-slate-100 bg-white" : "border-[#1a2235] bg-[#0d111a]")}>
                     <div className="flex-1 min-w-0">
                       <p className={cl("text-[11px] font-semibold truncate", text)}>{v.name}</p>
                       <p className={cl("text-[10px] truncate font-mono", muted)}>{v.pattern}</p>
                     </div>
-                    <button onClick={() => { deleteCustomVendor(v.pattern); setCustomVendors(loadCustomVendors()); }} className="p-1 rounded hover:bg-red-500/10 text-red-400 hover:text-red-500 shrink-0">
+                    <button onClick={() => { deleteCustomVendor(v.pattern); setCustomVendors(loadCustomVendors()); }}
+                      className="p-1 rounded hover:bg-red-500/10 text-red-400 hover:text-red-500 shrink-0">
                       <Trash2 className="w-3 h-3" />
                     </button>
                   </div>
