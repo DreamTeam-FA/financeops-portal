@@ -291,11 +291,13 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
 
     } catch (e: any) {
       if (e?.name === "AbortError") return; // user cancelled — do nothing
-      if (e?.name === "TypeError" || typeof (window as any).showDirectoryPicker !== "function") {
-        // API genuinely doesn't exist (Firefox, Safari)
+      if (e?.name === "TypeError") {
+        // API genuinely doesn't exist (Firefox, Safari) — calling a non-function throws TypeError
         setPickError("unsupported");
       } else {
         // SecurityError / NotAllowedError = Brave Shields or permission denied
+        // NOTE: don't use typeof-check here — Brave hides the API from enumeration
+        // even when it's available, so typeof always returns "undefined" in Brave
         setPickError("blocked");
       }
     }

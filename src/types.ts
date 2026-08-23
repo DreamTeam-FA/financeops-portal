@@ -261,4 +261,5 @@ export type PageRoute =
   | "logs"
   | "service-limits"
   | "help"
-  | "receipt-renamer";
+  | "receipt-renamer"
+  | "bank-statement";

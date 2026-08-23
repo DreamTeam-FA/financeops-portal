@@ -38,15 +38,28 @@ function getSubType(item: ExternalLinkItem): "tool" | "portal" | "sheet" {
   return "tool";
 }
 
-/** Receipt Renamer is a pinned built-in tool — always shown first in Tools column */
+/** Built-in tools pinned at the top of the Tools column */
 const RECEIPT_RENAMER_CARD = {
   id: "__receipt_renamer__",
   name: "Receipt Renamer",
-  url: "",          // internal navigation — not an external link
+  url: "",
   description: "Batch-rename receipts & invoices with AI — built into portal",
   color: "#16a34a",
   pinned: true,
+  route: "receipt-renamer",
 };
+
+const BANK_STATEMENT_CARD = {
+  id: "__bank_statement__",
+  name: "Bank Statement → CSV",
+  url: "",
+  description: "Convert PDF bank statements to CSV — Citi, Chase, BofA & more",
+  color: "#2563eb",
+  pinned: true,
+  route: "bank-statement",
+};
+
+const PINNED_TOOL_CARDS = [RECEIPT_RENAMER_CARD, BANK_STATEMENT_CARD];
 
 const TOOLS_COLUMNS: { key: "tool" | "portal" | "sheet"; label: string; accentLight: string; accentDark: string; borderLight: string; borderDark: string }[] = [
   { key: "tool",   label: "Tools",            accentLight: "text-blue-600",   accentDark: "text-blue-400",   borderLight: "border-blue-200/70",   borderDark: "border-blue-500/20"   },
@@ -188,10 +201,10 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
   };
 
   /* ── Compact row card used inside columns ─────────────────────────── */
-  const renderColumnCard = (item: ExternalLinkItem, pinned = false) => (
+  const renderColumnCard = (item: ExternalLinkItem & { route?: string }, pinned = false) => (
     <div
       key={item.id}
-      onClick={pinned ? () => setCurrentPage("receipt-renamer" as any) : undefined}
+      onClick={pinned && item.route ? () => setCurrentPage(item.route as any) : undefined}
       className={`flex items-center gap-3 px-3 py-2.5 border-b last:border-b-0 ${
         isLight ? "border-slate-100 hover:bg-slate-50" : "border-[#1a2235] hover:bg-white/[0.02]"
       } transition-colors group${pinned ? " cursor-pointer" : ""}`}
@@ -248,9 +261,9 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
             </a>
           </>
         )}
-        {pinned && (
+        {pinned && (item as any).route && (
           <button
-            onClick={() => setCurrentPage("receipt-renamer" as any)}
+            onClick={() => setCurrentPage((item as any).route as any)}
             className={`p-1.5 rounded-md ${isLight ? "hover:bg-emerald-50 text-emerald-500" : "hover:bg-emerald-500/10 text-emerald-400"}`}
           >
             <ExternalLink className="w-3 h-3" />
@@ -277,7 +290,7 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
           const border = isLight ? borderLight : borderDark;
 
           const colItems = filteredItems.filter((i) => getSubType(i) === key);
-          const showReceiptRenamer = key === "tool";
+          const showPinnedTools = key === "tool";
 
           return (
             <div
@@ -297,16 +310,16 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
                   {label}
                 </span>
                 <span className={`ml-auto text-[11px] font-semibold ${isLight ? "text-slate-400" : "text-[#666]"}`}>
-                  {colItems.length + (showReceiptRenamer ? 1 : 0)}
+                  {colItems.length + (showPinnedTools ? PINNED_TOOL_CARDS.length : 0)}
                 </span>
               </div>
 
               {/* Items */}
               <div className="flex flex-col">
-                {/* Pinned: Receipt Renamer at top of Tools column */}
-                {showReceiptRenamer && renderColumnCard(RECEIPT_RENAMER_CARD as any, true)}
+                {/* Pinned built-in tools at top of Tools column */}
+                {showPinnedTools && PINNED_TOOL_CARDS.map(c => renderColumnCard(c as any, true))}
 
-                {colItems.length === 0 && !showReceiptRenamer ? (
+                {colItems.length === 0 && !showPinnedTools ? (
                   <div className={`px-4 py-6 text-center text-xs ${isLight ? "text-slate-400" : "text-[#666]"}`}>
                     No {label.toLowerCase()} yet
                   </div>
@@ -314,7 +327,7 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
                   colItems.map((item) => renderColumnCard(item))
                 )}
 
-                {colItems.length === 0 && showReceiptRenamer && (
+                {colItems.length === 0 && showPinnedTools && (
                   <div className={`px-4 py-4 text-center text-xs ${isLight ? "text-slate-400" : "text-[#666]"}`}>
                     No other tools yet
                   </div>
