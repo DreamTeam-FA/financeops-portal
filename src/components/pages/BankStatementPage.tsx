@@ -165,14 +165,26 @@ function citiShouldSkip(line: string): boolean {
 }
 
 function getCitiDates(allLines: string[]): { sm: number; sy: number; em: number; ey: number } | null {
-  const joined = allLines.slice(0, 50).join(" ");
-  let m = joined.match(/Billing Period[:\s]+(\d{2})\/(\d{2})\/(\d{2,4})[–\-](\d{2})\/(\d{2})\/(\d{2,4})/);
+  // Search first 100 lines (covers entire first page) with whitespace normalized
+  const joined = allLines.slice(0, 100).join(" ").replace(/\s+/g, " ");
+  // "Billing Period 12/12/25-01/05/26" or "Billing Period: 12/12/2025 – 01/05/2026"
+  let m = joined.match(/Billing Period[:\s]+(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s*[–\-]\s*(\d{1,2})\/(\d{1,2})\/(\d{2,4})/i);
   if (m) {
     const sy = m[3].length === 2 ? 2000 + parseInt(m[3]) : parseInt(m[3]);
     const ey = m[6].length === 2 ? 2000 + parseInt(m[6]) : parseInt(m[6]);
     return { sm: parseInt(m[1]), sy, em: parseInt(m[4]), ey };
   }
-  m = joined.match(/[Nn]ew balance as of\s+(\d{2})\/(\d{2})\/(\d{2,4})/);
+  // "New balance as of 01/05/26" — infer start from end date
+  m = joined.match(/[Nn]ew\s+balance\s+as\s+of\s+(\d{1,2})\/(\d{1,2})\/(\d{2,4})/i);
+  if (m) {
+    const ey = m[3].length === 2 ? 2000 + parseInt(m[3]) : parseInt(m[3]);
+    const em = parseInt(m[1]);
+    const sm = em > 1 ? em - 1 : 12;
+    const sy = em > 1 ? ey : ey - 1;
+    return { sm, sy, em, ey };
+  }
+  // "Statement Date 01/05/2026" as last resort
+  m = joined.match(/[Ss]tatement\s+[Dd]ate\s+(\d{1,2})\/(\d{1,2})\/(\d{2,4})/i);
   if (m) {
     const ey = m[3].length === 2 ? 2000 + parseInt(m[3]) : parseInt(m[3]);
     const em = parseInt(m[1]);
@@ -184,52 +196,72 @@ function getCitiDates(allLines: string[]): { sm: number; sy: number; em: number;
 }
 
 function citiYearForMonth(month: number, dates: { sm: number; sy: number; em: number; ey: number }): number {
+  // Same-year billing period — easy
   if (dates.sy === dates.ey) return dates.sy;
+  // Cross-year (e.g. Dec 2025 – Jan 2026):
+  //   months >= start_month (Dec=12) → start year (2025)
+  //   months <= end_month  (Jan=1)  → end year   (2026)
   return month >= dates.sm ? dates.sy : dates.ey;
 }
 
 function extractViaCitiText(allLines: string[]): Transaction[] {
+  // Citi amounts always include $; also handle $1,234.56 with or without leading -
   const amtRe = /(-?\$[\d,]+\.\d{2})/;
   const dates = getCitiDates(allLines);
+  const currentYear = new Date().getFullYear();
   const txns: Transaction[] = [];
   let category: "Purchase" | "Payment/Credit" | "Fee" | "Interest" = "Purchase";
 
   function fmtDate(mmdd: string): string {
     const mo = parseInt(mmdd.slice(0, 2));
-    const d = parseInt(mmdd.slice(3, 5));
-    const yr = dates ? citiYearForMonth(mo, dates) : 2025;
+    const d  = parseInt(mmdd.slice(3, 5));
+    const yr = dates ? citiYearForMonth(mo, dates) : currentYear;
     return `${mo}/${d}/${yr}`;
   }
 
   function addTxn(transDate: string, desc: string, amountStr: string) {
     const amt = parseFloat(amountStr.replace(/\$/g, "").replace(/,/g, ""));
+    if (isNaN(amt)) return;
+    const absAmt = Math.abs(amt);
     if (category === "Payment/Credit") {
-      txns.push({ Date: fmtDate(transDate), Description: desc, Debit: "", Credit: amt });
+      // Payments reduce the balance — show as Credit (positive amount in Credit column)
+      txns.push({ Date: fmtDate(transDate), Description: desc, Debit: "", Credit: absAmt });
     } else {
-      txns.push({ Date: fmtDate(transDate), Description: desc, Debit: amt, Credit: "" });
+      // Purchases / fees / interest — show as Debit
+      txns.push({ Date: fmtDate(transDate), Description: desc, Debit: absAmt, Credit: "" });
     }
   }
 
   let i = 0;
   while (i < allLines.length) {
     const line = allLines[i];
-    if (line.includes("Payments, Credits and Adjustments")) { category = "Payment/Credit"; i++; continue; }
-    if (line.includes("Standard Purchases") && !line.includes("cont'd")) { category = "Purchase"; i++; continue; }
-    if (line.trim() === "Fees charged") { category = "Fee"; i++; continue; }
-    if (line.trim() === "Interest charged") { category = "Interest"; i++; continue; }
+    const ll   = line.toLowerCase().trim();
 
-    // Two-date transaction
-    if (/^\d{2}\/\d{2}\s+\d{2}\/\d{2}\s+/.test(line)) {
+    // Section headers — case-insensitive, collapse whitespace before matching
+    if (ll.includes("payments, credits and adjustments") || ll.includes("payments and credits")) {
+      category = "Payment/Credit"; i++; continue;
+    }
+    if ((ll.includes("standard purchases") || ll.includes("purchase transactions")) && !ll.includes("cont'd")) {
+      category = "Purchase"; i++; continue;
+    }
+    if (ll === "fees charged" || ll === "fees") {
+      category = "Fee"; i++; continue;
+    }
+    if (ll === "interest charged" || ll === "interest charges") {
+      category = "Interest"; i++; continue;
+    }
+
+    // Two-date transaction: "MM/DD MM/DD Description $amount"
+    if (/^\d{2}\/\d{2} \d{2}\/\d{2} /.test(line)) {
       const m = line.match(amtRe);
       if (m) {
         const desc = line.slice(12, line.indexOf(m[1])).trim();
-        addTxn(line.slice(0, 5), desc, m[1]);
-        i++; continue;
+        if (desc) { addTxn(line.slice(0, 5), desc, m[1]); i++; continue; }
       }
     }
 
-    // Single-date transaction
-    if (/^\d{2}\/\d{2}\s+/.test(line)) {
+    // Single-date transaction: "MM/DD Description $amount"
+    if (/^\d{2}\/\d{2} /.test(line)) {
       const m = line.match(amtRe);
       if (m) {
         const desc = line.slice(6, line.indexOf(m[1])).trim();
@@ -248,8 +280,8 @@ function extractViaCitiText(allLines: string[]): Transaction[] {
 
 /* ── Is Citi? ────────────────────────────────────────────────────────── */
 function isCiti(lines: string[]): boolean {
-  const top = lines.slice(0, 20).join(" ").toLowerCase();
-  return top.includes("citicards") || top.includes("aadvantage");
+  const top = lines.slice(0, 50).join(" ").toLowerCase();
+  return top.includes("citicards") || top.includes("aadvantage") || top.includes("citibank");
 }
 
 /* ── Main extract ─────────────────────────────────────────────────── */
