@@ -19,6 +19,7 @@ import { FourYrPayrollPage } from "./components/pages/FourYrPayrollPage";
 import { LogsPage } from "./components/pages/LogsPage";
 import { ServiceLimitsPage } from "./components/pages/ServiceLimitsPage";
 import { HelpPage } from "./components/pages/HelpPage";
+import { ReceiptRenamerPage } from "./components/pages/ReceiptRenamerPage";
 import { GlobalSearchModal } from "./components/GlobalSearchModal";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { NotesFloatingWidget } from "./components/modals/NotesFloatingWidget";
@@ -264,6 +265,8 @@ const PortalContent: React.FC = () => {
         return <ServiceLimitsPage />;
       case "help":
         return <HelpPage />;
+      case "receipt-renamer":
+        return <ReceiptRenamerPage onBack={() => setCurrentPage("workspace-tools")} />;
       default:
         return <HubPage />;
     }

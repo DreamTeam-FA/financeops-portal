@@ -38,12 +38,12 @@ function getSubType(item: ExternalLinkItem): "tool" | "portal" | "sheet" {
   return "tool";
 }
 
-/** Receipt Renamer is a pinned local tool — always shown in Tools column */
+/** Receipt Renamer is a pinned built-in tool — always shown first in Tools column */
 const RECEIPT_RENAMER_CARD = {
   id: "__receipt_renamer__",
   name: "Receipt Renamer",
-  url: "http://localhost:5001",
-  description: "Batch-rename receipts & invoices — run locally via Python",
+  url: "",          // internal navigation — not an external link
+  description: "Batch-rename receipts & invoices with AI — built into portal",
   color: "#16a34a",
   pinned: true,
 };
@@ -68,7 +68,8 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
     addExternalLink,
     updateExternalLink,
     deleteExternalLink,
-    theme
+    theme,
+    setCurrentPage
   } = useFinance();
 
   const isLight = theme === "light";
@@ -190,9 +191,10 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
   const renderColumnCard = (item: ExternalLinkItem, pinned = false) => (
     <div
       key={item.id}
+      onClick={pinned ? () => setCurrentPage("receipt-renamer" as any) : undefined}
       className={`flex items-center gap-3 px-3 py-2.5 border-b last:border-b-0 ${
         isLight ? "border-slate-100 hover:bg-slate-50" : "border-[#1a2235] hover:bg-white/[0.02]"
-      } transition-colors group`}
+      } transition-colors group${pinned ? " cursor-pointer" : ""}`}
     >
       {/* Color dot / icon */}
       <div
@@ -207,8 +209,8 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
         <div className={`text-[13px] font-semibold truncate ${isLight ? "text-slate-900" : "text-white"}`}>
           {item.name}
           {pinned && (
-            <span className={`ml-1.5 text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-slate-400" : "text-[#666]"}`}>
-              Local
+            <span className={`ml-1.5 text-[10px] font-bold uppercase tracking-wider ${isLight ? "text-emerald-600" : "text-emerald-500"}`}>
+              Built-in
             </span>
           )}
         </div>
@@ -224,27 +226,36 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
         {!pinned && (
           <>
             <button
-              onClick={() => handleOpenEdit(item)}
+              onClick={(e) => { e.stopPropagation(); handleOpenEdit(item); }}
               className={`p-1.5 rounded-md ${isLight ? "hover:bg-slate-200 text-slate-400" : "hover:bg-[#222] text-[#888]"}`}
             >
               <Edit2 className="w-3 h-3" />
             </button>
             <button
-              onClick={() => deleteExternalLink(item.id)}
+              onClick={(e) => { e.stopPropagation(); deleteExternalLink(item.id); }}
               className="p-1.5 rounded-md hover:bg-red-500/10 text-red-400 hover:text-red-500"
             >
               <Trash2 className="w-3 h-3" />
             </button>
+            <a
+              href={item.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className={`p-1.5 rounded-md ${isLight ? "hover:bg-blue-50 text-blue-500" : "hover:bg-blue-500/10 text-blue-400"}`}
+            >
+              <ExternalLink className="w-3 h-3" />
+            </a>
           </>
         )}
-        <a
-          href={item.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`p-1.5 rounded-md ${isLight ? "hover:bg-blue-50 text-blue-500" : "hover:bg-blue-500/10 text-blue-400"}`}
-        >
-          <ExternalLink className="w-3 h-3" />
-        </a>
+        {pinned && (
+          <button
+            onClick={() => setCurrentPage("receipt-renamer" as any)}
+            className={`p-1.5 rounded-md ${isLight ? "hover:bg-emerald-50 text-emerald-500" : "hover:bg-emerald-500/10 text-emerald-400"}`}
+          >
+            <ExternalLink className="w-3 h-3" />
+          </button>
+        )}
       </div>
     </div>
   );

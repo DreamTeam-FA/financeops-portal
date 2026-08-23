@@ -260,4 +260,5 @@ export type PageRoute =
   | "fouryr-payroll"
   | "logs"
   | "service-limits"
-  | "help";
+  | "help"
+  | "receipt-renamer";
