@@ -3,7 +3,7 @@ import { useFinance } from "../../context/FinanceContext";
 import {
   FolderOpen, FileText, CheckCircle2, AlertTriangle,
   ChevronLeft, RotateCcw, Sparkles, ScanLine, FileCheck,
-  Loader2, ArrowRight, X, Trash2, Shield
+  Loader2, ArrowRight, X, Trash2, ChevronRight
 } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist";
 import {
@@ -12,6 +12,7 @@ import {
   loadCustomVendors, saveCustomVendor, deleteCustomVendor,
   type CustomVendorEntry,
 } from "../../utils/receiptParser";
+import { getAccessToken } from "../../services/googleAuth";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.mjs",
@@ -24,7 +25,7 @@ type ScanMethod = "gemini" | "pdftext" | "ocr" | "failed";
 interface FileRow {
   id: string;
   fileObj: File;
-  handle: FileSystemFileHandle;
+  driveFileId: string;
   original: string;
   ext: string;
   newName: string;
@@ -41,16 +42,57 @@ interface FileRow {
   renameError?: string;
 }
 
+interface DriveItem {
+  id: string;
+  name: string;
+  mimeType: string;
+}
+
 type Stage = "pick" | "scanning" | "preview" | "applying" | "results";
 
-/* ── Helpers ─────────────────────────────────────────────────────────── */
+/* ── Drive API helpers ───────────────────────────────────────────────── */
+const FOLDER_MIME = "application/vnd.google-apps.folder";
+
+async function driveList(folderId: string, token: string): Promise<DriveItem[]> {
+  const q   = `'${folderId}' in parents and trashed=false`;
+  const fld = "files(id,name,mimeType)";
+  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=${encodeURIComponent(fld)}&pageSize=500&orderBy=folder,name`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new Error(`Drive list error ${res.status}: ${await res.text()}`);
+  const json = await res.json();
+  return json.files ?? [];
+}
+
+async function driveDownload(fileId: string, name: string, token: string): Promise<File> {
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!res.ok) throw new Error(`Drive download error ${res.status} for "${name}"`);
+  const blob = await res.blob();
+  return new File([blob], name, { type: blob.type });
+}
+
+async function driveRename(fileId: string, newName: string, token: string): Promise<void> {
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}`,
+    {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newName }),
+    }
+  );
+  if (!res.ok) throw new Error(`Drive rename error ${res.status}: ${await res.text()}`);
+}
+
+/* ── Other helpers ───────────────────────────────────────────────────── */
 async function extractPdfText(file: File): Promise<string> {
   try {
-    const ab = await file.arrayBuffer();
+    const ab  = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
-    let text = "";
+    let text  = "";
     for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
+      const page    = await pdf.getPage(i);
       const content = await page.getTextContent();
       text += content.items.map((it: any) => it.str).join(" ") + "\n";
     }
@@ -70,20 +112,15 @@ function formatDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/* ── File → base64 via FileReader (safe for large files) ─────────── */
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target?.result as string;
-      resolve(dataUrl.split(",")[1]);
-    };
+    reader.onload  = e => resolve((e.target?.result as string).split(",")[1]);
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
 }
 
-/* ── Gemini Vision scan (primary AI path) ────────────────────────── */
 interface GeminiResult {
   vendor: string | null;
   date: Date | null;
@@ -95,46 +132,26 @@ async function tryGeminiScan(file: File): Promise<GeminiResult | null> {
   try {
     const base64   = await fileToBase64(file);
     const mimeType = file.type || (file.name.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/jpeg");
-
-    const resp = await fetch("/api/invoice/scan", {
-      method:  "POST",
+    const resp     = await fetch("/api/invoice/scan", {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ imageBase64: base64, mimeType }),
+      body: JSON.stringify({ imageBase64: base64, mimeType }),
     });
-
     if (!resp.ok) return null;
     const json = await resp.json();
     if (!json.ok || !json.invoice) return null;
-
     const inv    = json.invoice as Record<string, any>;
     const vendor = (typeof inv.vendor === "string" && inv.vendor.trim()) ? inv.vendor.trim() : null;
-
-    // Parse date from issueDate or dueDate
     let date: Date | null = null;
     const rawDate = inv.issueDate || inv.dueDate;
-    if (rawDate) {
-      const d = new Date(rawDate);
-      if (!isNaN(d.getTime())) date = d;
-    }
-
-    // Parse amount
+    if (rawDate) { const d = new Date(rawDate); if (!isNaN(d.getTime())) date = d; }
     let total: number | null = null;
-    if (typeof inv.amount === "number" && !isNaN(inv.amount)) {
-      total = inv.amount;
-    } else if (typeof inv.amount === "string") {
-      const n = parseFloat(inv.amount.replace(/[^0-9.]/g, ""));
-      if (!isNaN(n) && n > 0) total = n;
-    }
-
+    if (typeof inv.amount === "number" && !isNaN(inv.amount)) { total = inv.amount; }
+    else if (typeof inv.amount === "string") { const n = parseFloat(inv.amount.replace(/[^0-9.]/g, "")); if (!isNaN(n) && n > 0) total = n; }
     const docType: "invoice" | "receipt" | "other" = inv.invoiceNo ? "invoice" : (total !== null ? "receipt" : "other");
-
-    // Only trust the result if Gemini returned at least a vendor or a date
     if (!vendor && !date) return null;
-
     return { vendor, date, total, docType };
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 /* ── Component ───────────────────────────────────────────────────────── */
@@ -153,87 +170,128 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
   const [customVendors, setCustomVendors] = useState<CustomVendorEntry[]>([]);
   const [learnPattern, setLearnPattern]   = useState("");
   const [learnName, setLearnName]         = useState("");
-  const [pickError, setPickError]         = useState<"blocked" | "unsupported" | null>(null);
   const [resultSummary, setResultSummary] = useState<{ ok: number; errors: FileRow[] }>({ ok: 0, errors: [] });
+  const [driveError, setDriveError]       = useState<string | null>(null);
+
+  // Drive folder browser
+  const [browseOpen, setBrowseOpen]       = useState(false);
+  const [browseLoading, setBrowseLoading] = useState(false);
+  const [browseFolderId, setBrowseFolderId] = useState("root");
+  const [browseFolderName, setBrowseFolderName] = useState("My Drive");
+  const [browsePath, setBrowsePath]       = useState<{ id: string; name: string }[]>([]);
+  const [browseItems, setBrowseItems]     = useState<DriveItem[]>([]);
+  const [browseError, setBrowseError]     = useState<string | null>(null);
 
   /* ── Theme ─────────────────────────────────────────────────────────── */
-  const bg    = isLight ? "bg-slate-100"             : "bg-[#070b12]";
-  const card  = isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]";
-  const text  = isLight ? "text-slate-900"            : "text-white";
-  const muted = isLight ? "text-slate-500"            : "text-[#888]";
-  const border = isLight ? "border-slate-200"         : "border-[#1a2235]";
+  const bg    = isLight ? "bg-slate-100"              : "bg-[#070b12]";
+  const card  = isLight ? "bg-white border-slate-200"  : "bg-[#0d111a] border-[#1a2235]";
+  const text  = isLight ? "text-slate-900"             : "text-white";
+  const muted = isLight ? "text-slate-500"             : "text-[#888]";
+  const border = isLight ? "border-slate-200"          : "border-[#1a2235]";
   const inputCls = `w-full border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-emerald-500 ${
     isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#111] border-[#333] text-white"
   }`;
   const cl = (...cs: (string | false | undefined)[]) => cs.filter(Boolean).join(" ");
 
-  /* ── Folder picker ──────────────────────────────────────────────────── */
-  const pickFolder = async () => {
-    setPickError(null);
+  /* ── Drive browser ──────────────────────────────────────────────────── */
+  const openDriveBrowser = async () => {
+    setDriveError(null);
+    const token = getAccessToken();
+    if (!token) {
+      setDriveError("Not signed in to Google. Please sign in from the main dashboard first.");
+      return;
+    }
+    setBrowseOpen(true);
+    setBrowsePath([]);
+    setBrowseFolderId("root");
+    setBrowseFolderName("My Drive");
+    await loadBrowseFolder("root", token);
+  };
 
-    // ── Step 1: open the folder picker — this is the ONLY call that can
-    //    fail with a browser-support error. Keep it in its own try-catch
-    //    so that scanning errors later never show "Browser not supported".
-    let dirHandle: any;
+  const loadBrowseFolder = async (folderId: string, token?: string) => {
+    const tok = token || getAccessToken();
+    if (!tok) { setBrowseError("No access token — please sign in again."); return; }
+    setBrowseLoading(true);
+    setBrowseError(null);
     try {
-      dirHandle = await (window as any).showDirectoryPicker({ mode: "readwrite" });
+      const items = await driveList(folderId, tok);
+      setBrowseItems(items);
     } catch (e: any) {
-      if (e?.name === "AbortError") return; // user hit Cancel
-      // Brave with fingerprinting set to "Strict" physically removes
-      // showDirectoryPicker from window — calling it throws TypeError just
-      // like Firefox (where the API simply doesn't exist). Distinguish via
-      // navigator.brave which Brave always exposes regardless of Shields.
-      const isBrave = !!(navigator as any).brave;
-      if (e?.name === "TypeError" && !isBrave) {
-        setPickError("unsupported"); // Firefox / Safari
-      } else {
-        setPickError("blocked");     // Brave fingerprinting or permission denied
-      }
+      setBrowseError(e?.message || "Failed to load Drive folder.");
+    } finally {
+      setBrowseLoading(false);
+    }
+  };
+
+  const browseInto = async (item: DriveItem) => {
+    if (item.mimeType !== FOLDER_MIME) return;
+    const tok = getAccessToken();
+    if (!tok) return;
+    setBrowsePath(prev => [...prev, { id: browseFolderId, name: browseFolderName }]);
+    setBrowseFolderId(item.id);
+    setBrowseFolderName(item.name);
+    await loadBrowseFolder(item.id, tok);
+  };
+
+  const browseBack = async (toIndex: number) => {
+    const tok = getAccessToken();
+    if (!tok) return;
+    if (toIndex < 0) {
+      // Go to root
+      setBrowsePath([]);
+      setBrowseFolderId("root");
+      setBrowseFolderName("My Drive");
+      await loadBrowseFolder("root", tok);
+    } else {
+      const target = browsePath[toIndex];
+      setBrowsePath(prev => prev.slice(0, toIndex));
+      setBrowseFolderId(target.id);
+      setBrowseFolderName(target.name);
+      await loadBrowseFolder(target.id, tok);
+    }
+  };
+
+  const selectDriveFolder = async () => {
+    const tok = getAccessToken();
+    if (!tok) { setBrowseError("No access token."); return; }
+
+    // Filter files in this folder to supported extensions
+    const supportedFiles = browseItems.filter(item => {
+      if (item.mimeType === FOLDER_MIME) return false;
+      const ext = "." + item.name.split(".").pop()!.toLowerCase();
+      return SUPPORTED_EXTS.has(ext);
+    });
+
+    if (!supportedFiles.length) {
+      setBrowseError("No PDF or image files found in this folder. Navigate into a subfolder.");
       return;
     }
 
-    // ── Step 2: walk + scan — completely separate try-catch so that any
-    //    TypeError from pdfjs / Tesseract / etc. NEVER leaks into pickError.
+    setBrowseOpen(false);
+    setDirName(browseFolderName);
+    setStage("scanning");
+    setProgress({ current: 0, total: supportedFiles.length, file: "", substage: "Starting…" });
+
     try {
-      const entries: { file: File; handle: FileSystemFileHandle }[] = [];
-
-      async function walk(dh: any) {
-        for await (const [, entry] of dh.entries()) {
-          if (entry.kind === "file") {
-            const ext = "." + (entry.name as string).split(".").pop()!.toLowerCase();
-            if (SUPPORTED_EXTS.has(ext)) {
-              const file = await entry.getFile();
-              entries.push({ file, handle: entry as FileSystemFileHandle });
-            }
-          } else if (entry.kind === "directory") {
-            await walk(entry);
-          }
-        }
-      }
-      await walk(dirHandle);
-
-      if (!entries.length) {
-        alert("No PDF or image files found in that folder.");
-        return;
-      }
-
-      setDirName(dirHandle.name);
-      setStage("scanning");
-      setProgress({ current: 0, total: entries.length, file: "", substage: "Starting…" });
-
       const newRows: FileRow[] = [];
-      for (let i = 0; i < entries.length; i++) {
-        const { file, handle } = entries[i];
-        const name   = file.name;
+
+      for (let i = 0; i < supportedFiles.length; i++) {
+        const driveFile = supportedFiles[i];
+        const name   = driveFile.name;
         const dotIdx = name.lastIndexOf(".");
         const ext    = dotIdx >= 0 ? name.slice(dotIdx).toLowerCase() : "";
         const isPdf  = ext === ".pdf";
 
-        // ── Strategy ──────────────────────────────────────────────────
-        // PDFs: pdfjs text first (fast, free). If text is rich → regex parser.
-        //       If sparse (scanned PDF) → try Gemini → fallback Tesseract.
-        // Images: try Gemini Vision first (most accurate) → fallback Tesseract.
-        // ──────────────────────────────────────────────────────────────
+        setProgress(p => ({ ...p, current: i + 1, file: name, substage: "Downloading from Drive…" }));
+
+        let file: File;
+        try {
+          file = await driveDownload(driveFile.id, name, tok);
+        } catch (e: any) {
+          // Skip files that fail to download
+          console.warn(`Skip "${name}":`, e?.message);
+          continue;
+        }
 
         let vendor:   string | null = null;
         let dateObj:  Date   | null = null;
@@ -243,7 +301,7 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
         let scanMethod: ScanMethod = "failed";
 
         if (isPdf) {
-          setProgress(p => ({ ...p, current: i + 1, file: name, substage: "Reading PDF…" }));
+          setProgress(p => ({ ...p, substage: "Reading PDF…" }));
           try { rawText = await extractPdfText(file); } catch {}
 
           const richText = rawText.replace(/\s+/g, " ").trim().length > 150;
@@ -270,7 +328,7 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
             }
           }
         } else {
-          setProgress(p => ({ ...p, current: i + 1, file: name, substage: "AI scanning…" }));
+          setProgress(p => ({ ...p, substage: "AI scanning…" }));
           const g = await tryGeminiScan(file);
           if (g) {
             vendor = g.vendor; dateObj = g.date; total = g.total; docType = g.docType;
@@ -291,7 +349,8 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
 
         newRows.push({
           id: `${i}-${name}`,
-          fileObj: file, handle,
+          fileObj: file,
+          driveFileId: driveFile.id,
           original: name, ext, newName,
           vendor: vendor || "",
           date: dateObj ? formatDate(dateObj) : "",
@@ -302,23 +361,36 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
         });
       }
 
+      if (!newRows.length) {
+        alert("No files could be read from Drive. Check your access and try again.");
+        setStage("pick");
+        return;
+      }
+
       setRows(newRows);
       setStage("preview");
 
     } catch (e: any) {
-      console.error("Receipt Renamer scan error:", e);
+      console.error("Receipt Renamer Drive scan error:", e);
       alert(`Scan failed: ${(e as Error)?.message ?? String(e)}`);
       setStage("pick");
     }
   };
 
-  /* ── Apply renames in-place ─────────────────────────────────────────── */
+  /* ── Apply renames via Drive API ─────────────────────────────────── */
   const applyRenames = async () => {
     const toRename = rows.filter(r => r.selected && r.newName && r.newName !== r.original);
     if (!toRename.length) return;
+
+    const tok = getAccessToken();
+    if (!tok) {
+      alert("Not signed in to Google. Please sign in from the main dashboard first.");
+      return;
+    }
+
     setStage("applying");
 
-    // Learn any manual vendor corrections
+    // Learn manual vendor corrections
     for (const row of toRename) {
       const autoVendor = findVendor(row.rawText);
       const userVendor = row.newName.split("_")[0];
@@ -338,7 +410,7 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
       setRows([...updated]);
 
       try {
-        await (row.handle as any).move(sanitizeFilename(row.newName));
+        await driveRename(row.driveFileId, sanitizeFilename(row.newName), tok);
         updated[idx] = { ...updated[idx], status: "done", renamed: true };
         ok++;
       } catch (err: any) {
@@ -357,11 +429,11 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
     setRows(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r));
 
   const rebuildName = (row: FileRow, patch: Partial<FileRow>) => {
-    const merged = { ...row, ...patch };
-    const vendor   = merged.vendor || null;
-    const dateObj  = merged.date ? new Date(merged.date + "T00:00:00") : null;
+    const merged  = { ...row, ...patch };
+    const vendor  = merged.vendor || null;
+    const dateObj = merged.date ? new Date(merged.date + "T00:00:00") : null;
     const totalNum = merged.total ? parseFloat(merged.total.replace(/[^0-9.]/g, "")) || null : null;
-    const newName  = sanitizeFilename(buildFilename(vendor, dateObj, totalNum, merged.ext, merged.docType as any, merged.rawText));
+    const newName = sanitizeFilename(buildFilename(vendor, dateObj, totalNum, merged.ext, merged.docType as any, merged.rawText));
     return { ...patch, newName };
   };
 
@@ -394,11 +466,24 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
   /* ── Vendor manager ──────────────────────────────────────────────────── */
   const openVendorMgr = () => { setCustomVendors(loadCustomVendors()); setShowVendorMgr(true); };
 
+  // Drive browser: folders first, then supported files
+  const browseFolders = browseItems.filter(i => i.mimeType === FOLDER_MIME);
+  const browseFiles   = browseItems.filter(i => {
+    if (i.mimeType === FOLDER_MIME) return false;
+    const ext = "." + i.name.split(".").pop()!.toLowerCase();
+    return SUPPORTED_EXTS.has(ext);
+  });
+  const browseOther   = browseItems.filter(i => {
+    if (i.mimeType === FOLDER_MIME) return false;
+    const ext = "." + i.name.split(".").pop()!.toLowerCase();
+    return !SUPPORTED_EXTS.has(ext);
+  });
+
   /* ── Render ──────────────────────────────────────────────────────────── */
   return (
     <div className={cl("flex-1 flex flex-col h-full overflow-hidden", bg, text)}>
 
-      {/* ── Header ── gradient matches portal style ───────────────── */}
+      {/* ── Header ── */}
       <div className={cl(
         "flex items-center gap-3 px-4 sm:px-6 py-3 border-b shrink-0",
         isLight
@@ -414,7 +499,7 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
           </div>
           <div>
             <h1 className="text-sm font-bold text-white">Receipt Renamer</h1>
-            <p className="text-[10px] text-white/50">Renames files directly in your folder · no uploads</p>
+            <p className="text-[10px] text-white/50">Renames files directly in Google Drive · AI-powered</p>
           </div>
         </div>
         <div className="ml-auto flex items-center gap-2">
@@ -432,72 +517,41 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
         </div>
       </div>
 
-      {/* Content */}
       <div className="flex-1 overflow-y-auto">
 
         {/* ════ PICK ══════════════════════════════════════════════════════ */}
         {stage === "pick" && (
           <div className="flex flex-col items-center justify-center min-h-full p-6 gap-5">
 
-            {/* Brave fingerprinting error */}
-            {pickError === "blocked" && (
-              <div className={cl("w-full max-w-lg rounded-xl border p-4", isLight ? "bg-amber-50 border-amber-200" : "bg-amber-950/20 border-amber-700/40")}>
-                <div className="flex items-start gap-3">
-                  <Shield className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                  <div className="space-y-2 flex-1">
-                    <p className="text-sm font-bold text-amber-600 dark:text-amber-400">Fingerprinting protection is blocking folder access</p>
-                    <p className="text-xs text-amber-700 dark:text-amber-300/80 leading-relaxed">
-                      Brave's <strong>Fingerprinting</strong> setting blocks the File System API needed for in-place rename.
-                      Fix it for <em>this site only</em> — your global Shields (ads &amp; trackers) stay fully on everywhere else.
-                    </p>
-                    <div className={cl("rounded-lg p-3 text-xs space-y-1.5", isLight ? "bg-amber-100/80" : "bg-amber-900/20")}>
-                      <p className="font-semibold text-amber-600 dark:text-amber-400">For this site only:</p>
-                      <p className="text-amber-700 dark:text-amber-300/80">1. Click the <strong>🦁 Brave lion</strong> in the address bar</p>
-                      <p className="text-amber-700 dark:text-amber-300/80">2. Find <strong>Fingerprinting</strong> → change <strong>Strict</strong> to <strong>Standard</strong></p>
-                      <p className="text-amber-700 dark:text-amber-300/80">3. Reload the page, then click <strong>Select folder</strong> again</p>
-                      <p className="text-[10px] text-amber-600/70 dark:text-amber-500/60 pt-1">
-                        This only affects this site. Ad blocking &amp; tracker protection stay on everywhere.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Unsupported browser */}
-            {pickError === "unsupported" && (
+            {driveError && (
               <div className={cl("w-full max-w-lg rounded-xl border p-4 flex items-start gap-3", isLight ? "bg-red-50 border-red-200" : "bg-red-950/20 border-red-700/40")}>
                 <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-bold text-red-500 mb-1">Browser not supported</p>
-                  <p className="text-xs text-red-600 dark:text-red-300/80">
-                    Direct file rename requires <strong>Chrome, Brave, or Edge</strong>. Firefox and Safari don't support the File System Access API yet.
-                  </p>
+                  <p className="text-sm font-bold text-red-500 mb-1">Drive access error</p>
+                  <p className="text-xs text-red-600 dark:text-red-300/80">{driveError}</p>
                 </div>
               </div>
             )}
 
-            {/* Hero card */}
             <div className={cl(
               "w-full max-w-lg rounded-2xl border p-8 text-center relative overflow-hidden",
               isLight ? "bg-white border-slate-200 shadow-lg" : "bg-[#0d111a] border-[#1a2235]"
             )}>
-              {/* subtle bg glow */}
               <div className="absolute inset-0 pointer-events-none">
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-32 bg-emerald-500/5 rounded-full blur-3xl" />
               </div>
-
               <div className="relative">
                 <div className="w-18 h-18 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center mx-auto mb-5 shadow-2xl shadow-emerald-500/30" style={{ width: 72, height: 72 }}>
                   <ScanLine className="w-9 h-9 text-white" />
                 </div>
                 <h2 className={cl("text-2xl font-extrabold mb-2", text)}>Receipt Renamer</h2>
                 <p className={cl("text-sm mb-6 leading-relaxed max-w-sm mx-auto", muted)}>
-                  Select a folder of receipts, invoices, or statements. The tool extracts vendor, date & amount — then renames files <strong className={isLight ? "text-emerald-700" : "text-emerald-400"}>directly in your folder</strong>.
+                  Pick a folder in your Google Drive. The tool reads vendor, date & amount — then renames files{" "}
+                  <strong className={isLight ? "text-emerald-700" : "text-emerald-400"}>directly in Drive</strong>.
                 </p>
 
                 <button
-                  onClick={pickFolder}
+                  onClick={openDriveBrowser}
                   className={cl(
                     "w-full py-5 rounded-xl border-2 border-dashed transition-all group mb-4 active:scale-[.99]",
                     isLight
@@ -506,23 +560,23 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
                   )}
                 >
                   <FolderOpen className="w-8 h-8 text-emerald-500 mx-auto mb-2 group-hover:scale-110 transition-transform drop-shadow" />
-                  <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">Click to select folder</p>
+                  <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">Browse Google Drive</p>
                   <p className={cl("text-xs mt-0.5", muted)}>PDF · PNG · JPG · TIFF · HEIC</p>
                 </button>
 
                 <button
-                  onClick={pickFolder}
+                  onClick={openDriveBrowser}
                   className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-sm hover:opacity-90 active:scale-[.98] transition-all shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-2"
                 >
                   <Sparkles className="w-4 h-4" />
-                  Scan & Detect
+                  Select Drive Folder & Scan
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
             <div className="flex flex-wrap justify-center gap-2 max-w-lg">
-              {["Renames files in-place", "80+ vendor patterns", "PDF text extraction", "Image OCR", "Invoice vs receipt", "Learns vendor names"].map(f => (
+              {["Renames in Google Drive", "80+ vendor patterns", "PDF text extraction", "Image OCR", "Invoice vs receipt", "Learns vendor names"].map(f => (
                 <span key={f} className={cl(
                   "px-3 py-1 rounded-full text-[11px] font-medium border",
                   isLight ? "bg-white border-slate-200 text-slate-500 shadow-sm" : "bg-[#0d111a] border-[#1a2235] text-[#888]"
@@ -567,8 +621,6 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
         {/* ════ PREVIEW ═══════════════════════════════════════════════════ */}
         {stage === "preview" && (
           <div className="p-4 sm:p-6 space-y-4">
-
-            {/* Stats — portal KPI card style */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
                 { label: "Total files",   value: rows.length,   grad: "from-blue-600 via-blue-700 to-indigo-900",    shadow: "shadow-blue-500/20"   },
@@ -583,7 +635,6 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
               ))}
             </div>
 
-            {/* Toolbar */}
             <div className={cl("flex flex-wrap items-center gap-2 p-3 rounded-xl border", card, "border")}>
               <input type="text" value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="Search files…"
                 className={cl("flex-1 min-w-[160px] border rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-emerald-500",
@@ -608,7 +659,6 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
               </div>
             </div>
 
-            {/* Table */}
             <div className={cl("rounded-xl border overflow-hidden", card, "border")}>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs min-w-[760px]">
@@ -677,22 +727,12 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
                               : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
                           )}>{row.docType}</span>
                         </td>
-                        {/* Scan method */}
                         <td className="px-3 py-2 text-center whitespace-nowrap">
-                          {row.scanMethod === "gemini" && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">✨ Gemini</span>
-                          )}
-                          {row.scanMethod === "pdftext" && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">📄 PDF text</span>
-                          )}
-                          {row.scanMethod === "ocr" && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">👁 OCR</span>
-                          )}
-                          {row.scanMethod === "failed" && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400">✗ no text</span>
-                          )}
+                          {row.scanMethod === "gemini"   && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">✨ Gemini</span>}
+                          {row.scanMethod === "pdftext"  && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">📄 PDF text</span>}
+                          {row.scanMethod === "ocr"      && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">👁 OCR</span>}
+                          {row.scanMethod === "failed"   && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400">✗ no text</span>}
                         </td>
-                        {/* Auto / review */}
                         <td className="px-3 py-2 text-center whitespace-nowrap">
                           {row.complete
                             ? <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">✓ auto</span>
@@ -715,14 +755,13 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
               </div>
             </div>
 
-            {/* Apply */}
             <button
               onClick={applyRenames}
               disabled={selectedCount === 0}
               className="w-full py-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-sm hover:opacity-90 active:scale-[.99] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
             >
               <FileCheck className="w-5 h-5" />
-              Rename {selectedCount} file{selectedCount !== 1 ? "s" : ""} in-place
+              Rename {selectedCount} file{selectedCount !== 1 ? "s" : ""} in Google Drive
             </button>
           </div>
         )}
@@ -732,8 +771,8 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
           <div className="flex flex-col items-center justify-center min-h-full p-8">
             <div className={cl("w-full max-w-md rounded-2xl border p-8 text-center", card, "border")}>
               <Loader2 className="w-10 h-10 text-emerald-500 animate-spin mx-auto mb-4" />
-              <p className={cl("text-sm font-bold", text)}>Renaming files…</p>
-              <p className={cl("text-xs mt-1", muted)}>Applying changes directly in your folder</p>
+              <p className={cl("text-sm font-bold", text)}>Renaming files in Google Drive…</p>
+              <p className={cl("text-xs mt-1", muted)}>Applying changes via Drive API</p>
             </div>
           </div>
         )}
@@ -746,7 +785,7 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
                 <CheckCircle2 className="w-7 h-7 text-emerald-500" />
               </div>
               <h2 className={cl("text-xl font-extrabold mb-1", text)}>
-                {resultSummary.ok} file{resultSummary.ok !== 1 ? "s" : ""} renamed
+                {resultSummary.ok} file{resultSummary.ok !== 1 ? "s" : ""} renamed in Drive
               </h2>
               {resultSummary.errors.length > 0 && (
                 <p className={cl("text-sm", muted)}>{resultSummary.errors.length} error{resultSummary.errors.length > 1 ? "s" : ""}</p>
@@ -767,7 +806,7 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
               <button onClick={() => setStage("preview")} className={cl("flex-1 py-3 rounded-xl border font-semibold text-sm transition-colors", isLight ? "border-slate-200 hover:bg-slate-50 text-slate-700" : "border-[#333] hover:bg-white/5 text-[#ccc]")}>
                 ← Back to preview
               </button>
-              <button onClick={() => { setStage("pick"); setRows([]); setDirName(""); setPickError(null); }}
+              <button onClick={() => { setStage("pick"); setRows([]); setDirName(""); }}
                 className="flex-1 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-sm hover:opacity-90 transition-all">
                 Rename another folder
               </button>
@@ -775,6 +814,122 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
           </div>
         )}
       </div>
+
+      {/* ── Drive Folder Browser Modal ──────────────────────────────────── */}
+      {browseOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className={cl("w-full max-w-lg flex flex-col shadow-2xl rounded-2xl border overflow-hidden", card, "border")} style={{ height: "70vh" }}>
+
+            {/* Modal header */}
+            <div className={cl("flex items-center justify-between px-4 py-3 border-b shrink-0", border)}>
+              <div>
+                <p className={cl("text-sm font-bold", text)}>Select Drive Folder</p>
+                <p className={cl("text-[11px]", muted)}>Navigate to the folder with your receipts</p>
+              </div>
+              <button onClick={() => setBrowseOpen(false)} className={cl("p-1.5 rounded-lg", isLight ? "hover:bg-slate-100 text-slate-500" : "hover:bg-white/5 text-[#888]")}>
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Breadcrumb */}
+            <div className={cl("flex items-center gap-1 px-4 py-2 border-b flex-wrap shrink-0", border, isLight ? "bg-slate-50" : "bg-[#0a0e18]")}>
+              <button onClick={() => browseBack(-1)} className={cl("text-[11px] font-semibold hover:text-emerald-500 transition-colors", muted)}>
+                My Drive
+              </button>
+              {browsePath.map((seg, idx) => (
+                <React.Fragment key={seg.id}>
+                  <ChevronRight className="w-3 h-3 text-[#555]" />
+                  <button onClick={() => browseBack(idx)} className={cl("text-[11px] font-semibold hover:text-emerald-500 transition-colors", muted)}>
+                    {seg.name}
+                  </button>
+                </React.Fragment>
+              ))}
+              {browsePath.length > 0 && (
+                <>
+                  <ChevronRight className="w-3 h-3 text-[#555]" />
+                  <span className={cl("text-[11px] font-bold", text)}>{browseFolderName}</span>
+                </>
+              )}
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-2">
+              {browseLoading && (
+                <div className="flex items-center justify-center h-full">
+                  <Loader2 className="w-6 h-6 text-emerald-500 animate-spin" />
+                </div>
+              )}
+              {browseError && !browseLoading && (
+                <div className={cl("m-3 rounded-lg p-3 border text-xs", isLight ? "bg-red-50 border-red-200 text-red-600" : "bg-red-950/20 border-red-700/40 text-red-400")}>
+                  {browseError}
+                </div>
+              )}
+              {!browseLoading && !browseError && (
+                <>
+                  {/* Folders */}
+                  {browseFolders.map(item => (
+                    <button key={item.id}
+                      onClick={() => browseInto(item)}
+                      className={cl(
+                        "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors",
+                        isLight ? "hover:bg-slate-100" : "hover:bg-white/5"
+                      )}>
+                      <span className="text-lg shrink-0">📁</span>
+                      <div className="flex-1 min-w-0">
+                        <p className={cl("text-xs font-semibold truncate", text)}>{item.name}</p>
+                        <p className={cl("text-[10px]", muted)}>Folder</p>
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 text-[#666] shrink-0" />
+                    </button>
+                  ))}
+
+                  {/* Supported files */}
+                  {browseFiles.map(item => (
+                    <div key={item.id}
+                      className={cl("flex items-center gap-3 px-3 py-2 rounded-lg", isLight ? "opacity-60" : "opacity-50")}>
+                      <span className="text-lg shrink-0">📄</span>
+                      <div className="flex-1 min-w-0">
+                        <p className={cl("text-xs font-medium truncate", text)}>{item.name}</p>
+                        <p className={cl("text-[10px] text-emerald-500")}>Will be scanned</p>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Other files */}
+                  {browseOther.map(item => (
+                    <div key={item.id}
+                      className={cl("flex items-center gap-3 px-3 py-2 rounded-lg opacity-30")}>
+                      <span className="text-lg shrink-0">📎</span>
+                      <p className={cl("text-xs truncate flex-1", muted)}>{item.name}</p>
+                    </div>
+                  ))}
+
+                  {browseItems.length === 0 && (
+                    <p className={cl("text-xs text-center py-8", muted)}>This folder is empty.</p>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Footer — select this folder */}
+            <div className={cl("px-4 py-3 border-t shrink-0", border)}>
+              {browseFiles.length > 0 && (
+                <p className={cl("text-[11px] mb-2", muted)}>
+                  {browseFiles.length} file{browseFiles.length !== 1 ? "s" : ""} will be scanned in <strong className={text}>{browseFolderName}</strong>
+                </p>
+              )}
+              <button
+                onClick={selectDriveFolder}
+                disabled={browseFiles.length === 0 || browseLoading}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-sm hover:opacity-90 active:scale-[.99] transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                <Sparkles className="w-4 h-4" />
+                Scan {browseFiles.length} file{browseFiles.length !== 1 ? "s" : ""} in "{browseFolderName}"
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Document preview modal ──────────────────────────────────────── */}
       {docPreview && (
