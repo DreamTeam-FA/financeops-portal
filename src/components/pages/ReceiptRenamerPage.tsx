@@ -170,10 +170,31 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
   /* ── Folder picker ──────────────────────────────────────────────────── */
   const pickFolder = async () => {
     setPickError(null);
+
+    // ── Step 1: open the folder picker — this is the ONLY call that can
+    //    fail with a browser-support error. Keep it in its own try-catch
+    //    so that scanning errors later never show "Browser not supported".
+    let dirHandle: any;
     try {
-      // Don't use "in window" — Brave hides the API from enumeration
-      // even when it's available. Just call it and inspect the error.
-      const dirHandle = await (window as any).showDirectoryPicker({ mode: "readwrite" });
+      dirHandle = await (window as any).showDirectoryPicker({ mode: "readwrite" });
+    } catch (e: any) {
+      if (e?.name === "AbortError") return; // user hit Cancel
+      // Brave with fingerprinting set to "Strict" physically removes
+      // showDirectoryPicker from window — calling it throws TypeError just
+      // like Firefox (where the API simply doesn't exist). Distinguish via
+      // navigator.brave which Brave always exposes regardless of Shields.
+      const isBrave = !!(navigator as any).brave;
+      if (e?.name === "TypeError" && !isBrave) {
+        setPickError("unsupported"); // Firefox / Safari
+      } else {
+        setPickError("blocked");     // Brave fingerprinting or permission denied
+      }
+      return;
+    }
+
+    // ── Step 2: walk + scan — completely separate try-catch so that any
+    //    TypeError from pdfjs / Tesseract / etc. NEVER leaks into pickError.
+    try {
       const entries: { file: File; handle: FileSystemFileHandle }[] = [];
 
       async function walk(dh: any) {
@@ -227,21 +248,18 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
 
           const richText = rawText.replace(/\s+/g, " ").trim().length > 150;
           if (richText) {
-            // Good text layer — use regex parser
             docType  = detectDocType(rawText);
             vendor   = findVendor(rawText);
             dateObj  = findDate(rawText, docType);
             total    = findTotal(rawText, docType);
             scanMethod = "pdftext";
           } else {
-            // Scanned PDF — try Gemini
             setProgress(p => ({ ...p, substage: "AI scanning (scanned PDF)…" }));
             const g = await tryGeminiScan(file);
             if (g) {
               vendor = g.vendor; dateObj = g.date; total = g.total; docType = g.docType;
               scanMethod = "gemini";
             } else {
-              // Last resort: Tesseract on PDF
               setProgress(p => ({ ...p, substage: "OCR fallback…" }));
               try { rawText = await extractImageText(file); } catch {}
               docType = detectDocType(rawText);
@@ -252,14 +270,12 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
             }
           }
         } else {
-          // Image — Gemini first
           setProgress(p => ({ ...p, current: i + 1, file: name, substage: "AI scanning…" }));
           const g = await tryGeminiScan(file);
           if (g) {
             vendor = g.vendor; dateObj = g.date; total = g.total; docType = g.docType;
             scanMethod = "gemini";
           } else {
-            // Fallback: Tesseract OCR
             setProgress(p => ({ ...p, substage: "OCR fallback…" }));
             try { rawText = await extractImageText(file); } catch {}
             docType = detectDocType(rawText);
@@ -290,20 +306,9 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
       setStage("preview");
 
     } catch (e: any) {
-      if (e?.name === "AbortError") return; // user cancelled — do nothing
-      // Brave at high fingerprinting levels physically REMOVES showDirectoryPicker
-      // from the window object, so calling it throws a real TypeError — same as
-      // Firefox where the API genuinely doesn't exist. Distinguish them via
-      // navigator.brave, which Brave exposes even when fingerprinting is active.
-      const isBrave = !!(navigator as any).brave;
-      if (e?.name === "TypeError" && !isBrave) {
-        // Firefox / Safari — API truly absent in this browser
-        setPickError("unsupported");
-      } else {
-        // Brave fingerprinting removed the API (TypeError in Brave) OR
-        // SecurityError / NotAllowedError from permission denied — show Shields fix
-        setPickError("blocked");
-      }
+      console.error("Receipt Renamer scan error:", e);
+      alert(`Scan failed: ${(e as Error)?.message ?? String(e)}`);
+      setStage("pick");
     }
   };
 
@@ -434,21 +439,26 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
         {stage === "pick" && (
           <div className="flex flex-col items-center justify-center min-h-full p-6 gap-5">
 
-            {/* Brave Shields error */}
+            {/* Brave fingerprinting error */}
             {pickError === "blocked" && (
               <div className={cl("w-full max-w-lg rounded-xl border p-4", isLight ? "bg-amber-50 border-amber-200" : "bg-amber-950/20 border-amber-700/40")}>
                 <div className="flex items-start gap-3">
                   <Shield className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-bold text-amber-600 dark:text-amber-400 mb-1">Folder access blocked</p>
+                  <div className="space-y-2 flex-1">
+                    <p className="text-sm font-bold text-amber-600 dark:text-amber-400">Fingerprinting protection is blocking folder access</p>
                     <p className="text-xs text-amber-700 dark:text-amber-300/80 leading-relaxed">
-                      Your browser blocked folder access. To fix this in <strong>Brave</strong>:
+                      Brave's <strong>Fingerprinting</strong> setting blocks the File System API needed for in-place rename.
+                      Fix it for <em>this site only</em> — your global Shields (ads &amp; trackers) stay fully on everywhere else.
                     </p>
-                    <ol className="text-xs text-amber-700 dark:text-amber-300/80 mt-1.5 space-y-0.5 list-decimal list-inside leading-relaxed">
-                      <li>Click the <strong>Brave lion icon</strong> in the address bar</li>
-                      <li>Toggle <strong>Shields</strong> to Off (or set to "Standard" if on Aggressive)</li>
-                      <li>Click <strong>Select folder</strong> again</li>
-                    </ol>
+                    <div className={cl("rounded-lg p-3 text-xs space-y-1.5", isLight ? "bg-amber-100/80" : "bg-amber-900/20")}>
+                      <p className="font-semibold text-amber-600 dark:text-amber-400">For this site only:</p>
+                      <p className="text-amber-700 dark:text-amber-300/80">1. Click the <strong>🦁 Brave lion</strong> in the address bar</p>
+                      <p className="text-amber-700 dark:text-amber-300/80">2. Find <strong>Fingerprinting</strong> → change <strong>Strict</strong> to <strong>Standard</strong></p>
+                      <p className="text-amber-700 dark:text-amber-300/80">3. Reload the page, then click <strong>Select folder</strong> again</p>
+                      <p className="text-[10px] text-amber-600/70 dark:text-amber-500/60 pt-1">
+                        This only affects this site. Ad blocking &amp; tracker protection stay on everywhere.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
