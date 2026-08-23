@@ -260,28 +260,33 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
   return (
     <div className={cl("flex-1 flex flex-col h-full overflow-hidden", bg, text)}>
 
-      {/* Top bar */}
-      <div className={cl("flex items-center gap-3 px-4 sm:px-6 py-3 border-b shrink-0", card, "border")}>
-        <button onClick={onBack} className={cl("p-1.5 rounded-lg transition-colors", isLight ? "hover:bg-slate-100 text-slate-500" : "hover:bg-white/5 text-[#888]")}>
+      {/* ── Header ── gradient matches portal style ───────────────── */}
+      <div className={cl(
+        "flex items-center gap-3 px-4 sm:px-6 py-3 border-b shrink-0",
+        isLight
+          ? "bg-gradient-to-r from-slate-800 via-emerald-950 to-slate-900 border-white/10"
+          : "bg-gradient-to-r from-[#070b12] via-emerald-950/60 to-[#070b12] border-white/8"
+      )}>
+        <button onClick={onBack} className="p-1.5 rounded-lg hover:bg-white/10 text-white/60 hover:text-white transition-colors">
           <ChevronLeft className="w-4 h-4" />
         </button>
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
             <ScanLine className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h1 className={cl("text-sm font-bold", text)}>Receipt Renamer</h1>
-            <p className={cl("text-[10px]", muted)}>AI-powered batch rename — renames files directly in your folder</p>
+            <h1 className="text-sm font-bold text-white">Receipt Renamer</h1>
+            <p className="text-[10px] text-white/50">Renames files directly in your folder · no uploads</p>
           </div>
         </div>
         <div className="ml-auto flex items-center gap-2">
           {stage === "preview" && (
             <>
-              <span className={cl("text-[11px]", muted)}>{rows.length} files · {dirName}</span>
-              <button onClick={openVendorMgr} className={cl("px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition-colors", isLight ? "border-slate-200 hover:bg-slate-50 text-slate-600" : "border-[#333] hover:bg-white/5 text-[#aaa]")}>
+              <span className="text-[11px] text-white/50">{rows.length} files · {dirName}</span>
+              <button onClick={openVendorMgr} className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border border-white/15 hover:bg-white/10 text-white/70 hover:text-white transition-colors">
                 Vendor Library
               </button>
-              <button onClick={() => { setStage("pick"); setRows([]); setDirName(""); }} className={cl("p-1.5 rounded-lg transition-colors", isLight ? "hover:bg-slate-100 text-slate-500" : "hover:bg-white/5 text-[#888]")} title="Start over">
+              <button onClick={() => { setStage("pick"); setRows([]); setDirName(""); }} className="p-1.5 rounded-lg hover:bg-white/10 text-white/50 hover:text-white transition-colors" title="Start over">
                 <RotateCcw className="w-4 h-4" />
               </button>
             </>
@@ -330,37 +335,55 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
             )}
 
             {/* Hero card */}
-            <div className={cl("w-full max-w-lg rounded-2xl border p-8 text-center", card, "border")}>
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mx-auto mb-5 shadow-xl shadow-emerald-500/20">
-                <ScanLine className="w-8 h-8 text-white" />
+            <div className={cl(
+              "w-full max-w-lg rounded-2xl border p-8 text-center relative overflow-hidden",
+              isLight ? "bg-white border-slate-200 shadow-lg" : "bg-[#0d111a] border-[#1a2235]"
+            )}>
+              {/* subtle bg glow */}
+              <div className="absolute inset-0 pointer-events-none">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-32 bg-emerald-500/5 rounded-full blur-3xl" />
               </div>
-              <h2 className={cl("text-xl font-extrabold mb-2", text)}>Receipt Renamer</h2>
-              <p className={cl("text-sm mb-6 leading-relaxed", muted)}>
-                Select a folder of receipts, invoices, or statements. The tool reads each file, extracts vendor, date & amount, then renames them <strong>directly in the folder</strong> — no uploads, no copies.
-              </p>
 
-              <button
-                onClick={pickFolder}
-                className="w-full py-5 rounded-xl border-2 border-dashed border-emerald-400/60 hover:border-emerald-400 hover:bg-emerald-500/5 active:scale-[.99] transition-all group mb-4"
-              >
-                <FolderOpen className="w-7 h-7 text-emerald-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
-                <p className="text-sm font-bold text-emerald-500">Select folder</p>
-                <p className={cl("text-xs mt-0.5", muted)}>Renames files in-place · PDF, PNG, JPG, TIFF, HEIC</p>
-              </button>
+              <div className="relative">
+                <div className="w-18 h-18 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center mx-auto mb-5 shadow-2xl shadow-emerald-500/30" style={{ width: 72, height: 72 }}>
+                  <ScanLine className="w-9 h-9 text-white" />
+                </div>
+                <h2 className={cl("text-2xl font-extrabold mb-2", text)}>Receipt Renamer</h2>
+                <p className={cl("text-sm mb-6 leading-relaxed max-w-sm mx-auto", muted)}>
+                  Select a folder of receipts, invoices, or statements. The tool extracts vendor, date & amount — then renames files <strong className={isLight ? "text-emerald-700" : "text-emerald-400"}>directly in your folder</strong>.
+                </p>
 
-              <button
-                onClick={pickFolder}
-                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-sm hover:opacity-90 active:scale-[.98] transition-all shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2"
-              >
-                <Sparkles className="w-4 h-4" />
-                Scan & Detect
-                <ArrowRight className="w-4 h-4" />
-              </button>
+                <button
+                  onClick={pickFolder}
+                  className={cl(
+                    "w-full py-5 rounded-xl border-2 border-dashed transition-all group mb-4 active:scale-[.99]",
+                    isLight
+                      ? "border-emerald-300 hover:border-emerald-400 hover:bg-emerald-50 bg-emerald-50/50"
+                      : "border-emerald-500/30 hover:border-emerald-500/60 hover:bg-emerald-500/5"
+                  )}
+                >
+                  <FolderOpen className="w-8 h-8 text-emerald-500 mx-auto mb-2 group-hover:scale-110 transition-transform drop-shadow" />
+                  <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">Click to select folder</p>
+                  <p className={cl("text-xs mt-0.5", muted)}>PDF · PNG · JPG · TIFF · HEIC</p>
+                </button>
+
+                <button
+                  onClick={pickFolder}
+                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-sm hover:opacity-90 active:scale-[.98] transition-all shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-2"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Scan & Detect
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             <div className="flex flex-wrap justify-center gap-2 max-w-lg">
               {["Renames files in-place", "80+ vendor patterns", "PDF text extraction", "Image OCR", "Invoice vs receipt", "Learns vendor names"].map(f => (
-                <span key={f} className={cl("px-3 py-1 rounded-full text-[11px] font-medium border", isLight ? "bg-white border-slate-200 text-slate-500" : "bg-[#0d111a] border-[#1a2235] text-[#888]")}>{f}</span>
+                <span key={f} className={cl(
+                  "px-3 py-1 rounded-full text-[11px] font-medium border",
+                  isLight ? "bg-white border-slate-200 text-slate-500 shadow-sm" : "bg-[#0d111a] border-[#1a2235] text-[#888]"
+                )}>{f}</span>
               ))}
             </div>
           </div>
@@ -402,17 +425,17 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
         {stage === "preview" && (
           <div className="p-4 sm:p-6 space-y-4">
 
-            {/* Stats */}
+            {/* Stats — portal KPI card style */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label: "Total files",   value: rows.length,   color: "from-blue-500 to-blue-600"      },
-                { label: "Auto-detected", value: autoCount,     color: "from-emerald-500 to-teal-600"   },
-                { label: "Needs review",  value: reviewCount,   color: "from-amber-500 to-orange-500"   },
-                { label: "Will rename",   value: selectedCount, color: "from-purple-500 to-violet-600"  },
-              ].map(({ label, value, color }) => (
-                <div key={label} className={cl("rounded-xl border p-4", card, "border")}>
-                  <div className={`text-2xl font-black bg-gradient-to-br ${color} bg-clip-text text-transparent`}>{value}</div>
-                  <div className={cl("text-[11px] font-medium mt-0.5", muted)}>{label}</div>
+                { label: "Total files",   value: rows.length,   grad: "from-blue-600 via-blue-700 to-indigo-900",    shadow: "shadow-blue-500/20"   },
+                { label: "Auto-detected", value: autoCount,     grad: "from-emerald-500 via-teal-600 to-emerald-900", shadow: "shadow-emerald-500/20"},
+                { label: "Needs review",  value: reviewCount,   grad: "from-amber-500 via-orange-600 to-red-900",    shadow: "shadow-amber-500/20"  },
+                { label: "Will rename",   value: selectedCount, grad: "from-violet-600 via-indigo-700 to-slate-900", shadow: "shadow-violet-500/20" },
+              ].map(({ label, value, grad, shadow }) => (
+                <div key={label} className={cl(`rounded-xl border p-4 bg-gradient-to-br ${grad} ${shadow} shadow-lg`, "border-white/10")}>
+                  <div className="text-3xl font-black text-white">{value}</div>
+                  <div className="text-[11px] font-semibold mt-1 text-white/60">{label}</div>
                 </div>
               ))}
             </div>
