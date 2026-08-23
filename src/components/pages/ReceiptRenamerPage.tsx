@@ -169,12 +169,10 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
 
   /* ── Folder picker ──────────────────────────────────────────────────── */
   const pickFolder = async () => {
-    if (!("showDirectoryPicker" in window)) {
-      setPickError("unsupported");
-      return;
-    }
     setPickError(null);
     try {
+      // Don't use "in window" — Brave hides the API from enumeration
+      // even when it's available. Just call it and inspect the error.
       const dirHandle = await (window as any).showDirectoryPicker({ mode: "readwrite" });
       const entries: { file: File; handle: FileSystemFileHandle }[] = [];
 
@@ -292,9 +290,14 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
       setStage("preview");
 
     } catch (e: any) {
-      if (e?.name === "AbortError") return;
-      // SecurityError or NotAllowedError = Shields / permissions blocked
-      setPickError("blocked");
+      if (e?.name === "AbortError") return; // user cancelled — do nothing
+      if (e?.name === "TypeError" || typeof (window as any).showDirectoryPicker !== "function") {
+        // API genuinely doesn't exist (Firefox, Safari)
+        setPickError("unsupported");
+      } else {
+        // SecurityError / NotAllowedError = Brave Shields or permission denied
+        setPickError("blocked");
+      }
     }
   };
 
