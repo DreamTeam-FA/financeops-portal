@@ -19,6 +19,8 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 ).href;
 
 /* ── Types ──────────────────────────────────────────────────────────── */
+type ScanMethod = "gemini" | "pdftext" | "ocr" | "failed";
+
 interface FileRow {
   id: string;
   fileObj: File;
@@ -33,6 +35,7 @@ interface FileRow {
   complete: boolean;
   rawText: string;
   selected: boolean;
+  scanMethod: ScanMethod;
   status: "idle" | "processing" | "done" | "error";
   renamed?: boolean;
   renameError?: string;
@@ -65,6 +68,73 @@ async function extractImageText(file: File): Promise<string> {
 
 function formatDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/* ── File → base64 via FileReader (safe for large files) ─────────── */
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      resolve(dataUrl.split(",")[1]);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ── Gemini Vision scan (primary AI path) ────────────────────────── */
+interface GeminiResult {
+  vendor: string | null;
+  date: Date | null;
+  total: number | null;
+  docType: "invoice" | "receipt" | "other";
+}
+
+async function tryGeminiScan(file: File): Promise<GeminiResult | null> {
+  try {
+    const base64   = await fileToBase64(file);
+    const mimeType = file.type || (file.name.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/jpeg");
+
+    const resp = await fetch("/api/invoice/scan", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ imageBase64: base64, mimeType }),
+    });
+
+    if (!resp.ok) return null;
+    const json = await resp.json();
+    if (!json.ok || !json.invoice) return null;
+
+    const inv    = json.invoice as Record<string, any>;
+    const vendor = (typeof inv.vendor === "string" && inv.vendor.trim()) ? inv.vendor.trim() : null;
+
+    // Parse date from issueDate or dueDate
+    let date: Date | null = null;
+    const rawDate = inv.issueDate || inv.dueDate;
+    if (rawDate) {
+      const d = new Date(rawDate);
+      if (!isNaN(d.getTime())) date = d;
+    }
+
+    // Parse amount
+    let total: number | null = null;
+    if (typeof inv.amount === "number" && !isNaN(inv.amount)) {
+      total = inv.amount;
+    } else if (typeof inv.amount === "string") {
+      const n = parseFloat(inv.amount.replace(/[^0-9.]/g, ""));
+      if (!isNaN(n) && n > 0) total = n;
+    }
+
+    const docType: "invoice" | "receipt" | "other" = inv.invoiceNo ? "invoice" : (total !== null ? "receipt" : "other");
+
+    // Only trust the result if Gemini returned at least a vendor or a date
+    if (!vendor && !date) return null;
+
+    return { vendor, date, total, docType };
+  } catch {
+    return null;
+  }
 }
 
 /* ── Component ───────────────────────────────────────────────────────── */
@@ -130,7 +200,7 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
 
       setDirName(dirHandle.name);
       setStage("scanning");
-      setProgress({ current: 0, total: entries.length, file: "", substage: "Extracting text…" });
+      setProgress({ current: 0, total: entries.length, file: "", substage: "Starting…" });
 
       const newRows: FileRow[] = [];
       for (let i = 0; i < entries.length; i++) {
@@ -138,16 +208,70 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
         const name   = file.name;
         const dotIdx = name.lastIndexOf(".");
         const ext    = dotIdx >= 0 ? name.slice(dotIdx).toLowerCase() : "";
+        const isPdf  = ext === ".pdf";
 
-        setProgress(p => ({ ...p, current: i + 1, file: name, substage: ext === ".pdf" ? "Reading PDF…" : "Running OCR…" }));
+        // ── Strategy ──────────────────────────────────────────────────
+        // PDFs: pdfjs text first (fast, free). If text is rich → regex parser.
+        //       If sparse (scanned PDF) → try Gemini → fallback Tesseract.
+        // Images: try Gemini Vision first (most accurate) → fallback Tesseract.
+        // ──────────────────────────────────────────────────────────────
 
-        let rawText = "";
-        try { rawText = ext === ".pdf" ? await extractPdfText(file) : await extractImageText(file); } catch {}
+        let vendor:   string | null = null;
+        let dateObj:  Date   | null = null;
+        let total:    number | null = null;
+        let docType   = "other";
+        let rawText   = "";
+        let scanMethod: ScanMethod = "failed";
 
-        const docType  = detectDocType(rawText);
-        const vendor   = findVendor(rawText);
-        const dateObj  = findDate(rawText, docType);
-        const total    = findTotal(rawText, docType);
+        if (isPdf) {
+          setProgress(p => ({ ...p, current: i + 1, file: name, substage: "Reading PDF…" }));
+          try { rawText = await extractPdfText(file); } catch {}
+
+          const richText = rawText.replace(/\s+/g, " ").trim().length > 150;
+          if (richText) {
+            // Good text layer — use regex parser
+            docType  = detectDocType(rawText);
+            vendor   = findVendor(rawText);
+            dateObj  = findDate(rawText, docType);
+            total    = findTotal(rawText, docType);
+            scanMethod = "pdftext";
+          } else {
+            // Scanned PDF — try Gemini
+            setProgress(p => ({ ...p, substage: "AI scanning (scanned PDF)…" }));
+            const g = await tryGeminiScan(file);
+            if (g) {
+              vendor = g.vendor; dateObj = g.date; total = g.total; docType = g.docType;
+              scanMethod = "gemini";
+            } else {
+              // Last resort: Tesseract on PDF
+              setProgress(p => ({ ...p, substage: "OCR fallback…" }));
+              try { rawText = await extractImageText(file); } catch {}
+              docType = detectDocType(rawText);
+              vendor  = findVendor(rawText);
+              dateObj = findDate(rawText, docType);
+              total   = findTotal(rawText, docType);
+              scanMethod = rawText.trim().length > 20 ? "ocr" : "failed";
+            }
+          }
+        } else {
+          // Image — Gemini first
+          setProgress(p => ({ ...p, current: i + 1, file: name, substage: "AI scanning…" }));
+          const g = await tryGeminiScan(file);
+          if (g) {
+            vendor = g.vendor; dateObj = g.date; total = g.total; docType = g.docType;
+            scanMethod = "gemini";
+          } else {
+            // Fallback: Tesseract OCR
+            setProgress(p => ({ ...p, substage: "OCR fallback…" }));
+            try { rawText = await extractImageText(file); } catch {}
+            docType = detectDocType(rawText);
+            vendor  = findVendor(rawText);
+            dateObj = findDate(rawText, docType);
+            total   = findTotal(rawText, docType);
+            scanMethod = rawText.trim().length > 20 ? "ocr" : "failed";
+          }
+        }
+
         const newName  = sanitizeFilename(buildFilename(vendor, dateObj, total, ext, docType, rawText));
         const complete = vendor !== null && dateObj !== null && (docType === "other" || total !== null);
 
@@ -158,7 +282,7 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
           vendor: vendor || "",
           date: dateObj ? formatDate(dateObj) : "",
           total: total != null ? `$${total.toFixed(2)}` : "",
-          docType, complete, rawText,
+          docType, complete, rawText, scanMethod,
           selected: complete,
           status: "idle",
         });
@@ -483,6 +607,7 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
                       <th className="px-3 py-2.5 text-left font-semibold whitespace-nowrap">Date</th>
                       <th className="px-3 py-2.5 text-left font-semibold whitespace-nowrap">Amount</th>
                       <th className="px-3 py-2.5 text-center font-semibold whitespace-nowrap">Type</th>
+                      <th className="px-3 py-2.5 text-center font-semibold whitespace-nowrap">Detection</th>
                       <th className="px-3 py-2.5 text-center font-semibold whitespace-nowrap">Status</th>
                       <th className="w-8 px-3 py-2.5"></th>
                     </tr>
@@ -533,6 +658,22 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
                               : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
                           )}>{row.docType}</span>
                         </td>
+                        {/* Scan method */}
+                        <td className="px-3 py-2 text-center whitespace-nowrap">
+                          {row.scanMethod === "gemini" && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">✨ Gemini</span>
+                          )}
+                          {row.scanMethod === "pdftext" && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">📄 PDF text</span>
+                          )}
+                          {row.scanMethod === "ocr" && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">👁 OCR</span>
+                          )}
+                          {row.scanMethod === "failed" && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400">✗ no text</span>
+                          )}
+                        </td>
+                        {/* Auto / review */}
                         <td className="px-3 py-2 text-center whitespace-nowrap">
                           {row.complete
                             ? <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">✓ auto</span>
@@ -548,7 +689,7 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
                       </tr>
                     ))}
                     {filteredRows.length === 0 && (
-                      <tr><td colSpan={9} className={cl("px-4 py-10 text-center text-xs", muted)}>No files match your filter.</td></tr>
+                      <tr><td colSpan={10} className={cl("px-4 py-10 text-center text-xs", muted)}>No files match your filter.</td></tr>
                     )}
                   </tbody>
                 </table>
