@@ -101,6 +101,19 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
   const [searchQ, setSearchQ]     = useState("");
   const [filter, setFilter]       = useState<"all" | "auto" | "review">("all");
   const [rawPreview, setRawPreview] = useState<{ name: string; text: string } | null>(null);
+  const [docPreview, setDocPreview] = useState<{ name: string; url: string; isImage: boolean } | null>(null);
+
+  // Cleanup blob URL when modal closes
+  const closeDocPreview = () => {
+    if (docPreview) URL.revokeObjectURL(docPreview.url);
+    setDocPreview(null);
+  };
+
+  const openDocPreview = (row: FileRow) => {
+    const url = URL.createObjectURL(row.fileObj);
+    const isImage = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".heic", ".tiff", ".tif"].includes(row.ext);
+    setDocPreview({ name: row.original, url, isImage });
+  };
   const [showVendorMgr, setShowVendorMgr] = useState(false);
   const [customVendors, setCustomVendors] = useState<CustomVendorEntry[]>([]);
   const [learnPattern, setLearnPattern]   = useState("");
@@ -584,8 +597,8 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
                           }
                         </td>
                         <td className="px-2 py-2 text-center">
-                          <button onClick={() => setRawPreview({ name: row.original, text: row.rawText || "(no text extracted)" })}
-                            className={cl("p-1.5 rounded-md transition-colors", isLight ? "hover:bg-slate-100 text-slate-400" : "hover:bg-white/5 text-[#666]")} title="View extracted text">
+                          <button onClick={() => openDocPreview(row)}
+                            className={cl("p-1.5 rounded-md transition-colors", isLight ? "hover:bg-slate-100 text-slate-400" : "hover:bg-white/5 text-[#666]")} title="Preview document">
                             <FileText className="w-3.5 h-3.5" />
                           </button>
                         </td>
@@ -665,20 +678,39 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
         )}
       </div>
 
-      {/* ── Raw text modal ──────────────────────────────────────── */}
-      {rawPreview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" onClick={() => setRawPreview(null)}>
-          <div className={cl("w-full max-w-2xl max-h-[80vh] rounded-2xl border flex flex-col shadow-2xl", card, "border")} onClick={e => e.stopPropagation()}>
+      {/* ── Document preview modal ──────────────────────────────── */}
+      {docPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" onClick={closeDocPreview}>
+          <div
+            className={cl("w-full max-w-3xl flex flex-col shadow-2xl rounded-2xl border overflow-hidden", card, "border")}
+            style={{ height: "85vh" }}
+            onClick={e => e.stopPropagation()}
+          >
             <div className={cl("flex items-center justify-between px-5 py-3 border-b shrink-0", border)}>
               <div>
-                <p className={cl("text-sm font-bold", text)}>Extracted text</p>
-                <p className={cl("text-[11px]", muted)}>{rawPreview.name}</p>
+                <p className={cl("text-sm font-bold", text)}>Document preview</p>
+                <p className={cl("text-[11px] truncate max-w-[400px]", muted)}>{docPreview.name}</p>
               </div>
-              <button onClick={() => setRawPreview(null)} className={cl("p-1.5 rounded-lg", isLight ? "hover:bg-slate-100 text-slate-500" : "hover:bg-white/5 text-[#888]")}><X className="w-4 h-4" /></button>
+              <div className="flex items-center gap-2">
+                <a href={docPreview.url} target="_blank" rel="noopener noreferrer"
+                  className={cl("px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition-colors",
+                    isLight ? "border-slate-200 hover:bg-slate-50 text-slate-600" : "border-[#333] hover:bg-white/5 text-[#aaa]")}>
+                  Open in tab ↗
+                </a>
+                <button onClick={closeDocPreview} className={cl("p-1.5 rounded-lg", isLight ? "hover:bg-slate-100 text-slate-500" : "hover:bg-white/5 text-[#888]")}>
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-            <pre className={cl("flex-1 overflow-auto p-5 text-[11px] leading-relaxed font-mono whitespace-pre-wrap break-words", muted)}>
-              {rawPreview.text}
-            </pre>
+            <div className="flex-1 overflow-hidden">
+              {docPreview.isImage ? (
+                <div className="w-full h-full flex items-center justify-center p-4 overflow-auto bg-[#0a0a0a]">
+                  <img src={docPreview.url} alt={docPreview.name} className="max-w-full max-h-full object-contain rounded-lg" />
+                </div>
+              ) : (
+                <iframe src={docPreview.url} title={docPreview.name} className="w-full h-full border-0" style={{ background: "#fff" }} />
+              )}
+            </div>
           </div>
         </div>
       )}

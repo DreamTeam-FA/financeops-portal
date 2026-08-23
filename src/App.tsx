@@ -70,37 +70,54 @@ const TOAST_CFG = {
   },
 } as const;
 
+const TOAST_DARK_CFG = {
+  success:    { label: "text-emerald-400", border: "border-emerald-500/25", glow: "shadow-emerald-500/10" },
+  error:      { label: "text-red-400",     border: "border-red-500/25",     glow: "shadow-red-500/10"     },
+  info:       { label: "text-blue-400",    border: "border-blue-500/25",    glow: "shadow-blue-500/10"    },
+  "auth-error":{ label: "text-amber-400", border: "border-amber-500/25",   glow: "shadow-amber-500/10"   },
+} as const;
+
 const SyncToastBanner: React.FC = () => {
-  const { syncToast, clearSyncToast, handleGoogleSignIn } = useFinance();
+  const { syncToast, clearSyncToast, handleGoogleSignIn, theme } = useFinance();
   if (!syncToast) return null;
-  const cfg = TOAST_CFG[syncToast.type];
+  const cfg   = TOAST_CFG[syncToast.type];
+  const dark  = TOAST_DARK_CFG[syncToast.type];
   const isAuthError = syncToast.type === "auth-error";
+  const isLight = theme === "light";
 
   const handleReconnect = async () => {
     clearSyncToast();
     await handleGoogleSignIn();
   };
 
+  /* ── theme-aware classes ── */
+  const wrapCls = isLight
+    ? `${cfg.pill} shadow-xl`
+    : `bg-[#0d111a] ${dark.border} border text-white shadow-2xl ${dark.glow}`;
+  const labelCls = isLight ? cfg.labelCls : dark.label;
+  const msgCls   = isLight ? "" : "text-[#d0d6e0]";
+  const closeCls = isLight ? "" : "text-[#888] hover:text-white";
+
   return (
     <div
-      className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[9999] flex flex-col overflow-hidden rounded-xl border shadow-xl text-sm font-medium"
+      className={`fixed bottom-5 left-1/2 -translate-x-1/2 z-[9999] flex flex-col overflow-hidden rounded-xl border ${isLight ? "border-transparent" : ""} text-sm font-medium animate-in slide-in-from-bottom-2 duration-200`}
       style={{ minWidth: 300, maxWidth: 520 }}
     >
       {/* Colored top accent bar */}
-      <div className={`h-1 w-full ${cfg.bar}`} />
+      <div className={`h-[3px] w-full ${cfg.bar}`} />
 
       {/* Body */}
-      <div className={`flex items-start gap-3 px-4 py-3 ${cfg.pill}`}>
+      <div className={`flex items-start gap-3 px-4 py-3.5 ${wrapCls}`}>
         {cfg.icon}
         <div className="flex-1 min-w-0">
-          <p className={`text-[10px] font-bold uppercase tracking-wider mb-0.5 ${cfg.labelCls}`}>
+          <p className={`text-[10px] font-bold uppercase tracking-widest mb-0.5 ${labelCls}`}>
             {cfg.label}
           </p>
-          <p className="text-[13px] font-medium leading-snug">{syncToast.message}</p>
+          <p className={`text-[13px] font-medium leading-snug ${msgCls}`}>{syncToast.message}</p>
           {isAuthError && (
             <button
               onClick={handleReconnect}
-              className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold transition-colors shadow-xs"
+              className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold transition-colors"
             >
               🔄 Reconnect Google Sheets
             </button>
@@ -108,7 +125,7 @@ const SyncToastBanner: React.FC = () => {
         </div>
         <button
           onClick={clearSyncToast}
-          className="p-0.5 rounded-full opacity-40 hover:opacity-100 transition-opacity shrink-0 mt-0.5"
+          className={`p-1 rounded-full opacity-40 hover:opacity-100 transition-opacity shrink-0 mt-0.5 ${closeCls}`}
           aria-label="Dismiss"
         >
           <X className="w-3.5 h-3.5" />
