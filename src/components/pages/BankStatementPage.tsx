@@ -57,13 +57,13 @@ function normalizeDate(raw: string): string {
 function parseAmount(s: string): number | null {
   s = s.trim().replace(/\$/g, "").replace(/,/g, "").replace(/\s/g, "");
   if (s.startsWith("(") && s.endsWith(")")) s = "-" + s.slice(1, -1);
+  if (s.endsWith("-")) s = "-" + s.slice(0, -1); // trailing minus (some bank formats)
   const v = parseFloat(s);
   return isNaN(v) ? null : v;
 }
 
-/* ── pdfplumber equivalent in JS: use pdfjs-dist ─────────────────── */
+/* ── PDF text extraction — groups items into visual lines ─────────── */
 async function extractPdfText(file: File): Promise<string[][]> {
-  // returns array of pages, each page is array of lines
   const pdfjsLib = await import("pdfjs-dist");
   pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
     "pdfjs-dist/build/pdf.worker.min.mjs",
@@ -72,18 +72,30 @@ async function extractPdfText(file: File): Promise<string[][]> {
   const ab = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
   const pages: string[][] = [];
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
+
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
     const content = await page.getTextContent();
-    // Group items by approximate Y position into lines
-    const byY: Map<number, string[]> = new Map();
+
+    // Group text items into lines using 4-pt Y buckets.
+    // PDF items within ±4pt of each other are on the same visual line.
+    // Items within a line are sorted left-to-right by X.
+    const lineMap = new Map<number, Array<{ x: number; str: string }>>();
     for (const item of content.items as any[]) {
-      const y = Math.round(item.transform[5]);
-      if (!byY.has(y)) byY.set(y, []);
-      byY.get(y)!.push(item.str);
+      if (!item.str) continue;
+      const bucket = Math.round(item.transform[5] / 4) * 4;
+      if (!lineMap.has(bucket)) lineMap.set(bucket, []);
+      lineMap.get(bucket)!.push({ x: item.transform[4], str: item.str });
     }
-    const sortedYs = [...byY.keys()].sort((a, b) => b - a); // top to bottom (PDF y is bottom-up)
-    const lines = sortedYs.map(y => byY.get(y)!.join(" ").trim()).filter(Boolean);
+
+    const sortedBuckets = [...lineMap.keys()].sort((a, b) => b - a); // top→bottom
+    const lines = sortedBuckets.map(y => {
+      const sorted = lineMap.get(y)!.sort((a, b) => a.x - b.x);
+      // Concatenate without separator first (items already carry spacing),
+      // then collapse any run of whitespace to a single space.
+      return sorted.map(it => it.str).join("").replace(/\s+/g, " ").trim();
+    }).filter(Boolean);
+
     pages.push(lines);
   }
   return pages;
@@ -98,7 +110,8 @@ const DATE_PATS = [
   /^([A-Z][a-z]{2}\s+\d{1,2},?\s+\d{4})/,
   /^([A-Z][a-z]{2}\s+\d{1,2})\s/,
 ];
-const AMT_RE = /-?\$?[\d,]+\.\d{2}/g;
+// Match amounts including trailing-minus format (e.g. "1,288.70-")
+const AMT_RE = /-?\$?[\d,]+\.\d{2}-?/g;
 
 function extractViaGenericText(allLines: string[]): Transaction[] {
   const txns: Transaction[] = [];
