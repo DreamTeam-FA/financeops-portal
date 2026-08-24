@@ -561,8 +561,10 @@ export async function fetchFullLiveDataset(accessToken?: string) {
 
     const inQBO = row[13] === true || String(row[13]).toLowerCase() === "true" || String(row[13]).toLowerCase() === "qbo";
 
-    // GAS Layout A: remarks = col K (Payment Instructions) + col M (Status 1), joined with " · "
-    const remarks = cleanRemarks([row[10], row[12]]);
+    // col K (index 10) = Payment Instructions; col L (index 11) = Status 1 (or paid date when paid)
+    const paymentInstructions = String(row[10] || "").trim() || undefined;
+    const col11Str = String(row[11] || "").trim();
+    const status1 = col11Str && !parseDateVal(col11Str) ? col11Str : undefined;
 
     const finalDueDate = dueDate || new Date().toISOString().split("T")[0];
 
@@ -574,14 +576,15 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       amount,
       dueDate: finalDueDate,
       invoiceDate: parseDateVal(row[7]) || undefined,
-      paidDate: status === "paid" ? parseDateVal(row[11]) || undefined : undefined, // col L = paid date
+      paidDate: status === "paid" ? parseDateVal(row[11]) || undefined : undefined, // col L = paid date when paid
       method,
       status,
       inQBO,
       bucket: computeBucket(finalDueDate, status),
       sheet: "Ruby's Bills",
       invoiceNo,
-      remarks,
+      paymentInstructions,
+      status1,
       description: String(row[4] || "").trim() || undefined, // col E
       category:    String(row[5] || "").trim() || undefined, // col F
       row: i - 3 // dataStart=5: row 1 = sheet row 5, so bill.row = i+1-(dataStart-1) = i-3
@@ -712,6 +715,10 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       if (company.toLowerCase().includes("ruby")) entity = "Ruby's";
       else if (company.toLowerCase().includes("msdx")) entity = "MSDx";
 
+      // col M (index 12) = Payment Via; col O (index 14) = Remarks
+      const paidViaTI = String(row[12] || "").trim() || undefined;
+      const remarksTI = String(row[14] || "").trim() || undefined;
+
       ap.push({
         id: `ap-ti-${tabName.replace(/\s+/g, "")}-${i + 1}`,
         vendor,
@@ -727,7 +734,8 @@ export async function fetchFullLiveDataset(accessToken?: string) {
         bucket: computeBucket(dueDate, status),
         sheet: tabName,
         invoiceNo,
-        remarks: cleanRemarks([row[14], row[15], row[16], row[17]]),
+        paidVia: paidViaTI,
+        remarks: remarksTI,
         row: i - 5 // dataStart=7: row 1 = sheet row 7, so bill.row = i+1-(dataStart-1) = i-5
       });
     });
@@ -762,8 +770,10 @@ export async function fetchFullLiveDataset(accessToken?: string) {
 
     const inQBO = row[13] === true || String(row[13]).toLowerCase() === "true" || String(row[13]).toLowerCase() === "qbo";
 
-    // GAS Layout A: remarks = col K (Payment Instructions) + col M (Status 1), joined with " · "
-    const remarks = cleanRemarks([row[10], row[12]]);
+    // col K (index 10) = Payment Instructions; col L (index 11) = Status 1 (or paid date when paid)
+    const paymentInstructionsMSDx = String(row[10] || "").trim() || undefined;
+    const col11MSDxStr = String(row[11] || "").trim();
+    const status1MSDx = col11MSDxStr && !parseDateVal(col11MSDxStr) ? col11MSDxStr : undefined;
 
     ap.push({
       id: `ap-msdx-${i + 1}`,
@@ -772,14 +782,15 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       amount,
       dueDate,
       invoiceDate: parseDateVal(row[7]) || undefined,
-      paidDate: status === "paid" ? parseDateVal(row[11]) || undefined : undefined, // col L = paid date
+      paidDate: status === "paid" ? parseDateVal(row[11]) || undefined : undefined, // col L = paid date when paid
       method,
       status,
       inQBO,
       bucket: computeBucket(dueDate, status),
       sheet: "MSDx Bills",
       invoiceNo,
-      remarks,
+      paymentInstructions: paymentInstructionsMSDx,
+      status1: status1MSDx,
       description: String(row[4] || "").trim() || undefined, // col E
       category:    String(row[5] || "").trim() || undefined, // col F
       row: i - 4 // dataStart=6: row 1 = sheet row 6, so bill.row = i+1-(dataStart-1) = i-4
