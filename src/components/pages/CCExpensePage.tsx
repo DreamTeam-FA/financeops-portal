@@ -323,7 +323,7 @@ export const CCExpensePage: React.FC = () => {
     setDragSource({ vendor, company, amount });
   };
 
-  const handleDrop = (vendor: string, company: string) => {
+  const handleCellDrop = (vendor: string, company: string) => {
     if (!dragSource || dragSource.company === company || dragSource.vendor !== vendor) {
       setDragSource(null); setDragOver(null); return;
     }
@@ -1023,7 +1023,7 @@ export const CCExpensePage: React.FC = () => {
                             onDragStart={() => handleDragStart(row.vendor, co, val)}
                             onDragOver={e => { if (dragSource && dragSource.vendor === row.vendor && dragSource.company !== co) { e.preventDefault(); setDragOver(`${row.vendor}||${co}`); } }}
                             onDragLeave={() => setDragOver(null)}
-                            onDrop={() => handleDrop(row.vendor, co)}
+                            onDrop={(_e) => handleCellDrop(row.vendor, co)}
                             onDragEnd={() => { setDragSource(null); setDragOver(null); }}
                             onDoubleClick={() => startEdit(row.vendor, co, val)}
                             title={activeTab === "weekly" ? "Double-click to edit · Drag to transfer" : undefined}
