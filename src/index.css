@@ -1,4 +1,15 @@
 @import "tailwindcss";
+
+/* ─── Search Highlight Animation ──────────────────────────────────── */
+@keyframes search-highlight-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); background-color: rgba(59, 130, 246, 0.15); }
+  50%  { box-shadow: 0 0 0 8px rgba(59, 130, 246, 0); background-color: rgba(59, 130, 246, 0.08); }
+  100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); background-color: transparent; }
+}
+.search-highlight-flash {
+  animation: search-highlight-pulse 1.4s ease-out forwards;
+  border-radius: 0.375rem;
+}
 @custom-variant dark (&:is(.dark, .dark *));
 
 /* ─── Typography ──────────────────────────────────────────────────── */

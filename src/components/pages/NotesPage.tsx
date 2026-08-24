@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from "react";
+﻿import React, { useState, useMemo, useEffect } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { DashboardNote } from "../../types";
@@ -70,10 +70,27 @@ export const NotesPage: React.FC = () => {
     updateQuickNote,
     deleteQuickNote,
     showToast,
-    theme
-  } = useFinance();
+    theme,
+    searchHighlightId,
+    setSearchHighlightId,
+  } = useFinance() as any;
 
   const isLight = theme === "light";
+
+  // Deep-link: scroll to & flash the item from global search
+  useEffect(() => {
+    if (!searchHighlightId) return;
+    const timer = setTimeout(() => {
+      const el = document.querySelector<HTMLElement>(`[data-search-id="${searchHighlightId}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("search-highlight-flash");
+        const cleanup = () => { el.classList.remove("search-highlight-flash"); setSearchHighlightId(null); };
+        el.addEventListener("animationend", cleanup, { once: true });
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchHighlightId]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedEntity, setSelectedEntity] = useState<string>("ALL");
@@ -395,6 +412,7 @@ export const NotesPage: React.FC = () => {
                     {notesInWeek.map((note) => (
                       <div
                         key={note.id}
+                        data-search-id={note.id}
                         className={`p-4 rounded-xl border flex flex-col justify-between space-y-3 transition-all ${
                           isLight
                             ? "bg-slate-50/70 border-slate-200 hover:border-purple-300 hover:shadow-sm"

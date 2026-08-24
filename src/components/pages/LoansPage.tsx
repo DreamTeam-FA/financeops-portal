@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { TrendingDown, Calendar, ShieldAlert, Clock, LayoutGrid, Table, Edit2, Trash2, X, AlertTriangle, CheckCircle2, Download } from "lucide-react";
@@ -9,8 +9,23 @@ import { Loan } from "../../types";
 import { formatCurrency, getDaysRemaining } from "../../utils/formatters";
 
 export const LoansPage: React.FC = () => {
-  const { loans, selectedEntities, theme, deleteLoan } = useFinance();
+  const { loans, selectedEntities, theme, deleteLoan, searchHighlightId, setSearchHighlightId } = useFinance() as any;
   const [isAddOpen, setIsAddOpen] = useState(false);
+
+  // Deep-link: scroll to & flash the item from global search
+  useEffect(() => {
+    if (!searchHighlightId) return;
+    const timer = setTimeout(() => {
+      const el = document.querySelector<HTMLElement>(`[data-search-id="${searchHighlightId}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("search-highlight-flash");
+        const cleanup = () => { el.classList.remove("search-highlight-flash"); (setSearchHighlightId as any)(null); };
+        el.addEventListener("animationend", cleanup, { once: true });
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchHighlightId]);
   const [editingLoan, setEditingLoan] = useState<Loan | null>(null);
   const [deletingLoanId, setDeletingLoanId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
@@ -268,6 +283,7 @@ export const LoansPage: React.FC = () => {
                     return (
                       <div
                         key={l.id}
+                        data-search-id={l.id}
                         className={`${urgency.cardBorder} ${
                           isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"
                         } border rounded-lg p-2 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] flex flex-col justify-between space-y-1.5 relative overflow-hidden`}
@@ -361,7 +377,7 @@ export const LoansPage: React.FC = () => {
                       {group.items.map((l) => {
                         const urgency = getDueUrgency(l.nextPay);
                         return (
-                          <tr key={l.id} className={`${isLight ? "hover:bg-slate-50" : "hover:bg-white/5"} transition-colors`}>
+                          <tr key={l.id} data-search-id={l.id} className={`${isLight ? "hover:bg-slate-50" : "hover:bg-white/5"} transition-colors`}>
                             <td className="px-4 py-3">
                               <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${getEntityBadge(l.entity)}`}>{l.entity}</span>
                             </td>

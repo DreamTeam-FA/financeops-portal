@@ -20,7 +20,24 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
     showToast,
     updateBill,
     deleteBill,
+    searchHighlightId,
+    setSearchHighlightId,
   } = useFinance();
+
+  // Deep-link: scroll to & flash the item from global search
+  useEffect(() => {
+    if (!searchHighlightId) return;
+    const timer = setTimeout(() => {
+      const el = document.querySelector<HTMLElement>(`[data-search-id="${searchHighlightId}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("search-highlight-flash");
+        const cleanup = () => { el.classList.remove("search-highlight-flash"); setSearchHighlightId(null); };
+        el.addEventListener("animationend", cleanup, { once: true });
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchHighlightId]);
 
   const isLight = theme === "light";
 
@@ -1028,7 +1045,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
 
                     {/* Bill rows */}
                     {group.map((bill) => (
-                      <div key={bill.id} className={`grid grid-cols-12 items-center px-3 py-2 text-[11px] border-b last:border-0 ${isLight ? "border-slate-100 text-slate-800" : "border-[#222] text-gray-200"}`}>
+                      <div key={bill.id} data-search-id={bill.id} className={`grid grid-cols-12 items-center px-3 py-2 text-[11px] border-b last:border-0 ${isLight ? "border-slate-100 text-slate-800" : "border-[#222] text-gray-200"}`}>
                         <div className="col-span-3 truncate font-semibold">{bill.vendor || "—"}</div>
                         <div className="col-span-2 text-right font-bold text-blue-500">{formatCurrency(bill.amount)}</div>
                         <div className={`col-span-2 text-center ${isLight ? "text-slate-500" : "text-gray-400"}`}>{formatDateStr(bill.dueDate)}</div>

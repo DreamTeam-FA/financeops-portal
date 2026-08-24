@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from "react";
+﻿import React, { useState, useMemo, useEffect } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { ARItem, EntityName } from "../../types";
@@ -17,10 +17,27 @@ export const ARPage: React.FC = () => {
     updateARItem,
     deleteARItem,
     theme,
-    showConfirm
+    showConfirm,
+    searchHighlightId,
+    setSearchHighlightId,
   } = useFinance() as any;
 
   const isLight = theme === "light";
+
+  // Deep-link: scroll to & flash the item from global search
+  useEffect(() => {
+    if (!searchHighlightId) return;
+    const timer = setTimeout(() => {
+      const el = document.querySelector<HTMLElement>(`[data-search-id="${searchHighlightId}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("search-highlight-flash");
+        const cleanup = () => { el.classList.remove("search-highlight-flash"); setSearchHighlightId(null); };
+        el.addEventListener("animationend", cleanup, { once: true });
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchHighlightId]);
 
   const currentMonthName = new Date().toLocaleString("default", { month: "long" });
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthName);
@@ -280,7 +297,7 @@ export const ARPage: React.FC = () => {
                   const statusInfo = getDaysOverdueText(a.dueDate, a.payment);
 
                   return (
-                    <tr key={a.id} className="hover:bg-white/5 transition-colors">
+                    <tr key={a.id} data-search-id={a.id} className="hover:bg-white/5 transition-colors">
                       <td className="p-3">
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${getEntityBadge(a.entity)}`}>
                           {a.entity}
@@ -574,7 +591,7 @@ export const ARPage: React.FC = () => {
                       due.setHours(0, 0, 0, 0);
                       const daysOver = Math.round((today.getTime() - due.getTime()) / (1000 * 60 * 60 * 24));
                       return (
-                        <tr key={a.id} className={`transition-colors ${isLight ? "hover:bg-red-50/50" : "hover:bg-red-950/10"}`}>
+                        <tr key={a.id} data-search-id={a.id} className={`transition-colors ${isLight ? "hover:bg-red-50/50" : "hover:bg-red-950/10"}`}>
                           <td className="px-4 py-3">
                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${getEntityBadge(a.entity)}`}>
                               {a.entity}

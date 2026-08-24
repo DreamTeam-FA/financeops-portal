@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { getBankBalanceWarning } from "../../utils/bankWarning";
@@ -19,8 +19,23 @@ import {
 } from "recharts";
 
 export const BankBalancesPage: React.FC = () => {
-  const { bankAccounts, selectedEntities, updateBankBalance, deleteBankAccount, theme, showConfirm } = useFinance() as any;
+  const { bankAccounts, selectedEntities, updateBankBalance, deleteBankAccount, theme, showConfirm, searchHighlightId, setSearchHighlightId } = useFinance() as any;
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Deep-link: scroll to & flash the item from global search
+  useEffect(() => {
+    if (!searchHighlightId) return;
+    const timer = setTimeout(() => {
+      const el = document.querySelector<HTMLElement>(`[data-search-id="${searchHighlightId}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("search-highlight-flash");
+        const cleanup = () => { el.classList.remove("search-highlight-flash"); setSearchHighlightId(null); };
+        el.addEventListener("animationend", cleanup, { once: true });
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchHighlightId]);
   const [newVal, setNewVal] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"chart" | "table">("chart");
@@ -251,7 +266,7 @@ export const BankBalancesPage: React.FC = () => {
                   const diff = b.balance - yestVal;
 
                   return (
-                    <tr key={b.id} className={`${isLight ? "hover:bg-slate-50" : "hover:bg-white/5"} transition-colors`}>
+                    <tr key={b.id} data-search-id={b.id} className={`${isLight ? "hover:bg-slate-50" : "hover:bg-white/5"} transition-colors`}>
                       <td className="p-3">
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${getEntityBadge(b.entity)}`}>
                           {b.entity}

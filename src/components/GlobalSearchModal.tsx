@@ -42,7 +42,7 @@ function fmt(n: number) {
 
 /* ─── The modal ─────────────────────────────────────────────── */
 export const GlobalSearchModal: React.FC = () => {
-  const { apBills, arItems, loans, bankAccounts, quickNotes, setCurrentPage, theme } = useFinance();
+  const { apBills, arItems, loans, bankAccounts, quickNotes, setCurrentPage, setSearchHighlightId, theme } = useFinance();
   const isLight = theme === "light";
 
   const [open, setOpen]   = useState(false);
@@ -213,6 +213,7 @@ export const GlobalSearchModal: React.FC = () => {
   }, [cursor]);
 
   const navigate = (item: SearchResult) => {
+    setSearchHighlightId(item.id);
     setCurrentPage(item.page);
     setOpen(false);
   };

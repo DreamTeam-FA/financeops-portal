@@ -208,6 +208,10 @@ interface FinanceContextType {
   importSheetData: (data: any) => void;
   logAction: (action: string, details: string) => void;
 
+  // Global Search Deep Link
+  searchHighlightId: string | null;
+  setSearchHighlightId: (id: string | null) => void;
+
   // Logs
   loginLogs: LoginLogEntry[];
   logsSheetId: string | null;
@@ -357,6 +361,7 @@ const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
 export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentPage, setCurrentPage] = useState<PageRoute>("hub");
+  const [searchHighlightId, setSearchHighlightId] = useState<string | null>(null);
   const [userEmail, setUserEmailState] = useState<string>(() => {
     return localStorage.getItem("financeops_user_email") || "accounting@marktimm.com";
   });
@@ -2110,7 +2115,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         importSheetData,
         logAction,
         loginLogs,
-        logsSheetId
+        logsSheetId,
+        searchHighlightId,
+        setSearchHighlightId
       }}
     >
       {children}
