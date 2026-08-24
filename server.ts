@@ -1330,8 +1330,37 @@ Return ONLY the JSON object, no markdown, no other text.`;
 
 // ── AR: Save invoice file to Google Drive ────────────────────────────────────────
 // Parent folder: 17A6yyvoPIlCfegus79yD3Vvt6HJnCoL2 (Invoices root)
-// Subfolder: named after `customer` — auto-created if missing.
+// Subfolder: fuzzy-matched against existing subfolders, auto-created if no match.
 const INVOICES_DRIVE_FOLDER = "17A6yyvoPIlCfegus79yD3Vvt6HJnCoL2";
+
+/** Normalize a name for fuzzy matching: lowercase, strip punctuation & common suffixes */
+function normalizeFolderName(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[''`]/g, "")                                        // smart quotes
+    .replace(/\b(inc|llc|ltd|corp|co|the|and|of|&)\b/g, "")      // common biz words
+    .replace(/[^a-z0-9\s]/g, " ")                                 // non-alphanum → space
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Score how well `extracted` matches `folderName`. Higher = better. Returns 0 if no match. */
+function matchScore(extracted: string, folderName: string): number {
+  const a = normalizeFolderName(extracted);
+  const b = normalizeFolderName(folderName);
+  if (!a || !b) return 0;
+  if (a === b) return 100;                            // exact
+  if (b.includes(a) || a.includes(b)) return 80;     // one contains the other
+  // token overlap: how many words from `a` appear in `b`
+  const tokA = a.split(" ").filter(Boolean);
+  const tokB = new Set(b.split(" ").filter(Boolean));
+  const overlap = tokA.filter(t => tokB.has(t)).length;
+  if (overlap > 0) return 40 + (overlap / tokA.length) * 30;
+  // acronym: first letters of folder words match extracted
+  const acronym = b.split(" ").map(w => w[0]).join("");
+  if (a === acronym || acronym === a) return 70;
+  return 0;
+}
 
 app.post("/api/ar/save-to-drive", async (req, res) => {
   const { accessToken, fileBase64, fileName, mimeType, customer } = req.body || {};
@@ -1339,27 +1368,93 @@ app.post("/api/ar/save-to-drive", async (req, res) => {
   if (!fileBase64 || !fileName) return res.status(400).json({ ok: false, error: "Missing file data" });
 
   try {
-    const folderName = (customer || "Unknown").trim();
+    const extractedName = (customer || "Unknown").trim();
     const driveBase = "https://www.googleapis.com/drive/v3";
     const driveUpload = "https://www.googleapis.com/upload/drive/v3";
     const headers = { Authorization: `Bearer ${accessToken}` };
 
-    // 1. Find or create subfolder
-    const searchResp = await fetch(
-      `${driveBase}/files?q=${encodeURIComponent(`'${INVOICES_DRIVE_FOLDER}' in parents and name='${folderName.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and trashed=false`)}&fields=files(id,name)&pageSize=5`,
+    // 1. List all existing subfolders in the Invoices root
+    const listResp = await fetch(
+      `${driveBase}/files?q=${encodeURIComponent(`'${INVOICES_DRIVE_FOLDER}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`)}&fields=files(id,name)&pageSize=100`,
       { headers }
     );
-    const searchData: any = await searchResp.json();
+    const listData: any = await listResp.json();
+    const existingFolders: { id: string; name: string }[] = listData.files || [];
+
+    // 2. Fuzzy-match extracted customer against existing folders (name-only pass)
+    const folderScores: { folder: { id: string; name: string }; nameScore: number }[] = [];
+    for (const f of existingFolders) {
+      const nameScore = matchScore(extractedName, f.name);
+      folderScores.push({ folder: f, nameScore });
+    }
+
+    // 3. Inspect file names inside top candidate folders (up to 5) to boost scores
+    //    e.g. folder "CPRO" containing "CurcuminPro Invoice.pdf" helps match "CurcuminPro"
+    const CANDIDATE_THRESHOLD = 15; // low bar to be inspected
+    const candidates = folderScores
+      .filter(x => x.nameScore >= CANDIDATE_THRESHOLD)
+      .sort((a, b) => b.nameScore - a.nameScore)
+      .slice(0, 5);
+
+    const folderFinalScores: { folder: { id: string; name: string }; score: number; via: string }[] = [];
+
+    await Promise.all(candidates.map(async ({ folder, nameScore }) => {
+      let fileBoost = 0;
+      let bestFileName = "";
+      try {
+        const filesResp = await fetch(
+          `${driveBase}/files?q=${encodeURIComponent(`'${folder.id}' in parents and trashed=false`)}&fields=files(name)&pageSize=20`,
+          { headers }
+        );
+        const filesData: any = await filesResp.json();
+        const fileNames: string[] = (filesData.files || []).map((f: any) =>
+          (f.name as string).replace(/\.[^/.]+$/, "") // strip extension
+        );
+        for (const fn of fileNames) {
+          const s = matchScore(extractedName, fn);
+          if (s > fileBoost) { fileBoost = s; bestFileName = fn; }
+        }
+      } catch {
+        // ignore per-folder errors — fall back to name score
+      }
+      // File name match counts at 90% weight (folder name is more authoritative)
+      const combined = Math.max(nameScore, Math.round(fileBoost * 0.9));
+      const via = combined > nameScore
+        ? `file:"${bestFileName}" score ${fileBoost}→${combined}`
+        : `name score ${nameScore}`;
+      folderFinalScores.push({ folder, score: combined, via });
+    }));
+
+    // Also include folders that didn't make the candidate cut (score stays 0)
+    const inspectedIds = new Set(candidates.map(c => c.folder.id));
+    for (const { folder, nameScore } of folderScores.filter(x => !inspectedIds.has(x.folder.id))) {
+      folderFinalScores.push({ folder, score: nameScore, via: `name score ${nameScore}` });
+    }
+
+    let bestMatch: { id: string; name: string } | null = null;
+    let bestScore = 0;
+    let bestVia = "";
+    for (const { folder, score, via } of folderFinalScores) {
+      if (score > bestScore) { bestScore = score; bestMatch = folder; bestVia = via; }
+    }
+
+    const MATCH_THRESHOLD = 50; // minimum score to reuse an existing folder
     let folderId: string;
-    if (searchData.files?.length > 0) {
-      folderId = searchData.files[0].id;
+    let resolvedFolderName: string;
+    let folderCreated = false;
+
+    if (bestMatch && bestScore >= MATCH_THRESHOLD) {
+      // Reuse the matched folder
+      folderId = bestMatch.id;
+      resolvedFolderName = bestMatch.name;
+      console.log(`[DriveInvoice] Matched "${extractedName}" → "${resolvedFolderName}" (score ${bestScore}, via ${bestVia})`);
     } else {
-      // Create subfolder
+      // Create a new subfolder named after the extracted customer
       const createResp = await fetch(`${driveBase}/files`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: folderName,
+          name: extractedName,
           mimeType: "application/vnd.google-apps.folder",
           parents: [INVOICES_DRIVE_FOLDER],
         }),
@@ -1367,9 +1462,12 @@ app.post("/api/ar/save-to-drive", async (req, res) => {
       const created: any = await createResp.json();
       if (!createResp.ok) throw new Error(`Create folder failed: ${created?.error?.message}`);
       folderId = created.id;
+      resolvedFolderName = extractedName;
+      folderCreated = true;
+      console.log(`[DriveInvoice] No match for "${extractedName}" (best score ${bestScore}) — created new folder`);
     }
 
-    // 2. Upload file using multipart upload
+    // 3. Upload file via multipart
     const fileBytes = Buffer.from(fileBase64, "base64");
     const boundary = "arInvoiceBoundary";
     const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
@@ -1389,7 +1487,16 @@ app.post("/api/ar/save-to-drive", async (req, res) => {
     const uploadData: any = await uploadResp.json();
     if (!uploadResp.ok) throw new Error(`Upload failed: ${uploadData?.error?.message}`);
 
-    res.json({ ok: true, fileId: uploadData.id, fileName: uploadData.name, webViewLink: uploadData.webViewLink, folderCreated: !searchData.files?.length });
+    res.json({
+      ok: true,
+      fileId: uploadData.id,
+      fileName: uploadData.name,
+      webViewLink: uploadData.webViewLink,
+      resolvedFolderName,
+      folderCreated,
+      matchScore: bestScore,
+      matchVia: bestVia,
+    });
   } catch (e: any) {
     res.status(500).json({ ok: false, error: e?.message || String(e) });
   }
