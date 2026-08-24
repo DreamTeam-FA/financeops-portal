@@ -484,13 +484,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   // Quick Notes State
-  const [quickNotes, setQuickNotes] = useState<DashboardNote[]>(() => {
-    try {
-      const saved = localStorage.getItem("financeops_quick_notes");
-      if (saved) return JSON.parse(saved);
-    } catch (e) {}
-    return [];
-  });
+  // Quick notes come exclusively from the Google Sheet pull — never from localStorage.
+  const [quickNotes, setQuickNotes] = useState<DashboardNote[]>([]);
 
   // GAS Web App URLs for Dashboards
   const [gasUrls, setGasUrls] = useState<{ curcumin: string; fouryr: string; ziglar: string }>(() => {
@@ -738,20 +733,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           if (data.syncLogs) setSyncLogs(data.syncLogs);
         }
 
-        // Helper: merge sheet notes with local "done" state wins over sheet "open"
-        const mergeSheetNotes = (sheetNotes: DashboardNote[]) => {
-          const localNotes: DashboardNote[] = (() => {
-            try { return JSON.parse(localStorage.getItem("financeops_quick_notes") || "[]"); } catch { return []; }
-          })();
-          const localMap = new Map(localNotes.map((n) => [n.id, n]));
-          return sheetNotes.map((n) => {
-            const local = localMap.get(n.id);
-            if (local?.status === "done" && n.status !== "done") {
-              return { ...n, status: "done" as const, completedAt: local.completedAt };
-            }
-            return n;
-          });
-        };
+        // Sheet is the exclusive source of truth — return sheet notes as-is.
+        // Done-state is written back to the sheet immediately when marked, so
+        // the next pull will already reflect the correct status.
+        const mergeSheetNotes = (sheetNotes: DashboardNote[]) => sheetNotes;
 
         // Only auto-pull-live for AP data if sparse/missing — prevents the sheet from
         // overwriting portal-side changes that haven't been pushed to the sheet yet.
