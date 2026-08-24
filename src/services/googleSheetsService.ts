@@ -1041,9 +1041,10 @@ export const buildAPBillRow = (b: APBill, entity: string): any[] => {
     const rem = (b.remarks || b.notes || "").replace(/^\[[^\]]+\]\s*/, "").trim();
     if (rem) row[map.remarksCol] = rem;
   } else {
-    // Layout A (Ruby's/MSDx): paymentInstructions → col K (remarksCol=10)
+    // Layout A (Ruby's/MSDx): paymentInstructions → col K (remarksCol=10); status1 → col M (status1Col)
     const instr = (b.paymentInstructions || b.remarks || b.notes || "").replace(/^\[[^\]]+\]\s*/, "").trim();
     if (instr) row[map.remarksCol] = instr;
+    if (b.status1) row[map.status1Col] = b.status1;
   }
   return row;
 };
