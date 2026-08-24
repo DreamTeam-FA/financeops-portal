@@ -455,7 +455,7 @@ export const parseAPSheetRows = (
     const inQBOVal = String(row[13] || row[15] || row[14] || "").toLowerCase();
     const inQBO = inQBOVal === "true" || inQBOVal === "qbo";
 
-    // Payment method (Check/Online/Cash) — Layout B col 12 (payvia); Layout A has none
+    // Payment method (Check/Online/Cash) — Layout B (TI) col 12 (payvia); Layout A has none
     const payviaRaw = String(row[12] || "").trim();
     const methodMap: Record<string, string> = {
       "check": "Check", "online": "Online", "cash": "Cash", "wire": "Wire",
@@ -463,6 +463,8 @@ export const parseAPSheetRows = (
       "auto-debit": "Autodebit", "auto debit": "Autodebit"
     };
     const method = methodMap[payviaRaw.toLowerCase()] || "Check";
+    // paidVia — raw pay-via text (TI col 12); not applicable for Ruby's/MSDx
+    const paidVia = entity === "TI" && payviaRaw ? payviaRaw : undefined;
 
     // paytype col 17 (Layout A) or col 19 (TI) — Auto-Debit vs Manual
     const paytypeRaw = String(row[17] || row[19] || "").trim().toLowerCase();
@@ -506,6 +508,7 @@ export const parseAPSheetRows = (
       invoiceNo,
       remarks,
       status1: status1 || undefined,
+      paidVia: paidVia || undefined,
       paymentInstructions: paymentInstructions || undefined,
       category: categoryVal || undefined,
       invoiceDate: invoiceDateVal || undefined,

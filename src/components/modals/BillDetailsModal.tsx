@@ -134,7 +134,15 @@ const BillDetail: React.FC<{
   const [localStatus, setLocalStatus] = useState(bill.status || "unpaid");
   const [paidDate, setPaidDate] = useState(bill.paymentDate || bill.paidDate || "");
 
-  const remarks = bill.paymentInstructions || bill.remarks || bill.notes || "";
+  // Individual note fields — shown as separate labeled rows in the Remarks section
+  const remarksText    = bill.remarks || bill.notes || "";
+  const payInstText    = bill.paymentInstructions || "";
+  const status1Text    = bill.status1 || "";
+  const paidViaText    = bill.paidVia || "";
+  const hasAnyNote     = !!(remarksText || payInstText || status1Text || paidViaText);
+
+  // Legacy merged value used only for the Drive "View Bill" link detection
+  const remarks = payInstText || remarksText;
   const isLink = remarks.startsWith("http");
   // driveViewUrl = uploaded copy (portal Drive feature); isLink = URL pasted in remarks.
   // Prefer the uploaded copy; fall back to the pasted link.
@@ -288,7 +296,7 @@ const BillDetail: React.FC<{
         </div>
       )}
 
-      {/* Remarks */}
+      {/* Remarks / Notes section — four labeled fields, each shown when present */}
       <div className={`rounded-xl border p-3 ${
         isLight ? "bg-white border-slate-200" : "bg-[#161616] border-[#2a2a2a]"
       }`}>
@@ -305,50 +313,44 @@ const BillDetail: React.FC<{
             <Pencil className="w-3 h-3" /> Edit
           </button>
         </div>
-        {/* Status 1 & Paid Via — shown only when values exist */}
-        {(bill.status1 || bill.paidVia) && (
-          <div className="flex flex-wrap gap-1.5 mb-2">
-            {bill.status1 && (
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
-                isLight
-                  ? "bg-slate-100 border-slate-200 text-slate-600"
-                  : "bg-[#222] border-[#333] text-[#aaa]"
-              }`}>
-                <span className={`text-[9px] font-bold uppercase tracking-wider ${isLight ? "text-slate-400" : "text-[#666]"}`}>Status</span>
-                {bill.status1}
-              </span>
+        {hasAnyNote ? (
+          <div className="flex flex-col gap-1.5">
+            {remarksText && (
+              <div>
+                <span className={`text-[9px] font-bold uppercase tracking-wider block mb-0.5 ${isLight ? "text-slate-400" : "text-[#666]"}`}>Remarks</span>
+                <p className={`text-[11px] leading-relaxed whitespace-pre-wrap ${isLight ? "text-slate-600" : "text-[#bbb]"}`}>{remarksText}</p>
+              </div>
             )}
-            {bill.paidVia && (
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
-                isLight
-                  ? "bg-slate-100 border-slate-200 text-slate-600"
-                  : "bg-[#222] border-[#333] text-[#aaa]"
-              }`}>
-                <span className={`text-[9px] font-bold uppercase tracking-wider ${isLight ? "text-slate-400" : "text-[#666]"}`}>Paid via</span>
-                {bill.paidVia}
-              </span>
+            {payInstText && (
+              <div>
+                <span className={`text-[9px] font-bold uppercase tracking-wider block mb-0.5 ${isLight ? "text-slate-400" : "text-[#666]"}`}>Payment Instructions</span>
+                {payInstText.startsWith("http") ? (
+                  <a href={payInstText} target="_blank" rel="noreferrer"
+                    className="flex items-center gap-1 text-[11px] font-medium truncate hover:underline"
+                    style={{ color: accentColor }}>
+                    <ExternalLink className="w-3 h-3 shrink-0" />
+                    <span className="truncate">{payInstText}</span>
+                  </a>
+                ) : (
+                  <p className={`text-[11px] leading-relaxed whitespace-pre-wrap ${isLight ? "text-slate-600" : "text-[#bbb]"}`}>{payInstText}</p>
+                )}
+              </div>
+            )}
+            {status1Text && (
+              <div>
+                <span className={`text-[9px] font-bold uppercase tracking-wider block mb-0.5 ${isLight ? "text-slate-400" : "text-[#666]"}`}>Status 1</span>
+                <p className={`text-[11px] leading-relaxed whitespace-pre-wrap ${isLight ? "text-slate-600" : "text-[#bbb]"}`}>{status1Text}</p>
+              </div>
+            )}
+            {paidViaText && (
+              <div>
+                <span className={`text-[9px] font-bold uppercase tracking-wider block mb-0.5 ${isLight ? "text-slate-400" : "text-[#666]"}`}>Paid Via</span>
+                <p className={`text-[11px] leading-relaxed whitespace-pre-wrap ${isLight ? "text-slate-600" : "text-[#bbb]"}`}>{paidViaText}</p>
+              </div>
             )}
           </div>
-        )}
-        {isLink ? (
-          <a
-            href={remarks}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-1 text-[11px] font-medium truncate hover:underline"
-            style={{ color: accentColor }}
-          >
-            <ExternalLink className="w-3 h-3 shrink-0" />
-            <span className="truncate">{remarks}</span>
-          </a>
         ) : (
-          <p className={`text-[11px] leading-relaxed whitespace-pre-wrap ${
-            remarks
-              ? isLight ? "text-slate-600" : "text-[#bbb]"
-              : isLight ? "text-slate-400 italic" : "text-[#555] italic"
-          }`}>
-            {remarks || "No remarks"}
-          </p>
+          <p className={`text-[11px] italic ${isLight ? "text-slate-400" : "text-[#555]"}`}>No remarks</p>
         )}
       </div>
 
