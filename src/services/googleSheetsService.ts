@@ -468,10 +468,21 @@ export const parseAPSheetRows = (
     const paytypeRaw = String(row[17] || row[19] || "").trim().toLowerCase();
     const paymentType: "Auto-Debit" | "Manual" = paytypeRaw.includes("auto") ? "Auto-Debit" : "Manual";
 
-    // Paid date — Layout A col 11, Layout B col 10
+    // Paid date — Layout A col 11 (Status 1 / col L shared), Layout B col 10
     const paidDate = status === "paid"
       ? (parseDateVal(row[11]) || parseDateVal(row[10]) || undefined)
       : undefined;
+
+    // Status 1 (col L = index 11 for Layout A; col R = index 17 for TI)
+    // Col L doubles as paidDate when paid — only read as status1 note when NOT a parseable date
+    const isTITab = entity === "TI";
+    const status1Raw = isTITab ? String(row[17] || "").trim() : String(row[11] || "").trim();
+    const status1 = status1Raw && !parseDateVal(status1Raw) ? status1Raw : undefined;
+
+    // Payment Instructions (col O = index 14 for Layout A; col Q = index 16 for TI)
+    const paymentInstructions = isTITab
+      ? String(row[16] || "").trim() || undefined
+      : String(row[14] || "").trim() || undefined;
 
     // col F (5) = category for Layout A (Ruby's/MSDx); col H (7) = invoice date for all layouts
     const categoryVal = String(row[5] || "").trim();
@@ -494,6 +505,8 @@ export const parseAPSheetRows = (
       row: startIdx + idx + 1,
       invoiceNo,
       remarks,
+      status1: status1 || undefined,
+      paymentInstructions: paymentInstructions || undefined,
       category: categoryVal || undefined,
       invoiceDate: invoiceDateVal || undefined,
     });
@@ -1038,10 +1051,11 @@ export const buildAPBillRow = (b: APBill, entity: string): any[] => {
     const rem = (b.remarks || b.notes || "").replace(/^\[[^\]]+\]\s*/, "").trim();
     if (rem) row[map.remarksCol] = rem;
   } else {
-    // Layout A (Ruby's/MSDx): paymentInstructions → col K (remarksCol=10); status1 → col M (status1Col)
+    // Layout A (Ruby's/MSDx): paymentInstructions → col K (remarksCol=10); status1 → col L (status1Col=11)
     const instr = (b.paymentInstructions || b.remarks || b.notes || "").replace(/^\[[^\]]+\]\s*/, "").trim();
     if (instr) row[map.remarksCol] = instr;
-    if (b.status1) row[map.status1Col] = b.status1;
+    // status1Col shares col L with paidDate — only write status1 when the bill is not paid
+    if (b.status1 && b.status !== "paid") row[map.status1Col] = b.status1;
   }
   return row;
 };
