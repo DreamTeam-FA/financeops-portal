@@ -417,24 +417,23 @@ export const parseAPSheetRows = (
     const companyVal = String(row[4] || "").trim();
     const company = companyVal || (tabNameSource && tabNameSource.includes("TI") ? "TI" : undefined);
 
-    // Extract remarks/notes — only human-written text, no URLs or status metadata
-    let remarks = "";
+    // Extract notes — route to the correct field per entity layout:
+    //   Ruby's/MSDx: col K (remarksCol=10) = Payment Instructions; TI: col O (remarksCol=14) = Remarks
     const isUrl = (v: string) => /^https?:\/\//i.test(v) || /^mailto:/i.test(v);
     const isMetadata = (v: string) => {
       const lc = v.toLowerCase();
       return ["true", "false", "check", "online", "paid", "unpaid", "hold", "qbo",
         "recurring", "non-recurring", "manual", "auto-debit", "fixed", "estimate"].includes(lc);
     };
+    let remarks = "";
+    let payInstParsed = "";
     if (remarksCol !== -1 && row[remarksCol]) {
       const raw = String(row[remarksCol]).trim();
-      if (!isUrl(raw) && !isMetadata(raw)) remarks = raw;
-    }
-    if (!remarks) {
-      // Collect only human-readable non-URL text from supplementary columns
-      const remarksParts = [row[14], row[15], row[16], row[17]]
-        .map((v) => String(v || "").trim())
-        .filter((v) => v && v.length > 2 && !isUrl(v) && !isMetadata(v));
-      remarks = remarksParts.join(" | ");
+      if (!isUrl(raw) && !isMetadata(raw)) {
+        // TI col O → remarks; Ruby's/MSDx col K → paymentInstructions
+        if (entity === "TI") remarks = raw;
+        else payInstParsed = raw;
+      }
     }
 
     // Clean up vendor string
@@ -481,10 +480,8 @@ export const parseAPSheetRows = (
     const status1Raw = isTITab ? String(row[17] || "").trim() : String(row[11] || "").trim();
     const status1 = status1Raw && !parseDateVal(status1Raw) ? status1Raw : undefined;
 
-    // Payment Instructions (col O = index 14 for Layout A; col Q = index 16 for TI)
-    const paymentInstructions = isTITab
-      ? String(row[16] || "").trim() || undefined
-      : String(row[14] || "").trim() || undefined;
+    // paymentInstructions: Ruby's/MSDx col K (already in payInstParsed); not used for TI
+    const paymentInstructions = !isTITab ? (payInstParsed || undefined) : undefined;
 
     // col F (5) = category for Layout A (Ruby's/MSDx); col H (7) = invoice date for all layouts
     const categoryVal = String(row[5] || "").trim();
@@ -506,7 +503,7 @@ export const parseAPSheetRows = (
       sheet: tabNameSource || `${entity} Bills`,
       row: startIdx + idx + 1,
       invoiceNo,
-      remarks,
+      remarks: remarks || undefined,
       status1: status1 || undefined,
       paidVia: paidVia || undefined,
       paymentInstructions: paymentInstructions || undefined,
