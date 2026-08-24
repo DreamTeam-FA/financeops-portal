@@ -18,6 +18,7 @@ import {
   Landmark,
   LayoutDashboard,
   CreditCard,
+  Banknote,
   TrendingDown,
   Receipt,
   FileText,
@@ -122,7 +123,7 @@ export const Sidebar: React.FC = () => {
 
   const navItems: { id: PageRoute; label: string; icon: React.ReactNode }[] = [
     { id: "hub", label: "Finance Overview", icon: <LayoutDashboard className="w-4 h-4" /> },
-    { id: "ap", label: "Accounts Payables", icon: <CreditCard className="w-4 h-4" /> },
+    { id: "ap", label: "Accounts Payables", icon: <Banknote className="w-4 h-4" /> },
     { id: "ar", label: "Accounts Receivables", icon: <Receipt className="w-4 h-4" /> },
     { id: "banks", label: "Bank Balances", icon: <Landmark className="w-4 h-4" /> },
     { id: "loans", label: "Loans & CC Dues", icon: <TrendingDown className="w-4 h-4" /> },
