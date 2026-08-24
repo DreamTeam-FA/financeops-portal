@@ -1304,6 +1304,67 @@ app.post("/api/cc-expense/upload", async (req, res) => {
   }
 });
 
+// ── AR: Scan invoice via Claude vision ───────────────────────────────────────────
+app.post("/api/ar/scan-invoice", async (req, res) => {
+  const { fileBase64, fileName, mimeType } = req.body || {};
+  if (!fileBase64) return res.status(400).json({ ok: false, error: "No file provided" });
+  try {
+    const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+    if (!ANTHROPIC_API_KEY) return res.status(500).json({ ok: false, error: "ANTHROPIC_API_KEY not set" });
+
+    const isImage = (mimeType || "").startsWith("image/");
+    const mediaType = isImage ? (mimeType || "image/jpeg") : "application/pdf";
+
+    const messages: any[] = [
+      {
+        role: "user",
+        content: [
+          {
+            type: isImage ? "image" : "document",
+            source: { type: "base64", media_type: mediaType, data: fileBase64 },
+          },
+          {
+            type: "text",
+            text: `Extract invoice/receivable information from this document. Return ONLY valid JSON with these fields (leave blank string if not found):
+{
+  "customer": "company or person being invoiced",
+  "amount": "numeric amount as string e.g. 1500.00",
+  "dueDate": "due date in YYYY-MM-DD format",
+  "description": "brief description of goods/services",
+  "entity": "billing entity if identifiable (e.g. Ruby's, TI, MSDx)"
+}
+Return ONLY the JSON object, no other text.`,
+          },
+        ],
+      },
+    ];
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+        "anthropic-beta": "pdfs-2024-09-25",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 512,
+        messages,
+      }),
+    });
+
+    const data: any = await response.json();
+    if (!response.ok) throw new Error(data?.error?.message || `Claude API error ${response.status}`);
+    const text = data.content?.[0]?.text || "{}";
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
+    res.json({ ok: true, parsed });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
 // ── CC Adjustments: read adjustments from "CC Adjustments" tab ──────────────────
 // Row format: [weekStart, vendor, company, delta]
 app.post("/api/cc-expense/adjustments/pull", async (req, res) => {

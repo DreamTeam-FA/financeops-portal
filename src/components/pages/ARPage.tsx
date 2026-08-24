@@ -1,8 +1,8 @@
-﻿import React, { useState, useMemo, useEffect } from "react";
+﻿import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { ARItem, EntityName } from "../../types";
-import { Receipt, CheckSquare, Square, Edit3, AlertTriangle, Plus, X, Pencil, Trash2, FileText, ChevronRight, Download } from "lucide-react";
+import { Receipt, CheckSquare, Square, Edit3, AlertTriangle, Plus, X, Pencil, Trash2, FileText, ChevronRight, Download, ScanLine, Upload, Loader2, Save } from "lucide-react";
 import { Tooltip } from "../Tooltip";
 import { exportARItemsCSV } from "../../utils/exportUtils";
 import { formatCurrency, formatTimestampLocal } from "../../utils/formatters";
@@ -18,6 +18,7 @@ export const ARPage: React.FC = () => {
     deleteARItem,
     theme,
     showConfirm,
+    showToast,
     searchHighlightId,
     setSearchHighlightId,
   } = useFinance() as any;
@@ -44,6 +45,15 @@ export const ARPage: React.FC = () => {
   const [editingAR, setEditingAR] = useState<ARItem | null>(null);
   const [showOverdueModal, setShowOverdueModal] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+
+  // Scan invoice modal
+  const [showScanModal, setShowScanModal] = useState(false);
+  const [scanFile, setScanFile] = useState<File | null>(null);
+  const [scanPreviewUrl, setScanPreviewUrl] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [scannedData, setScannedData] = useState<Partial<{ customer: string; amount: string; dueDate: string; description: string; entity: string }> | null>(null);
+  const [autoSaveEnabled, setAutoSaveEnabledLocal] = useState(false); // destinations TBD
+  const scanFileRef = useRef<HTMLInputElement>(null);
 
   // New AR Item Form
   const [customer, setCustomer] = useState("");
@@ -171,6 +181,56 @@ export const ARPage: React.FC = () => {
     return { text: `In ${diffDays}d`, class: "text-emerald-600 dark:text-[#4ade80]" };
   };
 
+  // ── Scan invoice handlers ────────────────────────────────────────────────────
+  const handleScanFileSelect = (file: File) => {
+    setScanFile(file);
+    setScanPreviewUrl(URL.createObjectURL(file));
+    setScannedData(null);
+  };
+
+  const handleScanSubmit = async () => {
+    if (!scanFile) return;
+    setScanning(true);
+    try {
+      const buf = await scanFile.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+      const resp = await fetch("/api/ar/scan-invoice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileBase64: base64, fileName: scanFile.name, mimeType: scanFile.type }),
+      });
+      const data = await resp.json();
+      if (!data.ok) throw new Error(data.error || "Scan failed");
+      setScannedData(data.parsed || {});
+    } catch (e: any) {
+      (showToast as any)?.(`Scan failed: ${e?.message}`, "error");
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const handleScanUseData = () => {
+    if (!scannedData) return;
+    if (scannedData.customer) setCustomer(scannedData.customer);
+    if (scannedData.amount) setAmount(scannedData.amount);
+    if (scannedData.dueDate) setDueDate(scannedData.dueDate);
+    if (scannedData.description) setDescription(scannedData.description);
+    if (scannedData.entity) setEntity(scannedData.entity as EntityName);
+    setShowScanModal(false);
+    setScanFile(null);
+    setScanPreviewUrl(null);
+    setScannedData(null);
+    setIsAddOpen(true);
+  };
+
+  const closeScanModal = () => {
+    setShowScanModal(false);
+    setScanFile(null);
+    if (scanPreviewUrl) URL.revokeObjectURL(scanPreviewUrl);
+    setScanPreviewUrl(null);
+    setScannedData(null);
+  };
+
   return (
     <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#070b12] text-[#e8e8e8]"}`}>
       <PageHeader
@@ -179,9 +239,14 @@ export const ARPage: React.FC = () => {
         moduleId="ar"
         showEntityPills={true}
         extraButtons={
-          <button onClick={() => exportARItemsCSV(arItems)} className="btn-3d btn-3d-ghost font-semibold" title="Export to CSV">
-            <Download className="w-3.5 h-3.5" /><span className="hidden sm:inline">CSV</span>
-          </button>
+          <>
+            <button onClick={() => setShowScanModal(true)} className="btn-3d btn-3d-ghost font-semibold" title="Scan Invoice">
+              <ScanLine className="w-3.5 h-3.5" /><span className="hidden sm:inline">Scan</span>
+            </button>
+            <button onClick={() => exportARItemsCSV(arItems)} className="btn-3d btn-3d-ghost font-semibold" title="Export to CSV">
+              <Download className="w-3.5 h-3.5" /><span className="hidden sm:inline">CSV</span>
+            </button>
+          </>
         }
         onAddClick={() => setShowTemplatePicker(true)}
         addLabel="Add Receivable"
@@ -396,6 +461,107 @@ export const ARPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* ── Scan Invoice Modal ── */}
+      {showScanModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className={`w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden border ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#2a2a2a]"}`}>
+            <div className="h-1.5 bg-[#16a34a]" />
+            <div className={`flex items-center justify-between px-5 py-4 border-b ${isLight ? "border-slate-100" : "border-[#222]"}`}>
+              <div className="flex items-center gap-2">
+                <ScanLine className="w-4 h-4 text-[#16a34a]" />
+                <h3 className={`text-sm font-black ${isLight ? "text-slate-900" : "text-white"}`}>Scan Invoice</h3>
+              </div>
+              <button onClick={closeScanModal} className={`p-1 rounded ${isLight ? "hover:bg-slate-100" : "hover:bg-[#1a2235]"}`}>
+                <X className="w-4 h-4 text-slate-400" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              {/* Drop zone */}
+              {!scanFile ? (
+                <div
+                  className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
+                    isLight ? "border-slate-300 hover:border-[#16a34a] hover:bg-green-50/40" : "border-[#2a3550] hover:border-[#16a34a]/60 hover:bg-green-900/10"
+                  }`}
+                  onClick={() => scanFileRef.current?.click()}
+                  onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleScanFileSelect(f); }}
+                  onDragOver={e => e.preventDefault()}
+                >
+                  <Upload className={`w-8 h-8 mx-auto mb-2 ${isLight ? "text-slate-300" : "text-slate-600"}`} />
+                  <p className={`text-[13px] font-medium ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                    Drop invoice image or PDF here
+                  </p>
+                  <p className={`text-[11px] mt-1 ${isLight ? "text-slate-400" : "text-slate-500"}`}>
+                    PNG, JPG, PDF — click to browse
+                  </p>
+                  <input ref={scanFileRef} type="file" accept="image/*,.pdf" className="hidden"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleScanFileSelect(f); e.target.value = ""; }} />
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {/* File preview */}
+                  <div className={`rounded-lg border p-3 flex items-center gap-3 ${isLight ? "border-slate-200 bg-slate-50" : "border-[#1a2235] bg-[#111318]"}`}>
+                    <FileText className="w-5 h-5 text-[#16a34a] shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-[12px] font-medium truncate ${isLight ? "text-slate-700" : "text-slate-200"}`}>{scanFile.name}</p>
+                      <p className={`text-[11px] ${isLight ? "text-slate-400" : "text-slate-500"}`}>{(scanFile.size / 1024).toFixed(1)} KB</p>
+                    </div>
+                    <button onClick={() => { setScanFile(null); setScanPreviewUrl(null); setScannedData(null); }}
+                      className="p-1 rounded hover:bg-red-500/10 text-slate-400 hover:text-red-500">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  {/* Image preview */}
+                  {scanPreviewUrl && scanFile.type.startsWith("image/") && (
+                    <img src={scanPreviewUrl} alt="Invoice preview" className="max-h-48 rounded-lg object-contain mx-auto border border-slate-200 dark:border-[#1a2235]" />
+                  )}
+                  {/* Scanned result */}
+                  {scannedData && (
+                    <div className={`rounded-lg border p-3 space-y-1.5 ${isLight ? "border-green-200 bg-green-50" : "border-green-800/40 bg-green-900/10"}`}>
+                      <p className={`text-[11px] font-bold uppercase tracking-wide mb-2 ${isLight ? "text-green-700" : "text-green-400"}`}>Extracted Data</p>
+                      {[
+                        ["Customer", scannedData.customer],
+                        ["Amount", scannedData.amount],
+                        ["Due Date", scannedData.dueDate],
+                        ["Description", scannedData.description],
+                        ["Entity", scannedData.entity],
+                      ].filter(([, v]) => v).map(([k, v]) => (
+                        <div key={k} className="flex gap-2 text-[12px]">
+                          <span className={`font-medium w-24 shrink-0 ${isLight ? "text-slate-500" : "text-slate-400"}`}>{k}:</span>
+                          <span className={isLight ? "text-slate-800" : "text-white"}>{v}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* Auto-save notice */}
+              <div className={`flex items-center gap-2 text-[11px] rounded-lg px-3 py-2 ${isLight ? "bg-amber-50 border border-amber-200 text-amber-700" : "bg-amber-900/15 border border-amber-700/30 text-amber-400"}`}>
+                <Save className="w-3.5 h-3.5 shrink-0" />
+                Auto-save destinations not yet configured — will fill in add form for manual save.
+              </div>
+            </div>
+            <div className={`flex items-center justify-end gap-2 px-5 py-3 border-t ${isLight ? "border-slate-100" : "border-[#222]"}`}>
+              <button onClick={closeScanModal} className={`px-4 py-1.5 rounded-lg text-[12px] font-semibold ${isLight ? "bg-slate-100 text-slate-700 hover:bg-slate-200" : "bg-[#1a2235] text-slate-300 hover:bg-[#1e2a40]"}`}>
+                Cancel
+              </button>
+              {scanFile && !scannedData && (
+                <button onClick={handleScanSubmit} disabled={scanning}
+                  className="px-4 py-1.5 rounded-lg text-[12px] font-semibold bg-[#16a34a] text-white hover:bg-[#15803d] flex items-center gap-1.5 disabled:opacity-50">
+                  {scanning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ScanLine className="w-3.5 h-3.5" />}
+                  {scanning ? "Scanning…" : "Scan Invoice"}
+                </button>
+              )}
+              {scannedData && (
+                <button onClick={handleScanUseData}
+                  className="px-4 py-1.5 rounded-lg text-[12px] font-semibold bg-[#16a34a] text-white hover:bg-[#15803d] flex items-center gap-1.5">
+                  <Plus className="w-3.5 h-3.5" /> Use This Data
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Template Picker Modal */}
       {showTemplatePicker && (

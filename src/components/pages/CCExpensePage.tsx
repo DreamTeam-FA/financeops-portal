@@ -167,19 +167,23 @@ function groupIntoWeeks(rawRows: RawRow[]): WeekEntry[] {
   return entries;
 }
 
-// Only include genuine CC charges/credits — exclude checks, bills, journal entries, etc.
+// Approved CC accounts — only these cards are tracked in this dashboard.
+// Matched against the Account field by last-4 digits or card name.
+const CC_ACCOUNT_PATTERNS = [
+  /x5074/i,            // Chase Visa SW
+  /x5004/i,            // AMEX
+  /x6002/i,            // AMEX
+  /x3002/i,            // AMEX
+  /x2004/i,            // Marriott AMEX
+  /x4024/i,            // Chase Visa Citi Costco
+  /x3678/i,            // AAdvantage Aviator MC Barclay
+  /x4418/i,            // Citi/AAdvantage
+  /x5082/i,            // Chase Visa SW Ann
+];
+
 function isCCRow(row: RawRow): boolean {
-  const type = row.transactionType.toLowerCase();
-  const acct = row.account.toLowerCase();
-  // Include if transaction type mentions "credit card" or "cc charge/credit"
-  if (/credit\s*card|cc\s*(charge|credit|exp)/i.test(row.transactionType)) return true;
-  // Include if account name contains common CC identifiers
-  if (/credit\s*card|amex|visa|mastercard|discover|diners|cc\s/i.test(row.account)) return true;
-  // Exclude known non-CC types explicitly
-  if (/^(check|bill payment|bill|journal entry|transfer|deposit|withdrawal|paycheck|payroll|expense|invoice)/i.test(row.transactionType)) return false;
-  // If type is blank or unknown but account looks like a CC, include it
-  if (!type || type === "general journal") return false;
-  return true; // default include for unrecognised types (user can see in Raw tab)
+  // Must match one of the approved card accounts
+  return CC_ACCOUNT_PATTERNS.some(p => p.test(row.account));
 }
 
 function buildWeekTable(rows: RawRow[], vendorMap: Record<string, string>): VendorWeekRow[] {

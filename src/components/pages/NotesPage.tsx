@@ -16,6 +16,7 @@ import {
   Clock,
   ChevronDown,
   ChevronRight,
+  X,
 } from "lucide-react";
 
 export const getEntityBadgeColor = (entityStr?: string) => {
@@ -522,8 +523,8 @@ export const NotesPage: React.FC = () => {
                 <StickyNote className="w-4 h-4" />
                 {editingNote ? "Edit Quick Note" : "Create New Quick Note"}
               </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-xs text-slate-400 hover:text-white">
-                Cancel
+              <button onClick={() => setIsModalOpen(false)} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-[#1e2235] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                <X className="w-4 h-4" />
               </button>
             </div>
 
