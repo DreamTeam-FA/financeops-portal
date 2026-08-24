@@ -1,6 +1,7 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
+import * as XLSX from "xlsx";
 import { createServer as createViteServer } from "vite";
 import { fetchFullLiveDataset } from "./src/services/liveSheetsFetcher";
 import {
@@ -1209,6 +1210,95 @@ app.post("/api/4yr/start-new-week", async (req, res) => {
   try {
     const result = await startNewWeek(token);
     res.json(result);
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+// ────────────────────────────────────────────────────────────
+// CC EXPENSES ROUTES
+// Spreadsheet: 1gKCKrWw8mkqJDiRl_9xYIhkzmtjOEoauQZgbtW9gIew
+// ────────────────────────────────────────────────────────────
+const CC_SHEET_ID = "1gKCKrWw8mkqJDiRl_9xYIhkzmtjOEoauQZgbtW9gIew";
+
+// Parse CSV or XLSX file sent as base64, return rows
+app.post("/api/cc-expense/parse", async (req, res) => {
+  const { fileBase64, fileName } = req.body || {};
+  if (!fileBase64 || !fileName) return res.status(400).json({ error: "Missing fileBase64 or fileName" });
+  try {
+    const buf = Buffer.from(fileBase64, "base64");
+    const wb = XLSX.read(buf, { type: "buffer", raw: false });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "", raw: false });
+    res.json({ ok: true, rows, sheetName: wb.SheetNames[0] });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+// Pull all data from the CC expense Google Sheet
+app.post("/api/cc-expense/pull", async (req, res) => {
+  const { accessToken } = req.body || {};
+  if (!accessToken) return res.status(401).json({ error: "Missing access token" });
+  const base = "https://sheets.googleapis.com/v4/spreadsheets";
+  const headers = { Authorization: `Bearer ${accessToken}` };
+  try {
+    const ranges = [
+      "'Raw Data'!A:K",
+      "'_Vendor Map'!A:B",
+      "'Weekly Summary'!A:Z",
+      "'YTD Summary'!A:Z",
+    ];
+    const query = ranges.map(r => `ranges=${encodeURIComponent(r)}`).join("&");
+    const resp = await fetch(
+      `${base}/${CC_SHEET_ID}/values:batchGet?${query}&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING`,
+      { headers }
+    );
+    if (!resp.ok) {
+      const err = await resp.text();
+      return res.status(resp.status).json({ ok: false, error: err });
+    }
+    const data: any = await resp.json();
+    const [rawDataRange, vendorMapRange, weeklySummaryRange, ytdSummaryRange] = (data.valueRanges || []);
+    const rawRows: any[][] = rawDataRange?.values || [];
+    const vendorMapRows: any[][] = vendorMapRange?.values || [];
+    const weeklySummaryRows: any[][] = weeklySummaryRange?.values || [];
+    const ytdSummaryRows: any[][] = ytdSummaryRange?.values || [];
+    res.json({ ok: true, rawRows, vendorMapRows, weeklySummaryRows, ytdSummaryRows });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+// Upload rows to Raw Data tab of CC expense sheet (replaces existing data starting at row 3)
+app.post("/api/cc-expense/upload", async (req, res) => {
+  const { accessToken, rows } = req.body || {};
+  if (!accessToken) return res.status(401).json({ error: "Missing access token" });
+  if (!Array.isArray(rows)) return res.status(400).json({ error: "rows must be an array" });
+  const base = "https://sheets.googleapis.com/v4/spreadsheets";
+  const headers = { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
+  try {
+    // First clear existing raw data rows (row 3 onwards)
+    await fetch(
+      `${base}/${CC_SHEET_ID}/values/'Raw Data'!A3:K?valueRenderOption=UNFORMATTED_VALUE`,
+      { method: "DELETE", headers }
+    );
+    if (!rows.length) return res.json({ ok: true, updated: 0 });
+    const body = JSON.stringify({
+      range: "'Raw Data'!A3",
+      majorDimension: "ROWS",
+      values: rows,
+    });
+    const writeResp = await fetch(
+      `${base}/${CC_SHEET_ID}/values/'Raw Data'!A3?valueInputOption=USER_ENTERED`,
+      { method: "PUT", headers, body }
+    );
+    if (!writeResp.ok) {
+      const err = await writeResp.text();
+      return res.status(writeResp.status).json({ ok: false, error: err });
+    }
+    const result: any = await writeResp.json();
+    res.json({ ok: true, updated: result.updatedRows || rows.length });
   } catch (e: any) {
     res.status(500).json({ ok: false, error: e?.message || String(e) });
   }

@@ -262,4 +262,5 @@ export type PageRoute =
   | "service-limits"
   | "help"
   | "receipt-renamer"
-  | "bank-statement";
+  | "bank-statement"
+  | "cc-expenses";
