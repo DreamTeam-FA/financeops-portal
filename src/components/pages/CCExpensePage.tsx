@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   Upload, RefreshCw, ChevronDown, Eye, EyeOff, AlertCircle,
-  CheckCircle2, X, FileText, UploadCloud, CreditCard
+  CheckCircle2, X, FileText, UploadCloud, CreditCard, Search
 } from "lucide-react";
 import { useFinance } from "../../context/FinanceContext";
 import { getAccessToken } from "../../services/googleAuth";
@@ -228,6 +228,10 @@ export const CCExpensePage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [hideZero, setHideZero] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Vendor breakdown modal (Weekly tab)
+  const [vendorModal, setVendorModal] = useState<{ vendor: string; rows: RawRow[] } | null>(null);
 
   // Upload state
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -367,9 +371,20 @@ export const CCExpensePage: React.FC = () => {
   });
   const displayCompanies = hideZero ? activeCompanies : [...COMPANIES];
 
-  const displayTable = (activeTab === "weekly" ? weekTable : ytdTable).filter(r =>
-    !hideZero || displayCompanies.some(co => (r.byCompany[co] || 0) !== 0) || r.grandTotal !== 0
-  );
+  const sq = searchQuery.trim().toLowerCase();
+
+  const displayTable = (activeTab === "weekly" ? weekTable : ytdTable).filter(r => {
+    const matchesZero = !hideZero || displayCompanies.some(co => (r.byCompany[co] || 0) !== 0) || r.grandTotal !== 0;
+    const matchesSearch = !sq || r.vendor.toLowerCase().includes(sq);
+    return matchesZero && matchesSearch;
+  });
+
+  const filteredRawRows = !sq
+    ? rawRows
+    : rawRows.filter(r =>
+        [r.name, r.category, r.transactionType, r.description, r.account, r.classCompany, r.location, r.transactionDate]
+          .some(v => v.toLowerCase().includes(sq))
+      );
 
   const columnTotals: Record<string, number> = {};
   for (const co of displayCompanies) {
@@ -530,6 +545,26 @@ export const CCExpensePage: React.FC = () => {
           ))}
         </div>
         <div className="flex items-center gap-3 pb-2">
+          {/* Search — visible on all tabs */}
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search…"
+              className={`pl-8 pr-3 py-1.5 text-[12px] rounded border w-44 outline-none ${
+                isLight
+                  ? "bg-white border-slate-300 text-slate-700 placeholder-slate-400 focus:border-[#1a73e8]"
+                  : "bg-[#111318] border-[#2a3550] text-slate-200 placeholder-slate-500 focus:border-[#4f9cf9]/60"
+              }`}
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200">
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
           {activeTab === "weekly" && (
             <div className="relative">
               <select
@@ -591,6 +626,83 @@ export const CCExpensePage: React.FC = () => {
         </div>
       )}
 
+      {/* ── Vendor Breakdown Modal ── */}
+      {vendorModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.65)" }}>
+          <div className={`w-full max-w-3xl max-h-[80vh] flex flex-col rounded-xl shadow-2xl border ${
+            isLight ? "bg-white border-slate-200" : "bg-[#111318] border-[#1e2535]"
+          }`}>
+            {/* Modal header */}
+            <div className={`flex items-center justify-between px-5 py-3.5 border-b ${isLight ? "border-slate-200" : "border-[#1e2535]"}`}>
+              <div>
+                <h2 className={`text-[15px] font-semibold ${isLight ? "text-slate-800" : "text-white"}`}>
+                  {vendorModal.vendor}
+                </h2>
+                <p className={`text-[12px] mt-0.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                  {currentWeek?.weekLabel} · {vendorModal.rows.length} transaction{vendorModal.rows.length !== 1 ? "s" : ""} ·{" "}
+                  <span className="font-semibold">
+                    {fmtMoneyRaw(vendorModal.rows.reduce((s, r) => s + r.amount, 0))}
+                  </span>
+                </p>
+              </div>
+              <button
+                onClick={() => setVendorModal(null)}
+                className={`p-1.5 rounded-lg transition-colors ${isLight ? "hover:bg-slate-100 text-slate-500" : "hover:bg-[#1e2535] text-slate-400"}`}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            {/* Modal table */}
+            <div className="flex-1 overflow-auto">
+              <table className="w-full text-[12px] border-collapse">
+                <thead className={`sticky top-0 ${isLight ? "bg-slate-50 border-b border-slate-200" : "bg-[#0d1117] border-b border-[#1e2535]"}`}>
+                  <tr>
+                    {["Date", "Name", "Description", "Account / Card", "Company", "Amount"].map(h => (
+                      <th key={h} className={`px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap ${isLight ? "text-slate-500" : "text-slate-400"} ${h === "Amount" ? "text-right" : ""}`}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {vendorModal.rows
+                    .slice()
+                    .sort((a, b) => {
+                      const da = parseDate(a.transactionDate)?.getTime() || 0;
+                      const db = parseDate(b.transactionDate)?.getTime() || 0;
+                      return da - db;
+                    })
+                    .map((r, i) => (
+                      <tr key={i} className={`border-t ${isLight ? "border-slate-100 hover:bg-slate-50" : "border-[#1a2030] hover:bg-white/[0.03]"}`}>
+                        <td className="px-3 py-2 whitespace-nowrap">{r.transactionDate}</td>
+                        <td className="px-3 py-2 whitespace-nowrap font-medium">{r.name}</td>
+                        <td className={`px-3 py-2 max-w-[220px] truncate ${isLight ? "text-slate-600" : "text-slate-400"}`} title={r.description}>{r.description || "—"}</td>
+                        <td className={`px-3 py-2 whitespace-nowrap ${isLight ? "text-slate-600" : "text-slate-400"}`}>{r.account || "—"}</td>
+                        <td className={`px-3 py-2 whitespace-nowrap ${isLight ? "text-slate-600" : "text-slate-400"}`}>{r.classCompany || "—"}</td>
+                        <td className={`px-3 py-2 text-right tabular-nums font-semibold whitespace-nowrap ${r.amount < 0 ? "text-red-500" : isLight ? "text-slate-800" : "text-white"}`}>
+                          {fmtMoneyRaw(r.amount)}
+                        </td>
+                      </tr>
+                    ))
+                  }
+                </tbody>
+                {/* Footer total */}
+                <tfoot className={`sticky bottom-0 border-t-2 ${isLight ? "bg-slate-50 border-slate-300" : "bg-[#0d1117] border-[#2a3550]"}`}>
+                  <tr>
+                    <td colSpan={5} className={`px-3 py-2 text-[11px] font-bold uppercase tracking-wide ${isLight ? "text-slate-600" : "text-slate-300"}`}>
+                      Total
+                    </td>
+                    <td className={`px-3 py-2 text-right tabular-nums font-bold text-[13px] ${isLight ? "text-slate-800" : "text-white"}`}>
+                      {fmtMoneyRaw(vendorModal.rows.reduce((s, r) => s + r.amount, 0))}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Main table area ── */}
       <div className="flex-1 overflow-auto">
         {rawRows.length === 0 && !loading ? (
@@ -615,7 +727,7 @@ export const CCExpensePage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {rawRows.map((row, ri) => (
+                {filteredRawRows.map((row, ri) => (
                   <tr key={ri} className={`border-t ${isLight ? "border-slate-100" : "border-[#1a2030]"} ${rowHoverCls}`}>
                     <td className="px-3 py-1.5 whitespace-nowrap">{row.category}</td>
                     <td className="px-3 py-1.5 whitespace-nowrap">{row.transactionDate}</td>
@@ -692,7 +804,25 @@ export const CCExpensePage: React.FC = () => {
                           ? isLight ? "bg-pink-50 text-pink-900" : "bg-pink-950/20 text-pink-200"
                           : isLight ? "bg-white text-slate-800" : "bg-[#0a0c10] text-slate-200"
                       }`}>
-                        {row.vendor}
+                        {activeTab === "weekly" ? (
+                          <button
+                            onClick={() => {
+                              const vendorRows = (currentWeek?.rows || []).filter(r =>
+                                (vendorMap[r.name] || r.name) === row.vendor
+                              );
+                              setVendorModal({ vendor: row.vendor, rows: vendorRows });
+                            }}
+                            className={`text-left underline decoration-dotted underline-offset-2 hover:no-underline transition-colors ${
+                              isHighlighted
+                                ? isLight ? "text-pink-700 hover:text-pink-900" : "text-pink-300 hover:text-pink-100"
+                                : isLight ? "text-[#1a73e8] hover:text-[#1557b0]" : "text-[#4f9cf9] hover:text-white"
+                            }`}
+                          >
+                            {row.vendor}
+                          </button>
+                        ) : (
+                          row.vendor
+                        )}
                       </td>
                       {activeTab === "weekly" && (
                         <td className="px-2 py-1">
