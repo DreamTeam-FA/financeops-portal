@@ -210,6 +210,20 @@ export const CCExpensePage: React.FC = () => {
   const [selectedWeek, setSelectedWeek] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"weekly" | "ytd" | "raw">("weekly");
 
+  // Remarks: keyed by `${weekStart}||${vendor}`, persisted in localStorage
+  const [remarks, setRemarks] = useState<Record<string, string>>(() => {
+    try { return JSON.parse(localStorage.getItem("cc_expense_remarks") || "{}"); } catch { return {}; }
+  });
+
+  const remarkKey = (weekStart: string, vendor: string) => `${weekStart}||${vendor}`;
+
+  const setRemark = (weekStart: string, vendor: string, text: string) => {
+    const key = remarkKey(weekStart, vendor);
+    const updated = { ...remarks, [key]: text };
+    setRemarks(updated);
+    localStorage.setItem("cc_expense_remarks", JSON.stringify(updated));
+  };
+
   // UI state
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -632,6 +646,11 @@ export const CCExpensePage: React.FC = () => {
                   <th className={`px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide sticky left-0 ${isLight ? "bg-slate-50 text-slate-500" : "bg-[#0d1117] text-slate-400"} whitespace-nowrap`}>
                     Vendor
                   </th>
+                  {activeTab === "weekly" && (
+                    <th className={`px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap ${isLight ? "text-slate-500" : "text-slate-400"}`} style={{minWidth: 160}}>
+                      Remarks
+                    </th>
+                  )}
                   <th className={`${thCls} font-bold ${isLight ? "text-slate-700" : "text-slate-200"}`}>Grand Total</th>
                   {displayCompanies.map(co => (
                     <th key={co} className={`${thCls} whitespace-nowrap`}>{co}</th>
@@ -642,6 +661,7 @@ export const CCExpensePage: React.FC = () => {
                   <td className={`px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide sticky left-0 ${isLight ? "bg-blue-50/50 text-slate-700" : "bg-[#1a2235]/60 text-slate-300"}`}>
                     TOTAL
                   </td>
+                  {activeTab === "weekly" && <td />}
                   <td className={`px-3 py-1.5 text-right font-bold tabular-nums text-[12px] ${isLight ? "text-slate-800" : "text-white"}`}>
                     {fmtMoneyRaw(activeTab === "weekly" ? weekTotal : ytdTotal)}
                   </td>
@@ -674,6 +694,26 @@ export const CCExpensePage: React.FC = () => {
                       }`}>
                         {row.vendor}
                       </td>
+                      {activeTab === "weekly" && (
+                        <td className="px-2 py-1">
+                          <textarea
+                            rows={1}
+                            value={remarks[remarkKey(selectedWeek, row.vendor)] || ""}
+                            onChange={e => setRemark(selectedWeek, row.vendor, e.target.value)}
+                            placeholder="Add remark…"
+                            className={`w-full min-w-[150px] resize-none rounded px-2 py-1 text-[11px] leading-snug outline-none transition-colors ${
+                              isLight
+                                ? "bg-slate-100 border border-slate-200 focus:border-blue-400 text-slate-700 placeholder-slate-400"
+                                : "bg-[#1a2030] border border-[#2a3550] focus:border-[#4f9cf9]/60 text-slate-300 placeholder-slate-600"
+                            }`}
+                            onInput={e => {
+                              const t = e.currentTarget;
+                              t.style.height = "auto";
+                              t.style.height = t.scrollHeight + "px";
+                            }}
+                          />
+                        </td>
+                      )}
                       <td className={`${tdCls} font-semibold ${row.grandTotal < 0 ? "text-red-500" : isLight ? "text-slate-800" : "text-white"}`}>
                         {fmtMoneyRaw(row.grandTotal)}
                       </td>
