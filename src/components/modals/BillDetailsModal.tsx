@@ -305,6 +305,31 @@ const BillDetail: React.FC<{
             <Pencil className="w-3 h-3" /> Edit
           </button>
         </div>
+        {/* Status 1 & Paid Via — shown only when values exist */}
+        {(bill.status1 || bill.paidVia) && (
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {bill.status1 && (
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                isLight
+                  ? "bg-slate-100 border-slate-200 text-slate-600"
+                  : "bg-[#222] border-[#333] text-[#aaa]"
+              }`}>
+                <span className={`text-[9px] font-bold uppercase tracking-wider ${isLight ? "text-slate-400" : "text-[#666]"}`}>Status</span>
+                {bill.status1}
+              </span>
+            )}
+            {bill.paidVia && (
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                isLight
+                  ? "bg-slate-100 border-slate-200 text-slate-600"
+                  : "bg-[#222] border-[#333] text-[#aaa]"
+              }`}>
+                <span className={`text-[9px] font-bold uppercase tracking-wider ${isLight ? "text-slate-400" : "text-[#666]"}`}>Paid via</span>
+                {bill.paidVia}
+              </span>
+            )}
+          </div>
+        )}
         {isLink ? (
           <a
             href={remarks}
