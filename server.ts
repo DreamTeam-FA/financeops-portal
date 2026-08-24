@@ -1564,6 +1564,104 @@ app.post("/api/cc-expense/adjustments/push", async (req, res) => {
   }
 });
 
+// ── Sheet Continuity: usage + blank-clone ────────────────────────────────────────
+// GET /api/sheets/usage?spreadsheetId=...
+// Returns per-tab row/col counts and total cell count vs 10M limit.
+app.get("/api/sheets/usage", async (req, res) => {
+  const { spreadsheetId } = req.query as { spreadsheetId?: string };
+  const accessToken = req.headers.authorization?.replace("Bearer ", "");
+  if (!accessToken) return res.status(401).json({ ok: false, error: "No access token" });
+  if (!spreadsheetId) return res.status(400).json({ ok: false, error: "spreadsheetId required" });
+  try {
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=properties(title),sheets(properties(title,sheetId,gridProperties))`;
+    const resp = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!resp.ok) {
+      const err: any = await resp.json();
+      return res.status(resp.status).json({ ok: false, error: err?.error?.message || "Sheets API error" });
+    }
+    const data: any = await resp.json();
+    const tabs = (data.sheets || []).map((s: any) => ({
+      title: s.properties.title,
+      rows: s.properties.gridProperties?.rowCount ?? 0,
+      cols: s.properties.gridProperties?.columnCount ?? 0,
+      cells: (s.properties.gridProperties?.rowCount ?? 0) * (s.properties.gridProperties?.columnCount ?? 0),
+    }));
+    const totalCells = tabs.reduce((sum: number, t: any) => sum + t.cells, 0);
+    res.json({ ok: true, title: data.properties?.title, tabs, totalCells, limitCells: 10_000_000 });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+// POST /api/sheets/clone-blank
+// 1. Copies the spreadsheet via Drive API (exact data clone → archive)
+// 2. Clears rows 2+ from every tab in the copy (keeps headers, structure, formatting)
+// Returns the new blank spreadsheet ID and URL.
+app.post("/api/sheets/clone-blank", async (req, res) => {
+  const { accessToken, spreadsheetId, archiveName } = req.body || {};
+  if (!accessToken) return res.status(401).json({ ok: false, error: "No access token" });
+  if (!spreadsheetId) return res.status(400).json({ ok: false, error: "spreadsheetId required" });
+
+  try {
+    const driveBase = "https://www.googleapis.com/drive/v3";
+    const sheetsBase = "https://sheets.googleapis.com/v4/spreadsheets";
+    const authHeaders = { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
+
+    // 1. Get current sheet name
+    const metaResp = await fetch(`${sheetsBase}/${spreadsheetId}?fields=properties(title),sheets(properties(title,sheetId,gridProperties))`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (!metaResp.ok) throw new Error("Could not fetch spreadsheet metadata");
+    const meta: any = await metaResp.json();
+    const originalTitle: string = meta.properties?.title || "Spreadsheet";
+    const tabs: { title: string; sheetId: number; rows: number }[] = (meta.sheets || []).map((s: any) => ({
+      title: s.properties.title,
+      sheetId: s.properties.sheetId,
+      rows: s.properties.gridProperties?.rowCount ?? 1000,
+    }));
+
+    // 2. Copy via Drive API — this becomes the blank clone (we'll clear data from it)
+    const datestamp = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const cloneName = archiveName || `${originalTitle} — Blank Clone ${datestamp}`;
+    const copyResp = await fetch(`${driveBase}/files/${spreadsheetId}/copy`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({ name: cloneName }),
+    });
+    if (!copyResp.ok) {
+      const copyErr: any = await copyResp.json();
+      throw new Error(`Drive copy failed: ${copyErr?.error?.message}`);
+    }
+    const copyData: any = await copyResp.json();
+    const newId: string = copyData.id;
+
+    // 3. Clear data rows (row 2+) from every tab in the copy
+    //    Uses batchClear — keeps row 1 (headers) and all formatting intact
+    const ranges = tabs.map(t => `'${t.title}'!A2:ZZZ`);
+    const clearResp = await fetch(`${sheetsBase}/${newId}/values:batchClear`, {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({ ranges }),
+    });
+    if (!clearResp.ok) {
+      const clearErr: any = await clearResp.json();
+      // Non-fatal: the copy was still created; just log the warning
+      console.warn(`[SheetClone] batchClear warning: ${clearErr?.error?.message}`);
+    }
+
+    console.log(`[SheetClone] Created blank clone of "${originalTitle}" → ${newId}`);
+    res.json({
+      ok: true,
+      newSpreadsheetId: newId,
+      newName: cloneName,
+      webViewLink: `https://docs.google.com/spreadsheets/d/${newId}/edit`,
+      tabsCleared: tabs.length,
+    });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

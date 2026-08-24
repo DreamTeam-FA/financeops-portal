@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+﻿import React, { useState, useCallback } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import {
@@ -19,7 +19,12 @@ import {
   Trash2,
   Zap,
   ExternalLink,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Copy,
+  Archive,
+  BarChart3,
+  AlertTriangle,
+  Loader2,
 } from "lucide-react";
 import { SheetMappingConfig } from "../../types";
 
@@ -61,6 +66,62 @@ export const DataSyncPage: React.FC = () => {
 
   const [pasteData, setPasteData] = useState("");
   const [importStatus, setImportStatus] = useState<string | null>(null);
+
+  // ── Sheet Continuity state ───────────────────────────────────────────────────
+  const TRACKED_SHEETS = [
+    { id: "15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs", label: "Main Finance", desc: "AP, AR, Banks, Loans, Payroll" },
+    { id: "1gKCKrWw8mkqJDiRl_9xYIhkzmtjOEoauQZgbtW9gIew", label: "CC Expense",   desc: "Credit card transactions" },
+    { id: "1ChoHr7dsfai0Unl-Gk-HyPmgrpWOYu07gllY9PA8epo", label: "Calendar",     desc: "Events & schedule" },
+  ];
+  const LIMIT = 10_000_000;
+
+  type SheetUsage = { title: string; tabs: { title: string; rows: number; cols: number; cells: number }[]; totalCells: number; };
+  const [usageMap, setUsageMap]     = useState<Record<string, SheetUsage>>({});
+  const [loadingUsage, setLoadingUsage] = useState<Record<string, boolean>>({});
+  const [cloningSheet, setCloningSheet] = useState<Record<string, boolean>>({});
+  const [cloneResults, setCloneResults] = useState<Record<string, { name: string; url: string } | null>>({});
+
+  const fetchUsage = useCallback(async (sheetId: string) => {
+    setLoadingUsage(m => ({ ...m, [sheetId]: true }));
+    try {
+      const { getAccessToken } = await import("../../services/googleAuth");
+      const token = await getAccessToken();
+      if (!token) throw new Error("Not signed in to Google");
+      const resp = await fetch(`/api/sheets/usage?spreadsheetId=${sheetId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await resp.json();
+      if (!data.ok) throw new Error(data.error);
+      setUsageMap(m => ({ ...m, [sheetId]: data }));
+    } catch (e: any) {
+      alert(`Usage check failed: ${e?.message}`);
+    } finally {
+      setLoadingUsage(m => ({ ...m, [sheetId]: false }));
+    }
+  }, []);
+
+  const cloneBlank = useCallback(async (sheetId: string, label: string) => {
+    if (!confirm(`Create a blank clone of "${label}"?\n\nThis will:\n• Make an exact copy of the spreadsheet\n• Clear all data rows (keeps headers + formatting)\n• Leave the original untouched\n\nThe clone URL will be shown — update your sheet mappings to use it.`)) return;
+    setCloningSheet(m => ({ ...m, [sheetId]: true }));
+    setCloneResults(m => ({ ...m, [sheetId]: null }));
+    try {
+      const { getAccessToken } = await import("../../services/googleAuth");
+      const token = await getAccessToken();
+      if (!token) throw new Error("Not signed in to Google");
+      const resp = await fetch("/api/sheets/clone-blank", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessToken: token, spreadsheetId: sheetId }),
+      });
+      const data = await resp.json();
+      if (!data.ok) throw new Error(data.error);
+      setCloneResults(m => ({ ...m, [sheetId]: { name: data.newName, url: data.webViewLink } }));
+    } catch (e: any) {
+      alert(`Clone failed: ${e?.message}`);
+    } finally {
+      setCloningSheet(m => ({ ...m, [sheetId]: false }));
+    }
+  }, []);
 
   // Local state for editing sheet configs keyed by mapping.id
   const [editingConfigs, setEditingConfigs] = useState<Record<string, SheetMappingConfig>>({});
@@ -778,6 +839,105 @@ export const DataSyncPage: React.FC = () => {
             </button>
           </div>
         </div>
+
+        {/* ── Sheet Continuity ─────────────────────────────────────────────── */}
+        <div className={`rounded-xl border p-5 space-y-4 ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"}`}>
+          <div className="flex items-center gap-2">
+            <Archive className={`w-4 h-4 ${isLight ? "text-amber-600" : "text-amber-400"}`} />
+            <h3 className={`text-sm font-bold ${isLight ? "text-slate-900" : "text-white"}`}>Sheet Continuity</h3>
+            <span className={`ml-auto text-[11px] ${isLight ? "text-slate-400" : "text-[#555]"}`}>Google Sheets limit: 10M cells / spreadsheet</span>
+          </div>
+          <p className={`text-[12px] ${isLight ? "text-slate-500" : "text-[#888]"}`}>
+            Before a sheet fills up, create a blank clone — same tabs, same headers, same formatting, no data.
+            The original stays as your archive. Update your sheet mappings to point to the new clone.
+          </p>
+
+          <div className="space-y-3">
+            {TRACKED_SHEETS.map(sheet => {
+              const usage = usageMap[sheet.id];
+              const pct = usage ? Math.round((usage.totalCells / LIMIT) * 100) : null;
+              const isHigh = pct !== null && pct >= 70;
+              const isCritical = pct !== null && pct >= 90;
+              const cloneResult = cloneResults[sheet.id];
+
+              return (
+                <div key={sheet.id} className={`rounded-lg border p-4 space-y-3 ${isLight ? "border-slate-200 bg-slate-50" : "border-[#1e2535] bg-[#070b12]"}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <FileSpreadsheet className={`w-3.5 h-3.5 ${isLight ? "text-slate-500" : "text-[#666]"}`} />
+                        <span className={`text-[13px] font-bold ${isLight ? "text-slate-800" : "text-white"}`}>{sheet.label}</span>
+                        {isCritical && <span className="flex items-center gap-1 text-[10px] font-bold text-red-500"><AlertTriangle className="w-3 h-3" />CRITICAL</span>}
+                        {isHigh && !isCritical && <span className="text-[10px] font-bold text-amber-500">HIGH</span>}
+                      </div>
+                      <span className={`text-[11px] ${isLight ? "text-slate-400" : "text-[#555]"}`}>{sheet.desc}</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => fetchUsage(sheet.id)}
+                        disabled={loadingUsage[sheet.id]}
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors ${isLight ? "bg-slate-200 hover:bg-slate-300 text-slate-600" : "bg-[#1a2235] hover:bg-[#1e2a40] text-slate-300"} disabled:opacity-50`}
+                      >
+                        {loadingUsage[sheet.id] ? <Loader2 className="w-3 h-3 animate-spin" /> : <BarChart3 className="w-3 h-3" />}
+                        Check Usage
+                      </button>
+                      <button
+                        onClick={() => cloneBlank(sheet.id, sheet.label)}
+                        disabled={cloningSheet[sheet.id]}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-50 transition-colors"
+                      >
+                        {cloningSheet[sheet.id] ? <Loader2 className="w-3 h-3 animate-spin" /> : <Copy className="w-3 h-3" />}
+                        {cloningSheet[sheet.id] ? "Cloning…" : "Create Blank Clone"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Usage bar */}
+                  {usage && (
+                    <div className="space-y-1.5">
+                      <div className={`flex justify-between text-[11px] ${isLight ? "text-slate-500" : "text-[#777]"}`}>
+                        <span>{usage.tabs.length} tab{usage.tabs.length !== 1 ? "s" : ""} · {usage.totalCells.toLocaleString()} cells used</span>
+                        <span className={`font-bold ${isCritical ? "text-red-500" : isHigh ? "text-amber-500" : isLight ? "text-slate-600" : "text-slate-300"}`}>{pct}% of limit</span>
+                      </div>
+                      <div className={`h-2 rounded-full overflow-hidden ${isLight ? "bg-slate-200" : "bg-[#1e2535]"}`}>
+                        <div
+                          className={`h-full rounded-full transition-all ${isCritical ? "bg-red-500" : isHigh ? "bg-amber-500" : "bg-[#16a34a]"}`}
+                          style={{ width: `${Math.min(pct ?? 0, 100)}%` }}
+                        />
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {usage.tabs.map(t => (
+                          <span key={t.title} className={`text-[10px] px-1.5 py-0.5 rounded ${isLight ? "bg-slate-200 text-slate-500" : "bg-[#1e2535] text-[#666]"}`}>
+                            {t.title}: {t.rows.toLocaleString()} rows
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Clone result */}
+                  {cloneResult && (
+                    <div className={`rounded-lg border px-3 py-2.5 flex items-start gap-2 ${isLight ? "bg-green-50 border-green-200" : "bg-green-900/10 border-green-700/30"}`}>
+                      <CheckCircle2 className="w-3.5 h-3.5 text-green-500 mt-0.5 shrink-0" />
+                      <div className="space-y-1 min-w-0">
+                        <p className={`text-[11px] font-bold ${isLight ? "text-green-700" : "text-green-400"}`}>Blank clone created</p>
+                        <p className={`text-[11px] break-all ${isLight ? "text-slate-600" : "text-slate-300"}`}>{cloneResult.name}</p>
+                        <a href={cloneResult.url} target="_blank" rel="noreferrer"
+                          className={`inline-flex items-center gap-1 text-[11px] font-semibold underline ${isLight ? "text-green-700" : "text-green-400"}`}>
+                          <ExternalLink className="w-3 h-3" /> Open in Google Sheets
+                        </a>
+                        <p className={`text-[10px] ${isLight ? "text-slate-400" : "text-[#666]"}`}>
+                          Copy the spreadsheet ID from the URL and update your sheet mappings above to use this new sheet.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
       </div>
     </div>
   );
