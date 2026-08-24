@@ -678,6 +678,24 @@ export const ARPage: React.FC = () => {
                 </div>
               </button>
 
+              {/* Scan to fill */}
+              <button
+                onClick={() => { setShowTemplatePicker(false); setShowScanModal(true); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
+                  isLight
+                    ? "border-green-200 bg-green-50/60 hover:bg-green-50 hover:border-green-400 text-slate-700"
+                    : "border-green-800/40 bg-green-900/10 hover:bg-green-900/20 hover:border-green-600/50 text-[#ccc]"
+                }`}
+              >
+                <div className="w-8 h-8 rounded-full bg-[#16a34a]/15 flex items-center justify-center shrink-0">
+                  <ScanLine className="w-4 h-4 text-[#16a34a]" />
+                </div>
+                <div>
+                  <p className={`text-sm font-bold ${isLight ? "text-green-700" : "text-green-400"}`}>Scan Invoice to Auto-Fill</p>
+                  <p className={`text-[11px] ${isLight ? "text-slate-400" : "text-[#666]"}`}>Upload image or PDF — AI extracts fields</p>
+                </div>
+              </button>
+
               {/* Divider */}
               {templates.length > 0 && (
                 <div className={`flex items-center gap-2 py-2 px-1 ${isLight ? "text-slate-400" : "text-[#555]"}`}>
@@ -735,17 +753,6 @@ export const ARPage: React.FC = () => {
               </h3>
               <button onClick={() => setIsAddOpen(false)} className={`p-1.5 rounded-full ${isLight ? "hover:bg-slate-100 text-slate-400" : "hover:bg-[#222] text-[#666]"}`}>
                 <X className="w-4 h-4" />
-              </button>
-            </div>
-            {/* Scan to fill shortcut inside Add modal */}
-            <div className={`px-5 pt-3 pb-0`}>
-              <button
-                type="button"
-                onClick={() => { setIsAddOpen(false); setShowScanModal(true); }}
-                className={`w-full flex items-center justify-center gap-2 py-2 rounded-lg border text-[12px] font-semibold transition-colors ${isLight ? "border-green-200 bg-green-50 text-green-700 hover:bg-green-100" : "border-green-800/40 bg-green-900/10 text-green-400 hover:bg-green-900/20"}`}
-              >
-                <ScanLine className="w-3.5 h-3.5" />
-                Scan Invoice to Auto-Fill
               </button>
             </div>
             <form onSubmit={handleCreateAR} className="px-5 py-4 space-y-3">
