@@ -501,7 +501,7 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
                       </label>
                       <label className="flex items-center gap-1.5 cursor-pointer">
                         <input type="radio" name="addRemarksCol" checked={remarksTarget === "status1"} onChange={() => setRemarksTarget("status1")} />
-                        <span>Status 1 (col M)</span>
+                        <span>Status 1 (col L)</span>
                       </label>
                     </>
                   )}

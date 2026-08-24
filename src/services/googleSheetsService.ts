@@ -936,7 +936,7 @@ const AP_COL_MAPS: Record<string, APColMap> = {
     dueDate: 8, amount: 9,
     paidDateCol: 11, methodCol: null, paytypeCol: 17,
     status: 12, inQBO: 13, onHold: 18,  // col S = On Hold
-    remarksCol: 10, payInstCol: 14, status1Col: 15, totalCols: 19,
+    remarksCol: 10, payInstCol: 14, status1Col: 11, totalCols: 19,
     dataRange: "'Ruby''s Bills'!A5:S1504"   // 1500 data rows starting row 5
   },
   "TI": {
@@ -952,7 +952,7 @@ const AP_COL_MAPS: Record<string, APColMap> = {
     dueDate: 8, amount: 9,
     paidDateCol: 11, methodCol: null, paytypeCol: 17,
     status: 12, inQBO: 13, onHold: 18,  // holdCol:18 per CALcode
-    remarksCol: 10, payInstCol: 14, status1Col: 15, totalCols: 19,
+    remarksCol: 10, payInstCol: 14, status1Col: 11, totalCols: 19,
     dataRange: "'MSDx Bills'!A6:S1505"  // 1500 data rows starting row 6
   }
 };
@@ -1025,11 +1025,8 @@ export const buildAPBillRow = (b: APBill, entity: string): any[] => {
   if (map.methodCol !== null) row[map.methodCol] = b.method || "";
   // paytypeCol (Manual/Aut.) is formula-driven in the sheet — do not write
   // Status col: "Paid" when paid; blank for unpaid/hold (never write "UNPAID" — keep sheet clean)
-  // Layout A (Ruby's/MSDx): status1 text can override status col for custom values
   if (b.status === "paid") {
     row[map.status] = "Paid";
-  } else if (b.status !== "hold" && entity !== "TI" && b.status1) {
-    row[map.status] = b.status1;
   }
   // unpaid → status col stays blank; hold → status col stays blank (on-hold col set below)
   if (b.inQBO) row[map.inQBO] = "TRUE";
