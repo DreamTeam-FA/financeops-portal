@@ -415,12 +415,7 @@ export const NotesPage: React.FC = () => {
                                 </span>
                               )}
 
-                              {/* Entity badge */}
-                              {note.entity && (
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${getEntityBadgeColor(note.entity)}`}>
-                                  {note.entity}
-                                </span>
-                              )}
+                              {/* Entity badge — hidden to keep cards clean */}
                             </div>
 
                             <div className="flex items-center gap-1 shrink-0">
@@ -456,14 +451,7 @@ export const NotesPage: React.FC = () => {
                             </div>
                           </div>
 
-                          {/* Week label badge */}
-                          {(note.weekLabel || (note.category && note.category !== "General")) && (
-                            <div className="mb-1.5">
-                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-300 uppercase tracking-wider">
-                                {note.weekLabel || note.category}
-                              </span>
-                            </div>
-                          )}
+                          {/* Week label badge — hidden to keep cards clean */}
 
                           {/* Title = vendor/subject (Column F) */}
                           <h4 className={`text-sm font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
