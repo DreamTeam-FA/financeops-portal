@@ -564,7 +564,14 @@ export async function fetchFullLiveDataset(accessToken?: string) {
     // col K (index 10) = Payment Instructions; col L (index 11) = Status 1 (or paid date when paid)
     const paymentInstructions = String(row[10] || "").trim() || undefined;
     const col11Str = String(row[11] || "").trim();
-    const status1 = col11Str && !parseDateVal(col11Str) ? col11Str : undefined;
+    // Only treat col11 as a date when the raw cell value is unambiguously a date (serial number,
+    // clean YYYY-MM-DD / MM/DD/YYYY string, or GViz Date() — NOT via the greedy extractAllDates path).
+    const col11IsDate =
+      (typeof row[11] === "number" && row[11] > 30000 && row[11] < 80000) ||
+      /^\d{4}[-./]\d{2}[-./]\d{2}$/.test(col11Str) ||
+      /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(col11Str) ||
+      col11Str.startsWith("Date(");
+    const status1 = col11Str && !col11IsDate ? col11Str : undefined;
 
     const finalDueDate = dueDate || new Date().toISOString().split("T")[0];
 
@@ -773,7 +780,12 @@ export async function fetchFullLiveDataset(accessToken?: string) {
     // col K (index 10) = Payment Instructions; col L (index 11) = Status 1 (or paid date when paid)
     const paymentInstructionsMSDx = String(row[10] || "").trim() || undefined;
     const col11MSDxStr = String(row[11] || "").trim();
-    const status1MSDx = col11MSDxStr && !parseDateVal(col11MSDxStr) ? col11MSDxStr : undefined;
+    const col11MSDxIsDate =
+      (typeof row[11] === "number" && row[11] > 30000 && row[11] < 80000) ||
+      /^\d{4}[-./]\d{2}[-./]\d{2}$/.test(col11MSDxStr) ||
+      /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(col11MSDxStr) ||
+      col11MSDxStr.startsWith("Date(");
+    const status1MSDx = col11MSDxStr && !col11MSDxIsDate ? col11MSDxStr : undefined;
 
     ap.push({
       id: `ap-msdx-${i + 1}`,

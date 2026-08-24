@@ -878,9 +878,13 @@ Notes:
       console.error(`[TimesheetScan] JSON.parse failed: ${parseErr?.message} | cleaned length: ${cleaned.length}`);
       return res.status(422).json({ error: "Could not parse response as JSON", raw, cleaned: cleaned.slice(0, 500) });
     }
-    // Match extracted employee name against known employees in saved timesheets
+    // Match extracted employee name against known employees:
+    // 1. explicitly registered via POST /api/known-employees (loaded from payroll portal)
+    // 2. names from previously saved timesheets
     const storedForEmp = getStoredData() as any;
-    const knownEmployees = [...new Set(((storedForEmp.scannedTimesheets || []) as any[]).map((t: any) => t.employeeName).filter(Boolean))] as string[];
+    const registeredEmployees: string[] = storedForEmp.knownEmployees || [];
+    const savedTsEmployees: string[] = ((storedForEmp.scannedTimesheets || []) as any[]).map((t: any) => t.employeeName).filter(Boolean);
+    const knownEmployees = [...new Set([...registeredEmployees, ...savedTsEmployees])];
     const employeeMatch = bestMatch(parsed.employeeName || "", knownEmployees);
     if (!employeeMatch.isNew && employeeMatch.matched) parsed.employeeName = employeeMatch.matched;
     res.json({ ok: true, timesheet: { ...parsed, employeeMatch } });
@@ -902,8 +906,36 @@ app.post("/api/timesheet/save", (req, res) => {
     ...entry
   };
   data.scannedTimesheets = [saved, ...data.scannedTimesheets.slice(0, 199)];
+  // Also register the employee name in the known-employees registry
+  if (!data.knownEmployees) data.knownEmployees = [];
+  const name = String(entry.employeeName).trim();
+  if (name && !data.knownEmployees.includes(name)) data.knownEmployees.push(name);
   saveStoredData(data);
   res.json({ ok: true, entry: saved });
+});
+
+// POST /api/known-employees — client registers employee names (seeded from 4YR payroll page)
+app.post("/api/known-employees", (req, res) => {
+  const { names } = req.body || {};
+  if (!Array.isArray(names)) return res.status(400).json({ error: "names array required" });
+  const data = getStoredData() as any;
+  if (!data.knownEmployees) data.knownEmployees = [];
+  let added = 0;
+  for (const n of names) {
+    const name = String(n || "").trim();
+    if (name && !data.knownEmployees.includes(name)) {
+      data.knownEmployees.push(name);
+      added++;
+    }
+  }
+  saveStoredData(data);
+  res.json({ ok: true, total: data.knownEmployees.length, added });
+});
+
+// GET /api/known-employees — returns the registered employee names
+app.get("/api/known-employees", (_req, res) => {
+  const data = getStoredData() as any;
+  res.json(data.knownEmployees || []);
 });
 
 // GET /api/timesheet/saved — list saved scanned timesheets
