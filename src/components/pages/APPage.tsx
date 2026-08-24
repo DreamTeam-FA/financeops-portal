@@ -24,20 +24,17 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
     setSearchHighlightId,
   } = useFinance();
 
-  // Deep-link: scroll to & flash the item from global search
+  // Deep-link: open bill modal for the item from global search
   useEffect(() => {
     if (!searchHighlightId) return;
+    const bill = apBills.find(b => b.id === searchHighlightId);
+    if (!bill) return;
     const timer = setTimeout(() => {
-      const el = document.querySelector<HTMLElement>(`[data-search-id="${searchHighlightId}"]`);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-        el.classList.add("search-highlight-flash");
-        const cleanup = () => { el.classList.remove("search-highlight-flash"); setSearchHighlightId(null); };
-        el.addEventListener("animationend", cleanup, { once: true });
-      }
-    }, 300);
+      setEditingBill(bill);
+      setSearchHighlightId(null);
+    }, 200);
     return () => clearTimeout(timer);
-  }, [searchHighlightId]);
+  }, [searchHighlightId, apBills]);
 
   const isLight = theme === "light";
 

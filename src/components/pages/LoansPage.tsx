@@ -12,20 +12,17 @@ export const LoansPage: React.FC = () => {
   const { loans, selectedEntities, theme, deleteLoan, searchHighlightId, setSearchHighlightId } = useFinance() as any;
   const [isAddOpen, setIsAddOpen] = useState(false);
 
-  // Deep-link: scroll to & flash the item from global search
+  // Deep-link: open loan edit modal for the item from global search
   useEffect(() => {
     if (!searchHighlightId) return;
+    const loan = (loans as Loan[]).find(l => l.id === searchHighlightId);
+    if (!loan) return;
     const timer = setTimeout(() => {
-      const el = document.querySelector<HTMLElement>(`[data-search-id="${searchHighlightId}"]`);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-        el.classList.add("search-highlight-flash");
-        const cleanup = () => { el.classList.remove("search-highlight-flash"); (setSearchHighlightId as any)(null); };
-        el.addEventListener("animationend", cleanup, { once: true });
-      }
-    }, 300);
+      setEditingLoan(loan);
+      (setSearchHighlightId as any)(null);
+    }, 200);
     return () => clearTimeout(timer);
-  }, [searchHighlightId]);
+  }, [searchHighlightId, loans]);
   const [editingLoan, setEditingLoan] = useState<Loan | null>(null);
   const [deletingLoanId, setDeletingLoanId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");

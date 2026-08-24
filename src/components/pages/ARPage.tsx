@@ -24,20 +24,17 @@ export const ARPage: React.FC = () => {
 
   const isLight = theme === "light";
 
-  // Deep-link: scroll to & flash the item from global search
+  // Deep-link: open AR edit modal for the item from global search
   useEffect(() => {
     if (!searchHighlightId) return;
+    const item = arItems.find((a: any) => a.id === searchHighlightId);
+    if (!item) return;
     const timer = setTimeout(() => {
-      const el = document.querySelector<HTMLElement>(`[data-search-id="${searchHighlightId}"]`);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-        el.classList.add("search-highlight-flash");
-        const cleanup = () => { el.classList.remove("search-highlight-flash"); setSearchHighlightId(null); };
-        el.addEventListener("animationend", cleanup, { once: true });
-      }
-    }, 300);
+      setEditingAR(item);
+      setSearchHighlightId(null);
+    }, 200);
     return () => clearTimeout(timer);
-  }, [searchHighlightId]);
+  }, [searchHighlightId, arItems]);
 
   const currentMonthName = new Date().toLocaleString("default", { month: "long" });
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthName);

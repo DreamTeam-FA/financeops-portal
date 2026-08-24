@@ -77,20 +77,17 @@ export const NotesPage: React.FC = () => {
 
   const isLight = theme === "light";
 
-  // Deep-link: scroll to & flash the item from global search
+  // Deep-link: open note edit modal for the item from global search
   useEffect(() => {
     if (!searchHighlightId) return;
+    const note = (quickNotes as DashboardNote[]).find(n => n.id === searchHighlightId);
+    if (!note) return;
     const timer = setTimeout(() => {
-      const el = document.querySelector<HTMLElement>(`[data-search-id="${searchHighlightId}"]`);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-        el.classList.add("search-highlight-flash");
-        const cleanup = () => { el.classList.remove("search-highlight-flash"); setSearchHighlightId(null); };
-        el.addEventListener("animationend", cleanup, { once: true });
-      }
-    }, 300);
+      openEditModal(note);
+      setSearchHighlightId(null);
+    }, 200);
     return () => clearTimeout(timer);
-  }, [searchHighlightId]);
+  }, [searchHighlightId, quickNotes]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedEntity, setSelectedEntity] = useState<string>("ALL");
