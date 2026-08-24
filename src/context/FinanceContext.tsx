@@ -487,15 +487,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [quickNotes, setQuickNotes] = useState<DashboardNote[]>(() => {
     try {
       const saved = localStorage.getItem("financeops_quick_notes");
-      if (saved) {
-        const parsed: DashboardNote[] = JSON.parse(saved);
-        // Strip workspace-link entries from the cache so they never appear
-        const clean = parsed.filter((n: any) => !/workspace/i.test(n.entity || ""));
-        if (clean.length !== parsed.length) {
-          localStorage.setItem("financeops_quick_notes", JSON.stringify(clean));
-        }
-        return clean;
-      }
+      if (saved) return JSON.parse(saved);
     } catch (e) {}
     return [];
   });
@@ -748,13 +740,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         // Helper: merge sheet notes with local "done" state wins over sheet "open"
         const mergeSheetNotes = (sheetNotes: DashboardNote[]) => {
-          // Always strip workspace-link entries regardless of source
-          const filtered = sheetNotes.filter((n: any) => !/workspace/i.test(n.entity || ""));
           const localNotes: DashboardNote[] = (() => {
             try { return JSON.parse(localStorage.getItem("financeops_quick_notes") || "[]"); } catch { return []; }
           })();
           const localMap = new Map(localNotes.map((n) => [n.id, n]));
-          return filtered.map((n) => {
+          return sheetNotes.map((n) => {
             const local = localMap.get(n.id);
             if (local?.status === "done" && n.status !== "done") {
               return { ...n, status: "done" as const, completedAt: local.completedAt };

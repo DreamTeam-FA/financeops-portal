@@ -1290,8 +1290,6 @@ export async function fetchFullLiveDataset(accessToken?: string) {
         parseDateVal(row[COL_CREATED]) ||
         new Date().toISOString().split("T")[0];
       const company    = String(row[COL_COMPANY] || "").trim();
-      // Skip workspace/tool link rows — these are not action notes
-      if (/workspace/i.test(company)) return;
       const vendor     = String(row[COL_VENDOR]  || "").trim();
       const isDone     = parseDone(row[COL_STATUS]);
       const status: "open" | "done" = isDone ? "done" : "open";
