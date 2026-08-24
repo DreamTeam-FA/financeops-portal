@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   Upload, RefreshCw, ChevronDown, Eye, EyeOff, AlertCircle,
-  CheckCircle2, X, FileText, UploadCloud, ShoppingCart
+  CheckCircle2, X, FileText, UploadCloud, CreditCard
 } from "lucide-react";
 import { useFinance } from "../../context/FinanceContext";
 import { getAccessToken } from "../../services/googleAuth";
@@ -227,7 +227,7 @@ export const CCExpensePage: React.FC = () => {
   // UI state
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [hideZero, setHideZero] = useState(true);
+  const [hideZero, setHideZero] = useState(false);
 
   // Upload state
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -383,7 +383,7 @@ export const CCExpensePage: React.FC = () => {
       {/* ── Header ── */}
       <div className={`shrink-0 px-5 py-3 border-b flex items-center justify-between gap-3 ${isLight ? "bg-white border-slate-200" : "bg-[#0d1117] border-[#1e2535]"}`}>
         <div className="flex items-center gap-2.5">
-          <ShoppingCart className={`w-5 h-5 ${isLight ? "text-[#1a73e8]" : "text-[#4f9cf9]"}`} />
+          <CreditCard className={`w-5 h-5 ${isLight ? "text-[#1a73e8]" : "text-[#4f9cf9]"}`} />
           <h1 className="text-[15px] font-semibold">CC Expenses</h1>
           <span className={`text-[11px] px-1.5 py-0.5 rounded ${isLight ? "bg-slate-100 text-slate-500" : "bg-[#1a2235] text-slate-400"}`}>
             4Grace_CC_Expense
@@ -595,7 +595,7 @@ export const CCExpensePage: React.FC = () => {
       <div className="flex-1 overflow-auto">
         {rawRows.length === 0 && !loading ? (
           <div className="flex flex-col items-center justify-center h-full gap-3 text-center p-8">
-            <ShoppingCart className={`w-10 h-10 ${isLight ? "text-slate-300" : "text-slate-600"}`} />
+            <CreditCard className={`w-10 h-10 ${isLight ? "text-slate-300" : "text-slate-600"}`} />
             <p className={`text-[14px] font-medium ${isLight ? "text-slate-500" : "text-slate-400"}`}>No data loaded</p>
             <p className={`text-[12px] ${isLight ? "text-slate-400" : "text-slate-500"}`}>
               Click "Pull from Sheet" to load CC expense data, or upload a CSV/XLSX file.
