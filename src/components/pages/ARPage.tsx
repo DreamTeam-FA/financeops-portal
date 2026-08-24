@@ -52,6 +52,8 @@ export const ARPage: React.FC = () => {
   const [scanPreviewUrl, setScanPreviewUrl] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scannedData, setScannedData] = useState<Partial<{ customer: string; amount: string; dueDate: string; description: string; entity: string }> | null>(null);
+  // Editable copy of scanned data — user can correct fields before using
+  const [editedScanData, setEditedScanData] = useState<Partial<{ customer: string; amount: string; dueDate: string; description: string; entity: string }>>({});
   const [autoSaveEnabled, setAutoSaveEnabledLocal] = useState(true);
   const [savingToDrive, setSavingToDrive] = useState(false);
   const [driveLink, setDriveLink] = useState<string | null>(null);
@@ -215,6 +217,7 @@ export const ARPage: React.FC = () => {
       if (!data.ok) throw new Error(data.error || "Scan failed");
       const parsed = data.parsed || {};
       setScannedData(parsed);
+      setEditedScanData({ ...parsed }); // initialize editable copy
 
       // 2. Auto-save to Google Drive if enabled
       if (autoSaveEnabled) {
@@ -257,15 +260,17 @@ export const ARPage: React.FC = () => {
 
   const handleScanUseData = () => {
     if (!scannedData) return;
-    if (scannedData.customer) setCustomer(scannedData.customer);
-    if (scannedData.amount) setAmount(scannedData.amount);
-    if (scannedData.dueDate) setDueDate(scannedData.dueDate);
-    if (scannedData.description) setDescription(scannedData.description);
-    if (scannedData.entity) setEntity(scannedData.entity as EntityName);
+    // Use the user-edited copy (editedScanData) so corrections are applied
+    if (editedScanData.customer) setCustomer(editedScanData.customer);
+    if (editedScanData.amount) setAmount(editedScanData.amount);
+    if (editedScanData.dueDate) setDueDate(editedScanData.dueDate);
+    if (editedScanData.description) setDescription(editedScanData.description);
+    if (editedScanData.entity) setEntity(editedScanData.entity as EntityName);
     setShowScanModal(false);
     setScanFile(null);
     setScanPreviewUrl(null);
     setScannedData(null);
+    setEditedScanData({});
     setIsAddOpen(true);
   };
 
@@ -275,6 +280,7 @@ export const ARPage: React.FC = () => {
     if (scanPreviewUrl) URL.revokeObjectURL(scanPreviewUrl);
     setScanPreviewUrl(null);
     setScannedData(null);
+    setEditedScanData({});
     setDriveLink(null);
   };
 
@@ -287,9 +293,6 @@ export const ARPage: React.FC = () => {
         showEntityPills={true}
         extraButtons={
           <>
-            <button onClick={() => setShowScanModal(true)} className="btn-3d btn-3d-ghost font-semibold" title="Scan Invoice">
-              <ScanLine className="w-3.5 h-3.5" /><span className="hidden sm:inline">Scan</span>
-            </button>
             <button onClick={() => exportARItemsCSV(arItems)} className="btn-3d btn-3d-ghost font-semibold" title="Export to CSV">
               <Download className="w-3.5 h-3.5" /><span className="hidden sm:inline">CSV</span>
             </button>
@@ -562,20 +565,33 @@ export const ARPage: React.FC = () => {
                   {scanPreviewUrl && scanFile.type.startsWith("image/") && (
                     <img src={scanPreviewUrl} alt="Invoice preview" className="max-h-48 rounded-lg object-contain mx-auto border border-slate-200 dark:border-[#1a2235]" />
                   )}
-                  {/* Scanned result */}
+                  {/* Scanned result — editable so user can correct extraction errors */}
                   {scannedData && (
-                    <div className={`rounded-lg border p-3 space-y-1.5 ${isLight ? "border-green-200 bg-green-50" : "border-green-800/40 bg-green-900/10"}`}>
-                      <p className={`text-[11px] font-bold uppercase tracking-wide mb-2 ${isLight ? "text-green-700" : "text-green-400"}`}>Extracted Data</p>
-                      {[
-                        ["Customer", scannedData.customer],
-                        ["Amount", scannedData.amount],
-                        ["Due Date", scannedData.dueDate],
-                        ["Description", scannedData.description],
-                        ["Entity", scannedData.entity],
-                      ].filter(([, v]) => v).map(([k, v]) => (
-                        <div key={k} className="flex gap-2 text-[12px]">
-                          <span className={`font-medium w-24 shrink-0 ${isLight ? "text-slate-500" : "text-slate-400"}`}>{k}:</span>
-                          <span className={isLight ? "text-slate-800" : "text-white"}>{v}</span>
+                    <div className={`rounded-lg border p-3 space-y-2 ${isLight ? "border-green-200 bg-green-50" : "border-green-800/40 bg-green-900/10"}`}>
+                      <p className={`text-[11px] font-bold uppercase tracking-wide ${isLight ? "text-green-700" : "text-green-400"}`}>
+                        Extracted Data — <span className="font-normal normal-case">edit to correct before using</span>
+                      </p>
+                      {(["customer", "amount", "dueDate", "description", "entity"] as const).map(field => (
+                        <div key={field} className="flex items-center gap-2 text-[12px]">
+                          <span className={`font-medium w-24 shrink-0 capitalize ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                            {field === "dueDate" ? "Due Date" : field.charAt(0).toUpperCase() + field.slice(1)}:
+                          </span>
+                          {field === "entity" ? (
+                            <select
+                              value={editedScanData.entity || ""}
+                              onChange={e => setEditedScanData(d => ({ ...d, entity: e.target.value }))}
+                              className={`flex-1 rounded px-2 py-0.5 text-[12px] border ${isLight ? "border-green-200 bg-white text-slate-800" : "border-green-700/40 bg-[#111318] text-white"}`}
+                            >
+                              {["TI", "FA", "GC", "CPRO"].map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                            </select>
+                          ) : (
+                            <input
+                              type={field === "dueDate" ? "date" : "text"}
+                              value={(editedScanData as any)[field] || ""}
+                              onChange={e => setEditedScanData(d => ({ ...d, [field]: e.target.value }))}
+                              className={`flex-1 rounded px-2 py-0.5 text-[12px] border ${isLight ? "border-green-200 bg-white text-slate-800" : "border-green-700/40 bg-[#111318] text-white"}`}
+                            />
+                          )}
                         </div>
                       ))}
                     </div>
@@ -719,6 +735,17 @@ export const ARPage: React.FC = () => {
               </h3>
               <button onClick={() => setIsAddOpen(false)} className={`p-1.5 rounded-full ${isLight ? "hover:bg-slate-100 text-slate-400" : "hover:bg-[#222] text-[#666]"}`}>
                 <X className="w-4 h-4" />
+              </button>
+            </div>
+            {/* Scan to fill shortcut inside Add modal */}
+            <div className={`px-5 pt-3 pb-0`}>
+              <button
+                type="button"
+                onClick={() => { setIsAddOpen(false); setShowScanModal(true); }}
+                className={`w-full flex items-center justify-center gap-2 py-2 rounded-lg border text-[12px] font-semibold transition-colors ${isLight ? "border-green-200 bg-green-50 text-green-700 hover:bg-green-100" : "border-green-800/40 bg-green-900/10 text-green-400 hover:bg-green-900/20"}`}
+              >
+                <ScanLine className="w-3.5 h-3.5" />
+                Scan Invoice to Auto-Fill
               </button>
             </div>
             <form onSubmit={handleCreateAR} className="px-5 py-4 space-y-3">
