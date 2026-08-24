@@ -126,7 +126,7 @@ export const HubPage: React.FC = () => {
   const totalAR = unpaidAR.reduce((s, a) => s + a.amount, 0);
   const overdueAR = unpaidAR.filter(a => a.dueDate && new Date(a.dueDate + "T00:00:00") < today);
 
-  const openNotes = (quickNotes || []).filter(n => n.status !== "done" && n.itemType !== "folder");
+  const openNotes = (quickNotes || []).filter(n => n.status !== "done" && n.itemType !== "folder" && n.itemType !== "link");
   const totalNotes = (quickNotes || []).filter(n => n.itemType !== "folder").length;
   const recentOpenNote = openNotes[0];
   const todayStr = today.toISOString().slice(0, 10);
