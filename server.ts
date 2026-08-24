@@ -1304,62 +1304,92 @@ app.post("/api/cc-expense/upload", async (req, res) => {
   }
 });
 
-// ── AR: Scan invoice via Claude vision ───────────────────────────────────────────
+// ── AR: Scan invoice (reuses same vision LLM as bill scanner) ────────────────────
 app.post("/api/ar/scan-invoice", async (req, res) => {
   const { fileBase64, fileName, mimeType } = req.body || {};
   if (!fileBase64) return res.status(400).json({ ok: false, error: "No file provided" });
   try {
-    const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-    if (!ANTHROPIC_API_KEY) return res.status(500).json({ ok: false, error: "ANTHROPIC_API_KEY not set" });
-
-    const isImage = (mimeType || "").startsWith("image/");
-    const mediaType = isImage ? (mimeType || "image/jpeg") : "application/pdf";
-
-    const messages: any[] = [
-      {
-        role: "user",
-        content: [
-          {
-            type: isImage ? "image" : "document",
-            source: { type: "base64", media_type: mediaType, data: fileBase64 },
-          },
-          {
-            type: "text",
-            text: `Extract invoice/receivable information from this document. Return ONLY valid JSON with these fields (leave blank string if not found):
+    const prompt = `Extract invoice/receivable information from this document. Return ONLY valid JSON with these fields (use empty string if not found):
 {
-  "customer": "company or person being invoiced",
-  "amount": "numeric amount as string e.g. 1500.00",
+  "customer": "company or person being billed / who owes money",
+  "amount": "total amount due as numeric string e.g. 1500.00",
   "dueDate": "due date in YYYY-MM-DD format",
-  "description": "brief description of goods/services",
-  "entity": "billing entity if identifiable (e.g. Ruby's, TI, MSDx)"
+  "description": "brief description of goods or services",
+  "entity": "issuing company if identifiable (e.g. Ruby's, TI, MSDx, Capable DNA)"
 }
-Return ONLY the JSON object, no other text.`,
-          },
-        ],
-      },
-    ];
-
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-        "anthropic-beta": "pdfs-2024-09-25",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 512,
-        messages,
-      }),
-    });
-
-    const data: any = await response.json();
-    if (!response.ok) throw new Error(data?.error?.message || `Claude API error ${response.status}`);
-    const text = data.content?.[0]?.text || "{}";
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
+Return ONLY the JSON object, no markdown, no other text.`;
+    const result = await callVisionLLM(prompt, fileBase64, mimeType || "image/jpeg", 512);
+    if (!result.ok) return res.status(502).json({ ok: false, error: result.error });
+    const jsonMatch = result.text.match(/\{[\s\S]*\}/);
     const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
     res.json({ ok: true, parsed });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+// ── AR: Save invoice file to Google Drive ────────────────────────────────────────
+// Parent folder: 17A6yyvoPIlCfegus79yD3Vvt6HJnCoL2 (Invoices root)
+// Subfolder: named after `customer` — auto-created if missing.
+const INVOICES_DRIVE_FOLDER = "17A6yyvoPIlCfegus79yD3Vvt6HJnCoL2";
+
+app.post("/api/ar/save-to-drive", async (req, res) => {
+  const { accessToken, fileBase64, fileName, mimeType, customer } = req.body || {};
+  if (!accessToken) return res.status(401).json({ ok: false, error: "No access token" });
+  if (!fileBase64 || !fileName) return res.status(400).json({ ok: false, error: "Missing file data" });
+
+  try {
+    const folderName = (customer || "Unknown").trim();
+    const driveBase = "https://www.googleapis.com/drive/v3";
+    const driveUpload = "https://www.googleapis.com/upload/drive/v3";
+    const headers = { Authorization: `Bearer ${accessToken}` };
+
+    // 1. Find or create subfolder
+    const searchResp = await fetch(
+      `${driveBase}/files?q=${encodeURIComponent(`'${INVOICES_DRIVE_FOLDER}' in parents and name='${folderName.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and trashed=false`)}&fields=files(id,name)&pageSize=5`,
+      { headers }
+    );
+    const searchData: any = await searchResp.json();
+    let folderId: string;
+    if (searchData.files?.length > 0) {
+      folderId = searchData.files[0].id;
+    } else {
+      // Create subfolder
+      const createResp = await fetch(`${driveBase}/files`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: folderName,
+          mimeType: "application/vnd.google-apps.folder",
+          parents: [INVOICES_DRIVE_FOLDER],
+        }),
+      });
+      const created: any = await createResp.json();
+      if (!createResp.ok) throw new Error(`Create folder failed: ${created?.error?.message}`);
+      folderId = created.id;
+    }
+
+    // 2. Upload file using multipart upload
+    const fileBytes = Buffer.from(fileBase64, "base64");
+    const boundary = "arInvoiceBoundary";
+    const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
+    const body = Buffer.concat([
+      Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n`),
+      Buffer.from(metadata),
+      Buffer.from(`\r\n--${boundary}\r\nContent-Type: ${mimeType || "application/octet-stream"}\r\n\r\n`),
+      fileBytes,
+      Buffer.from(`\r\n--${boundary}--`),
+    ]);
+
+    const uploadResp = await fetch(`${driveUpload}/files?uploadType=multipart&fields=id,name,webViewLink`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": `multipart/related; boundary=${boundary}` },
+      body,
+    });
+    const uploadData: any = await uploadResp.json();
+    if (!uploadResp.ok) throw new Error(`Upload failed: ${uploadData?.error?.message}`);
+
+    res.json({ ok: true, fileId: uploadData.id, fileName: uploadData.name, webViewLink: uploadData.webViewLink, folderCreated: !searchData.files?.length });
   } catch (e: any) {
     res.status(500).json({ ok: false, error: e?.message || String(e) });
   }

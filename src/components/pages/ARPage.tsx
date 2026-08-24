@@ -52,7 +52,9 @@ export const ARPage: React.FC = () => {
   const [scanPreviewUrl, setScanPreviewUrl] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scannedData, setScannedData] = useState<Partial<{ customer: string; amount: string; dueDate: string; description: string; entity: string }> | null>(null);
-  const [autoSaveEnabled, setAutoSaveEnabledLocal] = useState(false); // destinations TBD
+  const [autoSaveEnabled, setAutoSaveEnabledLocal] = useState(true);
+  const [savingToDrive, setSavingToDrive] = useState(false);
+  const [driveLink, setDriveLink] = useState<string | null>(null);
   const scanFileRef = useRef<HTMLInputElement>(null);
 
   // New AR Item Form
@@ -182,18 +184,28 @@ export const ARPage: React.FC = () => {
   };
 
   // ── Scan invoice handlers ────────────────────────────────────────────────────
+  const fileToBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve((reader.result as string).split(",")[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
   const handleScanFileSelect = (file: File) => {
     setScanFile(file);
     setScanPreviewUrl(URL.createObjectURL(file));
     setScannedData(null);
+    setDriveLink(null);
   };
 
   const handleScanSubmit = async () => {
     if (!scanFile) return;
     setScanning(true);
     try {
-      const buf = await scanFile.arrayBuffer();
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+      const base64 = await fileToBase64(scanFile);
+
+      // 1. Scan invoice
       const resp = await fetch("/api/ar/scan-invoice", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -201,9 +213,43 @@ export const ARPage: React.FC = () => {
       });
       const data = await resp.json();
       if (!data.ok) throw new Error(data.error || "Scan failed");
-      setScannedData(data.parsed || {});
+      const parsed = data.parsed || {};
+      setScannedData(parsed);
+
+      // 2. Auto-save to Google Drive if enabled
+      if (autoSaveEnabled) {
+        setSavingToDrive(true);
+        try {
+          const { getAccessToken } = await import("../../services/googleAuth");
+          const accessToken = await getAccessToken();
+          if (accessToken) {
+            const saveResp = await fetch("/api/ar/save-to-drive", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                accessToken,
+                fileBase64: base64,
+                fileName: scanFile.name,
+                mimeType: scanFile.type,
+                customer: parsed.customer || "Unknown",
+              }),
+            });
+            const saveData = await saveResp.json();
+            if (saveData.ok) {
+              setDriveLink(saveData.webViewLink || null);
+              showToast(`Saved to Drive → ${parsed.customer || "Unknown"}${saveData.folderCreated ? " (new folder)" : ""}`, "success", 4000);
+            } else {
+              showToast(`Drive save failed: ${saveData.error}`, "error");
+            }
+          }
+        } catch (e: any) {
+          showToast(`Drive save failed: ${e?.message}`, "error");
+        } finally {
+          setSavingToDrive(false);
+        }
+      }
     } catch (e: any) {
-      (showToast as any)?.(`Scan failed: ${e?.message}`, "error");
+      showToast(`Scan failed: ${e?.message}`, "error");
     } finally {
       setScanning(false);
     }
@@ -229,6 +275,7 @@ export const ARPage: React.FC = () => {
     if (scanPreviewUrl) URL.revokeObjectURL(scanPreviewUrl);
     setScanPreviewUrl(null);
     setScannedData(null);
+    setDriveLink(null);
   };
 
   return (
@@ -535,11 +582,29 @@ export const ARPage: React.FC = () => {
                   )}
                 </div>
               )}
-              {/* Auto-save notice */}
-              <div className={`flex items-center gap-2 text-[11px] rounded-lg px-3 py-2 ${isLight ? "bg-amber-50 border border-amber-200 text-amber-700" : "bg-amber-900/15 border border-amber-700/30 text-amber-400"}`}>
-                <Save className="w-3.5 h-3.5 shrink-0" />
-                Auto-save destinations not yet configured — will fill in add form for manual save.
+              {/* Auto-save toggle */}
+              <div className={`flex items-center justify-between rounded-lg px-3 py-2 ${isLight ? "bg-slate-50 border border-slate-200" : "bg-[#111318] border border-[#1e2535]"}`}>
+                <div className="flex items-center gap-2">
+                  <Save className={`w-3.5 h-3.5 ${autoSaveEnabled ? "text-[#16a34a]" : "text-slate-400"}`} />
+                  <span className={`text-[12px] font-medium ${isLight ? "text-slate-600" : "text-slate-300"}`}>
+                    Auto-save to Google Drive
+                  </span>
+                  {savingToDrive && <Loader2 className="w-3 h-3 animate-spin text-slate-400" />}
+                </div>
+                <button
+                  onClick={() => setAutoSaveEnabledLocal(v => !v)}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${autoSaveEnabled ? "bg-[#16a34a]" : isLight ? "bg-slate-300" : "bg-[#2a3550]"}`}
+                >
+                  <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${autoSaveEnabled ? "translate-x-4" : "translate-x-1"}`} />
+                </button>
               </div>
+              {driveLink && (
+                <a href={driveLink} target="_blank" rel="noreferrer"
+                  className={`flex items-center gap-1.5 text-[11px] rounded-lg px-3 py-2 ${isLight ? "bg-green-50 border border-green-200 text-green-700 hover:text-green-900" : "bg-green-900/15 border border-green-700/30 text-green-400 hover:text-green-200"}`}>
+                  <FileText className="w-3.5 h-3.5 shrink-0" />
+                  Saved to Drive — click to open ↗
+                </a>
+              )}
             </div>
             <div className={`flex items-center justify-end gap-2 px-5 py-3 border-t ${isLight ? "border-slate-100" : "border-[#222]"}`}>
               <button onClick={closeScanModal} className={`px-4 py-1.5 rounded-lg text-[12px] font-semibold ${isLight ? "bg-slate-100 text-slate-700 hover:bg-slate-200" : "bg-[#1a2235] text-slate-300 hover:bg-[#1e2a40]"}`}>
