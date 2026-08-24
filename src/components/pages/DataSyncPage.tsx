@@ -84,6 +84,10 @@ export const DataSyncPage: React.FC = () => {
   const [cloningSheet, setCloningSheet] = useState<Record<string, boolean>>({});
   const [cloneResults, setCloneResults] = useState<Record<string, { name: string; url: string; newId: string } | null>>({});
   const [mappingsSwitched, setMappingsSwitched] = useState<Record<string, boolean>>({});
+  // Manual switch: { [sheetId]: inputValue }
+  const [manualIds, setManualIds]       = useState<Record<string, string>>({});
+  const [manualSwitching, setManualSwitching] = useState<Record<string, boolean>>({});
+  const [showManual, setShowManual]     = useState<Record<string, boolean>>({});
 
   const fetchUsage = useCallback(async (sheetId: string) => {
     setLoadingUsage(m => ({ ...m, [sheetId]: true }));
@@ -150,6 +154,31 @@ export const DataSyncPage: React.FC = () => {
 
     setMappingsSwitched(s => ({ ...s, [oldSheetId]: true }));
   }, [sheetMappings, updateSheetMapping]);
+
+  // Manually switch to any sheet ID the user pastes in
+  const manualSwitch = useCallback(async (sheet: typeof TRACKED_SHEETS[number]) => {
+    const rawInput = (manualIds[sheet.id] || "").trim();
+    // Accept full URL or bare ID
+    const idMatch = rawInput.match(/\/spreadsheets\/d\/([A-Za-z0-9_-]{20,60})/);
+    const newId = idMatch ? idMatch[1] : rawInput;
+    if (!newId || !/^[A-Za-z0-9_-]{20,60}$/.test(newId)) {
+      alert("Paste a valid Google Sheets URL or spreadsheet ID.");
+      return;
+    }
+    if (newId === sheet.id) {
+      alert("That's the same sheet that's already active.");
+      return;
+    }
+    setManualSwitching(s => ({ ...s, [sheet.id]: true }));
+    try {
+      const newUrl = `https://docs.google.com/spreadsheets/d/${newId}/edit`;
+      await switchAllMappings(sheet.id, newId, newUrl, sheet.configKey, sheet.mappingMatch);
+    } finally {
+      setManualSwitching(s => ({ ...s, [sheet.id]: false }));
+      setShowManual(s => ({ ...s, [sheet.id]: false }));
+      setManualIds(m => ({ ...m, [sheet.id]: "" }));
+    }
+  }, [manualIds, switchAllMappings]);
 
   // Local state for editing sheet configs keyed by mapping.id
   const [editingConfigs, setEditingConfigs] = useState<Record<string, SheetMappingConfig>>({});
@@ -919,6 +948,37 @@ export const DataSyncPage: React.FC = () => {
                       </button>
                     </div>
                   </div>
+
+                  {/* Manual switch expander */}
+                  {showManual[sheet.id] ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={manualIds[sheet.id] || ""}
+                        onChange={e => setManualIds(m => ({ ...m, [sheet.id]: e.target.value }))}
+                        placeholder="Paste sheet URL or ID…"
+                        className={`flex-1 text-[12px] px-2.5 py-1.5 rounded-lg border focus:outline-none focus:border-amber-400 ${isLight ? "bg-white border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#2a3550] text-white"}`}
+                        onKeyDown={e => e.key === "Enter" && manualSwitch(sheet)}
+                        autoFocus
+                      />
+                      <button
+                        onClick={() => manualSwitch(sheet)}
+                        disabled={manualSwitching[sheet.id]}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-50"
+                      >
+                        {manualSwitching[sheet.id] ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                        Switch
+                      </button>
+                      <button onClick={() => setShowManual(s => ({ ...s, [sheet.id]: false }))} className="text-[11px] text-slate-400 hover:text-slate-600">Cancel</button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setShowManual(s => ({ ...s, [sheet.id]: true }))}
+                      className={`text-[11px] underline ${isLight ? "text-slate-400 hover:text-slate-600" : "text-[#555] hover:text-slate-400"}`}
+                    >
+                      Switch to an existing sheet manually…
+                    </button>
+                  )}
 
                   {/* Usage bar */}
                   {usage && (
