@@ -404,14 +404,10 @@ export const NotesPage: React.FC = () => {
                         <div>
                           <div className="flex items-center justify-between gap-2 mb-2">
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              {/* Status Badge */}
-                              {note.status === "done" ? (
+                              {/* Status Badge — only show for Done notes */}
+                              {note.status === "done" && (
                                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center gap-1 uppercase tracking-wider">
                                   <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Done
-                                </span>
-                              ) : (
-                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-600 dark:text-amber-400 uppercase tracking-wider">
-                                  Open
                                 </span>
                               )}
 
