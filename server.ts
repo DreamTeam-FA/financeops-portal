@@ -72,7 +72,10 @@ const DEFAULT_DATA = {
     { id: "map-ar", module: "ar", name: "Accounts Receivable (Invoices)", spreadsheetIdOrUrl: "https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit?usp=sharing", tabName: "AR Dashboard Data", range: "'AR Dashboard Data'!A1:Z200", status: "connected" },
     { id: "map-statements", module: "statements", name: "Bank Statements Checklist", spreadsheetIdOrUrl: "https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit?usp=sharing", tabName: "Bank Statements", range: "'Bank Statements'!A1:Z100", status: "connected" },
     { id: "map-payroll", module: "payroll", name: "4YR Payroll", spreadsheetIdOrUrl: "https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit?usp=sharing", tabName: "raw", range: "'raw'!A1:Z500", status: "connected" }
-  ]
+  ],
+  // Runtime sheet ID overrides — set via /api/config/set-sheet-id to switch active sheet
+  // without a code redeploy. Keys: "main", "payroll4yr", "calendar", "cc"
+  sheetIdOverrides: {} as Record<string, string>,
 };
 
 // Special merge for notes: sheet provides base content, but local status/completion wins
@@ -1219,7 +1222,9 @@ app.post("/api/4yr/start-new-week", async (req, res) => {
 // CC EXPENSES ROUTES
 // Spreadsheet: 1gKCKrWw8mkqJDiRl_9xYIhkzmtjOEoauQZgbtW9gIew
 // ────────────────────────────────────────────────────────────
-const CC_SHEET_ID = "1gKCKrWw8mkqJDiRl_9xYIhkzmtjOEoauQZgbtW9gIew";
+const CC_SHEET_ID_DEFAULT = "1gKCKrWw8mkqJDiRl_9xYIhkzmtjOEoauQZgbtW9gIew";
+// Read at call time so runtime overrides take effect without restart
+function getCCSheetId(): string { return data.sheetIdOverrides?.cc || CC_SHEET_ID_DEFAULT; }
 
 // Parse CSV or XLSX file sent as base64, return rows
 app.post("/api/cc-expense/parse", async (req, res) => {
@@ -1251,7 +1256,7 @@ app.post("/api/cc-expense/pull", async (req, res) => {
     ];
     const query = ranges.map(r => `ranges=${encodeURIComponent(r)}`).join("&");
     const resp = await fetch(
-      `${base}/${CC_SHEET_ID}/values:batchGet?${query}&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING`,
+      `${base}/${getCCSheetId()}/values:batchGet?${query}&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING`,
       { headers }
     );
     if (!resp.ok) {
@@ -1280,7 +1285,7 @@ app.post("/api/cc-expense/upload", async (req, res) => {
   try {
     // First clear existing raw data rows (row 3 onwards)
     await fetch(
-      `${base}/${CC_SHEET_ID}/values/'Raw Data'!A3:K?valueRenderOption=UNFORMATTED_VALUE`,
+      `${base}/${getCCSheetId()}/values/'Raw Data'!A3:K?valueRenderOption=UNFORMATTED_VALUE`,
       { method: "DELETE", headers }
     );
     if (!rows.length) return res.json({ ok: true, updated: 0 });
@@ -1290,7 +1295,7 @@ app.post("/api/cc-expense/upload", async (req, res) => {
       values: rows,
     });
     const writeResp = await fetch(
-      `${base}/${CC_SHEET_ID}/values/'Raw Data'!A3?valueInputOption=USER_ENTERED`,
+      `${base}/${getCCSheetId()}/values/'Raw Data'!A3?valueInputOption=USER_ENTERED`,
       { method: "PUT", headers, body }
     );
     if (!writeResp.ok) {
@@ -1508,7 +1513,7 @@ app.post("/api/cc-expense/adjustments/pull", async (req, res) => {
   const { accessToken } = req.body || {};
   if (!accessToken) return res.status(401).json({ ok: false, error: "No access token" });
   try {
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${CC_SHEET_ID}/values/CC%20Adjustments!A2:D?majorDimension=ROWS`;
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${getCCSheetId()}/values/CC%20Adjustments!A2:D?majorDimension=ROWS`;
     const resp = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
     if (!resp.ok) {
       // If the tab doesn't exist, return empty list
@@ -1530,19 +1535,19 @@ app.post("/api/cc-expense/adjustments/push", async (req, res) => {
   if (!rows?.length) return res.json({ ok: true, updated: 0 });
   try {
     // Ensure the CC Adjustments tab exists — if not, create it
-    const metaResp = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CC_SHEET_ID}?fields=sheets.properties.title`, {
+    const metaResp = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${getCCSheetId()}?fields=sheets.properties.title`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     const meta: any = await metaResp.json();
     const titles: string[] = (meta.sheets || []).map((s: any) => s.properties?.title || "");
     if (!titles.includes("CC Adjustments")) {
-      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CC_SHEET_ID}:batchUpdate`, {
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${getCCSheetId()}:batchUpdate`, {
         method: "POST",
         headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
         body: JSON.stringify({ requests: [{ addSheet: { properties: { title: "CC Adjustments" } } }] }),
       });
       // Write header row
-      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CC_SHEET_ID}/values/CC%20Adjustments!A1:D1?valueInputOption=RAW`, {
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${getCCSheetId()}/values/CC%20Adjustments!A1:D1?valueInputOption=RAW`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
         body: JSON.stringify({ range: "CC Adjustments!A1:D1", majorDimension: "ROWS", values: [["WeekStart", "Vendor", "Company", "Delta"]] }),
@@ -1550,7 +1555,7 @@ app.post("/api/cc-expense/adjustments/push", async (req, res) => {
     }
     // Append the adjustment rows
     const appendResp = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${CC_SHEET_ID}/values/CC%20Adjustments!A:D:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${getCCSheetId()}/values/CC%20Adjustments!A:D:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
       {
         method: "POST",
         headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
@@ -1562,6 +1567,37 @@ app.post("/api/cc-expense/adjustments/push", async (req, res) => {
   } catch (e: any) {
     res.status(500).json({ ok: false, error: e?.message || String(e) });
   }
+});
+
+// ── Sheet Continuity: runtime sheet ID override ──────────────────────────────────
+// POST /api/config/set-sheet-id  { key: "cc"|"main"|"calendar"|"payroll4yr", id: "..." }
+// Persists the new sheet ID to financeops_data.json so it survives server restarts.
+// The CC route reads getCCSheetId() on every request, so this takes effect immediately.
+// The liveSheetsFetcher constants are read at startup — a manual /api/live-sync call
+// will re-fetch with the updated IDs passed via query-time helpers below.
+app.post("/api/config/set-sheet-id", (req, res) => {
+  const { key, id } = req.body || {};
+  const VALID_KEYS = ["main", "payroll4yr", "calendar", "cc"];
+  if (!VALID_KEYS.includes(key)) return res.status(400).json({ ok: false, error: `key must be one of ${VALID_KEYS.join(", ")}` });
+  if (!id || typeof id !== "string" || !/^[A-Za-z0-9_-]{20,60}$/.test(id)) return res.status(400).json({ ok: false, error: "Invalid sheet ID format" });
+  if (!data.sheetIdOverrides) data.sheetIdOverrides = {};
+  data.sheetIdOverrides[key] = id;
+  persistChanges({ sheetIdOverrides: data.sheetIdOverrides });
+  console.log(`[SheetOverride] ${key} → ${id}`);
+  res.json({ ok: true, key, id });
+});
+
+// GET /api/config/sheet-ids — return current active sheet IDs (overrides + defaults)
+app.get("/api/config/sheet-ids", (_req, res) => {
+  res.json({
+    ok: true,
+    ids: {
+      main:       data.sheetIdOverrides?.main       || "15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs",
+      payroll4yr: data.sheetIdOverrides?.payroll4yr || "1SITtQDT3iFo5yIOBgjbERbqJjYJ8rk6drXwkLm3sAGE",
+      calendar:   data.sheetIdOverrides?.calendar   || "1ChoHr7dsfai0Unl-Gk-HyPmgrpWOYu07gllY9PA8epo",
+      cc:         data.sheetIdOverrides?.cc         || "1gKCKrWw8mkqJDiRl_9xYIhkzmtjOEoauQZgbtW9gIew",
+    },
+  });
 });
 
 // ── Sheet Continuity: usage + blank-clone ────────────────────────────────────────

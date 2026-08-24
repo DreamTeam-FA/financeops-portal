@@ -68,10 +68,13 @@ export const DataSyncPage: React.FC = () => {
   const [importStatus, setImportStatus] = useState<string | null>(null);
 
   // ── Sheet Continuity state ───────────────────────────────────────────────────
+  // configKey matches the key accepted by /api/config/set-sheet-id
+  // mappingMatch: string that appears in sheetMappings[].spreadsheetIdOrUrl for bulk-switch
   const TRACKED_SHEETS = [
-    { id: "15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs", label: "Main Finance", desc: "AP, AR, Banks, Loans, Payroll" },
-    { id: "1gKCKrWw8mkqJDiRl_9xYIhkzmtjOEoauQZgbtW9gIew", label: "CC Expense",   desc: "Credit card transactions" },
-    { id: "1ChoHr7dsfai0Unl-Gk-HyPmgrpWOYu07gllY9PA8epo", label: "Calendar",     desc: "Events & schedule" },
+    { id: "15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs", label: "Main Finance", desc: "AP, AR, Banks, Loans, Bank Statements (6 mappings)",    configKey: "main",       mappingMatch: "15uYsYttv4x" },
+    { id: "1SITtQDT3iFo5yIOBgjbERbqJjYJ8rk6drXwkLm3sAGE", label: "4YR Payroll",  desc: "Payroll data, timesheets, employee records",            configKey: "payroll4yr", mappingMatch: "1SITtQDT3iFo" },
+    { id: "1gKCKrWw8mkqJDiRl_9xYIhkzmtjOEoauQZgbtW9gIew", label: "CC Expense",   desc: "Credit card transactions & adjustments",                configKey: "cc",         mappingMatch: "1gKCKrWw8mkq" },
+    { id: "1ChoHr7dsfai0Unl-Gk-HyPmgrpWOYu07gllY9PA8epo", label: "Calendar",     desc: "Events, schedule & calendar overrides",                 configKey: "calendar",   mappingMatch: "1ChoHr7dsfai" },
   ];
   const LIMIT = 10_000_000;
 
@@ -79,7 +82,8 @@ export const DataSyncPage: React.FC = () => {
   const [usageMap, setUsageMap]     = useState<Record<string, SheetUsage>>({});
   const [loadingUsage, setLoadingUsage] = useState<Record<string, boolean>>({});
   const [cloningSheet, setCloningSheet] = useState<Record<string, boolean>>({});
-  const [cloneResults, setCloneResults] = useState<Record<string, { name: string; url: string } | null>>({});
+  const [cloneResults, setCloneResults] = useState<Record<string, { name: string; url: string; newId: string } | null>>({});
+  const [mappingsSwitched, setMappingsSwitched] = useState<Record<string, boolean>>({});
 
   const fetchUsage = useCallback(async (sheetId: string) => {
     setLoadingUsage(m => ({ ...m, [sheetId]: true }));
@@ -115,13 +119,37 @@ export const DataSyncPage: React.FC = () => {
       });
       const data = await resp.json();
       if (!data.ok) throw new Error(data.error);
-      setCloneResults(m => ({ ...m, [sheetId]: { name: data.newName, url: data.webViewLink } }));
+      setCloneResults(m => ({ ...m, [sheetId]: { name: data.newName, url: data.webViewLink, newId: data.newSpreadsheetId } }));
     } catch (e: any) {
       alert(`Clone failed: ${e?.message}`);
     } finally {
       setCloningSheet(m => ({ ...m, [sheetId]: false }));
     }
   }, []);
+
+  // One-click: repoint all mappings that reference this sheet + update server-side override
+  const switchAllMappings = useCallback(async (
+    oldSheetId: string,
+    newSheetId: string,
+    newSheetUrl: string,
+    configKey: string,
+    mappingMatch: string,
+  ) => {
+    // 1. Update any sheetMappings that reference the old ID (e.g. all 6 Main Finance mappings)
+    const affected = sheetMappings.filter(m => m.spreadsheetIdOrUrl.includes(mappingMatch));
+    affected.forEach(m => updateSheetMapping(m.id, { spreadsheetIdOrUrl: newSheetUrl }));
+
+    // 2. Persist the override on the server so CC/Calendar/Payroll service routes also switch
+    try {
+      await fetch("/api/config/set-sheet-id", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: configKey, id: newSheetId }),
+      });
+    } catch { /* non-fatal */ }
+
+    setMappingsSwitched(s => ({ ...s, [oldSheetId]: true }));
+  }, [sheetMappings, updateSheetMapping]);
 
   // Local state for editing sheet configs keyed by mapping.id
   const [editingConfigs, setEditingConfigs] = useState<Record<string, SheetMappingConfig>>({});
@@ -915,23 +943,42 @@ export const DataSyncPage: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Clone result */}
-                  {cloneResult && (
-                    <div className={`rounded-lg border px-3 py-2.5 flex items-start gap-2 ${isLight ? "bg-green-50 border-green-200" : "bg-green-900/10 border-green-700/30"}`}>
-                      <CheckCircle2 className="w-3.5 h-3.5 text-green-500 mt-0.5 shrink-0" />
-                      <div className="space-y-1 min-w-0">
-                        <p className={`text-[11px] font-bold ${isLight ? "text-green-700" : "text-green-400"}`}>Blank clone created</p>
-                        <p className={`text-[11px] break-all ${isLight ? "text-slate-600" : "text-slate-300"}`}>{cloneResult.name}</p>
-                        <a href={cloneResult.url} target="_blank" rel="noreferrer"
-                          className={`inline-flex items-center gap-1 text-[11px] font-semibold underline ${isLight ? "text-green-700" : "text-green-400"}`}>
-                          <ExternalLink className="w-3 h-3" /> Open in Google Sheets
-                        </a>
-                        <p className={`text-[10px] ${isLight ? "text-slate-400" : "text-[#666]"}`}>
-                          Copy the spreadsheet ID from the URL and update your sheet mappings above to use this new sheet.
-                        </p>
+                  {/* Clone result + one-click switch */}
+                  {cloneResult && (() => {
+                    const switched = mappingsSwitched[sheet.id];
+                    const affectedCount = sheetMappings.filter(m => m.spreadsheetIdOrUrl.includes(sheet.mappingMatch)).length;
+                    return (
+                      <div className={`rounded-lg border px-3 py-3 space-y-2.5 ${isLight ? "bg-green-50 border-green-200" : "bg-green-900/10 border-green-700/30"}`}>
+                        <div className="flex items-start gap-2">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-green-500 mt-0.5 shrink-0" />
+                          <div className="space-y-0.5 min-w-0">
+                            <p className={`text-[11px] font-bold ${isLight ? "text-green-700" : "text-green-400"}`}>Blank clone ready</p>
+                            <p className={`text-[11px] break-all ${isLight ? "text-slate-600" : "text-slate-300"}`}>{cloneResult.name}</p>
+                            <a href={cloneResult.url} target="_blank" rel="noreferrer"
+                              className={`inline-flex items-center gap-1 text-[11px] underline ${isLight ? "text-green-700" : "text-green-400"}`}>
+                              <ExternalLink className="w-3 h-3" /> Open new sheet ↗
+                            </a>
+                          </div>
+                        </div>
+                        {switched ? (
+                          <div className="flex items-center gap-1.5 text-[11px] font-bold text-green-500">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            All references switched to new sheet
+                            {affectedCount > 0 && <span className={`font-normal ${isLight ? "text-slate-500" : "text-slate-400"}`}>({affectedCount} mapping{affectedCount !== 1 ? "s" : ""} updated)</span>}
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => switchAllMappings(sheet.id, cloneResult.newId, cloneResult.url, sheet.configKey, sheet.mappingMatch)}
+                            className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-[12px] font-bold bg-[#16a34a] hover:bg-[#15803d] text-white transition-colors"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            Switch Portal to New Sheet
+                            {affectedCount > 0 && <span className="font-normal opacity-80">({affectedCount} mapping{affectedCount !== 1 ? "s" : ""} + service layer)</span>}
+                          </button>
+                        )}
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
               );
             })}
