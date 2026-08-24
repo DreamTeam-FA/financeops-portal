@@ -14,6 +14,12 @@ interface TimesheetDay {
   totalHours: number | null;
 }
 
+interface NameMatch {
+  matched: string | null;
+  confidence: number;
+  isNew: boolean;
+}
+
 interface TimesheetData {
   employeeName: string;
   weekStart: string;
@@ -22,6 +28,7 @@ interface TimesheetData {
   job: string;
   weeklyTotalHours: number | null;
   days: TimesheetDay[];
+  employeeMatch?: NameMatch;
 }
 
 interface ScanItem {
@@ -292,6 +299,26 @@ export const TimesheetScanner: React.FC<Props> = ({ isLight }) => {
                   </label>
                 </div>
               </div>
+
+              {/* Employee match notice */}
+              {item.result.employeeMatch && (
+                item.result.employeeMatch.isNew ? (
+                  <div className={`flex items-start gap-1.5 px-2.5 py-2 rounded text-[11px] leading-snug ${isLight ? "bg-amber-50 border border-amber-200 text-amber-800" : "bg-amber-950/30 border border-amber-800/40 text-amber-300"}`}>
+                    <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                    <span>
+                      <strong>Employee not in records</strong>
+                      {item.result.employeeMatch.matched
+                        ? ` — closest match: "${item.result.employeeMatch.matched}" (${Math.round(item.result.employeeMatch.confidence * 100)}% similar). Please verify or correct the employee name.`
+                        : " — no similar employee found. Please verify the employee name is correct."}
+                    </span>
+                  </div>
+                ) : (
+                  <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-[11px] ${isLight ? "bg-green-50 border border-green-200 text-green-700" : "bg-green-950/30 border border-green-900/40 text-green-300"}`}>
+                    <CheckCircle2 className="w-3 h-3 shrink-0" />
+                    <span>Matched to known employee ({Math.round(item.result.employeeMatch.confidence * 100)}% confidence)</span>
+                  </div>
+                )
+              )}
 
               {/* Days table */}
               <div className={`rounded-lg border overflow-hidden ${isLight ? "border-slate-200" : "border-[#1a2235]"}`}>

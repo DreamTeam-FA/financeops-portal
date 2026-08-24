@@ -6,6 +6,12 @@
 import React, { useState, useRef, useCallback } from "react";
 import { Upload, FileText, Loader2, CheckCircle2, AlertCircle, X, RefreshCw, Save, FileStack } from "lucide-react";
 
+interface NameMatch {
+  matched: string | null;
+  confidence: number;
+  isNew: boolean;
+}
+
 interface InvoiceData {
   vendor: string;
   invoiceNo: string | null;
@@ -15,6 +21,7 @@ interface InvoiceData {
   entity: string;
   description: string;
   remarks: string;
+  vendorMatch?: NameMatch;
 }
 
 interface ScanItem {
@@ -260,6 +267,25 @@ export const InvoiceScanner: React.FC<Props> = ({ isLight }) => {
                     <span className={`text-[10px] font-semibold uppercase tracking-wider ${muted}`}>Vendor / Biller</span>
                     <input value={item.result.vendor} onChange={e => updateResult(item.id, "vendor", e.target.value)} className={`px-2 py-1 rounded border text-xs font-bold ${inp}`} disabled={item.saved} />
                   </label>
+                  {/* Vendor match notice */}
+                  {item.result.vendorMatch && (
+                    item.result.vendorMatch.isNew ? (
+                      <div className={`col-span-2 flex items-start gap-1.5 px-2 py-1.5 rounded text-[11px] leading-snug ${isLight ? "bg-amber-50 border border-amber-200 text-amber-800" : "bg-amber-950/30 border border-amber-800/40 text-amber-300"}`}>
+                        <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                        <span>
+                          <strong>Vendor not in records</strong>
+                          {item.result.vendorMatch.matched
+                            ? ` — closest match: "${item.result.vendorMatch.matched}" (${Math.round(item.result.vendorMatch.confidence * 100)}% similar). Please verify or correct the vendor name.`
+                            : " — no similar vendor found. Please verify the vendor name is correct."}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className={`col-span-2 flex items-center gap-1.5 px-2 py-1 rounded text-[11px] ${isLight ? "bg-green-50 border border-green-200 text-green-700" : "bg-green-950/30 border border-green-900/40 text-green-300"}`}>
+                        <CheckCircle2 className="w-3 h-3 shrink-0" />
+                        <span>Matched to known vendor ({Math.round(item.result.vendorMatch.confidence * 100)}% confidence)</span>
+                      </div>
+                    )
+                  )}
                   <label className="flex flex-col gap-0.5">
                     <span className={`text-[10px] font-semibold uppercase tracking-wider ${muted}`}>Invoice #</span>
                     <input value={item.result.invoiceNo ?? ""} onChange={e => updateResult(item.id, "invoiceNo", e.target.value || null)} className={`px-2 py-1 rounded border text-xs ${inp}`} disabled={item.saved} />

@@ -702,6 +702,37 @@ app.get("/api/gemini-test", async (_req, res) => {
   });
 });
 
+// ── Fuzzy name-matching helpers ─────────────────────────────────────────────
+function normalizeName(s: string): string {
+  return s.toLowerCase().trim().replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
+}
+function fuzzyScore(a: string, b: string): number {
+  const na = normalizeName(a);
+  const nb = normalizeName(b);
+  if (!na || !nb) return 0;
+  if (na === nb) return 1.0;
+  if (na.includes(nb) || nb.includes(na)) {
+    const shorter = Math.min(na.length, nb.length);
+    const longer  = Math.max(na.length, nb.length);
+    return 0.7 + 0.3 * (shorter / longer);
+  }
+  const tokA = new Set(na.split(" ").filter(Boolean));
+  const tokB = new Set(nb.split(" ").filter(Boolean));
+  const intersection = [...tokA].filter(t => tokB.has(t)).length;
+  const union = new Set([...tokA, ...tokB]).size;
+  return union === 0 ? 0 : intersection / union;
+}
+function bestMatch(name: string, candidates: string[]): { matched: string | null; confidence: number; isNew: boolean } {
+  if (!candidates.length || !name.trim()) return { matched: null, confidence: 0, isNew: true };
+  let best: { matched: string | null; confidence: number } = { matched: null, confidence: 0 };
+  for (const c of candidates) {
+    const score = fuzzyScore(name, c);
+    if (score > best.confidence) best = { matched: c, confidence: score };
+  }
+  return { ...best, isNew: best.confidence < 0.5 };
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 // POST /api/invoice/scan — Gemini Vision extracts bill/invoice data
 app.post("/api/invoice/scan", async (req, res) => {
   const { imageBase64, mimeType } = req.body || {};
@@ -750,7 +781,12 @@ Notes:
       console.error(`[InvoiceScan] JSON.parse failed: ${parseErr?.message} | cleaned length: ${cleaned.length}`);
       return res.status(422).json({ error: "Could not parse response as JSON", raw, cleaned: cleaned.slice(0, 500) });
     }
-    res.json({ ok: true, invoice: parsed });
+    // Match extracted vendor name against known vendors in stored AP data
+    const storedForVendor = getStoredData();
+    const knownVendors = [...new Set(((storedForVendor.ap || []) as any[]).map((b: any) => b.vendor).filter(Boolean))] as string[];
+    const vendorMatch = bestMatch(parsed.vendor || "", knownVendors);
+    if (!vendorMatch.isNew && vendorMatch.matched) parsed.vendor = vendorMatch.matched;
+    res.json({ ok: true, invoice: { ...parsed, vendorMatch } });
   } catch (e: any) {
     res.status(500).json({ error: e?.message || String(e) });
   }
@@ -842,8 +878,12 @@ Notes:
       console.error(`[TimesheetScan] JSON.parse failed: ${parseErr?.message} | cleaned length: ${cleaned.length}`);
       return res.status(422).json({ error: "Could not parse response as JSON", raw, cleaned: cleaned.slice(0, 500) });
     }
-
-    res.json({ ok: true, timesheet: parsed });
+    // Match extracted employee name against known employees in saved timesheets
+    const storedForEmp = getStoredData() as any;
+    const knownEmployees = [...new Set(((storedForEmp.scannedTimesheets || []) as any[]).map((t: any) => t.employeeName).filter(Boolean))] as string[];
+    const employeeMatch = bestMatch(parsed.employeeName || "", knownEmployees);
+    if (!employeeMatch.isNew && employeeMatch.matched) parsed.employeeName = employeeMatch.matched;
+    res.json({ ok: true, timesheet: { ...parsed, employeeMatch } });
   } catch (e: any) {
     console.error("[TimesheetScan] Unexpected error:", e);
     res.status(500).json({ error: e?.message || String(e) });
