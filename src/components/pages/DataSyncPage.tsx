@@ -25,8 +25,12 @@ import {
   BarChart3,
   AlertTriangle,
   Loader2,
+  Lock,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { SheetMappingConfig } from "../../types";
+import { emailPasswordSignIn } from "../../services/googleAuth";
 
 export const DataSyncPage: React.FC = () => {
   const {
@@ -89,6 +93,39 @@ export const DataSyncPage: React.FC = () => {
   const [manualSwitching, setManualSwitching] = useState<Record<string, boolean>>({});
   const [showManual, setShowManual]     = useState<Record<string, boolean>>({});
 
+  // ── 3-layer confirmation modal state ────────────────────────────────────────
+  type ConfirmTarget = {
+    sheet: typeof TRACKED_SHEETS[number];
+    newId: string;
+    newUrl: string;
+    isManual: boolean;
+  };
+  const [confirmTarget, setConfirmTarget] = useState<ConfirmTarget | null>(null);
+  const [confirmStep, setConfirmStep] = useState<1 | 2 | 3>(1);
+  const [confirmTyped, setConfirmTyped] = useState("");
+  const [confirmEmail, setConfirmEmail] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [confirmShowPw, setConfirmShowPw] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [confirmVerifying, setConfirmVerifying] = useState(false);
+
+  const openConfirm = useCallback((target: ConfirmTarget) => {
+    setConfirmTarget(target);
+    setConfirmStep(1);
+    setConfirmTyped("");
+    setConfirmEmail(googleUser?.email || "");
+    setConfirmPassword("");
+    setConfirmShowPw(false);
+    setConfirmError(null);
+  }, [googleUser]);
+
+  const closeConfirm = () => {
+    setConfirmTarget(null);
+    setConfirmTyped("");
+    setConfirmPassword("");
+    setConfirmError(null);
+  };
+
   const fetchUsage = useCallback(async (sheetId: string) => {
     setLoadingUsage(m => ({ ...m, [sheetId]: true }));
     try {
@@ -131,34 +168,51 @@ export const DataSyncPage: React.FC = () => {
     }
   }, []);
 
-  // One-click: repoint all mappings that reference this sheet + update server-side override
-  const switchAllMappings = useCallback(async (
+  // The actual switch — only called after all 3 confirmation layers pass
+  const executeSwitch = useCallback(async (
+    sheet: typeof TRACKED_SHEETS[number],
+    newSheetId: string,
+    newSheetUrl: string,
+    authorEmail: string,
+  ) => {
+    // 1. Update any sheetMappings that reference the old ID
+    const affected = sheetMappings.filter(m => m.spreadsheetIdOrUrl.includes(sheet.mappingMatch));
+    affected.forEach(m => updateSheetMapping(m.id, { spreadsheetIdOrUrl: newSheetUrl }));
+
+    // 2. Persist the override on the server
+    try {
+      await fetch("/api/config/set-sheet-id", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: sheet.configKey, id: newSheetId }),
+      });
+    } catch { /* non-fatal */ }
+
+    // 3. Audit log — records who authorised the switch and full details
+    logAction(
+      "Sheet Source Switched",
+      `[${sheet.label}] switched from ${sheet.id} → ${newSheetId} | Authorised by: ${authorEmail} | Affected mappings: ${affected.length} | New URL: ${newSheetUrl}`
+    );
+
+    setMappingsSwitched(s => ({ ...s, [sheet.id]: true }));
+  }, [sheetMappings, updateSheetMapping, logAction]);
+
+  // Opens the 3-layer confirm modal (called from "Switch Portal" button and manual switch)
+  const switchAllMappings = useCallback((
     oldSheetId: string,
     newSheetId: string,
     newSheetUrl: string,
     configKey: string,
     mappingMatch: string,
   ) => {
-    // 1. Update any sheetMappings that reference the old ID (e.g. all 6 Main Finance mappings)
-    const affected = sheetMappings.filter(m => m.spreadsheetIdOrUrl.includes(mappingMatch));
-    affected.forEach(m => updateSheetMapping(m.id, { spreadsheetIdOrUrl: newSheetUrl }));
+    const sheet = TRACKED_SHEETS.find(s => s.id === oldSheetId);
+    if (!sheet) return;
+    openConfirm({ sheet, newId: newSheetId, newUrl: newSheetUrl, isManual: false });
+  }, [openConfirm]);
 
-    // 2. Persist the override on the server so CC/Calendar/Payroll service routes also switch
-    try {
-      await fetch("/api/config/set-sheet-id", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: configKey, id: newSheetId }),
-      });
-    } catch { /* non-fatal */ }
-
-    setMappingsSwitched(s => ({ ...s, [oldSheetId]: true }));
-  }, [sheetMappings, updateSheetMapping]);
-
-  // Manually switch to any sheet ID the user pastes in
-  const manualSwitch = useCallback(async (sheet: typeof TRACKED_SHEETS[number]) => {
+  // Manually switch to any sheet ID the user pastes in — routes through confirm modal
+  const manualSwitch = useCallback((sheet: typeof TRACKED_SHEETS[number]) => {
     const rawInput = (manualIds[sheet.id] || "").trim();
-    // Accept full URL or bare ID
     const idMatch = rawInput.match(/\/spreadsheets\/d\/([A-Za-z0-9_-]{20,60})/);
     const newId = idMatch ? idMatch[1] : rawInput;
     if (!newId || !/^[A-Za-z0-9_-]{20,60}$/.test(newId)) {
@@ -169,16 +223,11 @@ export const DataSyncPage: React.FC = () => {
       alert("That's the same sheet that's already active.");
       return;
     }
-    setManualSwitching(s => ({ ...s, [sheet.id]: true }));
-    try {
-      const newUrl = `https://docs.google.com/spreadsheets/d/${newId}/edit`;
-      await switchAllMappings(sheet.id, newId, newUrl, sheet.configKey, sheet.mappingMatch);
-    } finally {
-      setManualSwitching(s => ({ ...s, [sheet.id]: false }));
-      setShowManual(s => ({ ...s, [sheet.id]: false }));
-      setManualIds(m => ({ ...m, [sheet.id]: "" }));
-    }
-  }, [manualIds, switchAllMappings]);
+    const newUrl = `https://docs.google.com/spreadsheets/d/${newId}/edit`;
+    setShowManual(s => ({ ...s, [sheet.id]: false }));
+    setManualIds(m => ({ ...m, [sheet.id]: "" }));
+    openConfirm({ sheet, newId, newUrl, isManual: true });
+  }, [manualIds, openConfirm]);
 
   // Local state for editing sheet configs keyed by mapping.id
   const [editingConfigs, setEditingConfigs] = useState<Record<string, SheetMappingConfig>>({});
@@ -1046,6 +1095,180 @@ export const DataSyncPage: React.FC = () => {
         </div>
 
       </div>
+
+      {/* ── 3-Layer Sheet Switch Confirmation Modal ─────────────────────────────── */}
+    {confirmTarget && (() => {
+      const { sheet, newId, newUrl, isManual } = confirmTarget;
+      const affectedCount = sheetMappings.filter(m => m.spreadsheetIdOrUrl.includes(sheet.mappingMatch)).length;
+      const CONFIRM_WORD = "SWITCH";
+
+      const handleStep2 = () => {
+        if (confirmTyped.trim().toUpperCase() !== CONFIRM_WORD) {
+          setConfirmError(`Type "${CONFIRM_WORD}" exactly to proceed.`);
+          return;
+        }
+        setConfirmError(null);
+        setConfirmStep(3);
+      };
+
+      const handleStep3 = async () => {
+        if (!confirmEmail.trim() || !confirmPassword) {
+          setConfirmError("Enter your email and password.");
+          return;
+        }
+        setConfirmVerifying(true);
+        setConfirmError(null);
+        try {
+          const user = await emailPasswordSignIn(confirmEmail.trim(), confirmPassword);
+          // All layers passed — execute the switch
+          await executeSwitch(sheet, newId, newUrl, user.email || confirmEmail.trim());
+          closeConfirm();
+        } catch (e: any) {
+          const msg = e?.code === "auth/wrong-password" || e?.code === "auth/invalid-credential"
+            ? "Incorrect password. Try again."
+            : e?.code === "auth/user-not-found"
+            ? "No account found for that email."
+            : e?.code === "auth/too-many-requests"
+            ? "Too many attempts. Try again later."
+            : `Authentication failed: ${e?.message || "Unknown error"}`;
+          setConfirmError(msg);
+        } finally {
+          setConfirmVerifying(false);
+        }
+      };
+
+      return (
+        <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className={`w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#2a2a2a]"}`}>
+            {/* Red accent bar */}
+            <div className="h-1.5 bg-red-500" />
+
+            {/* Header */}
+            <div className={`flex items-center justify-between px-5 py-4 border-b ${isLight ? "border-slate-100" : "border-[#222]"}`}>
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-red-500" />
+                <span className={`text-sm font-black ${isLight ? "text-slate-900" : "text-white"}`}>
+                  Sheet Switch — Step {confirmStep} of 3
+                </span>
+              </div>
+              <div className="flex gap-1">
+                {[1,2,3].map(s => (
+                  <div key={s} className={`w-2 h-2 rounded-full ${confirmStep >= s ? "bg-red-500" : isLight ? "bg-slate-200" : "bg-[#333]"}`} />
+                ))}
+              </div>
+            </div>
+
+            <div className="px-5 py-5 space-y-4">
+
+              {/* Step 1 — Warning */}
+              {confirmStep === 1 && (
+                <>
+                  <div className={`rounded-lg p-3 space-y-2 border ${isLight ? "bg-red-50 border-red-200" : "bg-red-900/10 border-red-800/30"}`}>
+                    <p className="text-[12px] font-bold text-red-500 uppercase tracking-wide">⚠ Critical Action — Read Before Continuing</p>
+                    <ul className={`text-[12px] space-y-1 list-disc list-inside ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                      <li>This will switch <strong>{sheet.label}</strong> to a different source sheet.</li>
+                      <li><strong>{affectedCount > 0 ? `${affectedCount} sheet mapping${affectedCount !== 1 ? "s" : ""}` : "Service-level routing"}</strong> will be updated immediately.</li>
+                      <li>Data from the old sheet will <strong>no longer be pulled or pushed</strong> by the portal.</li>
+                      <li>The old sheet is not deleted — it remains as an archive.</li>
+                      <li>This action is <strong>logged and attributed to your credentials</strong>.</li>
+                    </ul>
+                  </div>
+                  <div className={`text-[11px] space-y-0.5 ${isLight ? "text-slate-500" : "text-[#888]"}`}>
+                    <p><span className="font-semibold">Current:</span> <code className="text-[10px]">{sheet.id}</code></p>
+                    <p><span className="font-semibold">New:</span> <code className="text-[10px]">{newId}</code></p>
+                    {isManual && <p className="text-amber-500 font-semibold">⚠ Manually specified ID — verify this is correct before proceeding.</p>}
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={closeConfirm} className={`px-4 py-1.5 rounded-lg text-[12px] font-semibold ${isLight ? "bg-slate-100 text-slate-700 hover:bg-slate-200" : "bg-[#1a2235] text-slate-300 hover:bg-[#1e2a40]"}`}>
+                      Cancel
+                    </button>
+                    <button onClick={() => { setConfirmStep(2); setConfirmError(null); }} className="px-4 py-1.5 rounded-lg text-[12px] font-semibold bg-red-500 hover:bg-red-600 text-white">
+                      I understand — Continue
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* Step 2 — Type SWITCH */}
+              {confirmStep === 2 && (
+                <>
+                  <p className={`text-[13px] font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                    Type <strong className="text-red-500">"{CONFIRM_WORD}"</strong> to confirm you intend to switch the <strong>{sheet.label}</strong> source sheet.
+                  </p>
+                  <input
+                    autoFocus
+                    type="text"
+                    value={confirmTyped}
+                    onChange={e => { setConfirmTyped(e.target.value); setConfirmError(null); }}
+                    onKeyDown={e => e.key === "Enter" && handleStep2()}
+                    placeholder={`Type ${CONFIRM_WORD} here…`}
+                    className={`w-full rounded-lg px-3 py-2 text-[13px] font-mono font-bold border focus:outline-none focus:border-red-400 ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"}`}
+                  />
+                  {confirmError && <p className="text-[11px] text-red-500">{confirmError}</p>}
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => { setConfirmStep(1); setConfirmError(null); }} className={`px-4 py-1.5 rounded-lg text-[12px] font-semibold ${isLight ? "bg-slate-100 text-slate-700 hover:bg-slate-200" : "bg-[#1a2235] text-slate-300 hover:bg-[#1e2a40]"}`}>
+                      Back
+                    </button>
+                    <button onClick={handleStep2} className="px-4 py-1.5 rounded-lg text-[12px] font-semibold bg-red-500 hover:bg-red-600 text-white">
+                      Confirm Word
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* Step 3 — Re-authenticate */}
+              {confirmStep === 3 && (
+                <>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Lock className={`w-4 h-4 ${isLight ? "text-slate-500" : "text-slate-400"}`} />
+                    <p className={`text-[13px] font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                      Re-confirm your identity to authorise this change.
+                    </p>
+                  </div>
+                  <p className={`text-[11px] ${isLight ? "text-slate-400" : "text-[#666]"}`}>
+                    Your email and the timestamp will be recorded in the portal audit log.
+                  </p>
+                  <div className="space-y-2">
+                    <input
+                      type="email"
+                      value={confirmEmail}
+                      onChange={e => { setConfirmEmail(e.target.value); setConfirmError(null); }}
+                      placeholder="your@email.com"
+                      className={`w-full rounded-lg px-3 py-2 text-[12px] border focus:outline-none focus:border-red-400 ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"}`}
+                    />
+                    <div className="relative">
+                      <input
+                        autoFocus
+                        type={confirmShowPw ? "text" : "password"}
+                        value={confirmPassword}
+                        onChange={e => { setConfirmPassword(e.target.value); setConfirmError(null); }}
+                        onKeyDown={e => e.key === "Enter" && handleStep3()}
+                        placeholder="Password"
+                        className={`w-full rounded-lg px-3 py-2 pr-9 text-[12px] border focus:outline-none focus:border-red-400 ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"}`}
+                      />
+                      <button type="button" onClick={() => setConfirmShowPw(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400">
+                        {confirmShowPw ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                  {confirmError && <p className="text-[11px] text-red-500 font-medium">{confirmError}</p>}
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => { setConfirmStep(2); setConfirmError(null); setConfirmPassword(""); }} className={`px-4 py-1.5 rounded-lg text-[12px] font-semibold ${isLight ? "bg-slate-100 text-slate-700 hover:bg-slate-200" : "bg-[#1a2235] text-slate-300 hover:bg-[#1e2a40]"}`}>
+                      Back
+                    </button>
+                    <button onClick={handleStep3} disabled={confirmVerifying} className="px-4 py-1.5 rounded-lg text-[12px] font-semibold bg-red-500 hover:bg-red-600 text-white disabled:opacity-50 flex items-center gap-1.5">
+                      {confirmVerifying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
+                      {confirmVerifying ? "Verifying…" : "Verify & Switch"}
+                    </button>
+                  </div>
+                </>
+              )}
+
+            </div>
+          </div>
+        </div>
+      );
+    })()}
     </div>
   );
 };
