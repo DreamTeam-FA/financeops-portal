@@ -33,6 +33,13 @@ const RAW_HEADERS = [
 ];
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+interface Adjustment {
+  weekStart: string;
+  vendor: string;
+  company: string;
+  delta: number;  // positive = increase, negative = decrease
+}
+
 interface RawRow {
   category: string;
   transactionDate: string;
@@ -209,6 +216,33 @@ export const CCExpensePage: React.FC = () => {
   const [weeks, setWeeks] = useState<WeekEntry[]>([]);
   const [selectedWeek, setSelectedWeek] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"weekly" | "ytd" | "raw">("weekly");
+  const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
+
+  // Adjustment helpers
+  const getAdjustedValue = (weekStart: string, vendor: string, company: string, rawVal: number): number => {
+    const delta = adjustments
+      .filter(a => a.weekStart === weekStart && a.vendor === vendor && a.company === company)
+      .reduce((s, a) => s + a.delta, 0);
+    return rawVal + delta;
+  };
+
+  const pushAdjustment = async (adj: Adjustment) => {
+    setAdjustments(prev => [...prev, adj]);
+    try {
+      const accessToken = await getAccessToken();
+      if (!accessToken) { showToast("Not signed in to Google", "error"); return; }
+      await fetch("/api/cc-expense/adjustments/push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accessToken,
+          rows: [[adj.weekStart, adj.vendor, adj.company, adj.delta]],
+        }),
+      });
+    } catch {
+      showToast("Adjustment saved locally but failed to sync to sheet", "error");
+    }
+  };
 
   // Remarks: keyed by `${weekStart}||${vendor}`, persisted in localStorage
   const [remarks, setRemarks] = useState<Record<string, string>>(() => {
@@ -230,6 +264,19 @@ export const CCExpensePage: React.FC = () => {
   const [hideZero, setHideZero] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Inline editing state: key = "weekStart||vendor||company"
+  const [editingCell, setEditingCell] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState<string>("");
+
+  // Drag state
+  const [dragSource, setDragSource] = useState<{ vendor: string; company: string; amount: number } | null>(null);
+  const [dragOver, setDragOver] = useState<string | null>(null); // "vendor||company"
+
+  // Transfer confirm modal
+  const [transferModal, setTransferModal] = useState<{
+    vendor: string; fromCompany: string; toCompany: string; amount: number;
+  } | null>(null);
+
   // Vendor breakdown modal (Weekly tab)
   const [vendorModal, setVendorModal] = useState<{ vendor: string; rows: RawRow[] } | null>(null);
 
@@ -249,6 +296,56 @@ export const CCExpensePage: React.FC = () => {
 
   const weekTotal = weekTable.reduce((s, r) => s + r.grandTotal, 0);
   const ytdTotal = ytdTable.reduce((s, r) => s + r.grandTotal, 0);
+
+  // ── Inline edit: save new value for a company cell ─────────────────────────
+  const cellKey = (vendor: string, company: string) => `${selectedWeek}||${vendor}||${company}`;
+
+  const startEdit = (vendor: string, company: string, currentVal: number) => {
+    if (activeTab !== "weekly") return;
+    setEditingCell(cellKey(vendor, company));
+    setEditingValue(currentVal === 0 ? "" : String(currentVal.toFixed(2)));
+  };
+
+  const commitEdit = async (vendor: string, company: string, rawVal: number) => {
+    if (!editingCell) return;
+    const newVal = parseFloat(editingValue.replace(/[$,]/g, "")) || 0;
+    const delta = newVal - rawVal;
+    setEditingCell(null);
+    setEditingValue("");
+    if (delta === 0) return;
+    await pushAdjustment({ weekStart: selectedWeek, vendor, company, delta });
+    showToast(`Updated ${vendor} / ${company}`, "success", 2000);
+  };
+
+  // ── Drag to transfer amount between companies ────────────────────────────────
+  const handleDragStart = (vendor: string, company: string, amount: number) => {
+    if (activeTab !== "weekly" || amount === 0) return;
+    setDragSource({ vendor, company, amount });
+  };
+
+  const handleDrop = (vendor: string, company: string) => {
+    if (!dragSource || dragSource.company === company || dragSource.vendor !== vendor) {
+      setDragSource(null); setDragOver(null); return;
+    }
+    setTransferModal({
+      vendor,
+      fromCompany: dragSource.company,
+      toCompany: company,
+      amount: dragSource.amount,
+    });
+    setDragSource(null);
+    setDragOver(null);
+  };
+
+  const confirmTransfer = async () => {
+    if (!transferModal) return;
+    const { vendor, fromCompany, toCompany, amount } = transferModal;
+    setTransferModal(null);
+    // Debit source, credit target
+    await pushAdjustment({ weekStart: selectedWeek, vendor, company: fromCompany, delta: -amount });
+    await pushAdjustment({ weekStart: selectedWeek, vendor, company: toCompany, delta: amount });
+    showToast(`Transferred ${fmtMoneyRaw(amount)} from ${fromCompany} → ${toCompany}`, "success", 3000);
+  };
 
   // ── Pull live data ──────────────────────────────────────────────────────────
   const pullFromSheet = useCallback(async () => {
@@ -273,6 +370,25 @@ export const CCExpensePage: React.FC = () => {
       const grouped = groupIntoWeeks(rows);
       setWeeks(grouped);
       if (grouped.length > 0) setSelectedWeek(grouped[0].weekStart);
+
+      // Also pull adjustments
+      try {
+        const adjResp = await fetch("/api/cc-expense/adjustments/pull", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accessToken }),
+        });
+        const adjData = await adjResp.json();
+        if (adjData.ok && adjData.rows) {
+          setAdjustments(adjData.rows.map((r: any[]) => ({
+            weekStart: String(r[0] || ""),
+            vendor: String(r[1] || ""),
+            company: String(r[2] || ""),
+            delta: parseFloat(String(r[3] || "0")) || 0,
+          })));
+        }
+      } catch { /* adjustments tab may not exist yet */ }
+
       showToast(`Loaded ${rows.length} transactions from sheet`, "success");
     } catch (e: any) {
       showToast(`Pull failed: ${e?.message || String(e)}`, "error");
@@ -626,6 +742,38 @@ export const CCExpensePage: React.FC = () => {
         </div>
       )}
 
+      {/* ── Transfer Confirm Modal ── */}
+      {transferModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.65)" }}>
+          <div className={`w-full max-w-sm rounded-xl shadow-2xl border p-5 ${isLight ? "bg-white border-slate-200" : "bg-[#111318] border-[#1e2535]"}`}>
+            <h2 className={`text-[15px] font-semibold mb-1 ${isLight ? "text-slate-800" : "text-white"}`}>Transfer Amount</h2>
+            <p className={`text-[13px] mb-4 ${isLight ? "text-slate-600" : "text-slate-300"}`}>
+              Move <span className="font-semibold">{fmtMoneyRaw(Math.abs(transferModal.amount))}</span> for{" "}
+              <span className="font-semibold">{transferModal.vendor}</span> from{" "}
+              <span className={isLight ? "text-[#1a73e8]" : "text-[#4f9cf9]"}>{transferModal.fromCompany}</span>{" "}→{" "}
+              <span className={isLight ? "text-[#1a73e8]" : "text-[#4f9cf9]"}>{transferModal.toCompany}</span>?
+            </p>
+            <p className={`text-[11px] mb-4 ${isLight ? "text-slate-400" : "text-slate-500"}`}>
+              This adjustment will be saved to the CC Adjustments tab in the Google Sheet.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setTransferModal(null)}
+                className={`px-4 py-1.5 rounded text-[12px] font-medium ${isLight ? "bg-slate-100 text-slate-700 hover:bg-slate-200" : "bg-[#1a2235] text-slate-300 hover:bg-[#1e2a40]"}`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmTransfer}
+                className="px-4 py-1.5 rounded text-[12px] font-medium bg-[#1a73e8] text-white hover:bg-[#1557b0]"
+              >
+                Confirm Transfer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Vendor Breakdown Modal ── */}
       {vendorModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.65)" }}>
@@ -844,14 +992,64 @@ export const CCExpensePage: React.FC = () => {
                           />
                         </td>
                       )}
-                      <td className={`${tdCls} font-semibold ${row.grandTotal < 0 ? "text-red-500" : isLight ? "text-slate-800" : "text-white"}`}>
-                        {fmtMoneyRaw(row.grandTotal)}
+                      <td className={`${tdCls} font-semibold ${
+                        (activeTab === "weekly"
+                          ? displayCompanies.reduce((s, co) => s + getAdjustedValue(selectedWeek, row.vendor, co, row.byCompany[co] || 0), 0)
+                          : row.grandTotal) < 0
+                          ? "text-red-500" : isLight ? "text-slate-800" : "text-white"
+                      }`}>
+                        {fmtMoneyRaw(
+                          activeTab === "weekly"
+                            ? displayCompanies.reduce((s, co) => s + getAdjustedValue(selectedWeek, row.vendor, co, row.byCompany[co] || 0), 0)
+                            : row.grandTotal
+                        )}
                       </td>
                       {displayCompanies.map(co => {
-                        const val = row.byCompany[co] || 0;
+                        const rawVal = row.byCompany[co] || 0;
+                        const val = activeTab === "weekly"
+                          ? getAdjustedValue(selectedWeek, row.vendor, co, rawVal)
+                          : rawVal;
+                        const ck = cellKey(row.vendor, co);
+                        const isEditing = editingCell === ck && activeTab === "weekly";
+                        const isDragOver = dragOver === `${row.vendor}||${co}`;
+                        const hasAdjustment = activeTab === "weekly" && val !== rawVal;
                         return (
-                          <td key={co} className={`${tdCls} ${val < 0 ? "text-red-500" : isLight ? "text-slate-700" : "text-slate-300"}`}>
-                            {fmtMoney(val)}
+                          <td
+                            key={co}
+                            className={`${tdCls} relative transition-colors ${
+                              val < 0 ? "text-red-500" : isLight ? "text-slate-700" : "text-slate-300"
+                            } ${isDragOver ? (isLight ? "bg-blue-100 ring-1 ring-blue-400" : "bg-blue-900/30 ring-1 ring-blue-400") : ""}`}
+                            draggable={activeTab === "weekly" && val !== 0}
+                            onDragStart={() => handleDragStart(row.vendor, co, val)}
+                            onDragOver={e => { if (dragSource && dragSource.vendor === row.vendor && dragSource.company !== co) { e.preventDefault(); setDragOver(`${row.vendor}||${co}`); } }}
+                            onDragLeave={() => setDragOver(null)}
+                            onDrop={() => handleDrop(row.vendor, co)}
+                            onDragEnd={() => { setDragSource(null); setDragOver(null); }}
+                            onDoubleClick={() => startEdit(row.vendor, co, val)}
+                            title={activeTab === "weekly" ? "Double-click to edit · Drag to transfer" : undefined}
+                          >
+                            {isEditing ? (
+                              <input
+                                autoFocus
+                                type="text"
+                                value={editingValue}
+                                onChange={e => setEditingValue(e.target.value)}
+                                onBlur={() => commitEdit(row.vendor, co, val)}
+                                onKeyDown={e => {
+                                  if (e.key === "Enter") commitEdit(row.vendor, co, val);
+                                  if (e.key === "Escape") { setEditingCell(null); setEditingValue(""); }
+                                }}
+                                className={`w-full text-right text-[11px] tabular-nums rounded px-1 py-0.5 outline-none border ${
+                                  isLight
+                                    ? "bg-blue-50 border-blue-400 text-slate-800"
+                                    : "bg-[#1a2540] border-[#4f9cf9] text-white"
+                                }`}
+                              />
+                            ) : (
+                              <span className={hasAdjustment ? "underline decoration-dotted underline-offset-2 decoration-amber-400" : ""}>
+                                {fmtMoney(val)}
+                              </span>
+                            )}
                           </td>
                         );
                       })}

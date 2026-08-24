@@ -1304,6 +1304,68 @@ app.post("/api/cc-expense/upload", async (req, res) => {
   }
 });
 
+// ── CC Adjustments: read adjustments from "CC Adjustments" tab ──────────────────
+// Row format: [weekStart, vendor, company, delta]
+app.post("/api/cc-expense/adjustments/pull", async (req, res) => {
+  const { accessToken } = req.body || {};
+  if (!accessToken) return res.status(401).json({ ok: false, error: "No access token" });
+  try {
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${CC_SHEET_ID}/values/CC%20Adjustments!A2:D?majorDimension=ROWS`;
+    const resp = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!resp.ok) {
+      // If the tab doesn't exist, return empty list
+      if (resp.status === 400 || resp.status === 404) return res.json({ ok: true, rows: [] });
+      throw new Error(`Sheets error ${resp.status}`);
+    }
+    const data: any = await resp.json();
+    res.json({ ok: true, rows: data.values || [] });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+// ── CC Adjustments: append adjustment rows ────────────────────────────────────────
+// Appends rows to "CC Adjustments" tab. Caller passes array of [weekStart, vendor, company, delta].
+app.post("/api/cc-expense/adjustments/push", async (req, res) => {
+  const { accessToken, rows } = req.body || {};
+  if (!accessToken) return res.status(401).json({ ok: false, error: "No access token" });
+  if (!rows?.length) return res.json({ ok: true, updated: 0 });
+  try {
+    // Ensure the CC Adjustments tab exists — if not, create it
+    const metaResp = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CC_SHEET_ID}?fields=sheets.properties.title`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const meta: any = await metaResp.json();
+    const titles: string[] = (meta.sheets || []).map((s: any) => s.properties?.title || "");
+    if (!titles.includes("CC Adjustments")) {
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CC_SHEET_ID}:batchUpdate`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ requests: [{ addSheet: { properties: { title: "CC Adjustments" } } }] }),
+      });
+      // Write header row
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CC_SHEET_ID}/values/CC%20Adjustments!A1:D1?valueInputOption=RAW`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ range: "CC Adjustments!A1:D1", majorDimension: "ROWS", values: [["WeekStart", "Vendor", "Company", "Delta"]] }),
+      });
+    }
+    // Append the adjustment rows
+    const appendResp = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${CC_SHEET_ID}/values/CC%20Adjustments!A:D:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ range: "CC Adjustments!A:D", majorDimension: "ROWS", values: rows }),
+      }
+    );
+    const result: any = await appendResp.json();
+    res.json({ ok: true, updated: rows.length });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
