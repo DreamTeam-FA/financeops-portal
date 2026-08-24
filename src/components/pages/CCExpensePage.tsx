@@ -141,8 +141,9 @@ function rawRowsFromUploadedRows(rows: any[][], headerRowIdx: number): RawRow[] 
 }
 
 function groupIntoWeeks(rawRows: RawRow[]): WeekEntry[] {
+  const ccOnly = rawRows.filter(isCCRow);
   const byWeek = new Map<string, RawRow[]>();
-  for (const row of rawRows) {
+  for (const row of ccOnly) {
     const d = parseDate(row.transactionDate);
     if (!d) continue;
     const sun = getSunday(d);
@@ -159,9 +160,25 @@ function groupIntoWeeks(rawRows: RawRow[]): WeekEntry[] {
   return entries;
 }
 
+// Only include genuine CC charges/credits — exclude checks, bills, journal entries, etc.
+function isCCRow(row: RawRow): boolean {
+  const type = row.transactionType.toLowerCase();
+  const acct = row.account.toLowerCase();
+  // Include if transaction type mentions "credit card" or "cc charge/credit"
+  if (/credit\s*card|cc\s*(charge|credit|exp)/i.test(row.transactionType)) return true;
+  // Include if account name contains common CC identifiers
+  if (/credit\s*card|amex|visa|mastercard|discover|diners|cc\s/i.test(row.account)) return true;
+  // Exclude known non-CC types explicitly
+  if (/^(check|bill payment|bill|journal entry|transfer|deposit|withdrawal|paycheck|payroll|expense|invoice)/i.test(row.transactionType)) return false;
+  // If type is blank or unknown but account looks like a CC, include it
+  if (!type || type === "general journal") return false;
+  return true; // default include for unrecognised types (user can see in Raw tab)
+}
+
 function buildWeekTable(rows: RawRow[], vendorMap: Record<string, string>): VendorWeekRow[] {
+  const ccRows = rows.filter(isCCRow);
   const byVendor = new Map<string, Record<string, number>>();
-  for (const row of rows) {
+  for (const row of ccRows) {
     const cleanVendor = vendorMap[row.name] || row.name || "(unknown)";
     const company = row.classCompany.trim() || "(unassigned)";
     if (!byVendor.has(cleanVendor)) byVendor.set(cleanVendor, {});
@@ -178,7 +195,7 @@ function buildWeekTable(rows: RawRow[], vendorMap: Record<string, string>): Vend
 }
 
 function buildYTDTable(allRows: RawRow[], vendorMap: Record<string, string>): VendorWeekRow[] {
-  return buildWeekTable(allRows, vendorMap);
+  return buildWeekTable(allRows.filter(isCCRow), vendorMap);
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
