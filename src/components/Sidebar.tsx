@@ -171,9 +171,9 @@ export const Sidebar: React.FC = () => {
       return !isNaN(d.getTime()) && d <= in7Days;
     }).length;
 
-    // Bank Statements: not yet downloaded
+    // Bank Statements: explicitly not downloaded (matches the page's own "Pending Download" count)
     const stmtsPending = (bankStatements as any[] || []).filter((s: any) =>
-      s.downloaded === false || s.downloaded === null || s.downloaded === undefined
+      s.downloaded === false
     ).length;
 
     // Calendar: events within the next 7 days
