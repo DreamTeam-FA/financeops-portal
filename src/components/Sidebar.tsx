@@ -134,7 +134,7 @@ export const Sidebar: React.FC = () => {
     { id: "ap",          label: "Accounts Payables",   icon: <Banknote className="w-4 h-4" />,        badgeKey: "ap",         badgeColor: "bg-[#1a73e8]",  badgeTitle: "unpaid bills" },
     { id: "ar",          label: "Accounts Receivables",icon: <Receipt className="w-4 h-4" />,          badgeKey: "ar",         badgeColor: "bg-[#16a34a]",  badgeTitle: "pending payments" },
     { id: "banks",       label: "Bank Balances",       icon: <Landmark className="w-4 h-4" />,         badgeKey: "banks",      badgeColor: "bg-[#0891b2]",  badgeTitle: "low balance accounts" },
-    { id: "loans",       label: "Loans & CC Dues",     icon: <TrendingDown className="w-4 h-4" />,     badgeKey: "loans",      badgeColor: "bg-[#dc2626]",  badgeTitle: "due within 10 days" },
+    { id: "loans",       label: "Loans & CC Dues",     icon: <TrendingDown className="w-4 h-4" />,     badgeKey: "loans",      badgeColor: "bg-[#dc2626]",  badgeTitle: "due today or overdue" },
     { id: "statements",  label: "Bank Statements",     icon: <FileText className="w-4 h-4" />,         badgeKey: "statements", badgeColor: "bg-[#374151]",  badgeTitle: "pending this month" },
     { id: "calendar",    label: "Calendar",            icon: <CalendarDays className="w-4 h-4" />,     badgeKey: "calendar",   badgeColor: "bg-[#2563eb]",  badgeTitle: "upcoming this week" },
     { id: "notes",       label: "Quick Notes",         icon: <StickyNote className="w-4 h-4 text-purple-400" />, badgeKey: "notes", badgeColor: "bg-purple-700", badgeTitle: "open notes" },
@@ -170,7 +170,7 @@ export const Sidebar: React.FC = () => {
       if (l.status === "Paid" || l.status === "Refinanced") return false;
       if (!l.nextPay) return false;
       const { days } = getDaysRemaining(l.nextPay);
-      return days <= 10;
+      return days <= 0; // overdue or due today (matches dueSoonCount on LoansPage)
     }).length;
 
     // Bank Statements: pending in the current month (matches page default filter)
