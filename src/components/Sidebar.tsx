@@ -1,4 +1,5 @@
 ﻿import React, { useState, useMemo } from "react";
+import { getDaysRemaining } from "../utils/formatters";
 import { AlertsBell } from "./AlertsCenter";
 import { Tooltip } from "./Tooltip";
 import { useFinance } from "../context/FinanceContext";
@@ -130,13 +131,13 @@ export const Sidebar: React.FC = () => {
 
   const navItems: { id: PageRoute; label: string; icon: React.ReactNode; badgeKey?: keyof typeof navBadges; badgeColor?: string; badgeTitle?: string }[] = [
     { id: "hub",         label: "Finance Overview",    icon: <LayoutDashboard className="w-4 h-4" /> },
-    { id: "ap",          label: "Accounts Payables",   icon: <Banknote className="w-4 h-4" />,        badgeKey: "ap",         badgeColor: "bg-red-500",    badgeTitle: "unpaid bills" },
-    { id: "ar",          label: "Accounts Receivables",icon: <Receipt className="w-4 h-4" />,          badgeKey: "ar",         badgeColor: "bg-rose-500",   badgeTitle: "pending payments" },
-    { id: "banks",       label: "Bank Balances",       icon: <Landmark className="w-4 h-4" />,         badgeKey: "banks",      badgeColor: "bg-yellow-500", badgeTitle: "low balance accounts" },
-    { id: "loans",       label: "Loans & CC Dues",     icon: <TrendingDown className="w-4 h-4" />,     badgeKey: "loans",      badgeColor: "bg-orange-500", badgeTitle: "due within 7 days" },
-    { id: "statements",  label: "Bank Statements",     icon: <FileText className="w-4 h-4" />,         badgeKey: "statements", badgeColor: "bg-amber-500",  badgeTitle: "not downloaded" },
-    { id: "calendar",    label: "Calendar",            icon: <CalendarDays className="w-4 h-4" />,     badgeKey: "calendar",   badgeColor: "bg-blue-500",   badgeTitle: "upcoming this week" },
-    { id: "notes",       label: "Quick Notes",         icon: <StickyNote className="w-4 h-4 text-purple-400" />, badgeKey: "notes", badgeColor: "bg-purple-500", badgeTitle: "open notes" },
+    { id: "ap",          label: "Accounts Payables",   icon: <Banknote className="w-4 h-4" />,        badgeKey: "ap",         badgeColor: "bg-[#1a73e8]",  badgeTitle: "unpaid bills" },
+    { id: "ar",          label: "Accounts Receivables",icon: <Receipt className="w-4 h-4" />,          badgeKey: "ar",         badgeColor: "bg-[#16a34a]",  badgeTitle: "pending payments" },
+    { id: "banks",       label: "Bank Balances",       icon: <Landmark className="w-4 h-4" />,         badgeKey: "banks",      badgeColor: "bg-[#0891b2]",  badgeTitle: "low balance accounts" },
+    { id: "loans",       label: "Loans & CC Dues",     icon: <TrendingDown className="w-4 h-4" />,     badgeKey: "loans",      badgeColor: "bg-[#dc2626]",  badgeTitle: "due within 10 days" },
+    { id: "statements",  label: "Bank Statements",     icon: <FileText className="w-4 h-4" />,         badgeKey: "statements", badgeColor: "bg-[#374151]",  badgeTitle: "pending this month" },
+    { id: "calendar",    label: "Calendar",            icon: <CalendarDays className="w-4 h-4" />,     badgeKey: "calendar",   badgeColor: "bg-[#2563eb]",  badgeTitle: "upcoming this week" },
+    { id: "notes",       label: "Quick Notes",         icon: <StickyNote className="w-4 h-4 text-purple-400" />, badgeKey: "notes", badgeColor: "bg-purple-700", badgeTitle: "open notes" },
     { id: "cc-expenses", label: "CC Expenses",         icon: <CreditCard className="w-4 h-4" /> }
   ];
 
@@ -163,18 +164,31 @@ export const Sidebar: React.FC = () => {
       b.status === "Active" && typeof b.balance === "number" && b.balance < LOW_BALANCE_THRESHOLD
     ).length;
 
-    // Loans & CC Dues: active items with nextPay within 7 days or already overdue
+    // Loans & CC Dues: active items overdue or due within 10 days
+    // Uses the same getDaysRemaining util as LoansPage (dueSoonCount + nearDueCount)
     const loansAlert = (loans as any[] || []).filter((l: any) => {
       if (l.status === "Paid" || l.status === "Refinanced") return false;
       if (!l.nextPay) return false;
-      const d = new Date(l.nextPay);
-      return !isNaN(d.getTime()) && d <= in7Days;
+      const { days } = getDaysRemaining(l.nextPay);
+      return days <= 10;
     }).length;
 
-    // Bank Statements: explicitly not downloaded (matches the page's own "Pending Download" count)
-    const stmtsPending = (bankStatements as any[] || []).filter((s: any) =>
-      s.downloaded === false
-    ).length;
+    // Bank Statements: pending in the current month (matches page default filter)
+    const currentMonthYear = new Date().toLocaleString("en-US", { month: "long", year: "numeric" });
+    const getStmtMonth = (s: any) => {
+      const raw = s.requestDate || s.statementDate || s.downloadedAt || s.period;
+      if (!raw) return "";
+      const parts = String(raw).trim().split("-");
+      if (parts.length === 3 && parts[0].length === 4) {
+        const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        if (!isNaN(d.getTime())) return d.toLocaleString("en-US", { month: "long", year: "numeric" });
+      }
+      return raw;
+    };
+    const stmtsPending = (bankStatements as any[] || []).filter((s: any) => {
+      const mo = getStmtMonth(s);
+      return mo.toLowerCase().includes(currentMonthYear.toLowerCase()) && s.downloaded === false;
+    }).length;
 
     // Calendar: events within the next 7 days
     const calUpcoming = (calendarLocalEvents as any[] || []).filter((ev: any) => {
