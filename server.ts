@@ -1226,7 +1226,7 @@ app.post("/api/4yr/start-new-week", async (req, res) => {
 // ────────────────────────────────────────────────────────────
 const CC_SHEET_ID_DEFAULT = "1gKCKrWw8mkqJDiRl_9xYIhkzmtjOEoauQZgbtW9gIew";
 // Read at call time so runtime overrides take effect without restart
-function getCCSheetId(): string { return data.sheetIdOverrides?.cc || CC_SHEET_ID_DEFAULT; }
+function getCCSheetId(): string { return (getStoredData().sheetIdOverrides?.cc) || CC_SHEET_ID_DEFAULT; }
 
 // Parse CSV or XLSX file sent as base64, return rows
 app.post("/api/cc-expense/parse", async (req, res) => {
