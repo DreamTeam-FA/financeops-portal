@@ -1057,15 +1057,22 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                           </span>
                         </div>
                         <div className="col-span-2 flex items-center justify-end gap-1.5">
-                          {/* View bill copy in Drive */}
-                          {(bill as any).driveViewUrl && (
-                            <Tooltip label="View bill copy in Drive">
-                              <a href={(bill as any).driveViewUrl} target="_blank" rel="noopener noreferrer"
-                                className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border transition-colors ${isLight ? "text-blue-600 border-blue-300 bg-blue-50 hover:bg-blue-100" : "text-blue-400 border-blue-500/40 bg-blue-500/10 hover:bg-blue-500/20"}`}>
-                                <Eye className="w-3 h-3" /> Bill
-                              </a>
-                            </Tooltip>
-                          )}
+                          {/* View bill: Drive attachment first, fall back to link in remarks/instructions */}
+                          {(() => {
+                            const b = bill as any;
+                            const fallbackText = b.paymentInstructions || b.remarks || "";
+                            const fallbackUrl = fallbackText.startsWith("http") ? fallbackText : null;
+                            const viewUrl = b.driveViewUrl || fallbackUrl;
+                            if (!viewUrl) return null;
+                            return (
+                              <Tooltip label={b.driveViewUrl ? "View saved bill copy" : "View bill link"}>
+                                <a href={viewUrl} target="_blank" rel="noopener noreferrer"
+                                  className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border transition-colors ${isLight ? "text-blue-600 border-blue-300 bg-blue-50 hover:bg-blue-100" : "text-blue-400 border-blue-500/40 bg-blue-500/10 hover:bg-blue-500/20"}`}>
+                                  <Eye className="w-3 h-3" /> {b.driveViewUrl ? "Bill Copy" : "Bill"}
+                                </a>
+                              </Tooltip>
+                            );
+                          })()}
                           {/* Edit */}
                           <Tooltip label="Edit bill">
                             <button
