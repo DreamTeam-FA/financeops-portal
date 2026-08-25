@@ -69,6 +69,8 @@ export const Sidebar: React.FC = () => {
     isSyncing,
     apBills,
     loans,
+    bankAccounts,
+    arItems,
     bankStatements,
     quickNotes,
     calendarLocalEvents,
@@ -126,15 +128,15 @@ export const Sidebar: React.FC = () => {
     setShowAddMemberModal(false);
   };
 
-  const navItems: { id: PageRoute; label: string; icon: React.ReactNode; badgeKey?: keyof typeof navBadges; badgeColor?: string }[] = [
+  const navItems: { id: PageRoute; label: string; icon: React.ReactNode; badgeKey?: keyof typeof navBadges; badgeColor?: string; badgeTitle?: string }[] = [
     { id: "hub",         label: "Finance Overview",    icon: <LayoutDashboard className="w-4 h-4" /> },
-    { id: "ap",          label: "Accounts Payables",   icon: <Banknote className="w-4 h-4" />,     badgeKey: "ap",         badgeColor: "bg-red-500" },
-    { id: "ar",          label: "Accounts Receivables",icon: <Receipt className="w-4 h-4" /> },
-    { id: "banks",       label: "Bank Balances",       icon: <Landmark className="w-4 h-4" /> },
-    { id: "loans",       label: "Loans & CC Dues",     icon: <TrendingDown className="w-4 h-4" />,  badgeKey: "loans",      badgeColor: "bg-orange-500" },
-    { id: "statements",  label: "Bank Statements",     icon: <FileText className="w-4 h-4" />,      badgeKey: "statements", badgeColor: "bg-amber-500" },
-    { id: "calendar",    label: "Calendar",            icon: <CalendarDays className="w-4 h-4" />,  badgeKey: "calendar",   badgeColor: "bg-blue-500" },
-    { id: "notes",       label: "Quick Notes",         icon: <StickyNote className="w-4 h-4 text-purple-400" />, badgeKey: "notes", badgeColor: "bg-purple-500" },
+    { id: "ap",          label: "Accounts Payables",   icon: <Banknote className="w-4 h-4" />,        badgeKey: "ap",         badgeColor: "bg-red-500",    badgeTitle: "unpaid bills" },
+    { id: "ar",          label: "Accounts Receivables",icon: <Receipt className="w-4 h-4" />,          badgeKey: "ar",         badgeColor: "bg-rose-500",   badgeTitle: "pending payments" },
+    { id: "banks",       label: "Bank Balances",       icon: <Landmark className="w-4 h-4" />,         badgeKey: "banks",      badgeColor: "bg-yellow-500", badgeTitle: "low balance accounts" },
+    { id: "loans",       label: "Loans & CC Dues",     icon: <TrendingDown className="w-4 h-4" />,     badgeKey: "loans",      badgeColor: "bg-orange-500", badgeTitle: "due within 7 days" },
+    { id: "statements",  label: "Bank Statements",     icon: <FileText className="w-4 h-4" />,         badgeKey: "statements", badgeColor: "bg-amber-500",  badgeTitle: "not downloaded" },
+    { id: "calendar",    label: "Calendar",            icon: <CalendarDays className="w-4 h-4" />,     badgeKey: "calendar",   badgeColor: "bg-blue-500",   badgeTitle: "upcoming this week" },
+    { id: "notes",       label: "Quick Notes",         icon: <StickyNote className="w-4 h-4 text-purple-400" />, badgeKey: "notes", badgeColor: "bg-purple-500", badgeTitle: "open notes" },
     { id: "cc-expenses", label: "CC Expenses",         icon: <CreditCard className="w-4 h-4" /> }
   ];
 
@@ -152,16 +154,26 @@ export const Sidebar: React.FC = () => {
       b.status && !["paid", "done", "completed"].includes((b.status || "").toLowerCase())
     ).length;
 
-    // Loans: upcoming due within 7 days or overdue
+    // AR: invoices where payment has not been received (payment === false)
+    const arPending = (arItems as any[] || []).filter((a: any) => a.payment === false).length;
+
+    // Bank Balances: accounts with critically low balance (< $500)
+    const LOW_BALANCE_THRESHOLD = 500;
+    const banksLow = (bankAccounts as any[] || []).filter((b: any) =>
+      b.status === "Active" && typeof b.balance === "number" && b.balance < LOW_BALANCE_THRESHOLD
+    ).length;
+
+    // Loans & CC Dues: active items with nextPay within 7 days or already overdue
     const loansAlert = (loans as any[] || []).filter((l: any) => {
-      if (!l.nextDueDate) return false;
-      const d = new Date(l.nextDueDate);
+      if (l.status === "Paid" || l.status === "Refinanced") return false;
+      if (!l.nextPay) return false;
+      const d = new Date(l.nextPay);
       return !isNaN(d.getTime()) && d <= in7Days;
     }).length;
 
-    // Bank Statements: unchecked/pending items
+    // Bank Statements: not yet downloaded
     const stmtsPending = (bankStatements as any[] || []).filter((s: any) =>
-      s.status && !["done", "complete", "completed", "checked"].includes((s.status || "").toLowerCase())
+      s.downloaded === false || s.downloaded === null || s.downloaded === undefined
     ).length;
 
     // Calendar: events within the next 7 days
@@ -176,8 +188,8 @@ export const Sidebar: React.FC = () => {
       !n.status || n.status === "open"
     ).length;
 
-    return { ap: apOpen, loans: loansAlert, statements: stmtsPending, calendar: calUpcoming, notes: notesOpen };
-  }, [apBills, loans, bankStatements, calendarLocalEvents, quickNotes]);
+    return { ap: apOpen, ar: arPending, banks: banksLow, loans: loansAlert, statements: stmtsPending, calendar: calUpcoming, notes: notesOpen };
+  }, [apBills, arItems, bankAccounts, loans, bankStatements, calendarLocalEvents, quickNotes]);
 
   const renderLinkIcon = (link: ExternalLinkItem) => {
     if (link.iconType === "users") return <Users className="w-3.5 h-3.5 text-purple-500 shrink-0" />;
@@ -320,7 +332,10 @@ export const Sidebar: React.FC = () => {
                 <>
                   <span className="flex-1 text-left truncate">{item.label}</span>
                   {showBadge && (
-                    <span className={`shrink-0 min-w-[18px] h-[18px] rounded-full ${item.badgeColor || "bg-red-500"} text-white text-[10px] font-black flex items-center justify-center px-1 leading-none`}>
+                    <span
+                      title={`${badgeCount} ${item.badgeTitle || "pending"}`}
+                      className={`shrink-0 min-w-[18px] h-[18px] rounded-full ${item.badgeColor || "bg-red-500"} text-white text-[10px] font-black flex items-center justify-center px-1 leading-none`}
+                    >
                       {badgeCount > 99 ? "99+" : badgeCount}
                     </span>
                   )}
