@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+﻿import React, { useState, useMemo } from "react";
 import { AlertsBell } from "./AlertsCenter";
 import { Tooltip } from "./Tooltip";
 import { useFinance } from "../context/FinanceContext";
@@ -66,8 +66,13 @@ export const Sidebar: React.FC = () => {
     isSidebarFolded,
     toggleSidebarFold,
     syncAllFromGoogleSheets,
-    isSyncing
-  } = useFinance();
+    isSyncing,
+    apBills,
+    loans,
+    bankStatements,
+    quickNotes,
+    calendarLocalEvents,
+  } = useFinance() as any;
 
   const greetingName = getUserGreetingName(userEmail, googleUser?.displayName);
 
@@ -121,20 +126,58 @@ export const Sidebar: React.FC = () => {
     setShowAddMemberModal(false);
   };
 
-  const navItems: { id: PageRoute; label: string; icon: React.ReactNode }[] = [
-    { id: "hub", label: "Finance Overview", icon: <LayoutDashboard className="w-4 h-4" /> },
-    { id: "ap", label: "Accounts Payables", icon: <Banknote className="w-4 h-4" /> },
-    { id: "ar", label: "Accounts Receivables", icon: <Receipt className="w-4 h-4" /> },
-    { id: "banks", label: "Bank Balances", icon: <Landmark className="w-4 h-4" /> },
-    { id: "loans", label: "Loans & CC Dues", icon: <TrendingDown className="w-4 h-4" /> },
-    { id: "statements", label: "Bank Statements", icon: <FileText className="w-4 h-4" /> },
-    { id: "calendar", label: "Calendar", icon: <CalendarDays className="w-4 h-4" /> },
-    { id: "notes", label: "Quick Notes", icon: <StickyNote className="w-4 h-4 text-purple-400" /> },
-    { id: "cc-expenses", label: "CC Expenses", icon: <CreditCard className="w-4 h-4" /> }
+  const navItems: { id: PageRoute; label: string; icon: React.ReactNode; badgeKey?: keyof typeof navBadges; badgeColor?: string }[] = [
+    { id: "hub",         label: "Finance Overview",    icon: <LayoutDashboard className="w-4 h-4" /> },
+    { id: "ap",          label: "Accounts Payables",   icon: <Banknote className="w-4 h-4" />,     badgeKey: "ap",         badgeColor: "bg-red-500" },
+    { id: "ar",          label: "Accounts Receivables",icon: <Receipt className="w-4 h-4" /> },
+    { id: "banks",       label: "Bank Balances",       icon: <Landmark className="w-4 h-4" /> },
+    { id: "loans",       label: "Loans & CC Dues",     icon: <TrendingDown className="w-4 h-4" />,  badgeKey: "loans",      badgeColor: "bg-orange-500" },
+    { id: "statements",  label: "Bank Statements",     icon: <FileText className="w-4 h-4" />,      badgeKey: "statements", badgeColor: "bg-amber-500" },
+    { id: "calendar",    label: "Calendar",            icon: <CalendarDays className="w-4 h-4" />,  badgeKey: "calendar",   badgeColor: "bg-blue-500" },
+    { id: "notes",       label: "Quick Notes",         icon: <StickyNote className="w-4 h-4 text-purple-400" />, badgeKey: "notes", badgeColor: "bg-purple-500" },
+    { id: "cc-expenses", label: "CC Expenses",         icon: <CreditCard className="w-4 h-4" /> }
   ];
 
   const userInitial = userEmail ? userEmail.slice(0, 2).toUpperCase() : "MC";
   const isLight = theme === "light";
+
+  // ── Nav badge counts ────────────────────────────────────────────────────────
+  const navBadges = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const in7Days = new Date(today); in7Days.setDate(today.getDate() + 7);
+
+    // AP: unpaid bills (status not "paid")
+    const apOpen = (apBills as any[] || []).filter((b: any) =>
+      b.status && !["paid", "done", "completed"].includes((b.status || "").toLowerCase())
+    ).length;
+
+    // Loans: upcoming due within 7 days or overdue
+    const loansAlert = (loans as any[] || []).filter((l: any) => {
+      if (!l.nextDueDate) return false;
+      const d = new Date(l.nextDueDate);
+      return !isNaN(d.getTime()) && d <= in7Days;
+    }).length;
+
+    // Bank Statements: unchecked/pending items
+    const stmtsPending = (bankStatements as any[] || []).filter((s: any) =>
+      s.status && !["done", "complete", "completed", "checked"].includes((s.status || "").toLowerCase())
+    ).length;
+
+    // Calendar: events within the next 7 days
+    const calUpcoming = (calendarLocalEvents as any[] || []).filter((ev: any) => {
+      if (!ev.date && !ev.startDate) return false;
+      const d = new Date(ev.date || ev.startDate);
+      return !isNaN(d.getTime()) && d >= today && d <= in7Days;
+    }).length;
+
+    // Quick Notes: open notes
+    const notesOpen = (quickNotes as any[] || []).filter((n: any) =>
+      !n.status || n.status === "open"
+    ).length;
+
+    return { ap: apOpen, loans: loansAlert, statements: stmtsPending, calendar: calUpcoming, notes: notesOpen };
+  }, [apBills, loans, bankStatements, calendarLocalEvents, quickNotes]);
 
   const renderLinkIcon = (link: ExternalLinkItem) => {
     if (link.iconType === "users") return <Users className="w-3.5 h-3.5 text-purple-500 shrink-0" />;
@@ -241,6 +284,8 @@ export const Sidebar: React.FC = () => {
         )}
         {navItems.map((item) => {
           const isActive = currentPage === item.id;
+          const badgeCount = item.badgeKey ? (navBadges[item.badgeKey] ?? 0) : 0;
+          const showBadge = badgeCount > 0;
           return (
             <Tooltip key={item.id} label={item.label} disabled={!isSidebarFolded}>
             <button
@@ -262,9 +307,24 @@ export const Sidebar: React.FC = () => {
                     : "text-[#7a90b0] hover:bg-[#0d1525] hover:text-[#c8d4e8]"
               }`}
             >
-              <span className={`shrink-0 ${isActive ? (isLight ? "text-blue-600" : "text-blue-400") : ""}`}>{item.icon}</span>
+              {/* Icon + badge dot (folded) */}
+              <span className={`shrink-0 relative ${isActive ? (isLight ? "text-blue-600" : "text-blue-400") : ""}`}>
+                {item.icon}
+                {showBadge && isSidebarFolded && (
+                  <span className={`absolute -top-1 -right-1 min-w-[14px] h-[14px] rounded-full ${item.badgeColor || "bg-red-500"} text-white text-[8px] font-black flex items-center justify-center px-0.5 leading-none`}>
+                    {badgeCount > 99 ? "99+" : badgeCount}
+                  </span>
+                )}
+              </span>
               {!isSidebarFolded && (
-                <span className="flex-1 text-left truncate">{item.label}</span>
+                <>
+                  <span className="flex-1 text-left truncate">{item.label}</span>
+                  {showBadge && (
+                    <span className={`shrink-0 min-w-[18px] h-[18px] rounded-full ${item.badgeColor || "bg-red-500"} text-white text-[10px] font-black flex items-center justify-center px-1 leading-none`}>
+                      {badgeCount > 99 ? "99+" : badgeCount}
+                    </span>
+                  )}
+                </>
               )}
             </button>
             </Tooltip>

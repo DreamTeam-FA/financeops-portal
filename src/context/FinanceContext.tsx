@@ -706,20 +706,16 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           if (data.ar) setArItems(data.ar);
           if (data.statements) setBankStatements(data.statements);
           if (data.quickNotes && Array.isArray(data.quickNotes) && data.quickNotes.length > 0) {
-            // mergeSheetNotes is defined just below in this effect — hoisted via closure
-            const localNotes: DashboardNote[] = (() => {
-              try { return JSON.parse(localStorage.getItem("financeops_quick_notes") || "[]"); } catch { return []; }
-            })();
-            const localMap = new Map(localNotes.map((n) => [n.id, n]));
-            const merged = (data.quickNotes as DashboardNote[]).map((n) => {
-              const local = localMap.get(n.id);
-              if (local?.status === "done" && n.status !== "done") {
-                return { ...n, status: "done" as const, completedAt: local.completedAt };
-              }
-              return n;
+            // Sheet is the exclusive source of truth — deduplicate by id, no local-only notes added
+            const seen = new Set<string>();
+            const deduped = (data.quickNotes as DashboardNote[]).filter((n) => {
+              if (!n.id) return true;
+              if (seen.has(String(n.id))) return false;
+              seen.add(String(n.id));
+              return true;
             });
-            setQuickNotes(merged);
-            localStorage.setItem("financeops_quick_notes", JSON.stringify(merged));
+            setQuickNotes(deduped);
+            localStorage.setItem("financeops_quick_notes", JSON.stringify(deduped));
           }
           if (data.calendarLocalEvents && Array.isArray(data.calendarLocalEvents)) setCalendarLocalEvents(data.calendarLocalEvents);
           if (data.payrollWeeks) setPayrollWeeks(data.payrollWeeks);

@@ -78,37 +78,39 @@ const DEFAULT_DATA = {
   sheetIdOverrides: {} as Record<string, string>,
 };
 
-// Special merge for notes: sheet provides base content, but local status/completion wins
+// Notes merge: sheet is the EXCLUSIVE source of truth.
+// Only sheet rows are shown. Local data only preserves done-status
+// until it has been written back to the sheet.
 function mergeNotes(liveList: any[], currentList: any[]) {
-  if (!liveList || liveList.length === 0) return currentList || [];
-  if (!currentList || currentList.length === 0) return liveList;
+  if (!liveList || liveList.length === 0) return [];   // sheet empty → nothing to show
 
   const currentMap = new Map<string, any>();
-  currentList.forEach((item) => {
+  (currentList || []).forEach((item) => {
     if (item?.id) currentMap.set(String(item.id), item);
   });
 
-  const merged = liveList.map((liveItem) => {
-    const itemId = String(liveItem.id || "");
-    if (itemId && currentMap.has(itemId)) {
-      const currentItem = currentMap.get(itemId)!;
-      // Sheet "done" flag always wins; if sheet says open, keep local "done" if user marked it
-      const status = liveItem.status === "done" || currentItem.status === "done" ? "done" : "open";
-      const completedAt = status === "done" ? (currentItem.completedAt || liveItem.completedAt) : undefined;
-      return { ...liveItem, status, completedAt };
-    }
-    return liveItem;
-  });
-
-  // Keep locally-created notes that don't exist in the sheet
-  const liveIds = new Set(liveList.map((i) => String(i.id || "")));
-  currentList.forEach((ci) => {
-    if (ci?.id && !liveIds.has(String(ci.id))) {
-      merged.unshift(ci);
-    }
-  });
-
-  return merged;
+  // Deduplicate sheet rows by id (guards against duplicate rows in the sheet)
+  const seen = new Set<string>();
+  return liveList
+    .filter((item) => {
+      if (!item?.id) return true;
+      const id = String(item.id);
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    })
+    .map((liveItem) => {
+      const itemId = String(liveItem.id || "");
+      if (itemId && currentMap.has(itemId)) {
+        const currentItem = currentMap.get(itemId)!;
+        // Sheet "done" wins; also preserve local "done" until next write-back
+        const status = liveItem.status === "done" || currentItem.status === "done" ? "done" : "open";
+        const completedAt = status === "done" ? (currentItem.completedAt || liveItem.completedAt) : undefined;
+        return { ...liveItem, status, completedAt };
+      }
+      return liveItem;
+    });
+  // Local-only notes (not in the sheet) are intentionally excluded.
 }
 
 function mergeDatasets(liveList: any[], currentList: any[], idKey = "id") {
