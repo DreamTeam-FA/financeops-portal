@@ -453,91 +453,107 @@ export const Sidebar: React.FC = () => {
             setSelectedEntities(new Set(["Ziglar"]));
             setCurrentPage("ziglar");
           }}
-          className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg transition-all relative overflow-hidden ${
+          className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all relative overflow-hidden ${
             currentPage === "ziglar"
               ? isLight ? "bg-indigo-100 border border-indigo-300 shadow-[0_2px_10px_rgba(99,102,241,.2)]" : "bg-indigo-900/30 border border-indigo-700/50 shadow-[0_2px_10px_rgba(99,102,241,.25)]"
               : isLight ? "hover:bg-slate-50 border border-transparent" : "hover:bg-[#0a1220] border border-transparent"
           }`}
         >
-          {currentPage === "ziglar" && (
+          {currentPage === "ziglar" && !isSidebarFolded && (
             <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-indigo-500 rounded-r" />
           )}
-          <ZiglarLogo className="h-7 max-w-[170px]" isLight={isLight} />
-          <ChevronRight className="w-3.5 h-3.5 text-[#666] shrink-0" />
+          {isSidebarFolded ? (
+            <span className={`w-7 h-7 rounded-lg flex items-center justify-center font-extrabold text-xs transition-all ${currentPage === "ziglar" ? "bg-indigo-500 text-white shadow-md shadow-indigo-500/40" : "bg-indigo-500/15 text-indigo-400"}`}>Zi</span>
+          ) : (
+            <>
+              <ZiglarLogo className="h-7 max-w-[170px]" isLight={isLight} />
+              <ChevronRight className="w-3.5 h-3.5 text-[#666] shrink-0" />
+            </>
+          )}
         </button>
         </Tooltip>
       </div>
 
       {/* WORKSPACE Section */}
       <div className={`px-2 pt-3 pb-2 border-t ${isLight ? "border-slate-100" : "border-[#1a2235]"}`}>
-        <div className="flex items-center justify-between px-3 mb-1.5">
-          <div className="flex items-center gap-2 flex-1">
-            <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#3d5478]"}`}>WORKSPACE</span>
-            <div className={`flex-1 h-px ${isLight ? "bg-slate-200" : "bg-[#1a2235]"}`} />
+        {!isSidebarFolded && (
+          <div className="flex items-center justify-between px-3 mb-1.5">
+            <div className="flex items-center gap-2 flex-1">
+              <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#3d5478]"}`}>WORKSPACE</span>
+              <div className={`flex-1 h-px ${isLight ? "bg-slate-200" : "bg-[#1a2235]"}`} />
+            </div>
+            <Tooltip label="Manage Workspace Spaces">
+            <button
+              onClick={() => setCurrentPage("workspace-tools")}
+              className="text-[#1a73e8] hover:text-[#1557b0] p-0.5 rounded hover:bg-slate-100 dark:hover:bg-[#1a1a1a] transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+            </Tooltip>
           </div>
-          <Tooltip label="Manage Workspace Spaces">
-          <button
-            onClick={() => setCurrentPage("workspace-tools")}
-            className="text-[#1a73e8] hover:text-[#1557b0] p-0.5 rounded hover:bg-slate-100 dark:hover:bg-[#1a1a1a] transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" />
-          </button>
-          </Tooltip>
-        </div>
+        )}
 
+        <Tooltip label="Tools & Sheets" disabled={!isSidebarFolded}>
         <button
           onClick={() => setCurrentPage("workspace-tools")}
-          className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-all relative ${
+          className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "gap-2.5 px-3 py-1.5"} rounded-md text-[13px] transition-all relative ${
             currentPage === "workspace-tools"
               ? isLight ? "bg-amber-50 text-amber-800 font-semibold border border-amber-200" : "bg-amber-950/20 text-amber-200 font-semibold border border-amber-900/40 shadow-[0_1px_8px_rgba(245,158,11,.1)]"
               : isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900 border border-transparent" : "text-[#7a90b0] hover:bg-[#0d1525] hover:text-[#c8d4e8] border border-transparent"
           }`}
         >
-          <Wrench className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-          <span className="flex-1 text-left truncate font-medium">Tools & sheets</span>
+          <Wrench className={`w-3.5 h-3.5 text-amber-500 shrink-0 ${isSidebarFolded ? "w-4 h-4" : ""}`} />
+          {!isSidebarFolded && <span className="flex-1 text-left truncate font-medium">Tools & sheets</span>}
         </button>
+        </Tooltip>
 
+        <Tooltip label="Platforms" disabled={!isSidebarFolded}>
         <button
           onClick={() => setCurrentPage("workspace-platforms")}
-          className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-all relative ${
+          className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "gap-2.5 px-3 py-1.5"} rounded-md text-[13px] transition-all relative ${
             currentPage === "workspace-platforms"
               ? isLight ? "bg-sky-50 text-sky-800 font-semibold border border-sky-200" : "bg-sky-950/20 text-sky-200 font-semibold border border-sky-900/40 shadow-[0_1px_8px_rgba(14,165,233,.1)]"
               : isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900 border border-transparent" : "text-[#7a90b0] hover:bg-[#0d1525] hover:text-[#c8d4e8] border border-transparent"
           }`}
         >
-          <Globe className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-          <span className="flex-1 text-left truncate font-medium">Platforms</span>
+          <Globe className={`w-3.5 h-3.5 text-sky-400 shrink-0 ${isSidebarFolded ? "w-4 h-4" : ""}`} />
+          {!isSidebarFolded && <span className="flex-1 text-left truncate font-medium">Platforms</span>}
         </button>
+        </Tooltip>
 
+        <Tooltip label="Drive Folders" disabled={!isSidebarFolded}>
         <button
           onClick={() => setCurrentPage("workspace-drive")}
-          className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-all relative ${
+          className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "gap-2.5 px-3 py-1.5"} rounded-md text-[13px] transition-all relative ${
             currentPage === "workspace-drive"
               ? isLight ? "bg-amber-50 text-amber-800 font-semibold border border-amber-200" : "bg-amber-950/20 text-amber-200 font-semibold border border-amber-900/40 shadow-[0_1px_8px_rgba(245,158,11,.1)]"
               : isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900 border border-transparent" : "text-[#7a90b0] hover:bg-[#0d1525] hover:text-[#c8d4e8] border border-transparent"
           }`}
         >
-          <Folder className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-          <span className="flex-1 text-left truncate font-medium">Drive folders</span>
+          <Folder className={`w-3.5 h-3.5 text-amber-500 shrink-0 ${isSidebarFolded ? "w-4 h-4" : ""}`} />
+          {!isSidebarFolded && <span className="flex-1 text-left truncate font-medium">Drive folders</span>}
         </button>
+        </Tooltip>
       </div>
 
       {/* MEMBER'S WORKSPACE Section */}
       <div className={`px-2 pt-3 pb-2 border-t ${isLight ? "border-slate-100" : "border-[#1a2235]"}`}>
-        <div className="flex items-center justify-between px-3 mb-1.5">
-          <div className="flex items-center gap-2 flex-1">
-            <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#3d5478]"}`}>MEMBER'S WORKSPACE</span>
-            <div className={`flex-1 h-px ${isLight ? "bg-slate-200" : "bg-[#1a2235]"}`} />
+        {!isSidebarFolded && (
+          <div className="flex items-center justify-between px-3 mb-1.5">
+            <div className="flex items-center gap-2 flex-1">
+              <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#3d5478]"}`}>MEMBER'S WORKSPACE</span>
+              <div className={`flex-1 h-px ${isLight ? "bg-slate-200" : "bg-[#1a2235]"}`} />
+            </div>
+            <Tooltip label="Add Team Member Workspace">
+            <button
+              onClick={() => setShowAddMemberModal(true)}
+              className="text-[#1a73e8] hover:text-[#1557b0] p-0.5 rounded hover:bg-slate-100 dark:hover:bg-[#1a1a1a] transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+            </Tooltip>
           </div>
-          <Tooltip label="Add Team Member Workspace">
-          <button
-            onClick={() => setShowAddMemberModal(true)}
-            className="text-[#1a73e8] hover:text-[#1557b0] p-0.5 rounded hover:bg-slate-100 dark:hover:bg-[#1a1a1a] transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" />
-          </button>
-          </Tooltip>
-        </div>
+        )}
 
         {memberWorkspaces.map((mem) => {
           const isMemActive = currentPage === "member-workspace" && activeMember?.id === mem.id;
@@ -549,34 +565,48 @@ export const Sidebar: React.FC = () => {
             borderColor: `rgba(${rgb},0.4)`,
             boxShadow: `0 1px 8px rgba(${rgb},${isLight ? 0.15 : 0.22})`
           } : {};
+          const initial = formatCleanName(mem.name).charAt(0).toUpperCase();
 
           return (
-            <Tooltip label={`${formatPossessiveName(mem.name)} Workspace`} sublabel="Member Dashboard" color={mem.color}>
+            <Tooltip key={mem.id} label={`${formatPossessiveName(mem.name)} Workspace`} sublabel="Member Dashboard" color={mem.color}>
             <button
-              key={mem.id}
               onClick={() => {
                 setActiveMember({ id: mem.id, name: mem.name, color: mem.color });
                 setCurrentPage("member-workspace");
               }}
-              className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-all border ${
+              className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "gap-2.5 px-3 py-1.5"} rounded-md text-[13px] transition-all border ${
                 isMemActive
                   ? isLight ? "font-semibold text-slate-800" : "font-semibold text-[#c8d4e8]"
                   : isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900 border-transparent" : "text-[#7a90b0] hover:bg-[#0d1525] hover:text-[#c8d4e8] border-transparent"
               }`}
               style={activeStyle}
             >
-              <UserIcon
-                className="w-3.5 h-3.5 shrink-0"
-                style={{ color: isMemActive ? mem.color : undefined }}
-              />
-              <span className="flex-1 text-left truncate font-medium">{formatPossessiveName(mem.name)}</span>
-              <span
-                className="w-2.5 h-2.5 rounded-full shrink-0"
-                style={{
-                  backgroundColor: mem.color,
-                  boxShadow: `0 2px 8px rgba(${rgb},0.55), inset 0 1px 0 rgba(255,255,255,0.07)`
-                }}
-              />
+              {isSidebarFolded ? (
+                <span
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-extrabold text-white shrink-0 transition-all"
+                  style={{
+                    backgroundColor: mem.color,
+                    boxShadow: isMemActive ? `0 0 10px rgba(${rgb},0.5), 0 2px 6px rgba(${rgb},0.35)` : `0 2px 6px rgba(${rgb},0.3)`,
+                  }}
+                >
+                  {initial}
+                </span>
+              ) : (
+                <>
+                  <UserIcon
+                    className="w-3.5 h-3.5 shrink-0"
+                    style={{ color: isMemActive ? mem.color : undefined }}
+                  />
+                  <span className="flex-1 text-left truncate font-medium">{formatPossessiveName(mem.name)}</span>
+                  <span
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                    style={{
+                      backgroundColor: mem.color,
+                      boxShadow: `0 2px 8px rgba(${rgb},0.55), inset 0 1px 0 rgba(255,255,255,0.07)`
+                    }}
+                  />
+                </>
+              )}
             </button>
             </Tooltip>
           );
@@ -584,27 +614,29 @@ export const Sidebar: React.FC = () => {
       </div>
 
       {/* Quick External Links Section */}
-      <div className={`px-2 pt-3 pb-2 border-t ${isLight ? "border-slate-100" : "border-[#1a2235]"}`}>
-        <div className="flex items-center gap-2 px-3 mb-1.5">
-          <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#3d5478]"}`}>Quick Links</span>
-          <div className={`flex-1 h-px ${isLight ? "bg-slate-200" : "bg-[#1a2235]"}`} />
+      {!isSidebarFolded && (
+        <div className={`px-2 pt-3 pb-2 border-t ${isLight ? "border-slate-100" : "border-[#1a2235]"}`}>
+          <div className="flex items-center gap-2 px-3 mb-1.5">
+            <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#3d5478]"}`}>Quick Links</span>
+            <div className={`flex-1 h-px ${isLight ? "bg-slate-200" : "bg-[#1a2235]"}`} />
+          </div>
+          {quickLinks.map((link) => (
+            <a
+              key={link.id}
+              href={link.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors ${
+                isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900" : "text-[#7a90b0] hover:bg-[#0d1525] hover:text-[#c8d4e8]"
+              }`}
+            >
+              {renderLinkIcon(link)}
+              <span className="flex-1 text-left truncate">{link.name}</span>
+              <ExternalLink className="w-3 h-3 text-[#555]" />
+            </a>
+          ))}
         </div>
-        {quickLinks.map((link) => (
-          <a
-            key={link.id}
-            href={link.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors ${
-              isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900" : "text-[#7a90b0] hover:bg-[#0d1525] hover:text-[#c8d4e8]"
-            }`}
-          >
-            {renderLinkIcon(link)}
-            <span className="flex-1 text-left truncate">{link.name}</span>
-            <ExternalLink className="w-3 h-3 text-[#555]" />
-          </a>
-        ))}
-      </div>
+      )}
 
       {/* Add Workspace Item Modal */}
       {showAddWorkspaceModal && (
