@@ -61,9 +61,9 @@ const BANK_STATEMENT_CARD = {
 
 const PDF_TABLE_EXTRACTOR_CARD = {
   id: "__pdf_table_extractor__",
-  name: "PDF Table Extractor",
+  name: "PDF Data Extractor",
   url: "",
-  description: "Extract tables from any PDF and export as CSV or XLSX — 100% offline",
+  description: "Extract tables, key-value pairs & text from any PDF · Export CSV / XLSX / DOCX — 100% offline",
   color: "#7c3aed",
   pinned: true,
   route: "pdf-table-extractor",
