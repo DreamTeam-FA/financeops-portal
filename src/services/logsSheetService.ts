@@ -1,15 +1,22 @@
 /**
  * logsSheetService.ts
  *
- * Manages a dedicated Google Sheet that acts as the permanent log store for:
- *   - Login History  (tab 1)
- *   - Activity Log   (tab 2)
+ * Manages a single dedicated Google Sheet that acts as the permanent, shared
+ * log store for ALL portal users:
+ *   - "Login History"  tab — Timestamp, User, Device, City, Region, Country, IP
+ *   - "Activity Log"   tab — Timestamp, User, Action, Details
  *
- * The sheet is created on first sign-in and its ID is persisted on the server.
- * All subsequent appends go directly to the sheet via Sheets API v4.
+ * The sheet is created once by the first user who signs in.
+ * Its ID is persisted on the server so every subsequent user appends to the
+ * SAME sheet — no per-user sheets.
  */
 
 export const LOGS_SHEET_TITLE = "⛔ DO NOT DELETE — FinanceOps Portal Logs";
+
+/** Hardcoded shared logs sheet — one sheet, all users.
+ *  https://docs.google.com/spreadsheets/d/19ColN3UOnuGbk1CkHtZswxPZf7oj7Zs2pKaqmGlN4m8
+ */
+export const SHARED_LOGS_SHEET_ID = "19ColN3UOnuGbk1CkHtZswxPZf7oj7Zs2pKaqmGlN4m8";
 
 const api = (token: string, path: string, opts?: RequestInit) =>
   fetch(`https://sheets.googleapis.com/v4/spreadsheets${path}`, {
@@ -21,27 +28,30 @@ const api = (token: string, path: string, opts?: RequestInit) =>
     }
   });
 
-/* ── Find existing logs sheet by title in Drive ── */
+/* ── Find existing logs sheet (searches ALL accessible files, including shared) ── */
 async function findExistingLogsSheet(accessToken: string): Promise<string | null> {
   const q = encodeURIComponent(
     `name='${LOGS_SHEET_TITLE}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`
   );
-  const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)&pageSize=1`, {
-    headers: { Authorization: `Bearer ${accessToken}` }
-  });
+  // Drive v3 files.list searches personal + shared-with-me by default
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)&pageSize=1&includeItemsFromAllDrives=true&supportsAllDrives=true`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
   const data = await res.json();
   return data.files?.[0]?.id ?? null;
 }
 
-/* ── Get or create the logs sheet (finds existing before creating) ── */
+/* ── Get or create the shared logs sheet ── */
 export async function createLogsSheet(accessToken: string): Promise<string> {
+  // Always check the full Drive (including shared files) before creating a new one
   const existing = await findExistingLogsSheet(accessToken);
   if (existing) return existing;
+
   const headerStyle = {
     backgroundColor: { red: 0.067, green: 0.278, blue: 0.553 },
     textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } }
   };
-
   const makeHeader = (cols: string[]) => ({
     rowData: [{
       values: cols.map(v => ({

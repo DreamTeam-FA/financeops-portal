@@ -30,7 +30,7 @@ import {
   stopAutoTokenRefresh
 } from "../services/googleAuth";
 import {
-  createLogsSheet,
+  SHARED_LOGS_SHEET_ID,
   appendLogRow,
 } from "../services/logsSheetService";
 import {
@@ -900,32 +900,14 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           const email = res.user.email || userEmail;
           const ts    = new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" });
 
-          // Ensure the logs Google Sheet exists
-          // Priority: state → localStorage → Drive search → create new
-          let sheetId = logsSheetId || localStorage.getItem("financeops_logs_sheet_id");
-          if (sheetId) setLogsSheetId(sheetId);
-          if (!sheetId) {
-            try {
-              sheetId = await createLogsSheet(token);
-              setLogsSheetId(sheetId);
-              localStorage.setItem("financeops_logs_sheet_id", sheetId);
-              // Also persist on server
-              await fetch("/api/logs-sheet-id", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ logsSheetId: sheetId })
-              });
-            } catch (e) {
-              console.warn("[LogsSheet] Could not create logs sheet:", e);
-            }
-          }
+          // Always use the single shared logs sheet — hardcoded so all users append here
+          const sheetId = SHARED_LOGS_SHEET_ID;
+          if (!logsSheetId) setLogsSheetId(sheetId);
 
-          // Append login entry to the Google Sheet
-          if (sheetId) {
-            appendLogRow(token, sheetId, "Login History", [
-              ts, email, meta.device, meta.city, meta.region, meta.country, meta.ip
-            ]).catch(() => {});
-          }
+          // Append login entry to the shared Google Sheet
+          appendLogRow(token, sheetId, "Login History", [
+            ts, email, meta.device, meta.city, meta.region, meta.country, meta.ip
+          ]).catch(() => {});
 
           // Also persist to server JSON as backup
           const entry = { user: email, ...meta };
@@ -1069,10 +1051,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       body: JSON.stringify({ user: userEmail, action, details, timestamp: ts })
     }).catch(() => {});
 
-    // Also append to Google Sheet if configured (legacy — per-user sheet)
+    // Append to the shared logs Google Sheet
     const token = getAccessToken();
-    if (token && logsSheetId) {
-      appendLogRow(token, logsSheetId, "Activity Log", [ts, userEmail, action, details]).catch(() => {});
+    if (token) {
+      appendLogRow(token, SHARED_LOGS_SHEET_ID, "Activity Log", [ts, userEmail, action, details]).catch(() => {});
     }
   };
 

@@ -345,7 +345,21 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
           setQueue([]);
           setScanned(false);
         },
-        error_callback: () => setConnecting(false),
+        error_callback: (err: any) => {
+          setConnecting(false);
+          const code = err?.type || err?.error || "";
+          if (code === "popup_closed" || code === "popup_failed_to_open") return;
+          // origin_mismatch = Render URL not yet in Google Cloud Console
+          if (code === "origin_mismatch" || String(err).includes("origin")) {
+            setError(
+              `OAuth origin not authorized. Add https://${window.location.hostname} as an` +
+              ` "Authorized JavaScript origin" in Google Cloud Console → APIs & Services →` +
+              ` Credentials → OAuth 2.0 Client ID (the web client used by this portal).`
+            );
+          } else {
+            setError("Gmail authorization failed: " + (code || JSON.stringify(err)));
+          }
+        },
       });
       // prompt:"select_account" forces the Google account chooser every time
       tokenClient.requestAccessToken({ prompt: "select_account" });
