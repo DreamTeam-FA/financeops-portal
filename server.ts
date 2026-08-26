@@ -824,6 +824,82 @@ app.post("/api/ap/add-scanned-bill", (req, res) => {
   res.json({ ok: true, bill: newBill });
 });
 
+// POST /api/pdf/extract — Gemini scans any PDF and extracts all data (tables, KV, text)
+app.post("/api/pdf/extract", async (req, res) => {
+  const { imageBase64, mimeType, mode } = req.body || {};
+  if (!imageBase64) return res.status(400).json({ error: "imageBase64 required" });
+
+  const focusHint =
+    mode === "tables" ? "Focus on extracting structured table data." :
+    mode === "kv"     ? "Focus on extracting key-value metadata (invoice numbers, dates, totals, client info, etc.)." :
+    mode === "text"   ? "Extract all text content line by line." :
+    "Extract everything: tables, key-value data, and important text blocks.";
+
+  const prompt = `You are a precise financial document data extraction engine.
+${focusHint}
+
+Analyse this document and return a JSON object with EXACTLY this structure (no markdown, no code fences, raw JSON only):
+
+{
+  "documentType": "invoice|bill|timesheet|report|statement|other",
+  "sections": [
+    {
+      "title": "Descriptive section name",
+      "type": "table",
+      "pageRange": "p.1",
+      "headers": ["Column A", "Column B"],
+      "rows": [{"Column A": "value", "Column B": "value"}]
+    },
+    {
+      "title": "Document Info",
+      "type": "kv",
+      "pageRange": "p.1",
+      "headers": ["Field", "Value"],
+      "rows": [{"Field": "Invoice Number", "Value": "INV-001"}, {"Field": "Date", "Value": "2026-08-26"}]
+    },
+    {
+      "title": "Notes",
+      "type": "text",
+      "pageRange": "p.1",
+      "headers": ["Content"],
+      "rows": [{"Content": "line of text here"}]
+    }
+  ]
+}
+
+Critical rules:
+- Preserve ALL numeric values exactly as displayed: times as H:MM:SS, amounts with currency symbol, percentages with %, dates in their original format.
+- Use the ACTUAL column headers from the document — never auto-generate "Col 1", "Col 2" etc.
+- Extract ALL rows — do not truncate or summarise.
+- Separate distinct tables into separate sections with descriptive titles.
+- Extract document metadata (invoice #, date, vendor, client, total, tax, etc.) as a "kv" section at the top.
+- If a table spans multiple pages, merge it into one section with pageRange "p.X-Y".
+- Return ONLY valid JSON. No explanation, no markdown, no code fences.`;
+
+  try {
+    // Force Gemini for PDFs (OpenAI vision can't read PDFs natively)
+    const geminiKey = process.env.GEMINI_API_KEY;
+    if (!geminiKey) return res.status(502).json({ error: "GEMINI_API_KEY not set on server" });
+    const result = await callGemini(geminiKey, prompt, imageBase64, mimeType || "application/pdf", 8192);
+    if (!result.ok) return res.status(502).json({ error: result.error });
+
+    const raw = result.text;
+    const start = raw.indexOf("{");
+    const end   = raw.lastIndexOf("}");
+    const cleaned = start !== -1 && end > start ? raw.slice(start, end + 1) : raw.trim();
+    let parsed: any;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch (e: any) {
+      console.error("[PDFExtract] JSON parse failed:", e?.message, "| raw:", raw.slice(0, 300));
+      return res.status(422).json({ error: "Could not parse Gemini response as JSON", raw: raw.slice(0, 500) });
+    }
+    res.json({ ok: true, documentType: parsed.documentType || "other", sections: parsed.sections || [] });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || String(e) });
+  }
+});
+
 app.post("/api/timesheet/scan", async (req, res) => {
   const { imageBase64, mimeType } = req.body || {};
   if (!imageBase64) return res.status(400).json({ error: "imageBase64 required" });
