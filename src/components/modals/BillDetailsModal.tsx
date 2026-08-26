@@ -378,6 +378,9 @@ const AccordionItem: React.FC<{
   const { toggleBillStatus, deleteBill, showConfirm, showDatePicker } = useFinance() as any;
   const accentColor = getEntityColor(bill.entity);
   const overdue = bill.status === "unpaid" && isOverdue(bill.dueDate);
+  // For view-bill link detection (same logic as BillDetail)
+  const remarks = (bill as any).paymentInstructions || bill.remarks || bill.notes || "";
+  const isLink = remarks.startsWith("http");
 
   const handleMarkPaid = () => {
     if (bill.status === "paid") {
