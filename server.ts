@@ -134,11 +134,16 @@ function mergeDatasets(liveList: any[], currentList: any[], idKey = "id") {
       // Portal-only fields: always preserve from currentItem (sheet has no columns for these)
       if (currentItem.driveViewUrl)  result.driveViewUrl  = currentItem.driveViewUrl;
       if (currentItem.driveFileName) result.driveFileName = currentItem.driveFileName;
-      // For sheet-sourced bills: strip any URL that ended up in remarks or paymentInstructions.
-      // URLs in those text fields are stale Gmail/source-email links — they should never appear
-      // as remarks. Real bill copies come from driveViewUrl only.
+      // For sheet-sourced bills: always take remarks/paymentInstructions/status1 from the live
+      // sheet data only — never from stored JSON. Stale values (old "Paid" strings, Gmail URLs,
+      // import artifacts) must not persist. driveViewUrl/driveFileName are the ONLY fields
+      // intentionally preserved from stored JSON.
       if (result.row) {
-        if (isUrlStr(result.remarks)) result.remarks = undefined;
+        result.remarks            = liveItem.remarks            || undefined;
+        result.paymentInstructions= liveItem.paymentInstructions|| undefined;
+        result.status1            = liveItem.status1            || undefined;
+        // Belt-and-braces: strip any URL that slipped through the sheet parser's isUrl filter
+        if (isUrlStr(result.remarks))             result.remarks             = undefined;
         if (isUrlStr(result.paymentInstructions)) result.paymentInstructions = undefined;
       }
       return result;
