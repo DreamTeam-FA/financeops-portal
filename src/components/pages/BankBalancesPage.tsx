@@ -169,16 +169,20 @@ export const BankBalancesPage: React.FC = () => {
 
         {/* View Toggle Bar */}
         <div className={`flex items-center justify-between p-2 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"}`}>
-          <div className="text-xs font-bold px-2 text-slate-600 dark:text-gray-300">
+          <div className={`text-xs font-bold px-2 ${isLight ? "text-slate-600" : "text-gray-300"}`}>
             Bank Accounts View Mode
           </div>
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#0d111a] p-1 rounded-lg">
+          <div className={`flex items-center gap-1 ${isLight ? "bg-slate-100" : "bg-[#0d111a]"} p-1 rounded-lg`}>
             <button
               onClick={() => setViewMode("chart")}
               className={`flex items-center gap-1 px-3.5 py-1.5 rounded text-xs font-semibold transition-colors ${
                 viewMode === "chart"
-                  ? "bg-white dark:bg-[#262626] text-slate-900 dark:text-white shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] border border-slate-200 dark:border-[#333]"
-                  : "text-slate-500 hover:text-slate-900 dark:text-[#888] dark:hover:text-white"
+                  ? isLight
+                    ? "bg-white text-slate-900 shadow-sm border border-slate-200"
+                    : "bg-[#262626] text-white shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] border border-[#333]"
+                  : isLight
+                    ? "text-slate-500 hover:text-slate-900"
+                    : "text-[#888] hover:text-white"
               }`}
             >
               <BarChart3 className="w-3.5 h-3.5" /> Chart View
@@ -187,8 +191,12 @@ export const BankBalancesPage: React.FC = () => {
               onClick={() => setViewMode("table")}
               className={`flex items-center gap-1 px-3.5 py-1.5 rounded text-xs font-semibold transition-colors ${
                 viewMode === "table"
-                  ? "bg-white dark:bg-[#262626] text-slate-900 dark:text-white shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] border border-slate-200 dark:border-[#333]"
-                  : "text-slate-500 hover:text-slate-900 dark:text-[#888] dark:hover:text-white"
+                  ? isLight
+                    ? "bg-white text-slate-900 shadow-sm border border-slate-200"
+                    : "bg-[#262626] text-white shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] border border-[#333]"
+                  : isLight
+                    ? "text-slate-500 hover:text-slate-900"
+                    : "text-[#888] hover:text-white"
               }`}
             >
               <TableIcon className="w-3.5 h-3.5" /> Table View
@@ -308,11 +316,11 @@ export const BankBalancesPage: React.FC = () => {
                       <td className={`p-3 hidden sm:table-cell ${isLight ? "text-slate-500" : "text-[#888]"}`}>{b.asOf}</td>
                       <td className="p-3 hidden md:table-cell">
                         {diff >= 0 ? (
-                          <span className="text-emerald-600 dark:text-[#4ade80] flex items-center gap-1 font-semibold">
+                          <span className={`${isLight ? "text-emerald-600" : "text-[#4ade80]"} flex items-center gap-1 font-semibold`}>
                             <TrendingUp className="w-3.5 h-3.5" /> +{formatCurrency(diff)}
                           </span>
                         ) : (
-                          <span className="text-red-500 dark:text-[#f87171] flex items-center gap-1 font-semibold">
+                          <span className={`${isLight ? "text-red-500" : "text-[#f87171]"} flex items-center gap-1 font-semibold`}>
                             <TrendingDown className="w-3.5 h-3.5" /> {formatCurrency(diff)}
                           </span>
                         )}
@@ -333,7 +341,7 @@ export const BankBalancesPage: React.FC = () => {
                                   setEditingId(b.id);
                                   setNewVal(String(b.balance));
                                 }}
-                                className="p-1.5 rounded hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 transition-colors"
+                                className={`p-1.5 rounded hover:bg-blue-500/10 ${isLight ? "text-blue-600" : "text-blue-400"} transition-colors`}
                               >
                                 <Edit2 className="w-3.5 h-3.5" />
                               </button>

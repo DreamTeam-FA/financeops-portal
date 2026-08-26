@@ -824,6 +824,32 @@ app.post("/api/ap/add-scanned-bill", (req, res) => {
   res.json({ ok: true, bill: newBill });
 });
 
+// POST /api/ar/add-scanned — save an AI-scanned invoice to AR data
+app.post("/api/ar/add-scanned", (req, res) => {
+  const inv = req.body || {};
+  if (!inv.client && !inv.vendor) return res.status(400).json({ error: "client/vendor required" });
+  const data = getStoredData();
+  const newInvoice = {
+    id: `ar-scan-${Date.now()}`,
+    client: inv.client || inv.vendor || "Unknown",
+    entity: inv.entity || "",
+    amount: typeof inv.amount === "number" ? inv.amount : 0,
+    dueDate: inv.dueDate || "",
+    issueDate: inv.issueDate || "",
+    invoiceNo: inv.invoiceNo || "",
+    description: inv.description || "",
+    remarks: inv.remarks || "",
+    status: "Pending",
+    payment: false,
+    createdAt: new Date().toISOString(),
+    scanned: true,
+    source: "email-scanner",
+  };
+  (data as any).ar = [newInvoice, ...((data as any).ar || [])];
+  saveStoredData(data);
+  res.json({ ok: true, invoice: newInvoice });
+});
+
 // POST /api/pdf/extract — Gemini scans any PDF and extracts all data (tables, KV, text)
 app.post("/api/pdf/extract", async (req, res) => {
   const { imageBase64, mimeType, mode } = req.body || {};
@@ -1059,6 +1085,25 @@ app.post("/api/login-log", (req, res) => {
 app.get("/api/login-log", (_req, res) => {
   const data = getStoredData();
   res.json(data.loginLog || []);
+});
+
+// Activity log — centralized across all users (same file on server)
+app.post("/api/activity-log", (req, res) => {
+  const data = getStoredData();
+  const entry = {
+    id: `al-${Date.now()}`,
+    timestamp: new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }),
+    ...req.body
+  };
+  if (!data.activityLog) data.activityLog = [];
+  data.activityLog = [entry, ...data.activityLog.slice(0, 999)];
+  saveStoredData(data);
+  res.json({ success: true, entry });
+});
+
+app.get("/api/activity-log", (_req, res) => {
+  const data = getStoredData();
+  res.json(data.activityLog || []);
 });
 
 // =============================================================================
@@ -1773,6 +1818,133 @@ app.post("/api/sheets/clone-blank", async (req, res) => {
     });
   } catch (e: any) {
     res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+// =============================================================================
+// Gmail — Email Inbox Scanner
+// =============================================================================
+
+/**
+ * POST /api/email/scan-inbox
+ * Body: { accessToken: string, maxResults?: number }
+ * Returns: { emails: [{ id, subject, from, date, snippet, attachments }] }
+ */
+app.post("/api/email/scan-inbox", async (req, res) => {
+  const { accessToken, maxResults = 50 } = req.body || {};
+  if (!accessToken) return res.status(401).json({ error: "accessToken required" });
+
+  try {
+    const auth = new google.auth.OAuth2();
+    auth.setCredentials({ access_token: accessToken });
+    const gmail = google.gmail({ version: "v1", auth });
+
+    const query = [
+      "subject:(invoice OR statement OR bill OR receipt OR remittance OR overdue)",
+      `"please pay" OR "payment due" OR "amount due" OR "balance due"`,
+      "newer_than:30d",
+      "has:attachment",
+    ].join(" OR ") + " newer_than:30d";
+
+    const listResp = await gmail.users.messages.list({
+      userId: "me",
+      q: 'subject:(invoice OR statement OR "please pay" OR "payment due" OR bill OR receipt OR remittance OR "amount due" OR overdue) newer_than:30d has:attachment',
+      maxResults: Math.min(Number(maxResults) || 50, 100),
+    });
+
+    const messages = listResp.data.messages || [];
+    const emails: any[] = [];
+
+    for (const msg of messages) {
+      try {
+        const full = await gmail.users.messages.get({
+          userId: "me",
+          id: msg.id!,
+          format: "metadata",
+          metadataHeaders: ["Subject", "From", "Date"],
+        });
+
+        const headers = full.data.payload?.headers || [];
+        const getHeader = (name: string) =>
+          headers.find((h: any) => h.name?.toLowerCase() === name.toLowerCase())?.value || "";
+
+        // Collect PDF attachments from parts
+        const attachments: any[] = [];
+        function collectParts(parts: any[] | undefined) {
+          if (!parts) return;
+          for (const part of parts) {
+            if (part.parts) { collectParts(part.parts); continue; }
+            const mime = part.mimeType || "";
+            const filename = part.filename || "";
+            if (
+              part.body?.attachmentId &&
+              (mime === "application/pdf" ||
+               mime.startsWith("image/") ||
+               filename.toLowerCase().endsWith(".pdf"))
+            ) {
+              attachments.push({
+                filename: filename || `attachment.${mime.split("/")[1] || "pdf"}`,
+                attachmentId: part.body.attachmentId,
+                mimeType: mime,
+                size: part.body.size || 0,
+              });
+            }
+          }
+        }
+        collectParts(full.data.payload?.parts);
+
+        if (attachments.length === 0) continue; // skip emails without PDF/image attachments
+
+        emails.push({
+          id: msg.id,
+          subject: getHeader("Subject") || "(no subject)",
+          from: getHeader("From") || "Unknown",
+          date: getHeader("Date") || "",
+          snippet: full.data.snippet || "",
+          attachments,
+        });
+      } catch (msgErr: any) {
+        console.warn(`[GmailScan] skipping message ${msg.id}:`, msgErr?.message);
+      }
+    }
+
+    res.json({ ok: true, emails, total: emails.length });
+  } catch (e: any) {
+    console.error("[GmailScan]", e?.message || e);
+    res.status(502).json({ error: "Gmail scan failed", details: e?.message });
+  }
+});
+
+/**
+ * GET /api/email/attachment/:messageId/:attachmentId?accessToken=...
+ * Returns: { data: base64String, mimeType: string, filename: string }
+ */
+app.get("/api/email/attachment/:messageId/:attachmentId", async (req, res) => {
+  const { messageId, attachmentId } = req.params;
+  const accessToken = req.query.accessToken as string;
+
+  if (!accessToken) return res.status(401).json({ error: "accessToken required" });
+  if (!messageId || !attachmentId) return res.status(400).json({ error: "messageId and attachmentId required" });
+
+  try {
+    const auth = new google.auth.OAuth2();
+    auth.setCredentials({ access_token: accessToken });
+    const gmail = google.gmail({ version: "v1", auth });
+
+    const attResp = await gmail.users.messages.attachments.get({
+      userId: "me",
+      messageId,
+      id: attachmentId,
+    });
+
+    // Gmail returns URL-safe base64; convert to standard base64
+    const urlSafeB64 = attResp.data.data || "";
+    const standardB64 = urlSafeB64.replace(/-/g, "+").replace(/_/g, "/");
+
+    res.json({ ok: true, data: standardB64, size: attResp.data.size });
+  } catch (e: any) {
+    console.error("[GmailAttachment]", e?.message || e);
+    res.status(502).json({ error: "Failed to fetch attachment", details: e?.message });
   }
 });
 

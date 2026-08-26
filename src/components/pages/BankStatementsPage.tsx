@@ -1,8 +1,8 @@
 ﻿import React, { useState } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
-import { FileText, CheckCircle2, Clock, Trash2, Filter } from "lucide-react";
-import { AddStatementModal } from "../modals/AddBankModal";
+import { FileText, CheckCircle2, Clock, Trash2, Filter, Edit2 } from "lucide-react";
+import { AddStatementModal, EditStatementModal } from "../modals/AddBankModal";
 import { formatTimestampLocal } from "../../utils/formatters";
 
 export const BankStatementsPage: React.FC = () => {
@@ -10,6 +10,7 @@ export const BankStatementsPage: React.FC = () => {
   const currentMonthYear = new Date().toLocaleString("en-US", { month: "long", year: "numeric" });
 
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [editingStatement, setEditingStatement] = useState<any | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthYear);
   const [selectedBank, setSelectedBank] = useState<string>("ALL");
 
@@ -141,7 +142,7 @@ export const BankStatementsPage: React.FC = () => {
         {/* Month & Bank Filter Bar */}
         <div className={`flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"}`}>
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-gray-300">
+            <div className={`flex items-center gap-1.5 text-xs font-semibold ${isLight ? "text-slate-600" : "text-gray-300"}`}>
               <Filter className="w-3.5 h-3.5 text-slate-400" /> Filter:
             </div>
 
@@ -232,7 +233,7 @@ export const BankStatementsPage: React.FC = () => {
                     <td className={`p-3 ${isLight ? "text-slate-600" : "text-[#888]"}`}>{s.requestDate}</td>
                     <td className="p-3">
                       {s.downloaded ? (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#16a34a]/20 text-emerald-600 dark:text-[#4ade80]">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold bg-[#16a34a]/20 ${isLight ? "text-emerald-600" : "text-[#4ade80]"}`}>
                           Downloaded
                         </span>
                       ) : (
@@ -259,6 +260,13 @@ export const BankStatementsPage: React.FC = () => {
                           {s.downloaded ? "Mark Pending" : "Mark Downloaded"}
                         </button>
                         <button
+                          onClick={() => setEditingStatement(s)}
+                          className={`p-1 ${isLight ? "text-blue-600 hover:text-blue-800" : "text-blue-400 hover:text-blue-300"} transition-colors`}
+                          title="Edit Statement"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
                           onClick={() => showConfirm("Delete this statement record?", () => deleteBankStatement(s.id))}
                           className="p-1 text-red-500 hover:text-red-600 transition-colors"
                           title="Delete Statement"
@@ -276,6 +284,11 @@ export const BankStatementsPage: React.FC = () => {
       </div>
 
       <AddStatementModal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} />
+      <EditStatementModal
+        statement={editingStatement}
+        isOpen={!!editingStatement}
+        onClose={() => setEditingStatement(null)}
+      />
     </div>
   );
 };

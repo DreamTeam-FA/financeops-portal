@@ -138,7 +138,8 @@ export const Sidebar: React.FC = () => {
     { id: "statements",  label: "Bank Statements",     icon: <FileText className="w-4 h-4" />,         badgeKey: "statements", badgeColor: "bg-[#374151]",  badgeTitle: "pending this month" },
     { id: "calendar",    label: "Calendar",            icon: <CalendarDays className="w-4 h-4" />,     badgeKey: "calendar",   badgeColor: "bg-[#2563eb]",  badgeTitle: "upcoming this week" },
     { id: "notes",       label: "Quick Notes",         icon: <StickyNote className="w-4 h-4 text-purple-400" />, badgeKey: "notes", badgeColor: "bg-purple-700", badgeTitle: "open notes" },
-    { id: "cc-expenses", label: "CC Expenses",         icon: <CreditCard className="w-4 h-4" /> }
+    { id: "cc-expenses",    label: "CC Expenses",          icon: <CreditCard className="w-4 h-4" /> },
+    { id: "email-scanner", label: "Email Scanner",         icon: <Mail className="w-4 h-4 text-violet-400" /> }
   ];
 
   const userInitial = userEmail ? userEmail.slice(0, 2).toUpperCase() : "MC";

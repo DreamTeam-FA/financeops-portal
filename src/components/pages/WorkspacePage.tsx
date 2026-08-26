@@ -69,7 +69,17 @@ const PDF_TABLE_EXTRACTOR_CARD = {
   route: "pdf-table-extractor",
 };
 
-const PINNED_TOOL_CARDS = [RECEIPT_RENAMER_CARD, BANK_STATEMENT_CARD, PDF_TABLE_EXTRACTOR_CARD];
+const EMAIL_SCANNER_CARD = {
+  id: "__email_scanner__",
+  name: "Email Invoice Scanner",
+  url: "",
+  description: "Scan Gmail inbox for invoices & bills — review queue, Gemini scan, one-click create",
+  color: "#7c3aed",
+  pinned: true,
+  route: "email-scanner",
+};
+
+const PINNED_TOOL_CARDS = [RECEIPT_RENAMER_CARD, BANK_STATEMENT_CARD, PDF_TABLE_EXTRACTOR_CARD, EMAIL_SCANNER_CARD];
 
 const TOOLS_COLUMNS: { key: "tool" | "portal" | "sheet"; label: string; accentLight: string; accentDark: string; borderLight: string; borderDark: string }[] = [
   { key: "tool",   label: "Tools",            accentLight: "text-blue-600",   accentDark: "text-blue-400",   borderLight: "border-blue-200/70",   borderDark: "border-blue-500/20"   },

@@ -1062,7 +1062,14 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setAuditLogs(nextLogs);
     persistChanges({ auditLog: nextLogs });
 
-    // Fire-and-forget: append to the permanent Google Sheet log
+    // Fire-and-forget: post to centralized server activity log (shared across all users)
+    fetch("/api/activity-log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user: userEmail, action, details, timestamp: ts })
+    }).catch(() => {});
+
+    // Also append to Google Sheet if configured (legacy — per-user sheet)
     const token = getAccessToken();
     if (token && logsSheetId) {
       appendLogRow(token, logsSheetId, "Activity Log", [ts, userEmail, action, details]).catch(() => {});

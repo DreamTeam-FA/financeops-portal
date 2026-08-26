@@ -263,4 +263,6 @@ export type PageRoute =
   | "help"
   | "receipt-renamer"
   | "bank-statement"
+  | "pdf-table-extractor"
+  | "email-scanner"
   | "cc-expenses";

@@ -182,6 +182,24 @@ const SERVICES: ServiceCard[] = [
     ],
     tip: "Google Sheets files don't count against your Drive quota. OAuth tokens renew silently.",
   },
+  {
+    name: "Gemini AI (Google AI Studio)",
+    plan: "Free Tier",
+    planColor: "#8b5cf6",
+    emoji: "🤖",
+    accentColor: "#8b5cf6",
+    limits: [
+      { label: "gemini-2.0-flash", value: "15 req / min · 1,500 / day", ok: true },
+      { label: "gemini-1.5-flash", value: "15 req / min · 1,500 / day", ok: true },
+      { label: "gemini-1.5-pro", value: "2 req / min · 50 / day", warn: true },
+      { label: "Max output tokens", value: "8,192 (configured)", ok: true },
+      { label: "Auto model fallback", value: "Enabled ✓", ok: true, note: "Falls back to next model on quota / not-found errors" },
+      { label: "Cost", value: "Free (AI Studio key)", ok: true },
+    ],
+    dashboardUrl: "https://aistudio.google.com/",
+    dashboardLabel: "Google AI Studio",
+    tip: "Powers: Invoice scan, Bill scan, Timesheet scan, PDF Data Extractor, Email Invoice Scanner. Server auto-tries backup models on quota errors. Upgrade to Vertex AI for higher limits.",
+  },
 ];
 
 const SHEETS = [

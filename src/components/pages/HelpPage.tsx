@@ -49,6 +49,38 @@ const FAQ = [
     q: "How do I clear the portal cache if something looks wrong?",
     a: "Go to ⚙️ → Settings & Data Sync and use the clear cache option there. In an emergency (page won't load), the Error screen has a 'Clear cache & reload' button. This resets local state but does not affect your Google Sheets data.",
   },
+  {
+    q: "How do I use the PDF Data Extractor?",
+    a: "Go to the PDF Data Extractor page from the sidebar. Upload one or more PDFs (financial documents, reports, invoices, or timesheets). Gemini AI automatically scans each file and extracts all tables and text. Choose an extraction mode — Auto, Tables Only, Text Only, or Key-Value — before or after upload. Review the extracted sections in the panel on the right; you can rename or delete individual sections. When ready, export everything as CSV, XLSX (Excel), or DOCX (Word) using the export buttons at the top.",
+  },
+  {
+    q: "How does the AI Invoice Scanner work?",
+    a: "On the AR / Invoices page, click 'Add Invoice' and then choose 'Scan with AI'. Upload a photo or PDF of the invoice. Gemini AI reads all fields — vendor, amount, due date, invoice number, etc. — and pre-fills the Add Invoice form automatically. Review every field and make any corrections, then click Save. Nothing is written until you confirm.",
+  },
+  {
+    q: "How does the AI Bill Scanner work?",
+    a: "Same workflow as the Invoice Scanner but for Accounts Payable. On the AP / Bills page, click 'Add Bill' → 'Scan with AI'. Upload a photo, scanned PDF, or digital PDF of the bill. Gemini AI extracts vendor, amount, due date, and other fields and pre-fills the form. Review and save to confirm.",
+  },
+  {
+    q: "How does the AI Timesheet Scanner work?",
+    a: "On the Timesheets page, click 'Add Timesheet' → 'Scan with AI'. Upload a photo or PDF of a physical or printed timesheet. Gemini AI extracts employee names, hours worked, and dates and pre-fills the timesheet form. Review all fields before saving.",
+  },
+  {
+    q: "How do I track bank statements?",
+    a: "Open the Bank Statements Tracker page from the sidebar. It tracks monthly bank statement requests and downloads per entity. Click 'Add Entry' to log a new statement request for a bank and month. When you receive and file the statement, mark the entry as 'Downloaded'. Use the month and bank name filters to quickly find any entry. You can edit or delete entries at any time.",
+  },
+  {
+    q: "How does the Email Invoice Scanner work?",
+    a: "The Email Invoice Scanner automatically scans your Gmail inbox for financial emails — it searches for messages containing keywords like invoice, statement, payment due, bill, and receipt. Found emails appear in a review queue; nothing is saved automatically. For each email you can: view the message, scan any PDF attachments with Gemini AI, and create a Bill or Invoice directly from the extracted data. You review and confirm every action before anything is written to the portal or your sheets.",
+  },
+  {
+    q: "What is Gemini AI used for in the portal?",
+    a: "Gemini AI powers all of the AI scanning features: bill scanner, invoice scanner, timesheet scanner, PDF data extractor, and email invoice scanner. No setup is needed on your end — the portal uses a server-side API key stored securely in the Render environment. If the primary quota is exceeded, the portal falls back to backup Gemini models automatically. You can check current API status and usage on the Service Limits & Usage page.",
+  },
+  {
+    q: "What is the Workspace / Member Workspace?",
+    a: "The Workspace is a shared area where team members can upload files directly to Google Drive from inside the portal. Files are organized automatically by category and entity. Members see only their own uploads, while admins can see all uploads across all members. Access it from the Workspace section in the sidebar.",
+  },
 ];
 
 /* ── How-To data ──────────────────────────────────────────────────────── */
@@ -123,6 +155,48 @@ const HOWTOS = [
       "Open the bill's edit modal (click the ✏️ pencil icon).",
       "Toggle the 'On Hold' switch.",
       "Save — the bill moves to the On Hold bucket and the flag is written to the sheet (col S for Ruby's/MSDx, col W for TI).",
+    ],
+  },
+  {
+    title: "Extract Data from a PDF",
+    steps: [
+      "Open the PDF Data Extractor from the sidebar.",
+      "Click 'Upload PDF' and select one or more financial documents, reports, invoices, or timesheets.",
+      "Choose an extraction mode: Auto (recommended), Tables Only, Text Only, or Key-Value pairs.",
+      "Wait for Gemini AI to scan the file — extracted sections appear in the results panel.",
+      "Rename or delete any sections you don't need using the edit controls next to each section.",
+      "Click Export and choose CSV, XLSX (Excel), or DOCX (Word) to download your data.",
+    ],
+  },
+  {
+    title: "Scan a Bill or Invoice with AI",
+    steps: [
+      "Go to the AP page (for bills) or AR / Invoices page (for invoices).",
+      "Click '+ Add Bill' or '+ Add Invoice', then choose 'Scan with AI'.",
+      "Upload a photo, scanned PDF, or digital PDF of the document.",
+      "Gemini AI extracts all fields and pre-fills the form — review each field carefully.",
+      "Make any corrections, then click Save to write the entry to the portal and sheet.",
+    ],
+  },
+  {
+    title: "Scan Emails for Invoices and Bills",
+    steps: [
+      "Open the Email Invoice Scanner from the sidebar or the gear menu.",
+      "Click 'Scan Inbox' — the tool searches Gmail for emails matching financial keywords.",
+      "Review each email in the queue. Nothing is saved at this step.",
+      "For emails with PDF attachments, click 'Scan Attachment' to run Gemini AI on the PDF.",
+      "Once fields are extracted, choose 'Create Bill' or 'Create Invoice' to open a pre-filled form.",
+      "Review and confirm — then Save to write the record to the portal.",
+    ],
+  },
+  {
+    title: "Track a Bank Statement Download",
+    steps: [
+      "Open the Bank Statements Tracker from the sidebar.",
+      "Click 'Add Entry' and select the entity, bank name, and statement month.",
+      "Save the entry — it appears in the tracker with a 'Pending' status.",
+      "When you receive and file the statement, find the entry and click 'Mark Downloaded'.",
+      "Use the month and bank filters at the top to search for specific entries.",
     ],
   },
 ];

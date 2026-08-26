@@ -1,8 +1,6 @@
-﻿import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useFinance } from "../../context/FinanceContext";
-import { readLogsSheet, LOGS_SHEET_TITLE } from "../../services/logsSheetService";
-import { getAccessToken } from "../../services/googleAuth";
-import { ExternalLink, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 
 const TABS = [
   { id: "login",    label: "🔐 Login History" },
@@ -37,7 +35,7 @@ const Empty: React.FC<{ msg: string }> = ({ msg }) => (
 );
 
 /* ── Login History table ─────────────────────────────── */
-const LoginTable: React.FC<{ rows: string[][]; isLight: boolean }> = ({ rows, isLight }) => {
+const LoginTable: React.FC<{ rows: any[]; isLight: boolean }> = ({ rows, isLight }) => {
   const hdr = isLight ? "bg-slate-100 text-slate-500" : "bg-[#1a1e27] text-[#888]";
   const row = isLight ? "border-slate-100 text-slate-700" : "border-[#1e2433] text-slate-300";
   const sub = isLight ? "text-slate-400" : "text-slate-500";
@@ -56,14 +54,14 @@ const LoginTable: React.FC<{ rows: string[][]; isLight: boolean }> = ({ rows, is
           </tr>
         </thead>
         <tbody>
-          {[...rows].reverse().map((r, i) => (
-            <tr key={i} className={`border-b ${row} hover:opacity-80`}>
+          {rows.map((r, i) => (
+            <tr key={r.id || i} className={`border-b ${row} hover:opacity-80`}>
               <td className={`px-4 py-2.5 ${sub}`}>{i + 1}</td>
-              <td className="px-4 py-2.5 whitespace-nowrap font-mono text-[11px]">{r[0] || "—"}</td>
-              <td className="px-4 py-2.5 font-medium">{r[1] || "—"}</td>
-              <td className="px-4 py-2.5">{r[2] || "—"}</td>
-              <td className="px-4 py-2.5">{[r[3], r[4], r[5]].filter(Boolean).join(", ") || <span className={sub}>—</span>}</td>
-              <td className={`px-4 py-2.5 font-mono ${sub}`}>{r[6] || "—"}</td>
+              <td className="px-4 py-2.5 whitespace-nowrap font-mono text-[11px]">{r.timestamp || "—"}</td>
+              <td className="px-4 py-2.5 font-medium">{r.user || "—"}</td>
+              <td className="px-4 py-2.5">{r.device || "—"}</td>
+              <td className="px-4 py-2.5">{[r.city, r.region, r.country].filter(Boolean).join(", ") || r.location || <span className={sub}>—</span>}</td>
+              <td className={`px-4 py-2.5 font-mono ${sub}`}>{r.ip || "—"}</td>
             </tr>
           ))}
         </tbody>
@@ -73,7 +71,7 @@ const LoginTable: React.FC<{ rows: string[][]; isLight: boolean }> = ({ rows, is
 };
 
 /* ── Activity Log table ──────────────────────────────── */
-const ActivityTable: React.FC<{ rows: string[][]; isLight: boolean }> = ({ rows, isLight }) => {
+const ActivityTable: React.FC<{ rows: any[]; isLight: boolean }> = ({ rows, isLight }) => {
   const hdr = isLight ? "bg-slate-100 text-slate-500" : "bg-[#1a1e27] text-[#888]";
   const row = isLight ? "border-slate-100 text-slate-700" : "border-[#1e2433] text-slate-300";
   const sub = isLight ? "text-slate-400" : "text-slate-500";
@@ -91,13 +89,13 @@ const ActivityTable: React.FC<{ rows: string[][]; isLight: boolean }> = ({ rows,
           </tr>
         </thead>
         <tbody>
-          {[...rows].reverse().map((r, i) => (
-            <tr key={i} className={`border-b ${row} hover:opacity-80`}>
+          {rows.map((r, i) => (
+            <tr key={r.id || i} className={`border-b ${row} hover:opacity-80`}>
               <td className={`px-4 py-2.5 ${sub}`}>{i + 1}</td>
-              <td className="px-4 py-2.5 whitespace-nowrap font-mono text-[11px]">{r[0] || "—"}</td>
-              <td className={`px-4 py-2.5 ${sub}`}>{r[1] || "—"}</td>
-              <td className="px-4 py-2.5">{badge(r[2] || "—", actionColor(r[2] || ""))}</td>
-              <td className={`px-4 py-2.5 ${sub}`}>{r[3] || "—"}</td>
+              <td className="px-4 py-2.5 whitespace-nowrap font-mono text-[11px]">{r.timestamp || "—"}</td>
+              <td className={`px-4 py-2.5 ${sub}`}>{r.user || r.userEmail || "—"}</td>
+              <td className="px-4 py-2.5">{badge(r.action || "—", actionColor(r.action || ""))}</td>
+              <td className={`px-4 py-2.5 ${sub}`}>{r.details || r.note || "—"}</td>
             </tr>
           ))}
         </tbody>
@@ -108,15 +106,14 @@ const ActivityTable: React.FC<{ rows: string[][]; isLight: boolean }> = ({ rows,
 
 /* ── Main page ───────────────────────────────────────── */
 export const LogsPage: React.FC = () => {
-  const { theme, logsSheetId } = useFinance();
+  const { theme } = useFinance();
   const isLight = theme === "light";
   const [tab, setTab]           = useState<Tab>("login");
   const [search, setSearch]     = useState("");
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState<string | null>(null);
-  const [loginRows, setLoginRows]       = useState<string[][]>([]);
-  const [activityRows, setActivityRows] = useState<string[][]>([]);
-  const [sheetUrl, setSheetUrl]         = useState<string>("");
+  const [loginRows, setLoginRows]       = useState<any[]>([]);
+  const [activityRows, setActivityRows] = useState<any[]>([]);
 
   const bg   = isLight ? "bg-slate-100"  : "bg-[#070b12]";
   const card = isLight ? "bg-white border-slate-200" : "bg-[#111318] border-[#1e2433]";
@@ -126,34 +123,34 @@ export const LogsPage: React.FC = () => {
     ? "bg-white border-slate-300 text-slate-800 placeholder-slate-400"
     : "bg-[#181c24] border-[#2a3140] text-white placeholder-slate-500";
 
-  const loadSheet = useCallback(async () => {
-    if (!logsSheetId) return;
-    const token = getAccessToken();
-    if (!token) { setError("Google token not available — sign in to view logs."); return; }
+  const loadLogs = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await readLogsSheet(token, logsSheetId);
-      setLoginRows(data.loginRows);
-      setActivityRows(data.activityRows);
-      setSheetUrl(data.sheetUrl);
+      const [loginRes, actRes] = await Promise.all([
+        fetch("/api/login-log"),
+        fetch("/api/activity-log"),
+      ]);
+      const loginData = await loginRes.json();
+      const actData = await actRes.json();
+      if (Array.isArray(loginData)) setLoginRows(loginData);
+      if (Array.isArray(actData)) setActivityRows(actData);
     } catch (e: any) {
       setError(`Could not load logs: ${e.message}`);
     } finally {
       setLoading(false);
     }
-  }, [logsSheetId]);
+  }, []);
 
-  useEffect(() => { loadSheet(); }, [loadSheet]);
+  useEffect(() => { loadLogs(); }, [loadLogs]);
 
   const q = search.toLowerCase();
   const filteredLogin = loginRows.filter(r =>
-    !q || r.some(v => v?.toLowerCase().includes(q))
+    !q || Object.values(r).some(v => String(v || "").toLowerCase().includes(q))
   );
   const filteredActivity = activityRows.filter(r =>
-    !q || r.some(v => v?.toLowerCase().includes(q))
+    !q || Object.values(r).some(v => String(v || "").toLowerCase().includes(q))
   );
-  const count = tab === "login" ? filteredLogin.length : filteredActivity.length;
 
   return (
     <div className={`flex flex-col h-full ${bg} ${txt} overflow-hidden`}>
@@ -163,9 +160,7 @@ export const LogsPage: React.FC = () => {
         <div>
           <h1 className="font-bold text-base">Portal Logs</h1>
           <p className={`text-xs mt-0.5 ${txt2}`}>
-            {logsSheetId
-              ? <>Stored permanently in Google Drive · {loginRows.length} logins · {activityRows.length} activities</>
-              : "Logs sheet will be created on your next sign-in"}
+            Centralized activity for all users · {loginRows.length} logins · {activityRows.length} activities
           </p>
         </div>
 
@@ -181,28 +176,13 @@ export const LogsPage: React.FC = () => {
 
           {/* Refresh */}
           <button
-            onClick={loadSheet}
-            disabled={loading || !logsSheetId}
+            onClick={loadLogs}
+            disabled={loading}
             className={`p-1.5 rounded-lg border ${isLight ? "border-slate-300 hover:bg-slate-50" : "border-[#2a3140] hover:bg-[#1a1e27]"} disabled:opacity-40 transition-colors`}
-            title="Refresh from Google Sheets"
+            title="Refresh logs"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""} ${txt2}`} />
           </button>
-
-          {/* Open in Google Sheets */}
-          {sheetUrl && (
-            <a
-              href={sheetUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-opacity hover:opacity-90"
-              style={{ background: "#1a6b36" }}
-              title={LOGS_SHEET_TITLE}
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              Open Sheet
-            </a>
-          )}
         </div>
       </div>
 
@@ -234,16 +214,10 @@ export const LogsPage: React.FC = () => {
           </div>
         )}
 
-        {!logsSheetId && !error && (
-          <div className="mx-4 mt-4 px-4 py-3 rounded-lg text-xs bg-amber-950/30 border border-amber-800/40 text-amber-400">
-            🔐 Sign out and sign back in — the logs Google Sheet will be created automatically on your next login.
-          </div>
-        )}
-
         <div className={`border ${card} rounded-xl m-4 overflow-hidden`}>
           {loading ? (
             <div className="flex items-center justify-center py-20 gap-2 text-xs opacity-50">
-              <RefreshCw className="w-4 h-4 animate-spin" /> Loading from Google Sheets…
+              <RefreshCw className="w-4 h-4 animate-spin" /> Loading logs…
             </div>
           ) : tab === "login" ? (
             filteredLogin.length === 0

@@ -43,7 +43,7 @@ export const LoansPage: React.FC = () => {
       return {
         status: daysInfo.text,
         days,
-        badge: "bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30",
+        badge: `bg-red-500/15 ${isLight ? "text-red-600" : "text-red-400"} border border-red-500/30`,
         cardBorder: "border-l-4 border-l-red-500",
         icon: <ShieldAlert className="w-3.5 h-3.5 text-red-500" />
       };
@@ -51,7 +51,7 @@ export const LoansPage: React.FC = () => {
       return {
         status: daysInfo.text,
         days,
-        badge: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30",
+        badge: `bg-amber-500/15 ${isLight ? "text-amber-600" : "text-amber-400"} border border-amber-500/30`,
         cardBorder: "border-l-4 border-l-amber-500",
         icon: <Clock className="w-3.5 h-3.5 text-amber-500" />
       };
@@ -59,7 +59,7 @@ export const LoansPage: React.FC = () => {
       return {
         status: daysInfo.text,
         days,
-        badge: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30",
+        badge: `bg-emerald-500/15 ${isLight ? "text-emerald-600" : "text-emerald-400"} border border-emerald-500/30`,
         cardBorder: "border-l-4 border-l-emerald-500",
         icon: <Calendar className="w-3.5 h-3.5 text-emerald-500" />
       };
@@ -104,8 +104,8 @@ export const LoansPage: React.FC = () => {
       sublabel: "≤ 3 days",
       icon: <ShieldAlert className="w-4 h-4 text-red-500" />,
       headerCls: "border-red-500/30 bg-red-500/8",
-      labelCls: "text-red-600 dark:text-red-400",
-      countCls: "bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30",
+      labelCls: isLight ? "text-red-600" : "text-red-400",
+      countCls: isLight ? "bg-red-500/15 text-red-600 border border-red-500/30" : "bg-red-500/15 text-red-400 border border-red-500/30",
       match: (days: number) => days <= 3,
     },
     {
@@ -114,8 +114,8 @@ export const LoansPage: React.FC = () => {
       sublabel: "4 – 10 days",
       icon: <Clock className="w-4 h-4 text-amber-500" />,
       headerCls: "border-amber-500/30 bg-amber-500/8",
-      labelCls: "text-amber-600 dark:text-amber-400",
-      countCls: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30",
+      labelCls: isLight ? "text-amber-600" : "text-amber-400",
+      countCls: isLight ? "bg-amber-500/15 text-amber-600 border border-amber-500/30" : "bg-amber-500/15 text-amber-400 border border-amber-500/30",
       match: (days: number) => days > 3 && days <= 10,
     },
     {
@@ -124,8 +124,8 @@ export const LoansPage: React.FC = () => {
       sublabel: "> 10 days",
       icon: <CheckCircle2 className="w-4 h-4 text-emerald-500" />,
       headerCls: "border-emerald-500/30 bg-emerald-500/8",
-      labelCls: "text-emerald-600 dark:text-emerald-400",
-      countCls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30",
+      labelCls: isLight ? "text-emerald-600" : "text-emerald-400",
+      countCls: isLight ? "bg-emerald-500/15 text-emerald-600 border border-emerald-500/30" : "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30",
       match: (days: number) => days > 10,
     },
   ] as const;
@@ -172,10 +172,10 @@ export const LoansPage: React.FC = () => {
               Payment Urgency Breakdown
             </div>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-sm font-bold px-2 py-0.5 rounded bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30">
+              <span className={`text-sm font-bold px-2 py-0.5 rounded bg-red-500/15 ${isLight ? "text-red-600" : "text-red-400"} border border-red-500/30`}>
                 {dueSoonCount} Due Soon
               </span>
-              <span className="text-sm font-bold px-2 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+              <span className={`text-sm font-bold px-2 py-0.5 rounded bg-amber-500/15 ${isLight ? "text-amber-600" : "text-amber-400"} border border-amber-500/30`}>
                 {nearDueCount} Near Due
               </span>
             </div>
@@ -229,13 +229,17 @@ export const LoansPage: React.FC = () => {
             </button>
           </div>
 
-          <div className="flex items-center gap-1 bg-slate-200 dark:bg-[#0d111a] p-1 rounded-lg shrink-0 self-end sm:self-auto">
+          <div className={`flex items-center gap-1 ${isLight ? "bg-slate-200" : "bg-[#0d111a]"} p-1 rounded-lg shrink-0 self-end sm:self-auto`}>
             <button
               onClick={() => setViewMode("cards")}
               className={`flex items-center gap-1 px-3 py-1 rounded text-xs font-semibold transition-colors ${
                 viewMode === "cards"
-                  ? "bg-white dark:bg-[#262626] text-slate-900 dark:text-white shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
-                  : "text-slate-500 hover:text-slate-900 dark:text-[#888] dark:hover:text-white"
+                  ? isLight
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "bg-[#262626] text-white shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
+                  : isLight
+                    ? "text-slate-500 hover:text-slate-900"
+                    : "text-[#888] hover:text-white"
               }`}
             >
               <LayoutGrid className="w-3.5 h-3.5" /> Cards View
@@ -244,8 +248,12 @@ export const LoansPage: React.FC = () => {
               onClick={() => setViewMode("table")}
               className={`flex items-center gap-1 px-3 py-1 rounded text-xs font-semibold transition-colors ${
                 viewMode === "table"
-                  ? "bg-white dark:bg-[#262626] text-slate-900 dark:text-white shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
-                  : "text-slate-500 hover:text-slate-900 dark:text-[#888] dark:hover:text-white"
+                  ? isLight
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "bg-[#262626] text-white shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
+                  : isLight
+                    ? "text-slate-500 hover:text-slate-900"
+                    : "text-[#888] hover:text-white"
               }`}
             >
               <Table className="w-3.5 h-3.5" /> Table View

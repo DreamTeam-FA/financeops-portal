@@ -21,8 +21,9 @@ provider.addScope("https://www.googleapis.com/auth/spreadsheets");
 provider.addScope("https://www.googleapis.com/auth/calendar");
 provider.addScope("https://www.googleapis.com/auth/calendar.events");
 provider.addScope("https://www.googleapis.com/auth/drive");
+provider.addScope("https://www.googleapis.com/auth/gmail.readonly");
 
-const SCOPES = "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/drive";
+const SCOPES = "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/gmail.readonly";
 const TOKEN_REFRESH_MS = 55 * 60 * 1000; // refresh 5 min before 1-hour expiry
 
 let isSigningIn = false;
