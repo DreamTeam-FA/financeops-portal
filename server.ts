@@ -590,6 +590,114 @@ app.post("/api/drive/upload-bill", async (req, res) => {
   }
 });
 
+/**
+ * GET /api/drive/recover-bill-links?token=...
+ * Lists ALL files under the Bills root folder in Drive, matches them to AP bills
+ * by parsing the filename pattern {entity}_{vendor}_{invoiceNo}_{date}.ext,
+ * then restores driveViewUrl + driveFileName on matched bills and saves.
+ */
+app.get("/api/drive/recover-bill-links", async (req, res) => {
+  const userAccessToken = (req.query.token as string) || "";
+  if (!userAccessToken) return res.status(401).json({ error: "token query param required" });
+
+  let drive: any;
+  try { drive = getDriveClient(userAccessToken); }
+  catch (e: any) { return res.status(500).json({ error: e.message }); }
+
+  try {
+    // Recursively list all non-folder files under BILLS_ROOT_FOLDER_ID
+    const allFiles: { id: string; name: string; webViewLink: string; parents?: string[] }[] = [];
+    let pageToken: string | undefined;
+    do {
+      const resp: any = await drive.files.list({
+        q: `'${BILLS_ROOT_FOLDER_ID}' in parents or parents in (select id from files where '${BILLS_ROOT_FOLDER_ID}' in ancestors)`,
+        fields: "nextPageToken, files(id,name,webViewLink,parents,mimeType)",
+        spaces: "drive",
+        pageSize: 1000,
+        pageToken,
+      });
+      const files = (resp.data.files || []).filter((f: any) => f.mimeType !== "application/vnd.google-apps.folder");
+      allFiles.push(...files);
+      pageToken = resp.data.nextPageToken;
+    } while (pageToken);
+
+    // If the flat query above misses nested files, do a broad ancestors search
+    if (allFiles.length === 0) {
+      let pt2: string | undefined;
+      do {
+        const resp2: any = await drive.files.list({
+          q: `'${BILLS_ROOT_FOLDER_ID}' in ancestors and mimeType != 'application/vnd.google-apps.folder' and trashed=false`,
+          fields: "nextPageToken, files(id,name,webViewLink)",
+          spaces: "drive",
+          pageSize: 1000,
+          pageToken: pt2,
+        });
+        allFiles.push(...(resp2.data.files || []));
+        pt2 = resp2.data.nextPageToken;
+      } while (pt2);
+    }
+
+    const current = getStoredData();
+    const apBills: any[] = current.ap || [];
+    let restored = 0;
+    const matches: { vendor: string; date: string; file: string }[] = [];
+
+    for (const file of allFiles) {
+      const fname = file.name.replace(/\.[^.]+$/, ""); // strip extension
+      const parts = fname.split("_");
+      if (parts.length < 3) continue;
+
+      // filename: {entity}_{vendor}_{invoiceNo?}_{YYYY-MM-DD}
+      // Try to extract the date from the last segment
+      const dateCandidate = parts[parts.length - 1]; // e.g. "2025-06-15"
+      const isDate = /^\d{4}-\d{2}-\d{2}$/.test(dateCandidate);
+      if (!isDate) continue;
+
+      const dueDate = dateCandidate;
+      const entity = parts[0].replace(/-/g, "'").replace(/_/g, " "); // rough reverse
+
+      // Match by dueDate first (most selective), then try vendor name fuzzy
+      const vendorRaw = parts[1]; // e.g. "Sysco" or "Pacific_Gas"
+
+      const match = apBills.find((b: any) => {
+        if (b.driveViewUrl) return false; // already has a link
+        const dueDateMatch = b.dueDate === dueDate;
+        if (!dueDateMatch) return false;
+        // Vendor match: compare normalised
+        const bv = (b.vendor || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+        const fv = vendorRaw.toLowerCase().replace(/[^a-z0-9]/g, "");
+        return bv.includes(fv) || fv.includes(bv);
+      });
+
+      if (match) {
+        match.driveViewUrl   = file.webViewLink;
+        match.driveFileName  = file.name;
+        restored++;
+        matches.push({ vendor: match.vendor, date: match.dueDate, file: file.name });
+      }
+    }
+
+    if (restored > 0) {
+      saveStoredData({ ...current, ap: apBills });
+    }
+
+    return res.json({
+      ok: true,
+      driveFilesFound: allFiles.length,
+      restored,
+      matches,
+      message: restored > 0
+        ? `Restored ${restored} bill link${restored !== 1 ? "s" : ""}. Reload the AP page to see them.`
+        : allFiles.length === 0
+          ? "No files found in the Drive Bills folder. Check that the portal has Drive access."
+          : "Drive files found but none matched unlinked bills (they may already be linked, or filenames could not be matched).",
+    });
+  } catch (e: any) {
+    console.error("[RecoverBillLinks]", e?.message || e);
+    return res.status(502).json({ error: "Drive scan failed", details: e?.message });
+  }
+});
+
 // =============================================================================
 // Vision LLM helper — tries OpenAI first, falls back to Gemini
 // =============================================================================

@@ -28,6 +28,7 @@ import {
   Lock,
   Eye,
   EyeOff,
+  FolderSearch,
 } from "lucide-react";
 import { SheetMappingConfig } from "../../types";
 import { emailPasswordSignIn } from "../../services/googleAuth";
@@ -108,6 +109,12 @@ export const DataSyncPage: React.FC = () => {
   const [confirmShowPw, setConfirmShowPw] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [confirmVerifying, setConfirmVerifying] = useState(false);
+
+  // ── Bill Copy Recovery state ─────────────────────────────────────────────────
+  const [recoveringBills, setRecoveringBills] = useState(false);
+  type RecoveryResult = { driveFilesFound: number; restored: number; matches: Array<{ file: string; bill: string }>; message: string } | null;
+  const [recoveryResult, setRecoveryResult] = useState<RecoveryResult>(null);
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
 
   const openConfirm = useCallback((target: ConfirmTarget) => {
     setConfirmTarget(target);
@@ -328,6 +335,25 @@ export const DataSyncPage: React.FC = () => {
       setImportStatus("Error parsing JSON data. Please ensure valid format.");
     }
   };
+
+  const recoverBillCopyLinks = useCallback(async () => {
+    setRecoveringBills(true);
+    setRecoveryResult(null);
+    setRecoveryError(null);
+    try {
+      const { getAccessToken } = await import("../../services/googleAuth");
+      const token = await getAccessToken();
+      if (!token) throw new Error("Not signed in to Google. Please connect your Google account first.");
+      const resp = await fetch(`/api/drive/recover-bill-links?token=${encodeURIComponent(token)}`);
+      const data = await resp.json();
+      if (!data.ok) throw new Error(data.error || "Recovery failed");
+      setRecoveryResult(data);
+    } catch (e: any) {
+      setRecoveryError(e?.message || "Unknown error");
+    } finally {
+      setRecoveringBills(false);
+    }
+  }, []);
 
   return (
     <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#070b12] text-[#e8e8e8]"}`}>
@@ -630,6 +656,77 @@ export const DataSyncPage: React.FC = () => {
               );
             })}
           </div>
+        </div>
+
+        {/* Bill Copy Links Recovery Card */}
+        <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-5 space-y-4 shadow-sm`}>
+          <div className="flex flex-wrap items-center justify-between border-b border-[#1a2235] pb-3 gap-2">
+            <div>
+              <h3 className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-slate-900" : "text-white"} flex items-center gap-2`}>
+                <FolderSearch className="w-4 h-4 text-amber-400" /> Bill Copy Link Recovery
+              </h3>
+              <p className={`text-[11px] ${isLight ? "text-slate-500" : "text-[#888]"} mt-0.5`}>
+                Re-link saved Drive bill copies to their AP records. Scans your Drive folder and restores missing links.
+              </p>
+            </div>
+            <button
+              onClick={recoverBillCopyLinks}
+              disabled={recoveringBills || !googleUser}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-gradient-to-r from-amber-500 to-orange-600 hover:opacity-90 text-white shadow-lg shadow-amber-500/25 active:scale-[.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {recoveringBills ? (
+                <><Loader2 className="w-3.5 h-3.5 animate-spin" />Scanning Drive…</>
+              ) : (
+                <><FolderSearch className="w-3.5 h-3.5" />Recover Bill Links</>
+              )}
+            </button>
+          </div>
+
+          {!googleUser && (
+            <p className="text-[11px] text-amber-400/70 flex items-center gap-1.5">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              Connect your Google account above to use this feature.
+            </p>
+          )}
+
+          {recoveryError && (
+            <div className="rounded-lg bg-red-900/20 border border-red-700/30 px-4 py-3 text-xs text-red-300 flex items-start gap-2">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              <span>{recoveryError}</span>
+            </div>
+          )}
+
+          {recoveryResult && (
+            <div className="space-y-3">
+              <div className={`rounded-lg border px-4 py-3 ${recoveryResult.restored > 0 ? "bg-emerald-900/15 border-emerald-700/30" : "bg-[#0d111a] border-[#1a2235]"}`}>
+                <div className="flex flex-wrap items-center gap-4 text-xs">
+                  <span className="flex items-center gap-1.5 text-[#888]">
+                    <FolderSearch className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="text-white font-bold">{recoveryResult.driveFilesFound}</span> files found in Drive
+                  </span>
+                  <span className="flex items-center gap-1.5 text-[#888]">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-white font-bold">{recoveryResult.restored}</span> links restored
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#888] mt-1.5">{recoveryResult.message}</p>
+              </div>
+
+              {recoveryResult.matches && recoveryResult.matches.length > 0 && (
+                <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-[#888]">Restored matches</p>
+                  {recoveryResult.matches.map((m, i) => (
+                    <div key={i} className="flex items-center gap-2 text-[11px] text-[#aaa] bg-white/3 rounded px-3 py-1.5">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                      <span className="truncate">{m.file}</span>
+                      <span className="text-[#555] shrink-0">→</span>
+                      <span className="truncate text-white/70">{m.bill}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* External Links & Sheets Manager Card */}
