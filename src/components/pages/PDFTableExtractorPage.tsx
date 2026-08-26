@@ -44,30 +44,67 @@ function escHtml(s: string) {
 }
 
 /* ─────────────────────────────────────────────── Text sanitizer
-   PDF.js maps unrecognised glyphs to code points in Mathematical Operators
-   (U+2200-U+22FF, e.g. ≡ U+2261), Private Use Area (U+E000-U+F8FF), and
-   similar "junk" blocks. Strip those and collapse runs of whitespace. */
+   PDF.js maps unrecognised glyphs to code points in junk Unicode ranges
+   (Mathematical Operators U+2200-U+22FF, Private Use Area U+E000-U+F8FF,
+   Specials, etc.). We handle two cases:
+   1. Lookalike map: code points that represent a specific ASCII character
+      (e.g. U+2236 RATIO ∶ used as colon in Toggl/time PDFs → ":").
+   2. Everything else in junk ranges → stripped / collapsed to space. */
 function sanitizePdfStr(raw: string): string {
+  // Common "lookalike" mappings found in PDF embedded fonts.
+  // Key = Unicode code point, value = ASCII replacement string.
+  const LOOKALIKE: Record<number, string> = {
+    0x2236: ":",   // RATIO ∶  — used as colon in time values (Toggl, etc.)
+    0x2237: "::",  // PROPORTION ∷
+    0x2212: "-",   // MINUS SIGN −
+    0x2215: "/",   // DIVISION SLASH ∕
+    0x2044: "/",   // FRACTION SLASH ⁄
+    0x22C5: ".",   // DOT OPERATOR ⋅
+    0x2024: ".",   // ONE DOT LEADER ․
+    0x2025: "..",  // TWO DOT LEADER ‥
+    0x00D7: "x",   // MULTIPLICATION SIGN ×
+    0x00F7: "/",   // DIVISION SIGN ÷
+    0x2219: ".",   // BULLET OPERATOR ∙
+    0x2010: "-",   // HYPHEN ‐
+    0x2011: "-",   // NON-BREAKING HYPHEN ‑
+    0x2012: "-",   // FIGURE DASH ‒
+    0x2013: "-",   // EN DASH –
+    0x2014: "-",   // EM DASH —  (kept as hyphen for table cell readability)
+    0x2018: "'",   // LEFT SINGLE QUOTATION MARK '
+    0x2019: "'",   // RIGHT SINGLE QUOTATION MARK '
+    0x201C: '"',   // LEFT DOUBLE QUOTATION MARK "
+    0x201D: '"',   // RIGHT DOUBLE QUOTATION MARK "
+    0x2022: "*",   // BULLET •
+    0x2026: "...", // HORIZONTAL ELLIPSIS …
+    0x00B7: ".",   // MIDDLE DOT ·
+    0x00A0: " ",   // NON-BREAKING SPACE
+  };
+
   let out = "";
   for (let i = 0; i < raw.length; i++) {
     const cp = raw.charCodeAt(i);
-    // Keep: basic printable ASCII (U+0020-U+007E)
+
+    // 1. Lookalike map — convert to ASCII equivalent
+    if (LOOKALIKE[cp] !== undefined) { out += LOOKALIKE[cp]; continue; }
+
+    // 2. Printable basic ASCII (U+0020-U+007E) — always keep
     if (cp >= 0x0020 && cp <= 0x007E) { out += raw[i]; continue; }
-    // Keep: Latin-1 Supplement printable (U+00A0-U+00FF)
-    if (cp >= 0x00A0 && cp <= 0x00FF) { out += raw[i]; continue; }
-    // Keep: Latin Extended A/B (U+0100-U+024F)
+
+    // 3. Latin-1 Supplement (U+00A1-U+00FF) — keep (covers accented letters, currency)
+    if (cp >= 0x00A1 && cp <= 0x00FF) { out += raw[i]; continue; }
+
+    // 4. Latin Extended A/B (U+0100-U+024F) — keep
     if (cp >= 0x0100 && cp <= 0x024F) { out += raw[i]; continue; }
-    // Keep: common typographic punctuation — smart quotes, dashes, bullet, ellipsis
-    if (cp === 0x2013 || cp === 0x2014 || cp === 0x2018 || cp === 0x2019 ||
-        cp === 0x201C || cp === 0x201D || cp === 0x2022 || cp === 0x2026 ||
-        cp === 0x00B7 || cp === 0x2F || cp === 0x0027) { out += raw[i]; continue; }
-    // Keep: tab/newline
+
+    // 5. Whitespace control chars → normalize to space
     if (cp === 0x09 || cp === 0x0A || cp === 0x0D) { out += " "; continue; }
-    // Drop everything else (Mathematical Operators, Private Use Area, specials, etc.)
-    // Replace with a space to avoid merging adjacent real words
+
+    // 6. Everything else (Math Operators, PUA, Specials, CJK, etc.)
+    //    Replace with space so adjacent real words don't run together.
     out += " ";
   }
-  // Collapse runs of whitespace
+
+  // Collapse runs of whitespace, trim
   return out.replace(/\s{2,}/g, " ").trim();
 }
 
@@ -237,7 +274,32 @@ function extractTablesFromPage(
     }
   }
 
-  return rows.length > 0 ? [{ headers, rows }] : [];
+  if (!rows.length) return [];
+
+  // ── Post-pass: remove phantom columns ──────────────────────────────────
+  // A "phantom" column has an auto-generated name ("Col N") AND a low fill
+  // rate (<20% of data rows have content). These arise from thin gutters or
+  // decorative elements that the density histogram treats as column gaps.
+  const AUTO_COL = /^Col \d+$/;
+  const totalRows = rows.length;
+  const goodHeaders = headers.filter(h => {
+    if (!AUTO_COL.test(h)) return true;                         // named column — keep
+    const filled = rows.filter(r => r[h]?.trim()).length;
+    return filled / totalRows >= 0.20;                          // keep if ≥20% fill
+  });
+
+  if (goodHeaders.length < 1) return [];
+
+  // If we dropped some headers, rebuild the rows object without those keys
+  const finalRows = goodHeaders.length === headers.length
+    ? rows
+    : rows.map(r => {
+        const o: Record<string, string> = {};
+        goodHeaders.forEach(h => { o[h] = r[h] ?? ""; });
+        return o;
+      });
+
+  return [{ headers: goodHeaders, rows: finalRows }];
 }
 
 /* ─────────────────────────────────────────────── Key-Value detection */
