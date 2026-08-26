@@ -589,25 +589,21 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
     <div className={cl("flex-1 flex flex-col h-full overflow-hidden", bg, text)}>
 
       {/* ── Header ── */}
-      <div className={cl(
-        "flex items-center gap-3 px-4 sm:px-6 py-3 border-b shrink-0",
-        isLight
-          ? "bg-gradient-to-r from-slate-800 via-emerald-950 to-slate-900 border-white/10"
-          : "bg-gradient-to-r from-[#070b12] via-emerald-950/60 to-[#070b12] border-white/8"
-      )}>
-        <button onClick={onBack} className="p-1.5 rounded-lg hover:bg-white/10 text-white/60 hover:text-white transition-colors">
-          <ChevronLeft className="w-4 h-4" />
+      <div className="bg-gradient-to-r from-[#070b12] via-emerald-950/60 to-[#070b12] border-b border-white/8 px-6 py-4 flex items-center gap-4 shrink-0">
+        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-[#7a8394] hover:text-white transition-colors">
+          <ChevronLeft className="w-4 h-4" />Back
         </button>
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
-            <ScanLine className="w-4 h-4 text-white" />
+        <div className="h-5 w-px bg-white/10" />
+        <div className="flex items-center gap-3 flex-1">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center shadow-xl shadow-emerald-500/30">
+            <ScanLine className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-sm font-bold text-white">Receipt Renamer</h1>
-            <p className="text-[10px] text-white/50">Renames files directly in Google Drive · AI-powered</p>
+            <h1 className="text-white font-bold text-base leading-tight">Receipt Renamer</h1>
+            <p className="text-[#7a8394] text-xs">Renames files directly in Google Drive · AI-powered</p>
           </div>
         </div>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex items-center gap-2">
           {stage === "preview" && (
             <>
               <span className="text-[11px] text-white/50">{rows.length} files · {dirName}</span>

@@ -1,8 +1,7 @@
 ﻿import React, { useMemo, useState, useRef, useCallback, useEffect } from "react";
 import { useFinance } from "../../context/FinanceContext";
-import { PageHeader } from "../PageHeader";
 import { HeadleysItem } from "../../types";
-import { FileText, ChevronDown, ChevronRight, Upload, X, FileSpreadsheet } from "lucide-react";
+import { FileText, ChevronDown, ChevronRight, Upload, X, FileSpreadsheet, ChevronLeft, ShoppingBag } from "lucide-react";
 import { getAccessToken } from "../../services/googleAuth";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -432,7 +431,7 @@ const fmt = (n: number) =>
   "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export const HeadleysPage: React.FC = () => {
-  const { headleys, theme, headleysPrefill, setHeadleysPrefill } = useFinance() as any;
+  const { headleys, theme, headleysPrefill, setHeadleysPrefill, setCurrentPage } = useFinance() as any;
   const isLight = theme === "light";
 
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
@@ -489,12 +488,20 @@ export const HeadleysPage: React.FC = () => {
 
   return (
     <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#070b12] text-[#e8e8e8]"}`}>
-      <PageHeader
-        title="Headley's Invoice Tracker"
-        bgClass="bg-[#5c35a5]"
-        moduleId="headleys"
-        showEntityPills={false}
-      />
+      {/* ── Header ── */}
+      <div className="bg-gradient-to-r from-[#070b12] via-purple-950/60 to-[#070b12] border-b border-white/8 px-6 py-4 flex items-center gap-4 shrink-0">
+        <button onClick={() => setCurrentPage?.("workspace-tools")} className="flex items-center gap-1.5 text-sm text-[#7a8394] hover:text-white transition-colors">
+          <ChevronLeft className="w-4 h-4" />Back
+        </button>
+        <div className="h-5 w-px bg-white/10" />
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-600 to-violet-700 flex items-center justify-center shadow-xl shadow-purple-500/30">
+          <ShoppingBag className="w-5 h-5 text-white" />
+        </div>
+        <div>
+          <h1 className="text-white font-bold text-base leading-tight">Headley's Invoice Tracker</h1>
+          <p className="text-[#7a8394] text-xs">Import invoices · Assign BUs · Create bills</p>
+        </div>
+      </div>
 
       {/* Action bar */}
       <div className={`shrink-0 flex items-center justify-between px-4 py-2 border-b ${isLight ? "border-slate-200 bg-white" : "border-[#1a2235] bg-[#0d111a]"}`}>

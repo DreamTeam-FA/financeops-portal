@@ -778,19 +778,20 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
   return (
     <div className={`flex flex-col h-full min-h-0 ${pageBg}`}>
       {/* Page header */}
-      <div className="bg-[#d97706] px-5 py-4 flex items-center gap-3 shrink-0">
+      <div className="bg-gradient-to-r from-[#070b12] via-cyan-950/60 to-[#070b12] border-b border-white/8 px-6 py-4 flex items-center gap-4 shrink-0">
         <button
           onClick={() => { if (onBack) onBack(); else setCurrentPage?.("workspace-tools"); }}
-          className="text-white/70 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10"
+          className="flex items-center gap-1.5 text-sm text-[#7a8394] hover:text-white transition-colors"
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeft className="w-4 h-4" />Back
         </button>
-        <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center">
-          <Mail className="w-4 h-4 text-white" />
+        <div className="h-5 w-px bg-white/10" />
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-xl shadow-cyan-500/30">
+          <Mail className="w-5 h-5 text-white" />
         </div>
         <div>
-          <h1 className="text-white font-bold text-sm">Email Invoice Scanner</h1>
-          <p className="text-white/60 text-[11px]">
+          <h1 className="text-white font-bold text-base leading-tight">Email Invoice Scanner</h1>
+          <p className="text-[#7a8394] text-xs">
             {gmailEmail ? `Scanning: ${gmailEmail}` : "Connect a Gmail inbox to scan for invoices and bills"}
           </p>
         </div>
