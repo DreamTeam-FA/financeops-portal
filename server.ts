@@ -122,13 +122,25 @@ function mergeDatasets(liveList: any[], currentList: any[], idKey = "id") {
     if (item && item[idKey]) currentMap.set(String(item[idKey]), item);
   });
 
+  const isUrlStr = (v: any) => typeof v === "string" && /^https?:\/\//i.test(v.trim());
+
   const merged = liveList.map((liveItem) => {
     const itemId = String(liveItem[idKey] || "");
     if (itemId && currentMap.has(itemId)) {
       const currentItem = currentMap.get(itemId);
       const invoiceNo = liveItem.invoiceNo || currentItem.invoiceNo || undefined;
       // Fresh live sheet data overrides stored item data, preserving invoiceNo if live sheet lacks it
-      return { ...currentItem, ...liveItem, ...(invoiceNo ? { invoiceNo } : {}) };
+      const result = { ...currentItem, ...liveItem, ...(invoiceNo ? { invoiceNo } : {}) };
+      // Portal-only fields: always preserve from currentItem (sheet has no columns for these)
+      if (currentItem.driveViewUrl)  result.driveViewUrl  = currentItem.driveViewUrl;
+      if (currentItem.driveFileName) result.driveFileName = currentItem.driveFileName;
+      // Sheet-sourced fields: if live data is empty and stored value is a raw URL, clear it
+      // (these are stale Gmail/source-email URLs that slipped in from old imports)
+      if (liveItem.row) {
+        if (!liveItem.remarks && isUrlStr(currentItem.remarks)) result.remarks = undefined;
+        if (!liveItem.paymentInstructions && isUrlStr(currentItem.paymentInstructions)) result.paymentInstructions = undefined;
+      }
+      return result;
     }
     return liveItem;
   });
@@ -444,14 +456,16 @@ app.post("/api/pull-live", async (req, res) => {
     : { ...existing, ...updated, lastSyncedAt: new Date().toISOString() };
 
   saveStoredData(merged);
-  res.json({ success: true, data: updated, timestamp: new Date().toISOString() });
 
-  // Fire-and-forget: restore any Drive bill copy links after every sync
+  // Fire-and-forget: restore Drive bill copy links after every sync so they survive redeploys
   if (accessToken) {
     runBillLinkRecovery(accessToken).catch((e) =>
       console.warn("[pull-live] bill link recovery skipped:", e?.message)
     );
   }
+
+  // Return `merged` (not raw `updated`) so the React app gets driveViewUrl immediately
+  res.json({ success: true, data: merged, timestamp: new Date().toISOString() });
 });
 
 app.post("/api/data", (req, res) => {

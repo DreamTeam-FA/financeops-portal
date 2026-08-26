@@ -485,7 +485,7 @@ export const parseAPSheetRows = (
 
     // col F (5) = category for Layout A (Ruby's/MSDx); col H (7) = invoice date for all layouts
     const categoryVal = String(row[5] || "").trim();
-    const invoiceDateVal = String(row[7] || "").trim();
+    const invoiceDateVal = parseDateVal(row[7]) || String(row[7] || "").trim();
 
     bills.push({
       id: `ap-gs-${idx + 1}-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
