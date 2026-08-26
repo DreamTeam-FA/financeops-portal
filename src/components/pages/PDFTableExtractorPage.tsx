@@ -43,6 +43,34 @@ function escHtml(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+/* ─────────────────────────────────────────────── Text sanitizer
+   PDF.js maps unrecognised glyphs to code points in Mathematical Operators
+   (U+2200-U+22FF, e.g. ≡ U+2261), Private Use Area (U+E000-U+F8FF), and
+   similar "junk" blocks. Strip those and collapse runs of whitespace. */
+function sanitizePdfStr(raw: string): string {
+  let out = "";
+  for (let i = 0; i < raw.length; i++) {
+    const cp = raw.charCodeAt(i);
+    // Keep: basic printable ASCII (U+0020-U+007E)
+    if (cp >= 0x0020 && cp <= 0x007E) { out += raw[i]; continue; }
+    // Keep: Latin-1 Supplement printable (U+00A0-U+00FF)
+    if (cp >= 0x00A0 && cp <= 0x00FF) { out += raw[i]; continue; }
+    // Keep: Latin Extended A/B (U+0100-U+024F)
+    if (cp >= 0x0100 && cp <= 0x024F) { out += raw[i]; continue; }
+    // Keep: common typographic punctuation — smart quotes, dashes, bullet, ellipsis
+    if (cp === 0x2013 || cp === 0x2014 || cp === 0x2018 || cp === 0x2019 ||
+        cp === 0x201C || cp === 0x201D || cp === 0x2022 || cp === 0x2026 ||
+        cp === 0x00B7 || cp === 0x2F || cp === 0x0027) { out += raw[i]; continue; }
+    // Keep: tab/newline
+    if (cp === 0x09 || cp === 0x0A || cp === 0x0D) { out += " "; continue; }
+    // Drop everything else (Mathematical Operators, Private Use Area, specials, etc.)
+    // Replace with a space to avoid merging adjacent real words
+    out += " ";
+  }
+  // Collapse runs of whitespace
+  return out.replace(/\s{2,}/g, " ").trim();
+}
+
 /* ─────────────────────────────────────────────── PDF.js page text extractor */
 async function getPdfPages(file: File) {
   const pdfjsLib = await import("pdfjs-dist");
@@ -73,8 +101,10 @@ async function getPdfPages(file: File) {
         const x = it.transform[4];
         const fs = Math.abs(it.transform[0]) || Math.abs(it.transform[3]) || 10;
         const w = it.width || it.str.length * fs * 0.5;
-        return { str: it.str.trim(), x, x2: x + w, y: vp.height - it.transform[5] };
-      });
+        const str = sanitizePdfStr(it.str);
+        return { str, x, x2: x + w, y: vp.height - it.transform[5] };
+      })
+      .filter(n => n.str.length > 0);
 
     // Cluster into Y-lines
     nodes.sort((a, b) => a.y - b.y || a.x - b.x);
