@@ -798,6 +798,37 @@ Notes:
   }
 });
 
+// POST /api/headleys/scan — Gemini Vision extracts raw Headley's statement text from image/PDF
+app.post("/api/headleys/scan", async (req, res) => {
+  const { imageBase64, mimeType } = req.body || {};
+  if (!imageBase64) return res.status(400).json({ error: "imageBase64 required" });
+
+  const prompt = `This is a Headley's statement (a food-service supplier invoice/statement).
+Extract the transaction table rows EXACTLY as tab-separated text.
+
+Each row must have these columns (tab-separated):
+Date\tRef\tST\tType\tDescription\tDebit\tCredit\tAmount
+
+Rules:
+- Include ONLY data rows (lines with a date, ref, and amount)
+- Skip header rows, sub-totals, aging summaries, "PREV BALANCE", "CURRENT", "1-30 DAYS", "THANK YOU", "FINANCE CHARGE", etc.
+- Keep the exact values from the document — do not reformat dates or amounts
+- If a column is empty, leave it blank (tab still present)
+- Output ONLY the raw tab-separated rows, no explanation, no markdown, no fences
+
+Example output:
+5/26/26\t762930\t1\tI\tPO # BANK\t33.01\t\t33.01
+5/27/26\t763110\t1\tI\tPO # COFFEE\t12.50\t\t12.50`;
+
+  try {
+    const result = await callVisionLLM(prompt, imageBase64, mimeType || "image/jpeg", 8192);
+    if (!result.ok) return res.status(502).json({ error: "Vision API error", details: result.error });
+    res.json({ ok: true, text: result.text });
+  } catch (e: any) {
+    res.status(500).json({ error: e?.message || String(e) });
+  }
+});
+
 // POST /api/ap/add-scanned-bill — save an AI-scanned bill to AP data
 app.post("/api/ap/add-scanned-bill", (req, res) => {
   const bill = req.body || {};
@@ -1067,6 +1098,46 @@ app.post("/api/logs-sheet-id", (req, res) => {
   data.logsSheetId = logsSheetId;
   saveStoredData(data);
   res.json({ success: true, logsSheetId });
+});
+
+// POST /api/logs/bulk-import — compile logs from individual users into centralized store
+// Accepts { loginRows: [...], activityRows: [...] } and merges (deduplicates by timestamp+user)
+app.post("/api/logs/bulk-import", (req, res) => {
+  const { loginRows = [], activityRows = [] } = req.body || {};
+  const data = getStoredData();
+  const existingLogin    = data.loginLog    || [];
+  const existingActivity = data.activityLog || [];
+
+  // Build dedup key sets from existing entries
+  const loginKeys    = new Set(existingLogin.map((e: any)    => `${e.timestamp}|${e.user || ""}`));
+  const activityKeys = new Set(existingActivity.map((e: any) => `${e.timestamp}|${e.user || e.userEmail || ""}`));
+
+  let addedLogin = 0, addedActivity = 0;
+
+  for (const row of loginRows) {
+    const key = `${row.timestamp}|${row.user || ""}`;
+    if (!loginKeys.has(key)) {
+      existingLogin.unshift({ id: `ll-import-${Date.now()}-${addedLogin}`, ...row });
+      loginKeys.add(key);
+      addedLogin++;
+    }
+  }
+
+  for (const row of activityRows) {
+    const key = `${row.timestamp}|${row.user || row.userEmail || ""}`;
+    if (!activityKeys.has(key)) {
+      existingActivity.unshift({ id: `al-import-${Date.now()}-${addedActivity}`, ...row });
+      activityKeys.add(key);
+      addedActivity++;
+    }
+  }
+
+  // Keep only the latest 500 login / 1000 activity entries
+  data.loginLog    = existingLogin.slice(0, 500);
+  data.activityLog = existingActivity.slice(0, 1000);
+  saveStoredData(data);
+
+  res.json({ success: true, addedLogin, addedActivity });
 });
 
 // Login log — records who signed in, from where, on what device

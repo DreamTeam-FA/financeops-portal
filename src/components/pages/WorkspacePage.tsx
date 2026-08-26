@@ -79,7 +79,17 @@ const EMAIL_SCANNER_CARD = {
   route: "email-scanner",
 };
 
-const PINNED_TOOL_CARDS = [RECEIPT_RENAMER_CARD, BANK_STATEMENT_CARD, PDF_TABLE_EXTRACTOR_CARD, EMAIL_SCANNER_CARD];
+const HEADLEYS_CARD = {
+  id: "__headleys__",
+  name: "Headley's Invoice",
+  url: "",
+  description: "Import & track Headley's invoices — upload or paste statement, assign charging BU",
+  color: "#5c35a5",
+  pinned: true,
+  route: "headleys",
+};
+
+const PINNED_TOOL_CARDS = [RECEIPT_RENAMER_CARD, BANK_STATEMENT_CARD, PDF_TABLE_EXTRACTOR_CARD, EMAIL_SCANNER_CARD, HEADLEYS_CARD];
 
 const TOOLS_COLUMNS: { key: "tool" | "portal" | "sheet"; label: string; accentLight: string; accentDark: string; borderLight: string; borderDark: string }[] = [
   { key: "tool",   label: "Tools",            accentLight: "text-blue-600",   accentDark: "text-blue-400",   borderLight: "border-blue-200/70",   borderDark: "border-blue-500/20"   },

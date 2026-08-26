@@ -756,7 +756,7 @@ export const GearDropdown: React.FC<GearDropdownProps> = ({ variant="wide" }) =>
   const { theme, setCurrentPage } = useFinance();
   const [open, setOpen]       = useState(false);
   const [pos, setPos]         = useState({ bottom:0, left:0 });
-  const [modal, setModal]     = useState<"headleys"|"metadata"|null>(null);
+  const [modal, setModal]     = useState<"metadata"|null>(null);
   const btnRef                = useRef<HTMLButtonElement>(null);
   const menuRef               = useRef<HTMLDivElement>(null);
 
@@ -804,10 +804,6 @@ export const GearDropdown: React.FC<GearDropdownProps> = ({ variant="wide" }) =>
           }`}>
           <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider ${isLight?"text-slate-400":"text-[#555]"}`}>Tools</div>
 
-          <button onClick={() => { setModal("headleys"); setOpen(false); }} className={menuItem}>
-            <FileSpreadsheet className="w-3.5 h-3.5 text-[#1a73e8]" /> Headley's Invoice
-          </button>
-
           <div className={divLine} />
 
           <button onClick={() => { setModal("metadata"); setOpen(false); }} className={menuItem}>
@@ -840,7 +836,6 @@ export const GearDropdown: React.FC<GearDropdownProps> = ({ variant="wide" }) =>
         </div>
       )}
 
-      {modal==="headleys" && <HeadleysImportModal isLight={isLight} onClose={() => setModal(null)} />}
       {modal==="metadata" && <MetadataModal isLight={isLight} onClose={() => setModal(null)} />}
     </>
   );

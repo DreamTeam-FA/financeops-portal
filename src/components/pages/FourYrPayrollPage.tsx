@@ -1552,10 +1552,14 @@ export function FourYrPayrollPage() {
       {addModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={()=>{ setAddModalOpen(false); setTscanResult(null); setScanKey(k=>k+1); }} />
-          <div className={`relative z-10 rounded-xl shadow-2xl border ${bdr} ${bg} w-full max-w-lg overflow-hidden`}>
-            <div className="flex items-center justify-between px-5 py-4 border-b" style={{ background:TH1 }}>
-              <div><h2 className="font-bold text-sm text-white">➕ Add Record</h2><p className="text-[11px] text-green-200 mt-0.5">Payroll, deduction, or non-payroll entry</p></div>
-              <button onClick={()=>{ setAddModalOpen(false); setTscanResult(null); setScanKey(k=>k+1); }} className="w-7 h-7 flex items-center justify-center rounded text-white/70 hover:text-white text-xl" style={{ background:"rgba(255,255,255,.1)" }}>×</button>
+          <div className={`relative z-10 rounded-2xl shadow-2xl border ${bdr} ${bg} w-full max-w-lg overflow-hidden`}>
+            <div className="h-1.5 w-full" style={{ backgroundColor: TH1 }} />
+            <div className={`flex items-center justify-between px-5 py-4 border-b ${bdr}`}>
+              <div>
+                <h2 className="font-bold text-sm" style={{ color: TH1 }}>➕ Add Record</h2>
+                <p className={`text-[11px] mt-0.5 ${txt2}`}>Payroll, deduction, or non-payroll entry</p>
+              </div>
+              <button onClick={()=>{ setAddModalOpen(false); setTscanResult(null); setScanKey(k=>k+1); }} className={`w-7 h-7 flex items-center justify-center rounded text-xl ${isLight ? "text-slate-400 hover:text-slate-700 hover:bg-slate-100" : "text-[#666] hover:text-white hover:bg-[#2a2a2a]"}`}>×</button>
             </div>
             <div className="px-5 py-4 overflow-y-auto space-y-4" style={{ maxHeight:"65vh" }}>
               {/* Scan timesheet to auto-fill */}
@@ -1651,13 +1655,14 @@ export function FourYrPayrollPage() {
       {editModalOpen && editingRow && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={()=>setEditModalOpen(false)} />
-          <div className={`relative z-10 rounded-xl shadow-2xl border ${bdr} ${bg} w-full max-w-lg overflow-hidden`}>
-            <div className="flex items-center justify-between px-5 py-4 border-b" style={{ background: TH1 }}>
+          <div className={`relative z-10 rounded-2xl shadow-2xl border ${bdr} ${bg} w-full max-w-lg overflow-hidden`}>
+            <div className="h-1.5 w-full" style={{ backgroundColor: TH1 }} />
+            <div className={`flex items-center justify-between px-5 py-4 border-b ${bdr}`}>
               <div>
-                <h2 className="font-bold text-sm text-white">✏️ Edit Record</h2>
-                <p className="text-[11px] text-green-200 mt-0.5">{editingRow.name} · {editingRow.date}</p>
+                <h2 className="font-bold text-sm" style={{ color: TH1 }}>✏️ Edit Record</h2>
+                <p className={`text-[11px] mt-0.5 ${txt2}`}>{editingRow.name} · {editingRow.date}</p>
               </div>
-              <button onClick={()=>setEditModalOpen(false)} className="w-7 h-7 flex items-center justify-center rounded text-white/70 hover:text-white text-xl" style={{ background:"rgba(255,255,255,.1)" }}>×</button>
+              <button onClick={()=>setEditModalOpen(false)} className={`w-7 h-7 flex items-center justify-center rounded text-xl ${isLight ? "text-slate-400 hover:text-slate-700 hover:bg-slate-100" : "text-[#666] hover:text-white hover:bg-[#2a2a2a]"}`}>×</button>
             </div>
             <div className="px-5 py-4 overflow-y-auto" style={{ maxHeight:"65vh" }}>{renderForm(true)}</div>
             <div className={`flex items-center justify-end gap-2 px-5 py-3 border-t ${bdr} ${bg3}`}>
