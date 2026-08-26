@@ -450,7 +450,10 @@ app.get("/api/data", (_req, res) => {
 
 app.post("/api/pull-live", async (req, res) => {
   const forceOverwrite = req.body?.force === true;
-  const accessToken: string | undefined = req.body?.accessToken || undefined;
+  const requestToken: string | undefined = req.body?.accessToken || undefined;
+  // Use the request token if provided; otherwise fall back to the server-cached token
+  // from the last sign-in (valid for ~55 min) so Drive recovery runs without a fresh login.
+  const accessToken = getEffectiveDriveToken(requestToken) || undefined;
   const updated = await syncLiveDataFromSheets(accessToken);
   const existing = getStoredData();
 
@@ -524,6 +527,31 @@ app.post("/api/audit-log", (req, res) => {
   saveStoredData(data);
   res.json({ success: true, log: newLog });
 });
+
+// =============================================================================
+// Server-side OAuth token cache
+// When the user signs in the browser sends its short-lived access token to
+// pull-live. We cache it here so subsequent pull-lives (page reload, auto-sync,
+// etc.) can run Drive recovery without a fresh sign-in.  Google access tokens
+// last ~1 hour, so we store the expiry and discard stale entries.
+// =============================================================================
+let cachedDriveToken: { token: string; expiresAt: number } | null = null;
+
+function setCachedDriveToken(token: string) {
+  cachedDriveToken = { token, expiresAt: Date.now() + 55 * 60 * 1000 }; // 55-min safety margin
+}
+
+function getEffectiveDriveToken(requestToken?: string): string | null {
+  if (requestToken) {
+    setCachedDriveToken(requestToken);
+    return requestToken;
+  }
+  if (cachedDriveToken && cachedDriveToken.expiresAt > Date.now()) {
+    return cachedDriveToken.token;
+  }
+  cachedDriveToken = null;
+  return null;
+}
 
 // =============================================================================
 // Google Drive — bill/invoice file storage
