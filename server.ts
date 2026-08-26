@@ -180,11 +180,13 @@ async function syncLiveDataFromSheets(accessToken?: string) {
     const liveData = await fetchFullLiveDataset(accessToken);
     console.log(`[GoogleSheetSync] liveData.ap count: ${liveData.ap?.length || 0} (token: ${accessToken ? "yes" : "no"})`);
     const current = getStoredData();
-    // When using Sheets API v4 (token present), row indices may differ from cached GViz data.
-    // Use v4 data directly for AP — it is complete and has evaluated formula values (invoice numbers).
+    // mergeDatasets spreads currentItem first then liveItem on top, so:
+    // - live sheet fields (row indices, formula-evaluated invoice numbers, amounts, status) win ✓
+    // - portal-only fields NOT in the sheet (driveViewUrl, driveFileName) survive from stored data ✓
+    // Previously, authenticated syncs replaced AP outright with liveData.ap, losing saved bill copies.
     const updated = {
       ...current,
-      ap: (accessToken && liveData.ap.length > 0) ? liveData.ap : mergeDatasets(liveData.ap, current.ap, "id"),
+      ap: mergeDatasets(liveData.ap, current.ap, "id"),
       banks: mergeDatasets(liveData.banks, current.banks, "id"),
       loans: mergeDatasets(liveData.loans, current.loans, "id"),
       ar: mergeDatasets(liveData.ar, current.ar, "id"),
