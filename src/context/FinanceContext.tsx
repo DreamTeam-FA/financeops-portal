@@ -931,15 +931,23 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         startAutoTokenRefresh();
         logAction("Google OAuth Authenticated", `Connected as ${res.user.email}`);
         window.dispatchEvent(new Event("google-token-refreshed"));
-        // Silently recover any bill copy Drive links in the background
+        // After sign-in the token is now in memory — re-run pull-live WITH the token so the server
+        // can run Drive bill link recovery synchronously and return driveViewUrl in the response.
+        // This is the only reliable way to get bill copies without a manual page reload.
         setTimeout(async () => {
           try {
             const tok = getAccessToken();
-            if (tok) {
-              await fetch(`/api/drive/recover-bill-links?token=${encodeURIComponent(tok)}`);
+            if (!tok) return;
+            const pullResp = await fetch("/api/pull-live", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ accessToken: tok }),
+            }).then(r => r.json());
+            if (pullResp?.data?.ap && pullResp.data.ap.length > 0) {
+              setApBills(recomputeBills(pullResp.data.ap));
             }
           } catch { /* non-fatal */ }
-        }, 3000);
+        }, 2000);
         // Capture device + location, then ensure the logs sheet exists and append the login entry
         captureLoginMetadata().then(async (meta) => {
           const token = getAccessToken();
