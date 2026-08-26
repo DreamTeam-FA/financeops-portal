@@ -136,7 +136,7 @@ export const Sidebar: React.FC = () => {
     { id: "banks",       label: "Bank Balances",       icon: <Landmark className="w-4 h-4" />,         badgeKey: "banks",      badgeColor: "bg-[#0891b2]",  badgeTitle: "low balance accounts" },
     { id: "loans",       label: "Loans & CC Dues",     icon: <TrendingDown className="w-4 h-4" />,     badgeKey: "loans",      badgeColor: "bg-[#dc2626]",  badgeTitle: "due today or overdue" },
     { id: "statements",  label: "Bank Statements",     icon: <FileText className="w-4 h-4" />,         badgeKey: "statements", badgeColor: "bg-[#374151]",  badgeTitle: "pending this month" },
-    { id: "calendar",    label: "Calendar",            icon: <CalendarDays className="w-4 h-4" />,     badgeKey: "calendar",   badgeColor: "bg-[#2563eb]",  badgeTitle: "upcoming this week" },
+    { id: "calendar",    label: "Calendar",            icon: <CalendarDays className="w-4 h-4" />,     badgeKey: "calendar",   badgeColor: "bg-[#0d9488]",  badgeTitle: "upcoming this week" },
     { id: "notes",       label: "Quick Notes",         icon: <StickyNote className="w-4 h-4 text-purple-400" />, badgeKey: "notes", badgeColor: "bg-purple-700", badgeTitle: "open notes" },
     { id: "cc-expenses",    label: "CC Expenses",          icon: <CreditCard className="w-4 h-4" /> },
     { id: "email-scanner", label: "Email Scanner",         icon: <Mail className="w-4 h-4 text-violet-400" /> }
