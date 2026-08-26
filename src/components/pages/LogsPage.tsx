@@ -4,8 +4,6 @@ import { RefreshCw, Download } from "lucide-react";
 import { getAccessToken } from "../../services/googleAuth";
 import { LOGS_SHEET_TITLE, SHARED_LOGS_SHEET_ID, appendLogRow, readLogsSheet } from "../../services/logsSheetService";
 
-const HOURS_BACK = 48;
-
 /** Search Drive for ALL sheets with the portal logs title (may be > 1 if each user created their own) */
 async function findAllIndividualSheets(token: string): Promise<{ id: string; name: string }[]> {
   const q = encodeURIComponent(
@@ -19,23 +17,49 @@ async function findAllIndividualSheets(token: string): Promise<{ id: string; nam
   return (data.files || []) as { id: string; name: string }[];
 }
 
-/** Copy all entries from the past N hours from an individual sheet into the central sheet */
-async function migrateSheetIntoCenter(sourceId: string, token: string, cutoff: number): Promise<{ login: number; activity: number }> {
+/** Copy ALL entries (no time filter) from an individual sheet into the central sheet */
+async function migrateSheetIntoCenter(sourceId: string, token: string): Promise<{ login: number; activity: number }> {
   const data = await readLogsSheet(token, sourceId);
   let login = 0, activity = 0;
 
   for (const r of data.loginRows) {
-    const ts = r[0] || "";
-    const d = new Date(ts);
-    if (isNaN(d.getTime()) || d.getTime() < cutoff) continue;
+    if (!r[0]) continue; // skip rows with no timestamp
     await appendLogRow(token, SHARED_LOGS_SHEET_ID, "Login History", r);
     login++;
   }
   for (const r of data.activityRows) {
-    const ts = r[0] || "";
-    const d = new Date(ts);
-    if (isNaN(d.getTime()) || d.getTime() < cutoff) continue;
+    if (!r[0]) continue;
     await appendLogRow(token, SHARED_LOGS_SHEET_ID, "Activity Log", r);
+    activity++;
+  }
+  return { login, activity };
+}
+
+/** Pull login + activity entries from the server's stored JSON and write to the central sheet.
+ *  This captures logs from all users who've ever logged in (monica@, finances@, accounting@, etc.)
+ *  even if their individual Drive sheets are inaccessible. */
+async function migrateServerLogsToSheet(token: string): Promise<{ login: number; activity: number }> {
+  const [loginRes, actRes] = await Promise.all([
+    fetch("/api/login-log"),
+    fetch("/api/activity-log"),
+  ]);
+  const loginData: any[] = await loginRes.json();
+  const actData: any[]   = await actRes.json();
+  let login = 0, activity = 0;
+
+  for (const entry of (Array.isArray(loginData) ? loginData : [])) {
+    const ts  = entry.timestamp || "";
+    const row = [ts, entry.user || entry.email || "—", entry.device || "—",
+                 entry.city || "—", entry.region || "", entry.country || "—", entry.ip || "—"];
+    if (!ts) continue;
+    await appendLogRow(token, SHARED_LOGS_SHEET_ID, "Login History", row);
+    login++;
+  }
+  for (const entry of (Array.isArray(actData) ? actData : [])) {
+    const ts  = entry.timestamp || "";
+    const row = [ts, entry.user || entry.userEmail || "—", entry.action || "—", entry.details || "—"];
+    if (!ts) continue;
+    await appendLogRow(token, SHARED_LOGS_SHEET_ID, "Activity Log", row);
     activity++;
   }
   return { login, activity };
@@ -183,7 +207,7 @@ export const LogsPage: React.FC = () => {
     }
   }, []);
 
-  /** One-time migration: find all individual user sheets and copy last 48 hrs into central sheet */
+  /** One-time migration: pull ALL log entries from individual Drive sheets AND server JSON into central sheet */
   const migrateIndividualLogs = useCallback(async () => {
     const token = getAccessToken();
     if (!token) { setError("Sign in to Google first."); return; }
@@ -191,25 +215,34 @@ export const LogsPage: React.FC = () => {
     setMigrateMsg(null);
     setError(null);
     try {
-      const cutoff = Date.now() - HOURS_BACK * 60 * 60 * 1000;
-      const allSheets = await findAllIndividualSheets(token);
-      // Filter out the central sheet itself — only migrate from individual ones
-      const individualSheets = allSheets.filter(s => s.id !== SHARED_LOGS_SHEET_ID);
-      if (!individualSheets.length) {
-        setMigrateMsg("No individual user sheets found — central sheet is the only one. Nothing to migrate.");
-        setMigrating(false);
-        return;
-      }
       let totalLogin = 0, totalActivity = 0;
+      let sheetCount = 0;
+
+      // ── Pass 1: individual Drive sheets (ALL entries, no time filter) ──────
+      const allSheets = await findAllIndividualSheets(token);
+      const individualSheets = allSheets.filter(s => s.id !== SHARED_LOGS_SHEET_ID);
       for (const sheet of individualSheets) {
         try {
-          const { login, activity } = await migrateSheetIntoCenter(sheet.id, token, cutoff);
+          const { login, activity } = await migrateSheetIntoCenter(sheet.id, token);
           totalLogin    += login;
           totalActivity += activity;
+          sheetCount++;
         } catch { /* skip inaccessible sheets */ }
       }
+
+      // ── Pass 2: server stored JSON logs (captures monica@, finances@, accounting@, etc.) ──
+      try {
+        const { login: sLogin, activity: sAct } = await migrateServerLogsToSheet(token);
+        totalLogin    += sLogin;
+        totalActivity += sAct;
+      } catch { /* server logs unavailable — continue */ }
+
+      const parts: string[] = [];
+      if (sheetCount > 0)   parts.push(`${sheetCount} Drive sheet(s)`);
+      parts.push("server log store");
+
       setMigrateMsg(
-        `✓ Migration complete: copied ${totalLogin} login + ${totalActivity} activity entries from ${individualSheets.length} individual sheet(s) into central log.`
+        `✓ Migration complete: copied ${totalLogin} login + ${totalActivity} activity entries from ${parts.join(" + ")} into central log.`
       );
       // Reload to show updated central log
       await loadLogs();
