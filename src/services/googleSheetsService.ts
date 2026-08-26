@@ -429,10 +429,14 @@ export const parseAPSheetRows = (
     let payInstParsed = "";
     if (remarksCol !== -1 && row[remarksCol]) {
       const raw = String(row[remarksCol]).trim();
-      if (!isUrl(raw) && !isMetadata(raw)) {
-        // TI col O → remarks; Ruby's/MSDx col K → paymentInstructions
-        if (entity === "TI") remarks = raw;
-        else payInstParsed = raw;
+      if (!isMetadata(raw)) {
+        if (entity === "TI") {
+          // TI col O → Remarks: show text only, not raw URLs
+          if (!isUrl(raw)) remarks = raw;
+        } else {
+          // Ruby's/MSDx col K → Payment Instructions: allow URLs (Gmail/Drive links to bill source)
+          payInstParsed = raw;
+        }
       }
     }
 
