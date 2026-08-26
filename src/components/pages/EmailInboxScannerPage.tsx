@@ -410,7 +410,7 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
         body: JSON.stringify({ accessToken: gmailToken, maxResults: 50 }),
       });
       const json = await resp.json();
-      if (!resp.ok || !json.ok) throw new Error(json.error || json.details || "Scan failed");
+      if (!resp.ok || !json.ok) throw new Error(json.details || json.error || "Scan failed");
       const emails: ScannedEmail[] = (json.emails || []).map((e: any) => ({
         ...e,
         status: "pending" as const,
@@ -424,7 +424,7 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
     } finally {
       setScanning(false);
     }
-  }, [logAction]);
+  }, [gmailToken, logAction]);
 
   // ── Handle action selection ────────────────────────────────────────────────
   const handleAction = useCallback(async (

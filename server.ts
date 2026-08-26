@@ -1893,8 +1893,7 @@ app.post("/api/email/scan-inbox", async (req, res) => {
         }
         collectParts(full.data.payload?.parts);
 
-        if (attachments.length === 0) continue; // skip emails without PDF/image attachments
-
+        // Include all emails — attachments collected if present, but not required
         emails.push({
           id: msg.id,
           subject: getHeader("Subject") || "(no subject)",
