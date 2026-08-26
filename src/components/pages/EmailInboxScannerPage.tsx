@@ -525,6 +525,7 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
   });
   const [error, setError]       = useState<string | null>(null);
   const [detailEmail, setDetailEmail] = useState<ScannedEmail | null>(null);
+  const [scanRange, setScanRange] = useState<"3d"|"7d"|"14d"|"30d"|"60d"|"90d">("30d");
   const [cacheAge, setCacheAge] = useState<number | null>(() => {
     try {
       const raw = localStorage.getItem(CACHE_KEY);
@@ -563,7 +564,7 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
       const resp = await fetch("/api/email/scan-inbox", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken: gmailToken }),
+        body: JSON.stringify({ accessToken: gmailToken, newerThan: scanRange }),
       });
       const json = await resp.json();
       if (!resp.ok || !json.ok) throw new Error(json.details || json.error || "Scan failed");
@@ -577,7 +578,7 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
       const ts = Date.now();
       setCacheAge(ts);
       try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify({ emails, ts, forEmail: gmailEmail }));
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ emails, ts, forEmail: gmailEmail, range: scanRange }));
       } catch {}
       logAction?.("Email Inbox Scanned", `Found ${emails.length} financial emails`);
     } catch (e: any) {
@@ -585,7 +586,7 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
     } finally {
       setScanning(false);
     }
-  }, [gmailToken, logAction]);
+  }, [gmailToken, scanRange, gmailEmail, logAction]);
 
   // ── Handle action selection ────────────────────────────────────────────────
   const handleAction = useCallback(async (
@@ -817,36 +818,73 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
         </div>
 
         {/* ── Scan trigger row ─────────────────────────────────────────────── */}
-        <div className={cl("rounded-xl border p-4 flex items-center justify-between gap-4", cardBg)}>
-          <div>
-            <p className={`text-sm font-semibold ${txt}`}>Scan for Financial Emails</p>
-            <p className={`text-[11px] ${txt2} mt-0.5`}>
-              Searches last 30 days for emails with invoice, bill, statement, or payment keywords (with or without PDF attachments).
-            </p>
-            {cacheAge && !scanning && (
-              <p className="text-[11px] text-amber-500 mt-1 font-medium">
-                ✓ Results cached · scanned {Math.round((Date.now() - cacheAge) / 60000)} min ago · auto-expires in {Math.max(0, 30 - Math.round((Date.now() - cacheAge) / 60000))} min
+        <div className={cl("rounded-xl border p-4 space-y-3", cardBg)}>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <p className={`text-sm font-semibold ${txt}`}>Scan for Financial Emails</p>
+              <p className={`text-[11px] ${txt2} mt-0.5`}>
+                Searches for invoice, bill, statement, or payment keywords (with or without attachments).
               </p>
-            )}
+              {cacheAge && !scanning && (
+                <p className="text-[11px] text-amber-500 mt-1 font-medium">
+                  ✓ Results cached · scanned {Math.round((Date.now() - cacheAge) / 60000)} min ago · auto-expires in {Math.max(0, 30 - Math.round((Date.now() - cacheAge) / 60000))} min
+                </p>
+              )}
+            </div>
+            <button
+              onClick={handleScan}
+              disabled={scanning || !gmailEmail || !gmailToken}
+              className={cl(
+                "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all shrink-0",
+                (!gmailEmail || !gmailToken)
+                  ? "bg-slate-300 text-slate-500 cursor-not-allowed"
+                  : scanning
+                    ? "bg-[#d97706]/40 text-amber-300 cursor-wait"
+                    : "bg-[#d97706] hover:bg-[#b45309] text-white"
+              )}
+            >
+              {scanning
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : scanned ? <RefreshCw className="w-4 h-4" /> : <Search className="w-4 h-4" />
+              }
+              {scanning ? "Scanning…" : scanned ? "Re-scan" : "Scan Inbox"}
+            </button>
           </div>
-          <button
-            onClick={handleScan}
-            disabled={scanning || !gmailEmail || !gmailToken}
-            className={cl(
-              "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all shrink-0",
-              (!gmailEmail || !gmailToken)
-                ? "bg-slate-300 text-slate-500 cursor-not-allowed"
-                : scanning
-                  ? "bg-[#d97706]/40 text-amber-300 cursor-wait"
-                  : "bg-[#d97706] hover:bg-[#b45309] text-white"
-            )}
-          >
-            {scanning
-              ? <Loader2 className="w-4 h-4 animate-spin" />
-              : scanned ? <RefreshCw className="w-4 h-4" /> : <Search className="w-4 h-4" />
-            }
-            {scanning ? "Scanning…" : scanned ? "Re-scan" : "Scan Inbox"}
-          </button>
+
+          {/* Date range selector */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`text-[11px] font-semibold shrink-0 ${txt2}`}>Search range:</span>
+            {([
+              { label: "Last 3 days",  value: "3d"  },
+              { label: "Last week",    value: "7d"  },
+              { label: "Last 2 weeks", value: "14d" },
+              { label: "Last month",   value: "30d" },
+              { label: "Last 2 months",value: "60d" },
+              { label: "Last 3 months",value: "90d" },
+            ] as const).map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => {
+                  setScanRange(opt.value);
+                  // Clear cache when range changes so stale results don't show
+                  if (opt.value !== scanRange) {
+                    setQueue([]); setScanned(false); setCacheAge(null);
+                    try { localStorage.removeItem(CACHE_KEY); } catch {}
+                  }
+                }}
+                className={cl(
+                  "text-[11px] font-semibold px-3 py-1 rounded-lg border transition-colors",
+                  scanRange === opt.value
+                    ? "bg-[#d97706] border-[#d97706] text-white"
+                    : isLight
+                      ? "border-slate-300 text-slate-600 hover:border-[#d97706] hover:text-[#d97706]"
+                      : "border-[#2a3140] text-slate-400 hover:border-[#d97706] hover:text-[#d97706]"
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Error */}

@@ -1831,7 +1831,7 @@ app.post("/api/sheets/clone-blank", async (req, res) => {
  * Returns: { emails: [{ id, subject, from, date, snippet, attachments }] }
  */
 app.post("/api/email/scan-inbox", async (req, res) => {
-  const { accessToken } = req.body || {};
+  const { accessToken, newerThan = "30d" } = req.body || {};
   if (!accessToken) return res.status(401).json({ error: "accessToken required" });
 
   try {
@@ -1847,7 +1847,7 @@ app.post("/api/email/scan-inbox", async (req, res) => {
     ].join(" OR ") + " newer_than:30d";
 
     // Paginate through ALL matching messages (500 per page max)
-    const q = 'subject:(invoice OR statement OR "please pay" OR "payment due" OR bill OR receipt OR remittance OR "amount due" OR overdue) newer_than:30d';
+    const q = `subject:(invoice OR statement OR "please pay" OR "payment due" OR bill OR receipt OR remittance OR "amount due" OR overdue) newer_than:${newerThan}`;
     const messages: any[] = [];
     let pageToken: string | undefined = undefined;
     do {
