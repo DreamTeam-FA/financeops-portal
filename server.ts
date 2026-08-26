@@ -113,21 +113,37 @@ function mergeNotes(liveList: any[], currentList: any[]) {
   // Local-only notes (not in the sheet) are intentionally excluded.
 }
 
+/** Stable composite key for AP bills (their IDs are random on every fetch). */
+function apBillStableKey(b: any): string {
+  const n = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  return `${n(b.entity)}_${n(b.vendor)}_${n(b.invoiceNo || "")}_${b.dueDate || ""}`;
+}
+
 function mergeDatasets(liveList: any[], currentList: any[], idKey = "id") {
   if (!liveList || liveList.length === 0) return currentList || [];
   if (!currentList || currentList.length === 0) return liveList;
 
+  // For AP bills: IDs are random on every sheet fetch, so also build a stable-key map
+  // so portal-only fields (driveViewUrl, driveFileName) are preserved across syncs.
   const currentMap = new Map();
+  const currentStableMap = new Map();
   currentList.forEach((item) => {
     if (item && item[idKey]) currentMap.set(String(item[idKey]), item);
+    // Only build stable map for sheet-sourced records (have .row and .vendor)
+    if (item?.row && item?.vendor) {
+      const sk = apBillStableKey(item);
+      if (sk && !currentStableMap.has(sk)) currentStableMap.set(sk, item);
+    }
   });
 
   const isUrlStr = (v: any) => typeof v === "string" && /^https?:\/\//i.test(v.trim());
 
   const merged = liveList.map((liveItem) => {
     const itemId = String(liveItem[idKey] || "");
-    if (itemId && currentMap.has(itemId)) {
-      const currentItem = currentMap.get(itemId);
+    // Try exact-ID match first, then fall back to stable composite key
+    const currentItem = (itemId && currentMap.get(itemId))
+      || (liveItem?.row && liveItem?.vendor ? currentStableMap.get(apBillStableKey(liveItem)) : undefined);
+    if (currentItem) {
       const invoiceNo = liveItem.invoiceNo || currentItem.invoiceNo || undefined;
       // Fresh live sheet data overrides stored item data, preserving invoiceNo if live sheet lacks it
       const result = { ...currentItem, ...liveItem, ...(invoiceNo ? { invoiceNo } : {}) };

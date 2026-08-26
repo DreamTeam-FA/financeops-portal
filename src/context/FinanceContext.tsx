@@ -1565,8 +1565,44 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return "rest-of-year";
   };
 
+  // ── localStorage Drive-link cache ────────────────────────────────────────
+  // Render's ephemeral filesystem wipes stored JSON on every deploy, so we
+  // also cache driveViewUrl in the browser's localStorage.  Keyed by a stable
+  // composite that matches the server recovery logic.
+  const DRIVE_CACHE_KEY = "billDriveLinks_v2";
+  const driveKeyFor = (b: any) => {
+    const n = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    return `${n(b.entity)}_${n(b.vendor)}_${n(b.invoiceNo || "")}_${b.dueDate || ""}`;
+  };
+  const saveDriveCache = (bills: any[]) => {
+    try {
+      const prev: Record<string, any> = JSON.parse(localStorage.getItem(DRIVE_CACHE_KEY) || "{}");
+      bills.forEach(b => {
+        if (b.driveViewUrl) {
+          prev[driveKeyFor(b)] = { driveViewUrl: b.driveViewUrl, driveFileName: b.driveFileName || "" };
+        }
+      });
+      localStorage.setItem(DRIVE_CACHE_KEY, JSON.stringify(prev));
+    } catch { /* non-fatal */ }
+  };
+  const mergeDriveCache = (bills: any[]): any[] => {
+    try {
+      const cache: Record<string, any> = JSON.parse(localStorage.getItem(DRIVE_CACHE_KEY) || "{}");
+      if (!Object.keys(cache).length) return bills;
+      return bills.map(b => {
+        if (b.driveViewUrl) return b;
+        const hit = cache[driveKeyFor(b)];
+        return hit?.driveViewUrl ? { ...b, driveViewUrl: hit.driveViewUrl, driveFileName: hit.driveFileName } : b;
+      });
+    } catch { return bills; }
+  };
+  // ─────────────────────────────────────────────────────────────────────────
+
   const recomputeBills = (bills: APBill[]): APBill[] => {
-    return (bills || []).map((b) => ({
+    const withLinks = mergeDriveCache(bills);
+    // Persist any driveViewUrls we just received (from server recovery) into cache
+    saveDriveCache(withLinks);
+    return (withLinks || []).map((b) => ({
       ...b,
       bucket: computeBucket(b.dueDate, b.status)
     }));
