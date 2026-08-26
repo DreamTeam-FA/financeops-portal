@@ -54,6 +54,8 @@ export const UserSwitchModal: React.FC<UserSwitchModalProps> = ({ isOpen, onClos
           isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#141414] border-[#2a2a2a] text-white"
         }`}
       >
+        {/* Accent bar — user management purple */}
+        <div className="h-1.5 w-full bg-purple-600" />
         {/* Header */}
         <div className={`p-5 border-b ${isLight ? "border-slate-100 bg-slate-50/50" : "border-[#222] bg-[#1a1a1a]/60"} flex items-center justify-between`}>
           <div className="flex items-center gap-3">

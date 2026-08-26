@@ -57,8 +57,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen }) => {
           isLight
             ? "bg-white text-slate-900 border-slate-200"
             : "bg-[#0d111a] text-white border-[#1a2235]"
-        } border rounded-2xl shadow-2xl overflow-hidden p-6 space-y-5`}
+        } border rounded-2xl shadow-2xl overflow-hidden`}
       >
+        {/* Accent bar — portal blue */}
+        <div className="h-1.5 w-full bg-[#1a73e8]" />
+        <div className="p-6 space-y-5">
         {/* Header */}
         <div className="text-center space-y-2">
           <div className="inline-flex p-3 rounded-2xl bg-[#1a73e8]/10 text-[#1a73e8] border border-[#1a73e8]/20 mb-1">
@@ -97,6 +100,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen }) => {
           Only authorized <strong>@marktimm.com</strong> Google accounts are permitted.
         </p>
       </div>
+      </div>{/* end p-6 wrapper */}
     </div>
   );
 };
