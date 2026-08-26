@@ -1831,7 +1831,7 @@ app.post("/api/sheets/clone-blank", async (req, res) => {
  * Returns: { emails: [{ id, subject, from, date, snippet, attachments }] }
  */
 app.post("/api/email/scan-inbox", async (req, res) => {
-  const { accessToken, maxResults = 50 } = req.body || {};
+  const { accessToken } = req.body || {};
   if (!accessToken) return res.status(401).json({ error: "accessToken required" });
 
   try {
@@ -1846,13 +1846,20 @@ app.post("/api/email/scan-inbox", async (req, res) => {
       "has:attachment",
     ].join(" OR ") + " newer_than:30d";
 
-    const listResp = await gmail.users.messages.list({
-      userId: "me",
-      q: 'subject:(invoice OR statement OR "please pay" OR "payment due" OR bill OR receipt OR remittance OR "amount due" OR overdue) newer_than:30d',
-      maxResults: Math.min(Number(maxResults) || 50, 100),
-    });
-
-    const messages = listResp.data.messages || [];
+    // Paginate through ALL matching messages (500 per page max)
+    const q = 'subject:(invoice OR statement OR "please pay" OR "payment due" OR bill OR receipt OR remittance OR "amount due" OR overdue) newer_than:30d';
+    const messages: any[] = [];
+    let pageToken: string | undefined = undefined;
+    do {
+      const listResp = await gmail.users.messages.list({
+        userId: "me",
+        q,
+        maxResults: 500,
+        ...(pageToken ? { pageToken } : {}),
+      });
+      (listResp.data.messages || []).forEach(m => messages.push(m));
+      pageToken = listResp.data.nextPageToken ?? undefined;
+    } while (pageToken);
     const emails: any[] = [];
 
     for (const msg of messages) {
@@ -1860,8 +1867,7 @@ app.post("/api/email/scan-inbox", async (req, res) => {
         const full = await gmail.users.messages.get({
           userId: "me",
           id: msg.id!,
-          format: "metadata",
-          metadataHeaders: ["Subject", "From", "Date"],
+          format: "full",
         });
 
         const headers = full.data.payload?.headers || [];

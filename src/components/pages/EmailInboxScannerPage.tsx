@@ -66,7 +66,7 @@ function formatDate(dateStr: string) {
 
 interface PreviewModalProps {
   email: ScannedEmail;
-  attachment: EmailAttachment;
+  attachment: EmailAttachment | null;
   action: "Bill" | "Invoice";
   data: ExtractedData;
   isLight: boolean;
@@ -112,7 +112,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
             </div>
             <div>
               <h2 className={`font-bold text-sm ${txt}`}>Create as {action}</h2>
-              <p className={`text-[11px] ${txt2} truncate max-w-[260px]`}>{attachment.filename}</p>
+              <p className={`text-[11px] ${txt2} truncate max-w-[260px]`}>{attachment?.filename || email.subject}</p>
             </div>
           </div>
           <button onClick={onClose} className={`w-7 h-7 flex items-center justify-center rounded-lg ${txt2} hover:opacity-70`}>
@@ -210,8 +210,37 @@ const EmailCard: React.FC<EmailCardProps> = ({ email, isLight, onAction }) => {
         </div>
       )}
 
-      {/* Attachments */}
+      {/* Attachments or direct action buttons */}
       <div className="px-4 pb-4 flex flex-col gap-2">
+        {email.attachments.length === 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {(["Bill", "Invoice"] as const).map(act => (
+              <button
+                key={act}
+                onClick={() => onAction(email, act, -1)}
+                disabled={email.status === "processing"}
+                className={cl(
+                  "flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-colors",
+                  email.status === "processing"
+                    ? "bg-[#7c3aed]/20 text-violet-400 cursor-wait"
+                    : "bg-[#7c3aed] hover:bg-[#6d28d9] text-white"
+                )}
+              >
+                {email.status === "processing" ? <Loader2 className="w-3 h-3 animate-spin" /> : act === "Bill" ? "📄" : "🧾"}
+                {" "}Create {act === "Bill" ? "AP Bill" : "AR Invoice"}
+              </button>
+            ))}
+            <button
+              onClick={() => onAction(email, "Ignore", -1)}
+              className={cl(
+                "text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-colors",
+                isLight ? "text-slate-400 hover:bg-slate-100" : "text-slate-500 hover:bg-[#1a1f2e]"
+              )}
+            >
+              🚫 Ignore
+            </button>
+          </div>
+        )}
         {email.attachments.map((att, idx) => (
           <div key={att.attachmentId} className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${isLight ? "border-slate-100 bg-slate-50" : "border-[#1e2738] bg-[#0e1420]"}`}>
             <Paperclip className="w-3.5 h-3.5 text-[#7c3aed] shrink-0" />
@@ -272,11 +301,13 @@ const EmailCard: React.FC<EmailCardProps> = ({ email, isLight, onAction }) => {
       </div>
 
       {/* Badge */}
-      <div className={`px-4 pb-3 flex items-center gap-1.5`}>
-        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${tagBg}`}>
-          {email.attachments.length} attachment{email.attachments.length !== 1 ? "s" : ""}
-        </span>
-      </div>
+      {email.attachments.length > 0 && (
+        <div className={`px-4 pb-3 flex items-center gap-1.5`}>
+          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${tagBg}`}>
+            {email.attachments.length} attachment{email.attachments.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+      )}
     </div>
   );
 };
@@ -384,7 +415,7 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
   // Preview modal state
   const [preview, setPreview] = useState<{
     email: ScannedEmail;
-    attachment: EmailAttachment;
+    attachment: EmailAttachment | null;
     action: "Bill" | "Invoice";
     data: ExtractedData;
   } | null>(null);
@@ -407,7 +438,7 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
       const resp = await fetch("/api/email/scan-inbox", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken: gmailToken, maxResults: 50 }),
+        body: JSON.stringify({ accessToken: gmailToken }),
       });
       const json = await resp.json();
       if (!resp.ok || !json.ok) throw new Error(json.details || json.error || "Scan failed");
@@ -445,6 +476,23 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
 
     try {
       const att = email.attachments[attachIdx];
+
+      // No attachment path — pre-fill from email metadata and open modal directly
+      if (!att) {
+        const extracted: ExtractedData = {
+          vendor:      email.from.replace(/<[^>]+>/g, "").trim(),
+          invoiceNo:   null,
+          amount:      null,
+          dueDate:     null,
+          issueDate:   null,
+          entity:      "",
+          description: email.subject,
+          remarks:     `Imported from email on ${new Date().toLocaleDateString()}`,
+        };
+        setQueue(prev => prev.map(e => e.id === email.id ? { ...e, status: "pending" } : e));
+        setPreview({ email, attachment: null, action, data: extracted });
+        return;
+      }
 
       // 1. Fetch attachment from Gmail via server proxy
       const attResp = await fetch(
@@ -486,7 +534,7 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
       setError(e?.message || "Failed to process attachment");
       setQueue(prev => prev.map(e => e.id === email.id ? { ...e, status: "pending" } : e));
     }
-  }, []);
+  }, [gmailToken]);
 
   // ── Confirm from modal ─────────────────────────────────────────────────────
   const handleConfirm = useCallback(async (data: ExtractedData) => {
@@ -709,7 +757,7 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
               <Inbox className={`w-10 h-10 ${txt2} opacity-40`} />
               <p className={`text-sm font-semibold ${txt2}`}>No matching emails found</p>
               <p className={`text-[12px] ${txt2} opacity-70`}>
-                No emails with financial keywords and PDF attachments were found in the last 30 days.
+                No emails with financial keywords were found in the last 30 days.
               </p>
             </div>
           ) : (
@@ -732,8 +780,7 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
             <Mail className={`w-10 h-10 ${txt2} opacity-30`} />
             <p className={`text-sm font-semibold ${txt}`}>Ready to scan</p>
             <p className={`text-[12px] ${txt2}`}>
-              Click "Scan Inbox" to search your Gmail for financial emails from the last 30 days.
-              Only emails with PDF attachments are included.
+              Click "Scan Inbox" to search your Gmail for all financial emails from the last 30 days.
             </p>
           </div>
         )}
