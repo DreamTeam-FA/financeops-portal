@@ -78,6 +78,18 @@ const FAQ = [
     a: "Gemini AI powers all of the AI scanning features: bill scanner, invoice scanner, timesheet scanner, PDF data extractor, and email invoice scanner. No setup is needed on your end — the portal uses a server-side API key stored securely in the Render environment. If the primary quota is exceeded, the portal falls back to backup Gemini models automatically. You can check current API status and usage on the Service Limits & Usage page.",
   },
   {
+    q: "Why does 'Connect Inbox' fail with an origin error on the Email Scanner?",
+    a: "Google Identity Services requires the page's exact origin (e.g. https://financeops-portal.onrender.com) to be listed as an Authorized JavaScript Origin on the OAuth 2.0 Client ID in Google Cloud Console → APIs & Services → Credentials. Add the Render URL there, wait 1–5 minutes for it to propagate, then retry. This is separate from adding an authorized redirect URI.",
+  },
+  {
+    q: "Why does Gmail scanning fail with 'Gmail API not enabled'?",
+    a: "The Gmail API must be explicitly enabled in the GCP project. Go to console.developers.google.com/apis/api/gmail.googleapis.com/overview?project=982066512597 and click Enable. The change takes effect within 1–2 minutes. This is a one-time setup step.",
+  },
+  {
+    q: "Where are portal login and activity logs stored?",
+    a: "All logs are written to a single shared Google Sheet: '⛔ DO NOT DELETE — FinanceOps Portal Logs' (ID: 19ColN3UOnuGbk1CkHtZswxPZf7oj7Zs2pKaqmGlN4m8). Every sign-in is recorded in the Login History tab (timestamp, email, device, IP, location). Every portal action (add, edit, delete, scan) is recorded in the Activity Log tab. You can view and filter logs from the Portal Logs page (⚙️ → Portal Logs).",
+  },
+  {
     q: "What is the Workspace / Member Workspace?",
     a: "The Workspace is a shared area where team members can upload files directly to Google Drive from inside the portal. Files are organized automatically by category and entity. Members see only their own uploads, while admins can see all uploads across all members. Access it from the Workspace section in the sidebar.",
   },
@@ -181,12 +193,13 @@ const HOWTOS = [
   {
     title: "Scan Emails for Invoices and Bills",
     steps: [
-      "Open the Email Invoice Scanner from the sidebar or the gear menu.",
-      "Click 'Scan Inbox' — the tool searches Gmail for emails matching financial keywords.",
+      "Open the Email Invoice Scanner from the sidebar.",
+      "Click 'Connect Inbox' and authorize read-only Gmail access. (Requires Gmail API enabled in Google Cloud Console for the GCP project.)",
+      "Click 'Scan Inbox' — searches all matching financial emails from the last 30 days with no cap.",
       "Review each email in the queue. Nothing is saved at this step.",
-      "For emails with PDF attachments, click 'Scan Attachment' to run Gemini AI on the PDF.",
-      "Once fields are extracted, choose 'Create Bill' or 'Create Invoice' to open a pre-filled form.",
-      "Review and confirm — then Save to write the record to the portal.",
+      "Emails WITH PDF/image attachments: click 'Scan & Create' → choose 'Create as Bill' or 'Create as Invoice'. Gemini AI extracts all fields automatically.",
+      "Emails WITHOUT attachments: click 'Create AP Bill' or 'Create AR Invoice' directly — a form pre-filled from the email subject and sender opens.",
+      "Review and confirm every field before clicking 'Confirm & Create' — only then is the record saved.",
     ],
   },
   {
@@ -259,16 +272,32 @@ const SHEETS = [
     name: "Calendar Sheet",
     id: "1ChoHr7dsfai0Unl-Gk-HyPmgrpWOYu07gllY9PA8epo",
     emoji: "📅",
-    gradient: "from-[#3b1f6b] to-[#1e0d40]",
-    glow: "rgba(139,92,246,0.16)",
-    accent: "#a78bfa",
-    border: "border-violet-500/25",
-    badgeBg: "bg-violet-500/10",
-    badgeText: "text-violet-400",
+    gradient: "from-[#0d3d38] to-[#062420]",
+    glow: "rgba(13,148,136,0.18)",
+    accent: "#2dd4bf",
+    border: "border-teal-500/25",
+    badgeBg: "bg-teal-500/10",
+    badgeText: "text-teal-400",
     purpose: "Finance & schedule events · Calendar notes",
     tabs: [
       { name: "Events", gid: "0",          note: "Primary calendar events (read & write)" },
       { name: "Notes",  gid: "1248704539", note: "Calendar notes (read-only)" },
+    ],
+  },
+  {
+    name: "⛔ Portal Logs Sheet",
+    id: "19ColN3UOnuGbk1CkHtZswxPZf7oj7Zs2pKaqmGlN4m8",
+    emoji: "📋",
+    gradient: "from-[#1a1a1a] to-[#0a0a0a]",
+    glow: "rgba(148,163,184,0.12)",
+    accent: "#94a3b8",
+    border: "border-slate-600/25",
+    badgeBg: "bg-slate-500/10",
+    badgeText: "text-slate-400",
+    purpose: "Centralized login history & activity log — all users, all sessions",
+    tabs: [
+      { name: "Login History", gid: "dynamic", note: "Every sign-in: timestamp, email, device, IP, location" },
+      { name: "Activity Log",  gid: "dynamic", note: "Every portal action: create, edit, delete, scan" },
     ],
   },
 ];
@@ -736,8 +765,10 @@ export const HelpPage: React.FC = () => {
               >
                 <div className="space-y-2">
                   {[
-                    { key: "GEMINI_API_KEY", note: "AI features — set in Render dashboard, never hardcode in source" },
-                    { key: "Firebase config", note: "Hardcoded in src/services/googleAuth.ts — acceptable for public Firebase config" },
+                    { key: "GEMINI_API_KEY",    note: "Required — powers all AI scanning (bill, invoice, timesheet, email, PDF). Set in Render dashboard." },
+                    { key: "OPENAI_API_KEY",    note: "Optional — if set, vision-capable image scanning falls back to GPT-4o-mini for non-PDF attachments. Gemini is used for PDFs regardless." },
+                    { key: "Firebase config",   note: "Hardcoded in src/services/googleAuth.ts — acceptable for public Firebase config (not a secret)." },
+                    { key: "GCP OAuth Client",  note: "Client ID: 982066512597-d2gruoitkbcvuha47rdbqk0muaf0bm61.apps.googleusercontent.com — GCP project: gen-lang-client-0190927685. Authorized JS origin must include the Render URL." },
                   ].map((v) => (
                     <div key={v.key} className={`flex items-start gap-3 px-4 py-3 rounded-xl border ${border} ${cardBg}`}>
                       <code className="text-[11px] font-mono font-bold text-amber-500 shrink-0 mt-0.5">{v.key}</code>
@@ -745,7 +776,7 @@ export const HelpPage: React.FC = () => {
                     </div>
                   ))}
                 </div>
-                <p className={`text-[10px] mt-4 ${muted}`}>Last updated 2026-08-22 — keep in sync whenever sheet structure changes.</p>
+                <p className={`text-[10px] mt-4 ${muted}`}>Last updated 2026-08-26 — keep in sync whenever sheet structure or GCP credentials change.</p>
               </Section>
             </>
           )}
