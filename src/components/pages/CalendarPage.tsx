@@ -1623,7 +1623,9 @@ export const CalendarPage: React.FC = () => {
       {/* AP Bills Detail Modal (separate, read-only) */}
       {selectedEvent?.billsList && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className={`${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#141414] border-[#333] text-white"} border rounded-xl max-w-md w-full p-5 space-y-4 shadow-2xl`}>
+          <div className={`${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#141414] border-[#333] text-white"} border rounded-2xl max-w-md w-full shadow-2xl overflow-hidden`}>
+            <div className="h-1.5 w-full bg-[#1a73e8]" />
+            <div className="p-5 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold">{selectedEvent.title}</h3>
               <button onClick={() => setSelectedEvent(null)} className="text-slate-400 hover:text-slate-700 p-1">
@@ -1652,6 +1654,7 @@ export const CalendarPage: React.FC = () => {
                 Close
               </button>
             </div>
+            </div>{/* end p-5 */}
           </div>
         </div>
       )}
@@ -1659,7 +1662,9 @@ export const CalendarPage: React.FC = () => {
       {/* Confirm Delete Dialog */}
       {confirmDeleteId && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-[60]">
-          <div className={`${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#141414] border-[#333] text-white"} border rounded-xl max-w-sm w-full p-5 shadow-2xl space-y-4`}>
+          <div className={`${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#141414] border-[#333] text-white"} border rounded-2xl max-w-sm w-full shadow-2xl overflow-hidden`}>
+            <div className="h-1.5 w-full bg-[#D92D20]" />
+            <div className="p-5 space-y-4">
             <h3 className="text-sm font-bold text-[#D92D20]">🗑 Delete Event?</h3>
             <p className="text-xs text-slate-500">
               This will permanently remove <span className="font-semibold text-slate-700 dark:text-slate-200">{selectedEvent?.title}</span> from the calendar. This cannot be undone.
@@ -1705,6 +1710,7 @@ export const CalendarPage: React.FC = () => {
                 Yes, Delete
               </button>
             </div>
+            </div>{/* end p-5 */}
           </div>
         </div>
       )}
@@ -1712,7 +1718,10 @@ export const CalendarPage: React.FC = () => {
       {/* Add Event Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className={`${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded-xl max-w-md w-full p-5 space-y-4 shadow-2xl`}>
+          <div className={`${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded-2xl max-w-md w-full shadow-2xl overflow-hidden`}>
+            {/* Accent bar — calendar green */}
+            <div className="h-1.5 w-full bg-[#10b981]" />
+            <div className="p-5 space-y-4">
             <h3 className="text-sm font-bold flex items-center gap-2">
               <CalendarDays className="w-4 h-4 text-[#10b981]" /> Add Calendar Event or Task
             </h3>
@@ -1851,6 +1860,7 @@ export const CalendarPage: React.FC = () => {
                 </button>
               </div>
             </form>
+            </div>{/* end p-5 */}
           </div>
         </div>
       )}
@@ -1858,7 +1868,9 @@ export const CalendarPage: React.FC = () => {
       {/* Manage Assignees Modal */}
       {showAssigneeModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className={`${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#0d111a] border-[#1a2235] text-white"} border rounded-xl w-full p-5 space-y-4 shadow-2xl overflow-y-auto`} style={{ maxWidth: 400, maxHeight: "85vh" }}>
+          <div className={`${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#0d111a] border-[#1a2235] text-white"} border rounded-2xl shadow-2xl overflow-hidden`} style={{ maxWidth: 400, maxHeight: "85vh" }}>
+            <div className="h-1.5 w-full bg-[#2563eb]" />
+            <div className="p-5 space-y-4 overflow-y-auto" style={{ maxHeight: "calc(85vh - 6px)" }}>
             <div className={`flex items-center justify-between border-b pb-2.5 ${isLight ? "border-slate-200" : "border-[#1a2235]"}`}>
               <h3 className={`text-sm font-bold flex items-center gap-2 ${isLight ? "text-slate-900" : "text-white"}`}>
                 <Users className="w-4 h-4 text-[#2563eb]" /> Manage Team Assignees
@@ -1982,6 +1994,7 @@ export const CalendarPage: React.FC = () => {
                 </button>
               </div>
             </div>
+            </div>{/* end p-5 wrapper */}
           </div>
         </div>
       )}

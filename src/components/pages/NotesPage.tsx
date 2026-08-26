@@ -515,10 +515,13 @@ export const NotesPage: React.FC = () => {
       {/* Note Creation / Edit Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <div className={`w-full max-w-lg rounded-2xl border p-5 space-y-4 ${
+          <div className={`w-full max-w-lg rounded-2xl border overflow-hidden shadow-2xl ${
             isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#121212] border-[#2c2c2c] text-white"
           }`}>
-            <div className="flex items-center justify-between border-b pb-3 border-slate-200 dark:border-[#1a2235]">
+            {/* Accent bar — notes purple */}
+            <div className="h-1.5 w-full bg-purple-600" />
+            <div className="p-5 space-y-4">
+            <div className={`flex items-center justify-between border-b pb-3 ${isLight ? "border-slate-200" : "border-[#1a2235]"}`}>
               <h3 className="text-sm font-bold text-purple-600 dark:text-purple-400 flex items-center gap-2">
                 <StickyNote className="w-4 h-4" />
                 {editingNote ? "Edit Quick Note" : "Create New Quick Note"}
@@ -601,6 +604,7 @@ export const NotesPage: React.FC = () => {
             </form>
           </div>
         </div>
+      </div>
       )}
     </div>
   );

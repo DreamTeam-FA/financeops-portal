@@ -1848,7 +1848,7 @@ app.post("/api/email/scan-inbox", async (req, res) => {
 
     const listResp = await gmail.users.messages.list({
       userId: "me",
-      q: 'subject:(invoice OR statement OR "please pay" OR "payment due" OR bill OR receipt OR remittance OR "amount due" OR overdue) newer_than:30d has:attachment',
+      q: 'subject:(invoice OR statement OR "please pay" OR "payment due" OR bill OR receipt OR remittance OR "amount due" OR overdue) newer_than:30d',
       maxResults: Math.min(Number(maxResults) || 50, 100),
     });
 

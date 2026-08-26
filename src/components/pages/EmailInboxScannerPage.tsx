@@ -573,15 +573,17 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
           <p className={`text-[11px] font-bold uppercase tracking-wider ${txt2} mb-3`}>Gmail Inbox</p>
 
           {gmailEmail ? (
-            /* Connected state */
+            /* Connected (or stale) state — token may be null if expired */
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-[#7c3aed]/15 flex items-center justify-center shrink-0">
-                  <UserCircle2 className="w-5 h-5 text-[#7c3aed]" />
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${gmailToken ? "bg-[#7c3aed]/15" : "bg-amber-500/15"}`}>
+                  <UserCircle2 className={`w-5 h-5 ${gmailToken ? "text-[#7c3aed]" : "text-amber-500"}`} />
                 </div>
                 <div>
                   <p className={`text-sm font-semibold ${txt}`}>{gmailEmail}</p>
-                  <p className={`text-[11px] ${txt2}`}>Gmail connected · read-only access</p>
+                  <p className={`text-[11px] ${gmailToken ? txt2 : "text-amber-500"}`}>
+                    {gmailToken ? "Gmail connected · read-only access" : "Session expired — reconnect to scan"}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -640,15 +642,15 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
           <div>
             <p className={`text-sm font-semibold ${txt}`}>Scan for Financial Emails</p>
             <p className={`text-[11px] ${txt2} mt-0.5`}>
-              Searches last 30 days for emails with invoice, bill, statement, or payment keywords that have PDF attachments.
+              Searches last 30 days for emails with invoice, bill, statement, or payment keywords (with or without PDF attachments).
             </p>
           </div>
           <button
             onClick={handleScan}
-            disabled={scanning || !gmailEmail}
+            disabled={scanning || !gmailEmail || !gmailToken}
             className={cl(
               "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all shrink-0",
-              !gmailEmail
+              (!gmailEmail || !gmailToken)
                 ? "bg-slate-300 text-slate-500 cursor-not-allowed"
                 : scanning
                   ? "bg-[#7c3aed]/40 text-violet-300 cursor-wait"
