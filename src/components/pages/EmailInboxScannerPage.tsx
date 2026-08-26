@@ -459,6 +459,8 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
           // Reset queue so user re-scans with the new inbox
           setQueue([]);
           setScanned(false);
+          setCacheAge(null);
+          try { localStorage.removeItem(CACHE_KEY); } catch {};
         },
         error_callback: (err: any) => {
           setConnecting(false);
@@ -489,13 +491,51 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
     setGmailEmail(null);
     setQueue([]);
     setScanned(false);
+    setCacheAge(null);
+    try { localStorage.removeItem(CACHE_KEY); } catch {}
   }, []);
 
+  const CACHE_KEY = "gmail_scan_cache";
+  const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
+  // Restore cached results on mount (if within TTL and same Gmail account)
   const [scanning, setScanning] = useState(false);
-  const [queue, setQueue]       = useState<ScannedEmail[]>([]);
-  const [scanned, setScanned]   = useState(false);
+  const [queue, setQueue] = useState<ScannedEmail[]>(() => {
+    try {
+      const raw = localStorage.getItem(CACHE_KEY);
+      if (!raw) return [];
+      const cached = JSON.parse(raw);
+      const age = Date.now() - (cached.ts || 0);
+      const email = localStorage.getItem(LS_EMAIL);
+      if (age < CACHE_TTL && cached.forEmail === email && Array.isArray(cached.emails)) {
+        return cached.emails as ScannedEmail[];
+      }
+    } catch {}
+    return [];
+  });
+  const [scanned, setScanned] = useState<boolean>(() => {
+    try {
+      const raw = localStorage.getItem(CACHE_KEY);
+      if (!raw) return false;
+      const cached = JSON.parse(raw);
+      const age = Date.now() - (cached.ts || 0);
+      const email = localStorage.getItem(LS_EMAIL);
+      return age < CACHE_TTL && cached.forEmail === email && Array.isArray(cached.emails) && cached.emails.length >= 0;
+    } catch { return false; }
+  });
   const [error, setError]       = useState<string | null>(null);
   const [detailEmail, setDetailEmail] = useState<ScannedEmail | null>(null);
+  const [cacheAge, setCacheAge] = useState<number | null>(() => {
+    try {
+      const raw = localStorage.getItem(CACHE_KEY);
+      if (!raw) return null;
+      const cached = JSON.parse(raw);
+      const age = Date.now() - (cached.ts || 0);
+      const email = localStorage.getItem(LS_EMAIL);
+      if (age < CACHE_TTL && cached.forEmail === email) return cached.ts;
+    } catch {}
+    return null;
+  });
 
   // Preview modal state
   const [preview, setPreview] = useState<{
@@ -534,6 +574,11 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
       }));
       setQueue(emails);
       setScanned(true);
+      const ts = Date.now();
+      setCacheAge(ts);
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ emails, ts, forEmail: gmailEmail }));
+      } catch {}
       logAction?.("Email Inbox Scanned", `Found ${emails.length} financial emails`);
     } catch (e: any) {
       setError(e?.message || "Unknown error");
@@ -778,6 +823,11 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
             <p className={`text-[11px] ${txt2} mt-0.5`}>
               Searches last 30 days for emails with invoice, bill, statement, or payment keywords (with or without PDF attachments).
             </p>
+            {cacheAge && !scanning && (
+              <p className="text-[11px] text-amber-500 mt-1 font-medium">
+                ✓ Results cached · scanned {Math.round((Date.now() - cacheAge) / 60000)} min ago · auto-expires in {Math.max(0, 30 - Math.round((Date.now() - cacheAge) / 60000))} min
+              </p>
+            )}
           </div>
           <button
             onClick={handleScan}
