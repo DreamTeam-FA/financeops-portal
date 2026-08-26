@@ -646,16 +646,19 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
       const scanJson = await scanResp.json();
       if (!scanResp.ok) throw new Error(scanJson.error || "Scan failed");
 
+      // Server returns { ok: true, invoice: { vendor, invoiceNo, ... } }
+      const inv = scanJson.invoice || scanJson;
+
       // 3. Pre-populate with email metadata if Gemini left fields empty
       const extracted: ExtractedData = {
-        vendor:      scanJson.vendor      || email.from.replace(/<[^>]+>/g, "").trim(),
-        invoiceNo:   scanJson.invoiceNo   || null,
-        amount:      scanJson.amount      ?? null,
-        dueDate:     scanJson.dueDate     || null,
-        issueDate:   scanJson.issueDate   || null,
-        entity:      scanJson.entity      || "",
-        description: scanJson.description || email.subject,
-        remarks:     scanJson.remarks     || `Imported from email on ${new Date().toLocaleDateString()}`,
+        vendor:      inv.vendor      || email.from.replace(/<[^>]+>/g, "").trim(),
+        invoiceNo:   inv.invoiceNo   || null,
+        amount:      inv.amount      ?? null,
+        dueDate:     inv.dueDate     || null,
+        issueDate:   inv.issueDate   || null,
+        entity:      inv.entity      || "",
+        description: inv.description || email.subject,
+        remarks:     inv.remarks     || `Imported from email on ${new Date().toLocaleDateString()}`,
       };
 
       // 4. Navigate to AP/AR page with pre-filled data
