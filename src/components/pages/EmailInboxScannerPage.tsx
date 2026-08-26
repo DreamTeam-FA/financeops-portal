@@ -4,7 +4,8 @@ import firebaseConfig from "../../../firebase-applet-config.json";
 import {
   Mail, Search, Loader2, AlertTriangle, CheckCircle2,
   FileText, ChevronDown, X, Eye, Inbox, RefreshCw,
-  ChevronLeft, Paperclip, LogIn, LogOut, UserCircle2
+  ChevronLeft, Paperclip, LogIn, LogOut, UserCircle2,
+  Download, ExternalLink
 } from "lucide-react";
 
 const GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/oauth2/v3.userinfo.email";
@@ -26,6 +27,7 @@ interface ScannedEmail {
   from: string;
   date: string;
   snippet: string;
+  body?: string;
   attachments: EmailAttachment[];
   // queue state
   status?: "pending" | "ignored" | "processing" | "done";
@@ -155,22 +157,196 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
   );
 };
 
-// ─────────────────────────────────────────── Email Card
+// ─────────────────────────────────────────── Email Detail Modal
+
+interface EmailDetailModalProps {
+  email: ScannedEmail;
+  isLight: boolean;
+  gmailToken: string | null;
+  onAction: (email: ScannedEmail, action: "Bill" | "Invoice" | "Ignore", attachIdx: number) => void;
+  onClose: () => void;
+}
+
+const EmailDetailModal: React.FC<EmailDetailModalProps> = ({ email, isLight, gmailToken, onAction, onClose }) => {
+  const [attachPreviews, setAttachPreviews] = useState<Record<number, { loading: boolean; data: string | null; mime: string }>>({});
+
+  const bg    = isLight ? "bg-white border-slate-200"       : "bg-[#141820] border-[#232b3a]";
+  const hdrBg = isLight ? "bg-slate-50 border-slate-200"    : "bg-[#0d111a] border-[#1a2235]";
+  const txt   = isLight ? "text-slate-800"                  : "text-slate-100";
+  const txt2  = isLight ? "text-slate-500"                  : "text-slate-400";
+  const bodyTxt = isLight ? "text-slate-700"                : "text-[#8090a8]";
+  const attBg = isLight ? "border-slate-200 bg-slate-50"    : "border-[#1e2738] bg-[#0e1420]";
+
+  const fetchPreview = async (att: EmailAttachment, idx: number) => {
+    if (attachPreviews[idx] || !gmailToken) return;
+    setAttachPreviews(p => ({ ...p, [idx]: { loading: true, data: null, mime: att.mimeType } }));
+    try {
+      const resp = await fetch(`/api/email/attachment/${email.id}/${att.attachmentId}?accessToken=${encodeURIComponent(gmailToken)}`);
+      const json = await resp.json();
+      if (json.ok) {
+        setAttachPreviews(p => ({ ...p, [idx]: { loading: false, data: json.data, mime: att.mimeType } }));
+      } else {
+        setAttachPreviews(p => ({ ...p, [idx]: { loading: false, data: null, mime: att.mimeType } }));
+      }
+    } catch {
+      setAttachPreviews(p => ({ ...p, [idx]: { loading: false, data: null, mime: att.mimeType } }));
+    }
+  };
+
+  const isProcessing = email.status === "processing";
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3">
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className={`relative z-10 flex flex-col rounded-2xl border shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden ${bg}`}>
+
+        {/* Accent bar */}
+        <div className="h-1.5 w-full bg-[#d97706] shrink-0" />
+
+        {/* Header */}
+        <div className={`flex items-start justify-between gap-3 px-5 py-4 border-b shrink-0 ${hdrBg}`}>
+          <div className="flex items-start gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-[#d97706]/15 flex items-center justify-center shrink-0 mt-0.5">
+              <Mail className="w-4 h-4 text-[#d97706]" />
+            </div>
+            <div className="min-w-0">
+              <p className={`text-sm font-bold leading-snug ${txt}`}>{email.subject}</p>
+              <p className={`text-[11px] truncate ${txt2} mt-0.5`}>{email.from}</p>
+              <p className={`text-[11px] ${txt2}`}>{formatDate(email.date)}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className={`p-1.5 rounded-lg shrink-0 ${txt2} hover:opacity-70`}>
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+          {/* Email body text */}
+          <div>
+            <p className={`text-[10px] font-bold uppercase tracking-wider mb-2 ${txt2}`}>Message</p>
+            <div className={`rounded-xl border p-4 text-[12px] leading-relaxed whitespace-pre-wrap ${attBg} ${bodyTxt}`}>
+              {email.body || email.snippet || "(No preview available)"}
+            </div>
+          </div>
+
+          {/* Attachments */}
+          {email.attachments.length > 0 && (
+            <div>
+              <p className={`text-[10px] font-bold uppercase tracking-wider mb-2 ${txt2}`}>
+                Attachments ({email.attachments.length})
+              </p>
+              <div className="space-y-3">
+                {email.attachments.map((att, idx) => {
+                  const preview = attachPreviews[idx];
+                  return (
+                    <div key={att.attachmentId} className={`rounded-xl border overflow-hidden ${attBg}`}>
+                      {/* Attachment header */}
+                      <div className="flex items-center gap-2 px-3 py-2.5">
+                        <Paperclip className="w-3.5 h-3.5 text-[#d97706] shrink-0" />
+                        <span className={`text-[12px] flex-1 font-medium truncate ${txt}`}>{att.filename}</span>
+                        <span className={`text-[11px] shrink-0 ${txt2}`}>{formatBytes(att.size)}</span>
+                        <button
+                          onClick={() => fetchPreview(att, idx)}
+                          disabled={!!preview}
+                          className={`flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg shrink-0 transition-colors
+                            ${preview ? (isLight ? "text-slate-400" : "text-slate-600") : "text-[#d97706] hover:bg-[#d97706]/10"}`}
+                        >
+                          {preview?.loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Eye className="w-3 h-3" />}
+                          {preview?.loading ? "Loading…" : preview?.data ? "Loaded" : "Preview"}
+                        </button>
+                      </div>
+                      {/* Inline preview */}
+                      {preview?.data && (
+                        <div className={`border-t ${isLight ? "border-slate-200" : "border-[#1e2738]"} bg-black`}>
+                          {preview.mime === "application/pdf" || att.filename.toLowerCase().endsWith(".pdf") ? (
+                            <iframe
+                              src={`data:application/pdf;base64,${preview.data}`}
+                              className="w-full h-[400px]"
+                              title={att.filename}
+                            />
+                          ) : preview.mime.startsWith("image/") ? (
+                            <img
+                              src={`data:${preview.mime};base64,${preview.data}`}
+                              alt={att.filename}
+                              className="w-full max-h-[400px] object-contain"
+                            />
+                          ) : (
+                            <p className={`p-3 text-[11px] ${txt2}`}>Preview not available for this file type.</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Action footer */}
+        <div className={`shrink-0 flex items-center justify-between gap-3 flex-wrap px-5 py-4 border-t ${hdrBg}`}>
+          <button
+            onClick={() => { onClose(); onAction(email, "Ignore", -1); }}
+            className={`text-[12px] font-semibold px-3 py-2 rounded-lg transition-colors
+              ${isLight ? "text-slate-500 hover:bg-slate-200" : "text-slate-400 hover:bg-[#1a1f2e]"}`}
+          >
+            🚫 Ignore
+          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            {email.attachments.length > 0 ? (
+              <>
+                {email.attachments.map((att, idx) => (
+                  <div key={att.attachmentId} className="flex items-center gap-1.5">
+                    {(["Bill", "Invoice"] as const).map(act => (
+                      <button
+                        key={act}
+                        onClick={() => { onClose(); onAction(email, act, idx); }}
+                        disabled={isProcessing}
+                        className={`flex items-center gap-1.5 text-[12px] font-semibold px-3 py-2 rounded-lg transition-colors
+                          ${isProcessing ? "bg-[#d97706]/20 text-amber-400 cursor-wait" : "bg-[#d97706] hover:bg-[#b45309] text-white"}`}
+                      >
+                        {isProcessing ? <Loader2 className="w-3 h-3 animate-spin" /> : act === "Bill" ? "📄" : "🧾"}
+                        {email.attachments.length > 1 ? `${att.filename.slice(0, 10)}… → ${act}` : `Create AP ${act === "Bill" ? "Bill" : "AR Invoice"}`}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </>
+            ) : (
+              <>
+                {(["Bill", "Invoice"] as const).map(act => (
+                  <button
+                    key={act}
+                    onClick={() => { onClose(); onAction(email, act, -1); }}
+                    disabled={isProcessing}
+                    className={`flex items-center gap-1.5 text-[12px] font-semibold px-3 py-2 rounded-lg transition-colors
+                      ${isProcessing ? "bg-[#d97706]/20 text-amber-400 cursor-wait" : "bg-[#d97706] hover:bg-[#b45309] text-white"}`}
+                  >
+                    {act === "Bill" ? "📄" : "🧾"} Create {act === "Bill" ? "AP Bill" : "AR Invoice"}
+                  </button>
+                ))}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────── Email Card (click to open detail)
 
 interface EmailCardProps {
   email: ScannedEmail;
   isLight: boolean;
-  onAction: (email: ScannedEmail, action: "Bill" | "Invoice" | "Ignore", attachIdx: number) => void;
+  onOpen: (email: ScannedEmail) => void;
 }
 
-const EmailCard: React.FC<EmailCardProps> = ({ email, isLight, onAction }) => {
-  const [open, setOpen] = useState(false);
-  const [dropIdx, setDropIdx] = useState<number | null>(null);
-
-  const bg   = isLight ? "bg-white border-slate-200"         : "bg-[#141820] border-[#232b3a]";
-  const txt  = isLight ? "text-slate-800"                    : "text-slate-100";
-  const txt2 = isLight ? "text-slate-500"                    : "text-slate-400";
-  const snip = isLight ? "text-slate-600"                    : "text-[#8090a8]";
+const EmailCard: React.FC<EmailCardProps> = ({ email, isLight, onOpen }) => {
+  const bg   = isLight ? "bg-white border-slate-200"   : "bg-[#141820] border-[#232b3a]";
+  const txt  = isLight ? "text-slate-800"              : "text-slate-100";
+  const txt2 = isLight ? "text-slate-500"              : "text-slate-400";
   const tagBg= isLight ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-amber-900/30 text-amber-300 border-amber-700/40";
 
   if (email.status === "ignored") return null;
@@ -184,131 +360,39 @@ const EmailCard: React.FC<EmailCardProps> = ({ email, isLight, onAction }) => {
   }
 
   return (
-    <div className={cl("rounded-xl border transition-all", bg)}>
-      {/* Header row */}
+    <button
+      onClick={() => onOpen(email)}
+      className={cl("w-full text-left rounded-xl border transition-all hover:scale-[1.01] hover:shadow-lg active:scale-100 cursor-pointer", bg,
+        email.status === "processing" ? "opacity-60 pointer-events-none" : ""
+      )}
+    >
       <div className="p-4 flex items-start gap-3">
         <div className="w-8 h-8 rounded-lg bg-[#d97706]/10 flex items-center justify-center shrink-0 mt-0.5">
-          <Mail className="w-4 h-4 text-[#d97706]" />
+          {email.status === "processing"
+            ? <Loader2 className="w-4 h-4 text-[#d97706] animate-spin" />
+            : <Mail className="w-4 h-4 text-[#d97706]" />}
         </div>
         <div className="flex-1 min-w-0">
           <p className={`text-sm font-semibold truncate ${txt}`}>{email.subject}</p>
           <p className={`text-[11px] truncate ${txt2}`}>{email.from}</p>
           <p className={`text-[11px] ${txt2} mt-0.5`}>{formatDate(email.date)}</p>
+          {email.snippet && (
+            <p className={`text-[11px] mt-1.5 leading-relaxed line-clamp-2 ${isLight ? "text-slate-400" : "text-[#5a6a80]"}`}>
+              {email.snippet}
+            </p>
+          )}
         </div>
-        <button
-          onClick={() => setOpen(o => !o)}
-          className={`p-1.5 rounded-lg ${txt2} hover:opacity-70 transition-opacity`}
-        >
-          <Eye className="w-3.5 h-3.5" />
-        </button>
+        <div className="shrink-0 flex flex-col items-end gap-2 ml-2">
+          {email.attachments.length > 0 && (
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${tagBg}`}>
+              <Paperclip className="w-2.5 h-2.5 inline mr-0.5" />
+              {email.attachments.length}
+            </span>
+          )}
+          <Eye className={`w-3.5 h-3.5 ${txt2} opacity-50`} />
+        </div>
       </div>
-
-      {/* Snippet */}
-      {open && (
-        <div className={`px-4 pb-3 text-[12px] leading-relaxed ${snip}`}>
-          {email.snippet}
-        </div>
-      )}
-
-      {/* Attachments or direct action buttons */}
-      <div className="px-4 pb-4 flex flex-col gap-2">
-        {email.attachments.length === 0 && (
-          <div className="flex items-center gap-2 flex-wrap">
-            {(["Bill", "Invoice"] as const).map(act => (
-              <button
-                key={act}
-                onClick={() => onAction(email, act, -1)}
-                disabled={email.status === "processing"}
-                className={cl(
-                  "flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-colors",
-                  email.status === "processing"
-                    ? "bg-[#d97706]/20 text-amber-400 cursor-wait"
-                    : "bg-[#d97706] hover:bg-[#b45309] text-white"
-                )}
-              >
-                {email.status === "processing" ? <Loader2 className="w-3 h-3 animate-spin" /> : act === "Bill" ? "📄" : "🧾"}
-                {" "}Create {act === "Bill" ? "AP Bill" : "AR Invoice"}
-              </button>
-            ))}
-            <button
-              onClick={() => onAction(email, "Ignore", -1)}
-              className={cl(
-                "text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-colors",
-                isLight ? "text-slate-400 hover:bg-slate-100" : "text-slate-500 hover:bg-[#1a1f2e]"
-              )}
-            >
-              🚫 Ignore
-            </button>
-          </div>
-        )}
-        {email.attachments.map((att, idx) => (
-          <div key={att.attachmentId} className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${isLight ? "border-slate-100 bg-slate-50" : "border-[#1e2738] bg-[#0e1420]"}`}>
-            <Paperclip className="w-3.5 h-3.5 text-[#d97706] shrink-0" />
-            <span className={`text-[12px] flex-1 truncate font-medium ${txt}`}>{att.filename}</span>
-            <span className={`text-[11px] ${txt2} shrink-0`}>{formatBytes(att.size)}</span>
-
-            {/* Action dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setDropIdx(dropIdx === idx ? null : idx)}
-                disabled={email.status === "processing"}
-                className={cl(
-                  "flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-colors",
-                  email.status === "processing"
-                    ? "bg-[#d97706]/20 text-amber-400 cursor-wait"
-                    : "bg-[#d97706] hover:bg-[#b45309] text-white"
-                )}
-              >
-                {email.status === "processing" ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
-                Scan & Create
-                <ChevronDown className="w-3 h-3" />
-              </button>
-              {dropIdx === idx && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setDropIdx(null)} />
-                  <div className={cl(
-                    "absolute right-0 top-full mt-1 z-20 w-36 rounded-xl border shadow-xl overflow-hidden",
-                    isLight ? "bg-white border-slate-200" : "bg-[#181c24] border-[#2a3140]"
-                  )}>
-                    {(["Bill", "Invoice"] as const).map(action => (
-                      <button
-                        key={action}
-                        onClick={() => { setDropIdx(null); onAction(email, action, idx); }}
-                        className={cl(
-                          "w-full text-left px-3 py-2 text-[12px] font-medium transition-colors",
-                          isLight ? "text-slate-700 hover:bg-amber-50" : "text-slate-200 hover:bg-amber-900/20"
-                        )}
-                      >
-                        {action === "Bill" ? "📄" : "🧾"} Create as {action}
-                      </button>
-                    ))}
-                    <div className={`border-t ${isLight ? "border-slate-100" : "border-[#2a3140]"}`} />
-                    <button
-                      onClick={() => { setDropIdx(null); onAction(email, "Ignore", idx); }}
-                      className={cl(
-                        "w-full text-left px-3 py-2 text-[12px] font-medium transition-colors",
-                        isLight ? "text-slate-500 hover:bg-slate-50" : "text-slate-400 hover:bg-[#1a1f2e]"
-                      )}
-                    >
-                      🚫 Ignore
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Badge */}
-      {email.attachments.length > 0 && (
-        <div className={`px-4 pb-3 flex items-center gap-1.5`}>
-          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${tagBg}`}>
-            {email.attachments.length} attachment{email.attachments.length !== 1 ? "s" : ""}
-          </span>
-        </div>
-      )}
-    </div>
+    </button>
   );
 };
 
@@ -411,6 +495,7 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
   const [queue, setQueue]       = useState<ScannedEmail[]>([]);
   const [scanned, setScanned]   = useState(false);
   const [error, setError]       = useState<string | null>(null);
+  const [detailEmail, setDetailEmail] = useState<ScannedEmail | null>(null);
 
   // Preview modal state
   const [preview, setPreview] = useState<{
@@ -473,6 +558,7 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
 
     // Mark processing
     setQueue(prev => prev.map(e => e.id === email.id ? { ...e, status: "processing" } : e));
+    setDetailEmail(prev => prev?.id === email.id ? { ...prev, status: "processing" } : prev);
 
     try {
       const att = email.attachments[attachIdx];
@@ -767,7 +853,7 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
                   key={email.id}
                   email={email}
                   isLight={isLight}
-                  onAction={handleAction}
+                  onOpen={setDetailEmail}
                 />
               ))}
             </div>
@@ -785,6 +871,20 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
           </div>
         )}
       </div>
+
+      {/* Email Detail Modal */}
+      {detailEmail && (
+        <EmailDetailModal
+          email={detailEmail}
+          isLight={isLight}
+          gmailToken={gmailToken}
+          onAction={(email, action, attachIdx) => {
+            setDetailEmail(null);
+            handleAction(email, action, attachIdx);
+          }}
+          onClose={() => setDetailEmail(null)}
+        />
+      )}
 
       {/* Preview Modal */}
       {preview && (

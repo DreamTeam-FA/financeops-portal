@@ -1899,6 +1899,29 @@ app.post("/api/email/scan-inbox", async (req, res) => {
         }
         collectParts(full.data.payload?.parts);
 
+        // Decode plain-text body from payload parts
+        function decodeBody(payload: any): string {
+          if (!payload) return "";
+          // Prefer text/plain; fall back to text/html stripped of tags
+          function findPart(p: any, mime: string): string | null {
+            if (!p) return null;
+            if (p.mimeType === mime && p.body?.data) return p.body.data;
+            for (const child of (p.parts || [])) {
+              const found = findPart(child, mime);
+              if (found) return found;
+            }
+            return null;
+          }
+          const plain = findPart(payload, "text/plain") || findPart(payload, "text/html") || payload.body?.data || "";
+          if (!plain) return "";
+          try {
+            const decoded = Buffer.from(plain.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf-8");
+            // Strip HTML tags if present
+            return decoded.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/\s{3,}/g, "\n\n").trim().slice(0, 3000);
+          } catch { return ""; }
+        }
+        const bodyText = decodeBody(full.data.payload);
+
         // Include all emails — attachments collected if present, but not required
         emails.push({
           id: msg.id,
@@ -1906,6 +1929,7 @@ app.post("/api/email/scan-inbox", async (req, res) => {
           from: getHeader("From") || "Unknown",
           date: getHeader("Date") || "",
           snippet: full.data.snippet || "",
+          body: bodyText,
           attachments,
         });
       } catch (msgErr: any) {
