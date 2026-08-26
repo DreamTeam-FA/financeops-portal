@@ -134,11 +134,12 @@ function mergeDatasets(liveList: any[], currentList: any[], idKey = "id") {
       // Portal-only fields: always preserve from currentItem (sheet has no columns for these)
       if (currentItem.driveViewUrl)  result.driveViewUrl  = currentItem.driveViewUrl;
       if (currentItem.driveFileName) result.driveFileName = currentItem.driveFileName;
-      // Sheet-sourced fields: if live data is empty and stored value is a raw URL, clear it
-      // (these are stale Gmail/source-email URLs that slipped in from old imports)
-      if (liveItem.row) {
-        if (!liveItem.remarks && isUrlStr(currentItem.remarks)) result.remarks = undefined;
-        if (!liveItem.paymentInstructions && isUrlStr(currentItem.paymentInstructions)) result.paymentInstructions = undefined;
+      // For sheet-sourced bills: strip any URL that ended up in remarks or paymentInstructions.
+      // URLs in those text fields are stale Gmail/source-email links — they should never appear
+      // as remarks. Real bill copies come from driveViewUrl only.
+      if (result.row) {
+        if (isUrlStr(result.remarks)) result.remarks = undefined;
+        if (isUrlStr(result.paymentInstructions)) result.paymentInstructions = undefined;
       }
       return result;
     }
@@ -457,15 +458,16 @@ app.post("/api/pull-live", async (req, res) => {
 
   saveStoredData(merged);
 
-  // Fire-and-forget: restore Drive bill copy links after every sync so they survive redeploys
+  // Await recovery so the response includes driveViewUrl on every single load
   if (accessToken) {
-    runBillLinkRecovery(accessToken).catch((e) =>
+    await runBillLinkRecovery(accessToken).catch((e) =>
       console.warn("[pull-live] bill link recovery skipped:", e?.message)
     );
   }
 
-  // Return `merged` (not raw `updated`) so the React app gets driveViewUrl immediately
-  res.json({ success: true, data: merged, timestamp: new Date().toISOString() });
+  // Reload stored data post-recovery so driveViewUrl is in the response immediately
+  const afterRecovery = getStoredData();
+  res.json({ success: true, data: afterRecovery, timestamp: new Date().toISOString() });
 });
 
 app.post("/api/data", (req, res) => {
