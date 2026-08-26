@@ -155,9 +155,8 @@ function mergeDatasets(liveList: any[], currentList: any[], idKey = "id") {
       // Portal-only fields: always preserve from currentItem (sheet has no columns for these)
       if (currentItem.driveViewUrl)  result.driveViewUrl  = currentItem.driveViewUrl;
       if (currentItem.driveFileName) result.driveFileName = currentItem.driveFileName;
-      // Strip raw URLs from text fields (use driveViewUrl for bill links, not remarks/payInst)
-      if (isUrlStr(result.remarks))             result.remarks             = undefined;
-      if (isUrlStr(result.paymentInstructions)) result.paymentInstructions = undefined;
+      // NOTE: URL filtering is handled in the parser (googleSheetsService.ts) per entity/field.
+      // Do NOT strip URLs here — Ruby's/MSDx col K legitimately contains Gmail/Drive links.
       return result;
     }
     return liveItem;
