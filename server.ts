@@ -445,6 +445,13 @@ app.post("/api/pull-live", async (req, res) => {
 
   saveStoredData(merged);
   res.json({ success: true, data: updated, timestamp: new Date().toISOString() });
+
+  // Fire-and-forget: restore any Drive bill copy links after every sync
+  if (accessToken) {
+    runBillLinkRecovery(accessToken).catch((e) =>
+      console.warn("[pull-live] bill link recovery skipped:", e?.message)
+    );
+  }
 });
 
 app.post("/api/data", (req, res) => {
@@ -591,106 +598,108 @@ app.post("/api/drive/upload-bill", async (req, res) => {
 });
 
 /**
+ * Core bill-link recovery logic — shared by the API endpoint and pull-live.
+ * Scans BILLS_ROOT_FOLDER_ID, matches files to AP bills, saves driveViewUrl.
+ */
+async function runBillLinkRecovery(userAccessToken: string): Promise<{
+  driveFilesFound: number;
+  restored: number;
+  matches: { vendor: string; date: string; file: string }[];
+  message: string;
+}> {
+  const drive = getDriveClient(userAccessToken);
+
+  const allFiles: { id: string; name: string; webViewLink: string }[] = [];
+  let pageToken: string | undefined;
+  do {
+    const resp: any = await drive.files.list({
+      q: `'${BILLS_ROOT_FOLDER_ID}' in ancestors and mimeType != 'application/vnd.google-apps.folder' and trashed=false`,
+      fields: "nextPageToken, files(id,name,webViewLink)",
+      spaces: "drive",
+      pageSize: 1000,
+      pageToken,
+    });
+    allFiles.push(...(resp.data.files || []));
+    pageToken = resp.data.nextPageToken;
+  } while (pageToken);
+
+  // Deduplicate: keep first occurrence of each filename (Drive returns newest first)
+  const seenNames = new Set<string>();
+  const uniqueFiles = allFiles.filter(f => {
+    if (seenNames.has(f.name)) return false;
+    seenNames.add(f.name);
+    return true;
+  });
+
+  const current = getStoredData();
+  // Clone each bill so mutations don't accidentally share references
+  const apBills: any[] = (current.ap || []).map((b: any) => ({ ...b }));
+  let restored = 0;
+  const matches: { vendor: string; date: string; file: string }[] = [];
+  const normalise = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  for (const file of uniqueFiles) {
+    const fname = file.name.replace(/\.[^.]+$/, "");
+    const parts = fname.split("_");
+    if (parts.length < 3) continue;
+
+    // Last segment must be a date
+    const dateCandidate = parts[parts.length - 1];
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateCandidate)) continue;
+    const fileDate = dateCandidate;
+
+    // parts[1] = vendor (first word); rest between vendor and date = invoice number
+    const fv = normalise(parts[1]);
+    const fi = normalise(parts.length > 3 ? parts.slice(2, -1).join("_") : "");
+
+    const match = apBills.find((b: any) => {
+      if (b.driveViewUrl) return false;
+      if (b.dueDate !== fileDate && b.invoiceDate !== fileDate) return false;
+      const bv = normalise(b.vendor);
+      if (bv.includes(fv) || fv.includes(bv)) return true;
+      if (fi) {
+        const bi = normalise(b.invoiceNo || b.id || "");
+        return bi.includes(fi) || fi.includes(bi);
+      }
+      return false;
+    });
+
+    if (match) {
+      match.driveViewUrl  = file.webViewLink;
+      match.driveFileName = file.name;
+      restored++;
+      matches.push({ vendor: match.vendor, date: match.dueDate, file: file.name });
+    }
+  }
+
+  if (restored > 0) {
+    saveStoredData({ ...current, ap: apBills });
+  }
+
+  return {
+    driveFilesFound: uniqueFiles.length,
+    restored,
+    matches,
+    message: restored > 0
+      ? `Restored ${restored} bill link${restored !== 1 ? "s" : ""}.`
+      : uniqueFiles.length === 0
+        ? "No files found in Drive Bills folder."
+        : "Files found but none matched unlinked bills (may already be linked).",
+  };
+}
+
+/**
  * GET /api/drive/recover-bill-links?token=...
- * Lists ALL files under the Bills root folder in Drive, matches them to AP bills
- * by parsing the filename pattern {entity}_{vendor}_{invoiceNo}_{date}.ext,
- * then restores driveViewUrl + driveFileName on matched bills and saves.
  */
 app.get("/api/drive/recover-bill-links", async (req, res) => {
   const userAccessToken = (req.query.token as string) || "";
-  if (!userAccessToken) return res.status(401).json({ error: "token query param required" });
-
-  let drive: any;
-  try { drive = getDriveClient(userAccessToken); }
-  catch (e: any) { return res.status(500).json({ error: e.message }); }
-
+  if (!userAccessToken) return res.status(401).json({ ok: false, error: "token required" });
   try {
-    // Recursively list all non-folder files under BILLS_ROOT_FOLDER_ID using ancestors query
-    const allFiles: { id: string; name: string; webViewLink: string }[] = [];
-    let pageToken: string | undefined;
-    do {
-      const resp: any = await drive.files.list({
-        q: `'${BILLS_ROOT_FOLDER_ID}' in ancestors and mimeType != 'application/vnd.google-apps.folder' and trashed=false`,
-        fields: "nextPageToken, files(id,name,webViewLink,mimeType)",
-        spaces: "drive",
-        pageSize: 1000,
-        pageToken,
-      });
-      allFiles.push(...(resp.data.files || []));
-      pageToken = resp.data.nextPageToken;
-    } while (pageToken);
-
-    const current = getStoredData();
-    const apBills: any[] = current.ap || [];
-    let restored = 0;
-    const matches: { vendor: string; date: string; file: string }[] = [];
-
-    for (const file of allFiles) {
-      const fname = file.name.replace(/\.[^.]+$/, ""); // strip extension
-      const parts = fname.split("_");
-      if (parts.length < 3) continue;
-
-      // filename: {entity}_{vendor}_{invoiceNo?}_{YYYY-MM-DD}
-      // Try to extract the date from the last segment
-      const dateCandidate = parts[parts.length - 1]; // e.g. "2025-06-15"
-      const isDate = /^\d{4}-\d{2}-\d{2}$/.test(dateCandidate);
-      if (!isDate) continue;
-
-      const dueDate = dateCandidate;
-      const entity = parts[0].replace(/-/g, "'").replace(/_/g, " "); // rough reverse
-
-      // filename parts: [entity, vendor, invoiceNo?, YYYY-MM-DD]
-      const vendorRaw = parts[1]; // e.g. "Sysco" or "PacificGas"
-      // invoiceNo is everything between vendor and date (may span multiple underscores)
-      const invoiceRaw = parts.length > 3 ? parts.slice(2, -1).join("_") : "";
-
-      const normalise = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-      const fv = normalise(vendorRaw);
-      const fi = normalise(invoiceRaw);
-
-      const match = apBills.find((b: any) => {
-        if (b.driveViewUrl) return false; // already has a link
-        // Date match: try dueDate first, then invoiceDate
-        const dateMatch = b.dueDate === dueDate || b.invoiceDate === dueDate;
-        if (!dateMatch) return false;
-        // Vendor match: compare normalised
-        const bv = normalise(b.vendor);
-        const vendorOk = bv.includes(fv) || fv.includes(bv);
-        if (vendorOk) return true;
-        // Fallback: invoice number match (if present in filename)
-        if (fi) {
-          const bi = normalise(b.invoiceNo || b.id);
-          return bi.includes(fi) || fi.includes(bi);
-        }
-        return false;
-      });
-
-      if (match) {
-        match.driveViewUrl   = file.webViewLink;
-        match.driveFileName  = file.name;
-        restored++;
-        matches.push({ vendor: match.vendor, date: match.dueDate, file: file.name });
-      }
-    }
-
-    if (restored > 0) {
-      saveStoredData({ ...current, ap: apBills });
-    }
-
-    return res.json({
-      ok: true,
-      driveFilesFound: allFiles.length,
-      restored,
-      matches,
-      message: restored > 0
-        ? `Restored ${restored} bill link${restored !== 1 ? "s" : ""}. Reload the AP page to see them.`
-        : allFiles.length === 0
-          ? "No files found in the Drive Bills folder. Check that the portal has Drive access."
-          : "Drive files found but none matched unlinked bills (they may already be linked, or filenames could not be matched).",
-    });
+    const result = await runBillLinkRecovery(userAccessToken);
+    return res.json({ ok: true, ...result });
   } catch (e: any) {
     console.error("[RecoverBillLinks]", e?.message || e);
-    return res.status(502).json({ error: "Drive scan failed", details: e?.message });
+    return res.status(502).json({ ok: false, error: "Drive scan failed", details: e?.message });
   }
 });
 
