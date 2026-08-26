@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState, useRef, useCallback } from "react";
+﻿import React, { useMemo, useState, useRef, useCallback, useEffect } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { HeadleysItem } from "../../types";
@@ -116,7 +116,7 @@ async function appendHeadleysToSheet(rows: ParsedHdlRow[], billingDate: string, 
 }
 
 // ── HeadleysImportModal ────────────────────────────────────────────────────────
-const HeadleysImportModal: React.FC<{ isLight: boolean; onClose: () => void }> = ({ isLight, onClose }) => {
+const HeadleysImportModal: React.FC<{ isLight: boolean; onClose: () => void; initialText?: string }> = ({ isLight, onClose, initialText }) => {
   const { addBill } = useFinance();
   const s = {
     surf: isLight ? "bg-white border-slate-200"       : "bg-[#121212] border-[#2a2a2a]",
@@ -131,7 +131,7 @@ const HeadleysImportModal: React.FC<{ isLight: boolean; onClose: () => void }> =
 
   const [step, setStep]               = useState(1);
   const [billingDate, setBillingDate] = useState("");
-  const [pasteText, setPasteText]     = useState("");
+  const [pasteText, setPasteText]     = useState(initialText || "");
   const [parsedRows, setParsedRows]   = useState<ParsedHdlRow[]>([]);
   const [error, setError]             = useState("");
   const [saving, setSaving]           = useState(false);
@@ -432,11 +432,21 @@ const fmt = (n: number) =>
   "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export const HeadleysPage: React.FC = () => {
-  const { headleys, theme } = useFinance();
+  const { headleys, theme, headleysPrefill, setHeadleysPrefill } = useFinance() as any;
   const isLight = theme === "light";
 
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
   const [importOpen, setImportOpen] = useState(false);
+  const [importInitialText, setImportInitialText] = useState<string | undefined>(undefined);
+
+  // Auto-open import modal when navigated from Email Scanner with prefilled text
+  useEffect(() => {
+    if (headleysPrefill) {
+      setImportInitialText(headleysPrefill.rawText || undefined);
+      setImportOpen(true);
+      setHeadleysPrefill?.(null); // consume the prefill
+    }
+  }, [headleysPrefill, setHeadleysPrefill]);
 
   const toggleDate = (d: string) => {
     setExpandedDates(prev => {
@@ -652,7 +662,13 @@ export const HeadleysPage: React.FC = () => {
         )}
       </div>
 
-      {importOpen && <HeadleysImportModal isLight={isLight} onClose={() => setImportOpen(false)} />}
+      {importOpen && (
+        <HeadleysImportModal
+          isLight={isLight}
+          initialText={importInitialText}
+          onClose={() => { setImportOpen(false); setImportInitialText(undefined); }}
+        />
+      )}
     </div>
   );
 };

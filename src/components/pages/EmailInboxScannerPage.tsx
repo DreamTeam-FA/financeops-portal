@@ -294,7 +294,18 @@ const EmailDetailModal: React.FC<EmailDetailModalProps> = ({ email, isLight, gma
             🚫 Ignore
           </button>
           <div className="flex items-center gap-2 flex-wrap">
-            {email.attachments.length > 0 ? (
+            {/* Headley's detection from email metadata — show dedicated button */}
+            {(/headley/i.test(email.from) || /headley/i.test(email.subject)) ? (
+              <button
+                onClick={() => { onClose(); onAction(email, "Bill", email.attachments.length > 0 ? 0 : -1); }}
+                disabled={isProcessing}
+                className={`flex items-center gap-1.5 text-[12px] font-semibold px-3 py-2 rounded-lg transition-colors
+                  ${isProcessing ? "bg-[#5c35a5]/20 text-purple-400 cursor-wait" : "bg-[#5c35a5] hover:bg-[#4a2a8a] text-white"}`}
+              >
+                {isProcessing ? <Loader2 className="w-3 h-3 animate-spin" /> : "🛒"}
+                Import to Headley's
+              </button>
+            ) : email.attachments.length > 0 ? (
               <>
                 {email.attachments.map((att, idx) => (
                   <div key={att.attachmentId} className="flex items-center gap-1.5">
@@ -403,7 +414,7 @@ interface EmailInboxScannerPageProps {
 }
 
 export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ onBack }) => {
-  const { theme, logAction, setCurrentPage, setEmailPrefill } = useFinance() as any;
+  const { theme, logAction, setCurrentPage, setEmailPrefill, setHeadleysPrefill } = useFinance() as any;
   const isLight = theme === "light";
 
   // ── Gmail account state (separate from portal login) ───────────────────────
@@ -609,10 +620,19 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
     try {
       const att = email.attachments[attachIdx];
 
-      // No attachment path — pre-fill from email metadata and navigate to AP/AR
+      // No attachment path — pre-fill from email metadata and navigate to AP/AR (or Headley's)
       if (!att) {
+        const vendorRaw = email.from.replace(/<[^>]+>/g, "").trim();
+        // Detect Headley's from email metadata
+        if (/headley/i.test(vendorRaw) || /headley/i.test(email.from) || /headley/i.test(email.subject)) {
+          setQueue(prev => prev.map(e => e.id === email.id ? { ...e, status: "done" } : e));
+          setDetailEmail(null);
+          setHeadleysPrefill?.({ rawText: "" });
+          setCurrentPage?.("headleys");
+          return;
+        }
         const extracted: ExtractedData = {
-          vendor:      email.from.replace(/<[^>]+>/g, "").trim(),
+          vendor:      vendorRaw,
           invoiceNo:   undefined,
           amount:      null,
           dueDate:     null,
@@ -661,9 +681,33 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
         remarks:     inv.remarks     || `Imported from email on ${new Date().toLocaleDateString()}`,
       };
 
-      // 4. Navigate to AP/AR page with pre-filled data
+      // 4. Route based on vendor — Headley's goes to the dedicated import tool
+      const vendorStr = extracted.vendor?.toLowerCase() || "";
+      const isHeadleys = vendorStr.includes("headley") ||
+                         email.from.toLowerCase().includes("headley") ||
+                         email.subject.toLowerCase().includes("headley");
+
       setQueue(prev => prev.map(e => e.id === email.id ? { ...e, status: "done" } : e));
       setDetailEmail(null);
+
+      if (isHeadleys) {
+        // Re-scan with Headley's endpoint to extract raw tabular text
+        let rawText = "";
+        try {
+          const hdlResp = await fetch("/api/headleys/scan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ imageBase64: base64, mimeType: att.mimeType }),
+          });
+          const hdlJson = await hdlResp.json();
+          if (hdlJson.ok) rawText = hdlJson.text || "";
+        } catch {}
+        setHeadleysPrefill?.({ rawText });
+        setCurrentPage?.("headleys");
+        return;
+      }
+
+      // Non-Headley's: navigate to AP/AR page with pre-filled data
       setEmailPrefill?.({ type: action === "Bill" ? "bill" : "invoice", data: extracted });
       setCurrentPage?.(action === "Bill" ? "ap" : "ar");
     } catch (e: any) {
