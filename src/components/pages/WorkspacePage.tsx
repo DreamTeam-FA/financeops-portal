@@ -59,7 +59,17 @@ const BANK_STATEMENT_CARD = {
   route: "bank-statement",
 };
 
-const PINNED_TOOL_CARDS = [RECEIPT_RENAMER_CARD, BANK_STATEMENT_CARD];
+const PDF_TABLE_EXTRACTOR_CARD = {
+  id: "__pdf_table_extractor__",
+  name: "PDF Table Extractor",
+  url: "",
+  description: "Extract tables from any PDF and export as CSV or XLSX — 100% offline",
+  color: "#7c3aed",
+  pinned: true,
+  route: "pdf-table-extractor",
+};
+
+const PINNED_TOOL_CARDS = [RECEIPT_RENAMER_CARD, BANK_STATEMENT_CARD, PDF_TABLE_EXTRACTOR_CARD];
 
 const TOOLS_COLUMNS: { key: "tool" | "portal" | "sheet"; label: string; accentLight: string; accentDark: string; borderLight: string; borderDark: string }[] = [
   { key: "tool",   label: "Tools",            accentLight: "text-blue-600",   accentDark: "text-blue-400",   borderLight: "border-blue-200/70",   borderDark: "border-blue-500/20"   },
