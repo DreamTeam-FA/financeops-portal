@@ -362,120 +362,6 @@ export const Sidebar: React.FC = () => {
         })}
       </div>
 
-      {/* Entities Section */}
-      <div className={`px-2 pt-3 pb-2 border-t ${isLight ? "border-slate-100" : "border-[#1a2235]"}`}>
-        {!isSidebarFolded && (
-          <div className="flex items-center gap-2 px-3 mb-1.5">
-            <span className={`text-[9px] font-bold tracking-widest uppercase ${isLight ? "text-slate-400" : "text-[#3d5478]"}`}>Entities AP Views</span>
-            <div className={`flex-1 h-px ${isLight ? "bg-slate-200" : "bg-[#1a2235]"}`} />
-          </div>
-        )}
-        {/* 1. Ruby's */}
-        {(() => {
-          const isRubysActive = currentPage === "rubys" || (currentPage === "ap" && selectedEntities.has("Ruby's") && selectedEntities.size === 1);
-          return (
-            <Tooltip label="Ruby's Pizzeria & Grill" sublabel="Accounts Payable View" color="#ec4899">
-            <button
-              onClick={() => { setSelectedEntities(new Set(["Ruby's"])); setCurrentPage("rubys"); }}
-              className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all relative overflow-hidden ${
-                isRubysActive
-                  ? isLight
-                    ? "bg-pink-100 border border-pink-300 shadow-[0_2px_10px_rgba(236,72,153,.2)]"
-                    : "bg-pink-900/30 border border-pink-700/50 shadow-[0_2px_10px_rgba(236,72,153,.25)]"
-                  : isLight ? "hover:bg-slate-50 border border-transparent" : "hover:bg-[#0a1220] border border-transparent"
-              }`}
-            >
-              {isRubysActive && !isSidebarFolded && (
-                <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-pink-500 rounded-r" />
-              )}
-              {isSidebarFolded ? (
-                <span className={`w-7 h-7 rounded-lg flex items-center justify-center font-extrabold text-xs transition-all ${
-                  isRubysActive ? "bg-pink-500 text-white shadow-md shadow-pink-500/40" : "bg-pink-500/15 text-pink-400"
-                }`}>R</span>
-              ) : (
-                <>
-                  <RubysLogo className="h-7 max-w-[150px]" isLight={isLight} />
-                  <span className={`text-[10px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded-md shrink-0 ${
-                    isRubysActive ? "bg-pink-500 text-white" : "bg-pink-500/10 text-pink-500"
-                  }`}>AP</span>
-                </>
-              )}
-            </button>
-            </Tooltip>
-          );
-        })()}
-
-        {/* 2. TI */}
-        {(() => {
-          const isTIActive = currentPage === "ti" || (currentPage === "ap" && selectedEntities.has("TI") && selectedEntities.size === 1);
-          return (
-            <Tooltip label="Timm Investments LLC" sublabel="Accounts Payable View" color="#3b82f6">
-            <button
-              onClick={() => { setSelectedEntities(new Set(["TI"])); setCurrentPage("ti"); }}
-              className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all relative overflow-hidden ${
-                isTIActive
-                  ? isLight
-                    ? "bg-blue-100 border border-blue-300 shadow-[0_2px_10px_rgba(59,130,246,.2)]"
-                    : "bg-blue-900/30 border border-blue-700/50 shadow-[0_2px_10px_rgba(59,130,246,.25)]"
-                  : isLight ? "hover:bg-slate-50 border border-transparent" : "hover:bg-[#0a1220] border border-transparent"
-              }`}
-            >
-              {isTIActive && !isSidebarFolded && (
-                <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-blue-500 rounded-r" />
-              )}
-              {isSidebarFolded ? (
-                <span className={`w-7 h-7 rounded-lg flex items-center justify-center font-extrabold text-xs transition-all ${
-                  isTIActive ? "bg-blue-500 text-white shadow-md shadow-blue-500/40" : "bg-blue-500/15 text-blue-400"
-                }`}>TI</span>
-              ) : (
-                <>
-                  <TILogo className="h-7 max-w-[150px]" isLight={isLight} />
-                  <span className={`text-[10px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded-md shrink-0 ${
-                    isTIActive ? "bg-blue-500 text-white" : "bg-blue-500/10 text-blue-500"
-                  }`}>AP</span>
-                </>
-              )}
-            </button>
-            </Tooltip>
-          );
-        })()}
-
-        {/* 3. MSDx */}
-        {(() => {
-          const isMSDxActive = currentPage === "msdx" || (currentPage === "ap" && selectedEntities.has("MSDx") && selectedEntities.size === 1);
-          return (
-            <Tooltip label="Mobile Swallowing Diagnostics" sublabel="Accounts Payable View" color="#14b8a6">
-            <button
-              onClick={() => { setSelectedEntities(new Set(["MSDx"])); setCurrentPage("msdx"); }}
-              className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all relative overflow-hidden ${
-                isMSDxActive
-                  ? isLight
-                    ? "bg-teal-100 border border-teal-300 shadow-[0_2px_10px_rgba(20,184,166,.2)]"
-                    : "bg-teal-900/30 border border-teal-700/50 shadow-[0_2px_10px_rgba(20,184,166,.25)]"
-                  : isLight ? "hover:bg-slate-50 border border-transparent" : "hover:bg-[#0a1220] border border-transparent"
-              }`}
-            >
-              {isMSDxActive && !isSidebarFolded && (
-                <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-teal-500 rounded-r" />
-              )}
-              {isSidebarFolded ? (
-                <span className={`w-7 h-7 rounded-lg flex items-center justify-center font-extrabold text-xs transition-all ${
-                  isMSDxActive ? "bg-teal-500 text-white shadow-md shadow-teal-500/40" : "bg-teal-500/15 text-teal-400"
-                }`}>MS</span>
-              ) : (
-                <>
-                  <MSDxLogo className="h-7 max-w-[150px]" isLight={isLight} />
-                  <span className={`text-[10px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded-md shrink-0 ${
-                    isMSDxActive ? "bg-teal-500 text-white" : "bg-teal-500/10 text-teal-500"
-                  }`}>AP</span>
-                </>
-              )}
-            </button>
-            </Tooltip>
-          );
-        })()}
-      </div>
-
       {/* Other Dashboards Section */}
       <div className={`px-2 pt-3 pb-2 border-t ${isLight ? "border-slate-100" : "border-[#1a2235]"}`}>
         {!isSidebarFolded && (
@@ -484,6 +370,25 @@ export const Sidebar: React.FC = () => {
             <div className={`flex-1 h-px ${isLight ? "bg-slate-200" : "bg-[#1a2235]"}`} />
           </div>
         )}
+
+        {/* MSDx GAS Dashboard */}
+        <Tooltip label="Mobile Swallowing Diagnostics" sublabel="GAS Dashboard" color="#14b8a6">
+        <button
+          onClick={() => window.open("https://script.google.com/a/macros/marktimm.com/s/AKfycbzXDYff37EY3VQKlLMNLvdT1kJJGwde9wvPllMbOtIOeKPTUunMiNg_3HVB8UV2lR_-/exec", "_blank", "noopener,noreferrer")}
+          className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all relative overflow-hidden ${
+            isLight ? "hover:bg-slate-50 border border-transparent" : "hover:bg-[#0a1220] border border-transparent"
+          }`}
+        >
+          {isSidebarFolded ? (
+            <span className="w-7 h-7 rounded-lg flex items-center justify-center font-extrabold text-xs bg-teal-500/15 text-teal-400">MS</span>
+          ) : (
+            <>
+              <MSDxLogo className="h-7 max-w-[150px]" isLight={isLight} />
+              <ExternalLink className="w-3.5 h-3.5 text-[#666] shrink-0" />
+            </>
+          )}
+        </button>
+        </Tooltip>
 
         <Tooltip label="CurcuminPRO" sublabel="Dashboard" color="#f59e0b">
         <button
