@@ -502,7 +502,7 @@ export const HelpPage: React.FC = () => {
 
       {/* ── Tab content ── */}
       <div className="flex-1 overflow-y-auto">
-        <div className="p-5 max-w-4xl w-full mx-auto">
+        <div className="p-5 max-w-6xl w-full mx-auto">
 
           {/* ════ HELP TAB ════ */}
           {activeTab === "help" && (
@@ -535,24 +535,35 @@ export const HelpPage: React.FC = () => {
                 ))}
               </div>
 
-              {/* FAQ */}
-              <p className={`text-[10px] font-bold uppercase tracking-[.12em] mb-3 ${muted}`}>Frequently Asked Questions</p>
-              <div className="space-y-2 mb-6">
-                {FAQ.map((item) => (
-                  <FAQItem key={item.q} q={item.q} a={item.a} isLight={isLight} />
-                ))}
+              {/* FAQ + How-To's side by side */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-2">
+                {/* Left column: FAQ */}
+                <div>
+                  <p className={`text-[10px] font-bold uppercase tracking-[.12em] mb-3 ${muted}`}>Frequently Asked Questions</p>
+                  <div className="space-y-2">
+                    {FAQ.map((item) => (
+                      <FAQItem key={item.q} q={item.q} a={item.a} isLight={isLight} />
+                    ))}
+                  </div>
+                </div>
+                {/* Right column: How-To's */}
+                <div>
+                  <p className={`text-[10px] font-bold uppercase tracking-[.12em] mb-3 ${muted}`}>How-To Guides</p>
+                  <div className="space-y-2">
+                    {HOWTOS.map((item, i) => (
+                      <HowToItem key={item.title} title={item.title} steps={item.steps} isLight={isLight} index={i} />
+                    ))}
+                  </div>
+                </div>
               </div>
+            </>
+          )}
 
-              {/* How-To's */}
-              <p className={`text-[10px] font-bold uppercase tracking-[.12em] mb-3 ${muted}`}>How-To Guides</p>
-              <div className="space-y-2 mb-6">
-                {HOWTOS.map((item, i) => (
-                  <HowToItem key={item.title} title={item.title} steps={item.steps} isLight={isLight} index={i} />
-                ))}
-              </div>
-
-              {/* Breakage scenarios */}
-              <Section title="Common Breakage Scenarios & Fixes" iconBg="bg-red-500/15" isLight={isLight} defaultOpen
+          {/* ════ REFERENCE TAB ════ */}
+          {activeTab === "reference" && (
+            <>
+              {/* Breakage scenarios — moved here from Help tab, folded by default */}
+              <Section title="Common Breakage Scenarios & Fixes" iconBg="bg-red-500/15" isLight={isLight}
                 icon={<Wrench className="w-4 h-4 text-red-400" />}
               >
                 <div className="space-y-2.5">
@@ -579,14 +590,9 @@ export const HelpPage: React.FC = () => {
                   ))}
                 </div>
               </Section>
-            </>
-          )}
 
-          {/* ════ REFERENCE TAB ════ */}
-          {activeTab === "reference" && (
-            <>
               {/* Spreadsheet structure */}
-              <Section title="Spreadsheet Structure" iconBg="bg-[#1a73e8]/15" defaultOpen isLight={isLight}
+              <Section title="Spreadsheet Structure" iconBg="bg-[#1a73e8]/15" isLight={isLight}
                 icon={<Table2 className="w-4 h-4 text-[#4da3ff]" />}
               >
                 <div className="space-y-6">
