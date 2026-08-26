@@ -10,12 +10,12 @@ interface AddBillModalProps {
   defaultEntity?: EntityName;
 }
 
-const SHEET_THEMES: Record<string, { bg: string; btn: string }> = {
-  "Ruby's Bills": { bg: "bg-[#d81b60]", btn: "bg-[#d81b60] hover:bg-[#c2185b]" },
-  "MSDx Bills":  { bg: "bg-[#00897b]", btn: "bg-[#00897b] hover:bg-[#00695c]" },
-  "TI Bills":    { bg: "bg-[#1a73e8]", btn: "bg-[#1a73e8] hover:bg-[#1557b0]" },
+const SHEET_THEMES: Record<string, { bg: string; btn: string; color: string }> = {
+  "Ruby's Bills": { bg: "bg-[#d81b60]", btn: "bg-[#d81b60] hover:bg-[#c2185b]", color: "#d81b60" },
+  "MSDx Bills":  { bg: "bg-[#00897b]", btn: "bg-[#00897b] hover:bg-[#00695c]", color: "#00897b" },
+  "TI Bills":    { bg: "bg-[#1a73e8]", btn: "bg-[#1a73e8] hover:bg-[#1557b0]", color: "#1a73e8" },
 };
-const DEFAULT_SHEET_THEME = { bg: "bg-[#546e7a]", btn: "bg-[#546e7a] hover:bg-[#455a64]" };
+const DEFAULT_SHEET_THEME = { bg: "bg-[#546e7a]", btn: "bg-[#546e7a] hover:bg-[#455a64]", color: "#546e7a" };
 
 const DEFAULT_TI_COMPANIES = ["4G", "4YR", "Corner Property Group", "E1", "TI"];
 
@@ -341,14 +341,18 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
     )}
 
     <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className={`w-full max-w-lg border border-[#333] rounded-2xl shadow-2xl overflow-hidden ${isLight ? "bg-white text-slate-900" : "bg-[#121212] text-white"}`}>
+      <div className={`w-full max-w-lg border rounded-2xl shadow-2xl overflow-hidden ${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#121212] border-[#333] text-white"}`}>
 
-        <div className={`${theme2.bg} px-6 py-4 flex items-center justify-between text-white`}>
+        {/* ── Entity-colored accent bar ── */}
+        <div className="h-1.5 w-full" style={{ backgroundColor: theme2.color }} />
+
+        {/* ── Header ── */}
+        <div className={`px-6 py-4 flex items-center justify-between border-b ${isLight ? "border-slate-100" : "border-[#222]"}`}>
           <div>
-            <h2 className="text-lg font-black tracking-tight">Add a Bill</h2>
-            <p className="text-[11px] text-white/80">Sheet: <span className="font-extrabold underline">{selectedSheet}</span></p>
+            <h2 className={`text-sm font-black tracking-tight ${isLight ? "text-slate-900" : "text-white"}`}>Add a Bill</h2>
+            <p className={`text-[11px] mt-0.5 ${isLight ? "text-slate-400" : "text-[#888]"}`}>Sheet: <span className="font-extrabold" style={{ color: theme2.color }}>{selectedSheet}</span></p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-black/20"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className={`p-1.5 rounded-full ${isLight ? "hover:bg-slate-100 text-slate-400" : "hover:bg-[#222] text-[#666]"}`}><X className="w-5 h-5" /></button>
         </div>
 
         <form onSubmit={handleSubmit} autoComplete="off" className="p-6 space-y-4 max-h-[85vh] overflow-y-auto">

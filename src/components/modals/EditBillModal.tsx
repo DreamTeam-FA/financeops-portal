@@ -9,10 +9,10 @@ interface EditBillModalProps {
   onClose: () => void;
 }
 
-const SHEET_THEMES: Record<string, { bg: string; btn: string }> = {
-  "Ruby's Bills": { bg: "bg-[#d81b60]", btn: "bg-[#d81b60] hover:bg-[#c2185b]" },
-  "MSDx Bills":  { bg: "bg-[#00897b]", btn: "bg-[#00897b] hover:bg-[#00695c]" },
-  "TI Bills":    { bg: "bg-[#1a73e8]", btn: "bg-[#1a73e8] hover:bg-[#1557b0]" },
+const SHEET_THEMES: Record<string, { bg: string; btn: string; color: string }> = {
+  "Ruby's Bills": { bg: "bg-[#d81b60]", btn: "bg-[#d81b60] hover:bg-[#c2185b]", color: "#d81b60" },
+  "MSDx Bills":  { bg: "bg-[#00897b]", btn: "bg-[#00897b] hover:bg-[#00695c]", color: "#00897b" },
+  "TI Bills":    { bg: "bg-[#1a73e8]", btn: "bg-[#1a73e8] hover:bg-[#1557b0]", color: "#1a73e8" },
 };
 
 const DEFAULT_TI_COMPANIES = ["4G", "4YR", "Corner Property Group", "E1", "TI"];
@@ -207,16 +207,20 @@ export const EditBillModal: React.FC<EditBillModalProps> = ({ bill, isOpen, onCl
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4">
-      <div className={`w-full max-w-lg border border-[#333] rounded-2xl shadow-2xl overflow-hidden ${isLight ? "bg-white text-slate-900" : "bg-[#121212] text-white"}`}>
+      <div className={`w-full max-w-lg border rounded-2xl shadow-2xl overflow-hidden ${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#121212] border-[#333] text-white"}`}>
 
-        <div className={`${currentTheme.bg} px-6 py-4 flex items-center justify-between text-white`}>
+        {/* ── Entity-colored accent bar ── */}
+        <div className="h-1.5 w-full" style={{ backgroundColor: currentTheme.color }} />
+
+        {/* ── Header ── */}
+        <div className={`px-6 py-4 flex items-center justify-between border-b ${isLight ? "border-slate-100" : "border-[#222]"}`}>
           <div>
-            <h2 className="text-lg font-black tracking-tight">Edit Bill</h2>
-            <p className="text-[11px] text-white/80">
-              {vendor} · <span className="underline font-extrabold">{selectedSheet}</span>
+            <h2 className={`text-sm font-black tracking-tight ${isLight ? "text-slate-900" : "text-white"}`}>Edit Bill</h2>
+            <p className={`text-[11px] mt-0.5 ${isLight ? "text-slate-400" : "text-[#888]"}`}>
+              {vendor} · <span className="font-extrabold" style={{ color: currentTheme.color }}>{selectedSheet}</span>
             </p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-black/20"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className={`p-1.5 rounded-full ${isLight ? "hover:bg-slate-100 text-slate-400" : "hover:bg-[#222] text-[#666]"}`}><X className="w-5 h-5" /></button>
         </div>
 
         <form onSubmit={handleSubmit} autoComplete="off" className="p-6 space-y-4 max-h-[85vh] overflow-y-auto">
