@@ -384,7 +384,7 @@ export const Sidebar: React.FC = () => {
           ) : (
             <>
               <MSDxLogo className="h-7 max-w-[150px]" isLight={isLight} />
-              <ExternalLink className="w-3.5 h-3.5 text-[#666] shrink-0" />
+              <ChevronRight className="w-3.5 h-3.5 text-[#666] shrink-0" />
             </>
           )}
         </button>
