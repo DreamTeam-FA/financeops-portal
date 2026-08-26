@@ -1,6 +1,45 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useFinance } from "../../context/FinanceContext";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Download } from "lucide-react";
+import { getAccessToken } from "../../services/googleAuth";
+import { LOGS_SHEET_TITLE, SHARED_LOGS_SHEET_ID, appendLogRow, readLogsSheet } from "../../services/logsSheetService";
+
+const HOURS_BACK = 48;
+
+/** Search Drive for ALL sheets with the portal logs title (may be > 1 if each user created their own) */
+async function findAllIndividualSheets(token: string): Promise<{ id: string; name: string }[]> {
+  const q = encodeURIComponent(
+    `name='${LOGS_SHEET_TITLE}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`
+  );
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)&pageSize=50&includeItemsFromAllDrives=true&supportsAllDrives=true`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const data = await res.json();
+  return (data.files || []) as { id: string; name: string }[];
+}
+
+/** Copy all entries from the past N hours from an individual sheet into the central sheet */
+async function migrateSheetIntoCenter(sourceId: string, token: string, cutoff: number): Promise<{ login: number; activity: number }> {
+  const data = await readLogsSheet(token, sourceId);
+  let login = 0, activity = 0;
+
+  for (const r of data.loginRows) {
+    const ts = r[0] || "";
+    const d = new Date(ts);
+    if (isNaN(d.getTime()) || d.getTime() < cutoff) continue;
+    await appendLogRow(token, SHARED_LOGS_SHEET_ID, "Login History", r);
+    login++;
+  }
+  for (const r of data.activityRows) {
+    const ts = r[0] || "";
+    const d = new Date(ts);
+    if (isNaN(d.getTime()) || d.getTime() < cutoff) continue;
+    await appendLogRow(token, SHARED_LOGS_SHEET_ID, "Activity Log", r);
+    activity++;
+  }
+  return { login, activity };
+}
 
 const TABS = [
   { id: "login",    label: "🔐 Login History" },
@@ -114,6 +153,8 @@ export const LogsPage: React.FC = () => {
   const [error, setError]       = useState<string | null>(null);
   const [loginRows, setLoginRows]       = useState<any[]>([]);
   const [activityRows, setActivityRows] = useState<any[]>([]);
+  const [migrating, setMigrating]   = useState(false);
+  const [migrateMsg, setMigrateMsg] = useState<string | null>(null);
 
   const bg   = isLight ? "bg-slate-100"  : "bg-[#070b12]";
   const card = isLight ? "bg-white border-slate-200" : "bg-[#111318] border-[#1e2433]";
@@ -142,6 +183,43 @@ export const LogsPage: React.FC = () => {
     }
   }, []);
 
+  /** One-time migration: find all individual user sheets and copy last 48 hrs into central sheet */
+  const migrateIndividualLogs = useCallback(async () => {
+    const token = getAccessToken();
+    if (!token) { setError("Sign in to Google first."); return; }
+    setMigrating(true);
+    setMigrateMsg(null);
+    setError(null);
+    try {
+      const cutoff = Date.now() - HOURS_BACK * 60 * 60 * 1000;
+      const allSheets = await findAllIndividualSheets(token);
+      // Filter out the central sheet itself — only migrate from individual ones
+      const individualSheets = allSheets.filter(s => s.id !== SHARED_LOGS_SHEET_ID);
+      if (!individualSheets.length) {
+        setMigrateMsg("No individual user sheets found — central sheet is the only one. Nothing to migrate.");
+        setMigrating(false);
+        return;
+      }
+      let totalLogin = 0, totalActivity = 0;
+      for (const sheet of individualSheets) {
+        try {
+          const { login, activity } = await migrateSheetIntoCenter(sheet.id, token, cutoff);
+          totalLogin    += login;
+          totalActivity += activity;
+        } catch { /* skip inaccessible sheets */ }
+      }
+      setMigrateMsg(
+        `✓ Migration complete: copied ${totalLogin} login + ${totalActivity} activity entries from ${individualSheets.length} individual sheet(s) into central log.`
+      );
+      // Reload to show updated central log
+      await loadLogs();
+    } catch (e: any) {
+      setError(`Migration failed: ${e.message}`);
+    } finally {
+      setMigrating(false);
+    }
+  }, [loadLogs]);
+
   useEffect(() => { loadLogs(); }, [loadLogs]);
 
   const q = search.toLowerCase();
@@ -165,6 +243,19 @@ export const LogsPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Migrate individual → central (one-time) */}
+          <button
+            onClick={migrateIndividualLogs}
+            disabled={migrating || loading}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors disabled:opacity-40 ${
+              isLight ? "border-[#1a73e8] text-[#1a73e8] hover:bg-blue-50" : "border-[#2a4a8a] text-[#5b8fef] hover:bg-[#0d1a30]"
+            }`}
+            title="Copy last 48 hrs of logs from each user's individual sheet into this central sheet"
+          >
+            {migrating ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+            {migrating ? "Migrating…" : "Compile Individual Logs"}
+          </button>
+
           {/* Search */}
           <input
             type="search"
@@ -185,6 +276,16 @@ export const LogsPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Migration result banner */}
+      {migrateMsg && (
+        <div className={`shrink-0 mx-4 mt-3 px-4 py-2.5 rounded-lg text-xs flex items-center justify-between gap-3 ${
+          isLight ? "bg-emerald-50 border border-emerald-200 text-emerald-800" : "bg-emerald-950/30 border border-emerald-800/40 text-emerald-300"
+        }`}>
+          <span>{migrateMsg}</span>
+          <button onClick={() => setMigrateMsg(null)} className="opacity-60 hover:opacity-100 shrink-0">✕</button>
+        </div>
+      )}
 
       {/* ── Tabs ── */}
       <div className={`shrink-0 flex gap-1 px-6 pt-3 border-b ${isLight ? "border-slate-200" : "border-[#1e2433]"}`}>
