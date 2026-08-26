@@ -134,17 +134,18 @@ function mergeDatasets(liveList: any[], currentList: any[], idKey = "id") {
       // Portal-only fields: always preserve from currentItem (sheet has no columns for these)
       if (currentItem.driveViewUrl)  result.driveViewUrl  = currentItem.driveViewUrl;
       if (currentItem.driveFileName) result.driveFileName = currentItem.driveFileName;
-      // For sheet-sourced bills: always take remarks/paymentInstructions/status1 from the live
-      // sheet data only — never from stored JSON. Stale values (old "Paid" strings, Gmail URLs,
-      // import artifacts) must not persist. driveViewUrl/driveFileName are the ONLY fields
-      // intentionally preserved from stored JSON.
+      // For sheet-sourced bills: clean up stale artifacts while keeping legitimate notes.
       if (result.row) {
-        result.remarks            = liveItem.remarks            || undefined;
-        result.paymentInstructions= liveItem.paymentInstructions|| undefined;
-        result.status1            = liveItem.status1            || undefined;
-        // Belt-and-braces: strip any URL that slipped through the sheet parser's isUrl filter
+        // If the live sheet provides a value, always use it (overrides stored JSON).
+        if (liveItem.remarks)             result.remarks             = liveItem.remarks;
+        if (liveItem.paymentInstructions) result.paymentInstructions = liveItem.paymentInstructions;
+        if (liveItem.status1)             result.status1             = liveItem.status1;
+        // Strip raw URLs from text fields regardless of source (use driveViewUrl for bill links).
         if (isUrlStr(result.remarks))             result.remarks             = undefined;
         if (isUrlStr(result.paymentInstructions)) result.paymentInstructions = undefined;
+        // Strip stale status words from remarks for non-TI bills (Ruby's/MSDx have no remarks col)
+        const staleRemark = /^(paid|unpaid|hold|cleared|done|pending)$/i.test((result.remarks || "").trim());
+        if (staleRemark && result.entity !== "TI") result.remarks = undefined;
       }
       return result;
     }
