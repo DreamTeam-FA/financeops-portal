@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+﻿import React, { useState, useCallback, useEffect } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import firebaseConfig from "../../../firebase-applet-config.json";
 import {
@@ -86,8 +86,8 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
   const txt  = isLight ? "text-slate-800"   : "text-slate-100";
   const txt2 = isLight ? "text-slate-500"   : "text-slate-400";
   const inp  = isLight
-    ? "bg-slate-50 border-slate-300 text-slate-800 focus:ring-amber-400"
-    : "bg-[#1e2435] border-[#2a3140] text-slate-100 focus:ring-amber-500";
+    ? "bg-slate-50 border-slate-300 text-slate-800 focus:ring-cyan-400"
+    : "bg-[#1e2435] border-[#2a3140] text-slate-100 focus:ring-cyan-500";
   const lbl  = isLight ? "text-slate-600" : "text-slate-400";
 
   const F = ({ label, field, type = "text" }: { label: string; field: keyof ExtractedData; type?: string }) => (
@@ -109,7 +109,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: isLight ? "#e2e8f0" : "#2a3140" }}>
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[#d97706] flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-md shadow-cyan-500/30">
               <FileText className="w-4 h-4 text-white" />
             </div>
             <div>
@@ -147,7 +147,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
           <button onClick={onClose} className={`text-xs px-4 py-2 rounded-lg border ${bdr} ${txt2} hover:opacity-70`}>Cancel</button>
           <button
             onClick={() => onConfirm(form)}
-            className="text-xs px-5 py-2 rounded-lg text-white font-semibold bg-[#d97706] hover:bg-[#b45309] transition-colors"
+            className="text-xs px-5 py-2 rounded-lg text-white font-semibold bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-90 transition-all shadow-md shadow-cyan-500/25"
           >
             ✓ Confirm &amp; Create {action}
           </button>
@@ -201,13 +201,13 @@ const EmailDetailModal: React.FC<EmailDetailModalProps> = ({ email, isLight, gma
       <div className={`relative z-10 flex flex-col rounded-2xl border shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden ${bg}`}>
 
         {/* Accent bar */}
-        <div className="h-1.5 w-full bg-[#d97706] shrink-0" />
+        <div className="h-1.5 w-full bg-cyan-500 shrink-0" />
 
         {/* Header */}
         <div className={`flex items-start justify-between gap-3 px-5 py-4 border-b shrink-0 ${hdrBg}`}>
           <div className="flex items-start gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-[#d97706]/15 flex items-center justify-center shrink-0 mt-0.5">
-              <Mail className="w-4 h-4 text-[#d97706]" />
+            <div className="w-9 h-9 rounded-xl bg-cyan-500/15 flex items-center justify-center shrink-0 mt-0.5">
+              <Mail className="w-4 h-4 text-cyan-400" />
             </div>
             <div className="min-w-0">
               <p className={`text-sm font-bold leading-snug ${txt}`}>{email.subject}</p>
@@ -243,14 +243,14 @@ const EmailDetailModal: React.FC<EmailDetailModalProps> = ({ email, isLight, gma
                     <div key={att.attachmentId} className={`rounded-xl border overflow-hidden ${attBg}`}>
                       {/* Attachment header */}
                       <div className="flex items-center gap-2 px-3 py-2.5">
-                        <Paperclip className="w-3.5 h-3.5 text-[#d97706] shrink-0" />
+                        <Paperclip className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
                         <span className={`text-[12px] flex-1 font-medium truncate ${txt}`}>{att.filename}</span>
                         <span className={`text-[11px] shrink-0 ${txt2}`}>{formatBytes(att.size)}</span>
                         <button
                           onClick={() => fetchPreview(att, idx)}
                           disabled={!!preview}
                           className={`flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg shrink-0 transition-colors
-                            ${preview ? (isLight ? "text-slate-400" : "text-slate-600") : "text-[#d97706] hover:bg-[#d97706]/10"}`}
+                            ${preview ? (isLight ? "text-slate-400" : "text-slate-600") : "text-cyan-400 hover:bg-cyan-500/10"}`}
                         >
                           {preview?.loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Eye className="w-3 h-3" />}
                           {preview?.loading ? "Loading…" : preview?.data ? "Loaded" : "Preview"}
@@ -315,7 +315,7 @@ const EmailDetailModal: React.FC<EmailDetailModalProps> = ({ email, isLight, gma
                         onClick={() => { onClose(); onAction(email, act, idx); }}
                         disabled={isProcessing}
                         className={`flex items-center gap-1.5 text-[12px] font-semibold px-3 py-2 rounded-lg transition-colors
-                          ${isProcessing ? "bg-[#d97706]/20 text-amber-400 cursor-wait" : "bg-[#d97706] hover:bg-[#b45309] text-white"}`}
+                          ${isProcessing ? "bg-cyan-500/20 text-cyan-300 cursor-wait" : "bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-90 text-white shadow-lg shadow-cyan-500/25"}`}
                       >
                         {isProcessing ? <Loader2 className="w-3 h-3 animate-spin" /> : act === "Bill" ? "📄" : "🧾"}
                         {email.attachments.length > 1 ? `${att.filename.slice(0, 10)}… → ${act}` : `Create AP ${act === "Bill" ? "Bill" : "AR Invoice"}`}
@@ -332,7 +332,7 @@ const EmailDetailModal: React.FC<EmailDetailModalProps> = ({ email, isLight, gma
                     onClick={() => { onClose(); onAction(email, act, -1); }}
                     disabled={isProcessing}
                     className={`flex items-center gap-1.5 text-[12px] font-semibold px-3 py-2 rounded-lg transition-colors
-                      ${isProcessing ? "bg-[#d97706]/20 text-amber-400 cursor-wait" : "bg-[#d97706] hover:bg-[#b45309] text-white"}`}
+                      ${isProcessing ? "bg-cyan-500/20 text-cyan-300 cursor-wait" : "bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-90 text-white shadow-lg shadow-cyan-500/25"}`}
                   >
                     {act === "Bill" ? "📄" : "🧾"} Create {act === "Bill" ? "AP Bill" : "AR Invoice"}
                   </button>
@@ -358,7 +358,7 @@ const EmailCard: React.FC<EmailCardProps> = ({ email, isLight, onOpen }) => {
   const bg   = isLight ? "bg-white border-slate-200"   : "bg-[#141820] border-[#232b3a]";
   const txt  = isLight ? "text-slate-800"              : "text-slate-100";
   const txt2 = isLight ? "text-slate-500"              : "text-slate-400";
-  const tagBg= isLight ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-amber-900/30 text-amber-300 border-amber-700/40";
+  const tagBg= isLight ? "bg-cyan-50 text-cyan-700 border-cyan-200" : "bg-cyan-900/30 text-cyan-300 border-cyan-700/40";
 
   if (email.status === "ignored") return null;
   if (email.status === "done") {
@@ -378,10 +378,10 @@ const EmailCard: React.FC<EmailCardProps> = ({ email, isLight, onOpen }) => {
       )}
     >
       <div className="p-4 flex items-start gap-3">
-        <div className="w-8 h-8 rounded-lg bg-[#d97706]/10 flex items-center justify-center shrink-0 mt-0.5">
+        <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center shrink-0 mt-0.5">
           {email.status === "processing"
-            ? <Loader2 className="w-4 h-4 text-[#d97706] animate-spin" />
-            : <Mail className="w-4 h-4 text-[#d97706]" />}
+            ? <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />
+            : <Mail className="w-4 h-4 text-cyan-400" />}
         </div>
         <div className="flex-1 min-w-0">
           <p className={`text-sm font-semibold truncate ${txt}`}>{email.subject}</p>
@@ -806,8 +806,8 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
             /* Connected (or stale) state — token may be null if expired */
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${gmailToken ? "bg-[#d97706]/15" : "bg-red-500/15"}`}>
-                  <UserCircle2 className={`w-5 h-5 ${gmailToken ? "text-[#d97706]" : "text-amber-500"}`} />
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${gmailToken ? "bg-cyan-500/15" : "bg-red-500/15"}`}>
+                  <UserCircle2 className={`w-5 h-5 ${gmailToken ? "text-cyan-400" : "text-amber-500"}`} />
                 </div>
                 <div>
                   <p className={`text-sm font-semibold ${txt}`}>{gmailEmail}</p>
@@ -856,8 +856,8 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
                 className={cl(
                   "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all shrink-0",
                   connecting
-                    ? "bg-[#d97706]/40 text-amber-300 cursor-wait"
-                    : "bg-[#d97706] hover:bg-[#b45309] text-white"
+                    ? "bg-cyan-500/40 text-cyan-200 cursor-wait"
+                    : "bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-90 text-white shadow-lg shadow-cyan-500/25"
                 )}
               >
                 {connecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
@@ -876,7 +876,7 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
                 Searches for invoice, bill, statement, or payment keywords (with or without attachments).
               </p>
               {cacheAge && !scanning && (
-                <p className="text-[11px] text-amber-500 mt-1 font-medium">
+                <p className="text-[11px] text-cyan-400 mt-1 font-medium">
                   ✓ Results cached · scanned {Math.round((Date.now() - cacheAge) / 60000)} min ago · auto-expires in {Math.max(0, 30 - Math.round((Date.now() - cacheAge) / 60000))} min
                 </p>
               )}
@@ -889,8 +889,8 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
                 (!gmailEmail || !gmailToken)
                   ? "bg-slate-300 text-slate-500 cursor-not-allowed"
                   : scanning
-                    ? "bg-[#d97706]/40 text-amber-300 cursor-wait"
-                    : "bg-[#d97706] hover:bg-[#b45309] text-white"
+                    ? "bg-cyan-500/40 text-cyan-200 cursor-wait"
+                    : "bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-90 text-white shadow-lg shadow-cyan-500/25"
               )}
             >
               {scanning
@@ -925,10 +925,10 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
                 className={cl(
                   "text-[11px] font-semibold px-3 py-1 rounded-lg border transition-colors",
                   scanRange === opt.value
-                    ? "bg-[#d97706] border-[#d97706] text-white"
+                    ? "bg-cyan-500 border-cyan-500 text-white"
                     : isLight
-                      ? "border-slate-300 text-slate-600 hover:border-[#d97706] hover:text-[#d97706]"
-                      : "border-[#2a3140] text-slate-400 hover:border-[#d97706] hover:text-[#d97706]"
+                      ? "border-slate-300 text-slate-600 hover:border-cyan-500 hover:text-cyan-400"
+                      : "border-[#2a3140] text-slate-400 hover:border-cyan-500 hover:text-cyan-400"
                 )}
               >
                 {opt.label}
@@ -1028,3 +1028,4 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
     </div>
   );
 };
+

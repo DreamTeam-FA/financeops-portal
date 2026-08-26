@@ -607,10 +607,10 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
           {stage === "preview" && (
             <>
               <span className="text-[11px] text-white/50">{rows.length} files · {dirName}</span>
-              <button onClick={openVendorMgr} className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border border-white/15 hover:bg-white/10 text-white/70 hover:text-white transition-colors">
+              <button onClick={openVendorMgr} className="px-3 py-1.5 rounded-lg text-[11px] font-semibold border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:text-emerald-200 transition-colors">
                 Vendor Library
               </button>
-              <button onClick={() => { setStage("pick"); setRows([]); setDirName(""); }} className="p-1.5 rounded-lg hover:bg-white/10 text-white/50 hover:text-white transition-colors" title="Start over">
+              <button onClick={() => { setStage("pick"); setRows([]); setDirName(""); }} className="p-1.5 rounded-lg hover:bg-emerald-500/15 text-emerald-400/70 hover:text-emerald-300 transition-colors" title="Start over">
                 <RotateCcw className="w-4 h-4" />
               </button>
             </>

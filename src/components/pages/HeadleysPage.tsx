@@ -252,12 +252,12 @@ const HeadleysImportModal: React.FC<{ isLight: boolean; onClose: () => void; ini
       <div className={`w-full max-w-3xl max-h-[90vh] flex flex-col rounded-2xl overflow-hidden border shadow-2xl ${s.surf}`}>
 
         {/* Header */}
-        <div className="h-1.5 w-full bg-[#5c35a5]" />
+        <div className="h-1.5 w-full bg-gradient-to-r from-purple-600 to-violet-700" />
         <div className={`flex items-center justify-between px-5 py-4 border-b ${isLight ? "border-slate-200" : "border-[#2a2a2a]"}`}>
           <div className="flex items-center gap-3">
-            <FileSpreadsheet className="w-4 h-4 text-[#5c35a5]" />
+            <FileSpreadsheet className="w-4 h-4 text-purple-500" />
             <div>
-              <span className="font-bold text-sm text-[#5c35a5]">Headley's Invoice Import</span>
+              <span className="font-bold text-sm text-purple-500">Headley's Invoice Import</span>
               <span className={`ml-2 text-[11px] font-semibold px-2 py-0.5 rounded-full ${isLight ? "bg-purple-100 text-purple-600" : "bg-purple-900/40 text-purple-400"}`}>Step {step} of 3</span>
             </div>
           </div>
@@ -287,21 +287,21 @@ const HeadleysImportModal: React.FC<{ isLight: boolean; onClose: () => void; ini
                 onClick={() => fileRef.current?.click()}
                 className={`relative flex flex-col items-center justify-center gap-2 px-4 py-6 rounded-xl border-2 border-dashed cursor-pointer transition-colors ${
                   dragOver
-                    ? "border-[#5c35a5] bg-purple-50 dark:bg-purple-950/20"
-                    : isLight ? "border-slate-200 hover:border-[#5c35a5] hover:bg-purple-50/40" : "border-[#2a2a2a] hover:border-[#5c35a5] hover:bg-purple-950/10"
+                    ? "border-purple-600 bg-purple-50 dark:bg-purple-950/20"
+                    : isLight ? "border-slate-200 hover:border-purple-600 hover:bg-purple-50/40" : "border-[#2a2a2a] hover:border-purple-600 hover:bg-purple-950/10"
                 }`}
               >
                 <input ref={fileRef} type="file" accept=".pdf,.txt,.csv,image/*" className="hidden" onChange={onFileChange} />
                 {scanning ? (
                   <>
                     <span className="inline-block w-5 h-5 border-2 border-purple-400/40 border-t-purple-500 rounded-full animate-spin" />
-                    <span className={`text-xs font-semibold text-[#5c35a5]`}>AI scanning document…</span>
+                    <span className={`text-xs font-semibold text-purple-500`}>AI scanning document…</span>
                   </>
                 ) : (
                   <>
                     <Upload className={`w-6 h-6 ${isLight ? "text-slate-400" : "text-[#555]"}`} />
                     <span className={`text-xs font-semibold ${isLight ? "text-slate-600" : "text-[#aaa]"}`}>
-                      Drag &amp; drop or <span className="text-[#5c35a5]">click to upload</span>
+                      Drag &amp; drop or <span className="text-purple-500">click to upload</span>
                     </span>
                     <span className={`text-[11px] ${s.muted}`}>PDF · Image (JPG/PNG) · Text file (.txt/.csv)</span>
                     {pasteText && <span className="text-[11px] text-emerald-500 font-semibold">✓ Document loaded — text ready to parse</span>}
@@ -387,13 +387,13 @@ const HeadleysImportModal: React.FC<{ isLight: boolean; onClose: () => void; ini
                   return (
                     <div key={bu} className={`rounded-xl border p-4 flex flex-col gap-2 ${isLight?"bg-slate-50 border-slate-200":"bg-[#0d111a] border-[#1a2235]"}`}>
                       <div className={`text-[10px] font-bold uppercase tracking-wider ${s.muted}`}>Charging BU</div>
-                      <div className="text-xl font-black text-[#5c35a5]">{bu}</div>
+                      <div className="text-xl font-black text-purple-500">{bu}</div>
                       <div className={`text-lg font-bold ${s.txt}`}>{fmtAmt(bk.charges)}</div>
                       {bk.credits < 0 && <div className={`text-[11px] ${s.muted}`}>incl. {fmtAmt(bk.credits)} credit</div>}
                       {bk.charges > 0 ? (
                         <button onClick={() => createBill(bu, bk.charges)} disabled={st==="done"}
                           className={`mt-1 text-[12px] font-bold py-2 px-3 rounded-lg transition-colors ${
-                            st==="done" ? "bg-emerald-500 text-white" : "bg-[#5c35a5] hover:bg-[#4a2990] text-white disabled:opacity-50"
+                            st==="done" ? "bg-emerald-500 text-white" : "bg-gradient-to-r from-purple-600 to-violet-700 hover:opacity-90 text-white disabled:opacity-50 shadow-lg shadow-purple-500/25 active:scale-[.98] transition-all"
                           }`}>
                           {st==="done" ? "✓ Bill Created" : `Create Bill for ${bu}`}
                         </button>
@@ -418,7 +418,7 @@ const HeadleysImportModal: React.FC<{ isLight: boolean; onClose: () => void; ini
             )}
           </div>
           <button onClick={step===1?doStep1:step===2?doStep2:onClose} disabled={saving||scanning}
-            className="text-[12px] font-bold px-5 py-2 rounded-lg bg-[#5c35a5] hover:bg-[#4a2990] text-white transition-colors disabled:opacity-50">
+            className="text-[12px] font-bold px-5 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-violet-700 hover:opacity-90 text-white transition-all shadow-lg shadow-purple-500/25 active:scale-[.98] disabled:opacity-50">
             {step===1?"Parse Invoice →":step===2?(saving?"Saving…":"Save to Sheet →"):"Done"}
           </button>
         </div>
@@ -510,8 +510,7 @@ export const HeadleysPage: React.FC = () => {
         </span>
         <button
           onClick={() => setImportOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-colors"
-          style={{ background: "#5c35a5" }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all bg-gradient-to-r from-purple-600 to-violet-700 hover:opacity-90 shadow-md shadow-purple-500/25"
         >
           <Upload className="w-3.5 h-3.5" />
           Import Invoice
@@ -679,3 +678,5 @@ export const HeadleysPage: React.FC = () => {
     </div>
   );
 };
+
+
