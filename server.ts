@@ -145,24 +145,19 @@ function mergeDatasets(liveList: any[], currentList: any[], idKey = "id") {
       || (liveItem?.row && liveItem?.vendor ? currentStableMap.get(apBillStableKey(liveItem)) : undefined);
     if (currentItem) {
       const invoiceNo = liveItem.invoiceNo || currentItem.invoiceNo || undefined;
-      // Fresh live sheet data overrides stored item data, preserving invoiceNo if live sheet lacks it
-      const result = { ...currentItem, ...liveItem, ...(invoiceNo ? { invoiceNo } : {}) };
+      // Strip keys that are explicitly undefined from liveItem BEFORE spreading — otherwise
+      // `{ ...currentItem, remarks: undefined }` would overwrite a real currentItem.remarks.
+      const liveItemDefined = Object.fromEntries(
+        Object.entries(liveItem).filter(([, v]) => v !== undefined && v !== null && v !== "")
+      );
+      // Fresh live sheet data overrides stored item; currentItem fills in any missing fields
+      const result: any = { ...currentItem, ...liveItemDefined, ...(invoiceNo ? { invoiceNo } : {}) };
       // Portal-only fields: always preserve from currentItem (sheet has no columns for these)
       if (currentItem.driveViewUrl)  result.driveViewUrl  = currentItem.driveViewUrl;
       if (currentItem.driveFileName) result.driveFileName = currentItem.driveFileName;
-      // For sheet-sourced bills: clean up stale artifacts while keeping legitimate notes.
-      if (result.row) {
-        // If the live sheet provides a value, always use it (overrides stored JSON).
-        if (liveItem.remarks)             result.remarks             = liveItem.remarks;
-        if (liveItem.paymentInstructions) result.paymentInstructions = liveItem.paymentInstructions;
-        if (liveItem.status1)             result.status1             = liveItem.status1;
-        // Strip raw URLs from text fields regardless of source (use driveViewUrl for bill links).
-        if (isUrlStr(result.remarks))             result.remarks             = undefined;
-        if (isUrlStr(result.paymentInstructions)) result.paymentInstructions = undefined;
-        // Strip stale status words from remarks for non-TI bills (Ruby's/MSDx have no remarks col)
-        const staleRemark = /^(paid|unpaid|hold|cleared|done|pending)$/i.test((result.remarks || "").trim());
-        if (staleRemark && result.entity !== "TI") result.remarks = undefined;
-      }
+      // Strip raw URLs from text fields (use driveViewUrl for bill links, not remarks/payInst)
+      if (isUrlStr(result.remarks))             result.remarks             = undefined;
+      if (isUrlStr(result.paymentInstructions)) result.paymentInstructions = undefined;
       return result;
     }
     return liveItem;
@@ -221,7 +216,7 @@ async function syncLiveDataFromSheets(accessToken?: string) {
     // Previously, authenticated syncs replaced AP outright with liveData.ap, losing saved bill copies.
     const updated = {
       ...current,
-      ap: mergeDatasets(liveData.ap, current.ap, "id"),
+      ap: applyKnownDriveLinks(mergeDatasets(liveData.ap, current.ap, "id")),
       banks: mergeDatasets(liveData.banks, current.banks, "id"),
       loans: mergeDatasets(liveData.loans, current.loans, "id"),
       ar: mergeDatasets(liveData.ar, current.ar, "id"),
@@ -541,6 +536,64 @@ function getDriveClient(userAccessToken: string) {
   const auth = new google.auth.OAuth2();
   auth.setCredentials({ access_token: userAccessToken });
   return google.drive({ version: "v3", auth });
+}
+
+// ─── Hardcoded bill copy links ────────────────────────────────────────────────
+// Scanned from Drive on 2026-08-27. New files still discovered dynamically via
+// runBillLinkRecovery when the user is signed in; this constant ensures existing
+// copies always show without needing an OAuth token.
+const KNOWN_DRIVE_FILES: { name: string; viewUrl: string }[] = [
+  // Ruby's — Aug
+  { name: "Ruby's_Airgas_9174294112_2026-08-31.pdf", viewUrl: "https://drive.google.com/file/d/1jpKaW2plMojV_qs9Hn9_6JBXrB0ZYWnq/view?usp=drivesdk" },
+  { name: "Ruby's_Airgas_5526534263_2026-08-31.pdf",  viewUrl: "https://drive.google.com/file/d/1B6gm9UTadNbh2PY5hJn1nuVrOpy9VkPr/view?usp=drivesdk" },
+  { name: "Ruby's_Alsco_LOGD1832949_2026-08-31.pdf",  viewUrl: "https://drive.google.com/file/d/1m0giat7s2RP_kgGooJAxFkWIqCe1lY1m/view?usp=drivesdk" },
+  { name: "Ruby's_Alsco_LOGD1830797_2026-08-21.pdf",  viewUrl: "https://drive.google.com/file/d/1BfneidhoIb7lajTV-Y-JSuFZpvEu9WNX/view?usp=drivesdk" },
+  { name: "Ruby's_Alsco_LOGD1832150_2026-08-28.pdf",  viewUrl: "https://drive.google.com/file/d/1hSwKuOxutn8GziIw5Lsj6ilZEv9IUXAj/view?usp=drivesdk" },
+  { name: "Ruby's_Alsco_LOGD1831652_2026-08-24.pdf",  viewUrl: "https://drive.google.com/file/d/1zV3pmPQcCaVTyfScBd6ZrmrYYXSvJ9B3/view?usp=drivesdk" },
+  { name: "Ruby's_Alsco_LOGD1830297_2026-08-17.pdf",  viewUrl: "https://drive.google.com/file/d/14BBtRtd7SOPukb88fN2IProdviouLW5k/view?usp=drivesdk" },
+  { name: "Ruby's_Square_One_479561_2026-08-05.pdf",  viewUrl: "https://drive.google.com/file/d/1PnTR6e6w9EO2Ib9hKLwWwErRrbOmJcdm/view?usp=drivesdk" },
+  { name: "Ruby's_Alsco_LOGD1833437_2026-08-04.pdf",  viewUrl: "https://drive.google.com/file/d/11OqXRcurveNy7qtWVJmNFEwAKXKvZOe7/view?usp=drivesdk" },
+  // Ruby's — Sep
+  { name: "Ruby's_Alsco_LOGD1833437_2026-09-04.pdf",  viewUrl: "https://drive.google.com/file/d/15D-OazYkHnSQ4adE4w5vsS85rrnUkDcP/view?usp=drivesdk" },
+  { name: "Ruby's_Alsco_LOGD1834227_2026-09-07.pdf",  viewUrl: "https://drive.google.com/file/d/1sweiavdQn8UVvOwCwXwCPcMngqDgYVzc/view?usp=drivesdk" },
+  { name: "Ruby's_Airgas_9174543116_2026-09-09.pdf",  viewUrl: "https://drive.google.com/file/d/17MgNtUORq-kvmrDbvAazfsnkeufOjPgX/view?usp=drivesdk" },
+  { name: "Ruby's_Airgas_9174909928_2026-09-20.pdf",  viewUrl: "https://drive.google.com/file/d/1qN2n35KT6dWdJpV2MFpTIGKwv8qak8qb/view?usp=drivesdk" },
+  { name: "Ruby's_Airgas_9174948144_2026-09-23.pdf",  viewUrl: "https://drive.google.com/file/d/1QFK4d1-zEoRCm3O_Kr4R54RuV4oHE04m/view?usp=drivesdk" },
+  // TI — Aug
+  { name: "TI_IPG_Studio_36_2026-08-14.pdf",          viewUrl: "https://drive.google.com/file/d/1ExWen6VB6OEEPzCTy8c5gbkLmhcfC3hf/view?usp=drivesdk" },
+  // TI — Sep
+  { name: "TI_Pershing_&_Co_-_4YR_LP1317_2026-09-03.pdf", viewUrl: "https://drive.google.com/file/d/1b0IwJmami0ZO7j_nzWOhe-tFOkDUoBps/view?usp=drivesdk" },
+  { name: "TI_Pershing_&_Co_-_4G_LP1331_2026-09-03.pdf",  viewUrl: "https://drive.google.com/file/d/1kFs2PklaYLi5So_gkxRlKvjaP7QfCGVk/view?usp=drivesdk" },
+  { name: "TI_Arcadia_Publishing_26101802_2026-09-24.pdf", viewUrl: "https://drive.google.com/file/d/1FLGBSFeqNdYzW2B-tbpgHZ8aN7XDrE-v/view?usp=drivesdk" },
+  // MSDx — Aug
+  { name: "MSDx_Starlink_INV-DF-US-VD3ECV9WJ394QAGMHV_2026-08-18.pdf", viewUrl: "https://drive.google.com/file/d/1-axgnLr8Gr82gBvCDJxTnVlqkHBT9GNr/view?usp=drivesdk" },
+  { name: "MSDx_IPG_Studio_37_2026-08-14.pdf",        viewUrl: "https://drive.google.com/file/d/1B8AlsSwea0tPs10iY54WQzeb9RFZjo33/view?usp=drivesdk" },
+];
+
+/** Apply KNOWN_DRIVE_FILES to bills that don't already have driveViewUrl set. */
+function applyKnownDriveLinks(bills: any[]): any[] {
+  const normalise = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  return bills.map(bill => {
+    if (bill.driveViewUrl) return bill;
+    for (const file of KNOWN_DRIVE_FILES) {
+      const fname = file.name.replace(/\.[^.]+$/, "");
+      const parts = fname.split("_");
+      if (parts.length < 3) continue;
+      const dateCandidate = parts[parts.length - 1];
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateCandidate)) continue;
+      if (bill.dueDate !== dateCandidate && bill.invoiceDate !== dateCandidate) continue;
+      const fv = normalise(parts[1]);
+      const fi = normalise(parts.length > 3 ? parts.slice(2, -1).join("_") : "");
+      const bv = normalise(bill.vendor || "");
+      const bi = normalise(bill.invoiceNo || bill.id || "");
+      const vendorMatch = bv.includes(fv) || fv.includes(bv);
+      const invoiceMatch = fi && (bi.includes(fi) || fi.includes(bi));
+      if (vendorMatch || invoiceMatch) {
+        return { ...bill, driveViewUrl: file.viewUrl, driveFileName: file.name };
+      }
+    }
+    return bill;
+  });
 }
 
 /** Find a child folder by name under parentId, or create it. Returns folder ID. */
