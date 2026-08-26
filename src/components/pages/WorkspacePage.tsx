@@ -14,7 +14,12 @@ import {
   Search,
   X,
   FolderOpen,
-  Pin
+  Pin,
+  Tags,
+  Table2,
+  FileSearch,
+  MailSearch,
+  ShoppingBag,
 } from "lucide-react";
 
 interface WorkspacePageProps {
@@ -44,7 +49,8 @@ const RECEIPT_RENAMER_CARD = {
   name: "Receipt Renamer",
   url: "",
   description: "Batch-rename receipts & invoices with AI — built into portal",
-  color: "#16a34a",
+  color: "#059669",
+  icon: <Tags className="w-3.5 h-3.5" />,
   pinned: true,
   route: "receipt-renamer",
 };
@@ -54,7 +60,8 @@ const BANK_STATEMENT_CARD = {
   name: "Bank Statement → CSV",
   url: "",
   description: "Convert PDF bank statements to CSV — Citi, Chase, BofA & more",
-  color: "#2563eb",
+  color: "#0369a1",
+  icon: <Table2 className="w-3.5 h-3.5" />,
   pinned: true,
   route: "bank-statement",
 };
@@ -64,7 +71,8 @@ const PDF_TABLE_EXTRACTOR_CARD = {
   name: "PDF Data Extractor",
   url: "",
   description: "Extract tables, key-value pairs & text from any PDF · Export CSV / XLSX / DOCX — 100% offline",
-  color: "#7c3aed",
+  color: "#d97706",
+  icon: <FileSearch className="w-3.5 h-3.5" />,
   pinned: true,
   route: "pdf-table-extractor",
 };
@@ -74,7 +82,8 @@ const EMAIL_SCANNER_CARD = {
   name: "Email Invoice Scanner",
   url: "",
   description: "Scan Gmail inbox for invoices & bills — review queue, Gemini scan, one-click create",
-  color: "#7c3aed",
+  color: "#0891b2",
+  icon: <MailSearch className="w-3.5 h-3.5" />,
   pinned: true,
   route: "email-scanner",
 };
@@ -84,7 +93,8 @@ const HEADLEYS_CARD = {
   name: "Headley's Invoice",
   url: "",
   description: "Import & track Headley's invoices — upload or paste statement, assign charging BU",
-  color: "#5c35a5",
+  color: "#7c3aed",
+  icon: <ShoppingBag className="w-3.5 h-3.5" />,
   pinned: true,
   route: "headleys",
 };
@@ -244,7 +254,9 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
         className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-white"
         style={{ backgroundColor: item.color || "#1a73e8" }}
       >
-        {pinned ? <Pin className="w-3.5 h-3.5" /> : <Wrench className="w-3.5 h-3.5" />}
+        {pinned
+          ? ((item as any).icon ?? <Pin className="w-3.5 h-3.5" />)
+          : <Wrench className="w-3.5 h-3.5" />}
       </div>
 
       {/* Name + description */}
