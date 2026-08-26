@@ -374,13 +374,22 @@ export const Sidebar: React.FC = () => {
         {/* MSDx GAS Dashboard */}
         <Tooltip label="Mobile Swallowing Diagnostics" sublabel="GAS Dashboard" color="#14b8a6">
         <button
-          onClick={() => window.open("https://script.google.com/a/macros/marktimm.com/s/AKfycbzXDYff37EY3VQKlLMNLvdT1kJJGwde9wvPllMbOtIOeKPTUunMiNg_3HVB8UV2lR_-/exec", "_blank", "noopener,noreferrer")}
+          onClick={() => setCurrentPage("msdx")}
           className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "justify-between gap-2 px-3 py-2"} rounded-lg transition-all relative overflow-hidden ${
-            isLight ? "hover:bg-slate-50 border border-transparent" : "hover:bg-[#0a1220] border border-transparent"
+            currentPage === "msdx"
+              ? isLight
+                ? "bg-teal-100 border border-teal-300 shadow-[0_2px_10px_rgba(20,184,166,.2)]"
+                : "bg-teal-900/30 border border-teal-700/50 shadow-[0_2px_10px_rgba(20,184,166,.25)]"
+              : isLight ? "hover:bg-slate-50 border border-transparent" : "hover:bg-[#0a1220] border border-transparent"
           }`}
         >
+          {currentPage === "msdx" && !isSidebarFolded && (
+            <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-teal-500 rounded-r" />
+          )}
           {isSidebarFolded ? (
-            <span className="w-7 h-7 rounded-lg flex items-center justify-center font-extrabold text-xs bg-teal-500/15 text-teal-400">MS</span>
+            <span className={`w-7 h-7 rounded-lg flex items-center justify-center font-extrabold text-xs transition-all ${
+              currentPage === "msdx" ? "bg-teal-500 text-white shadow-md shadow-teal-500/40" : "bg-teal-500/15 text-teal-400"
+            }`}>MS</span>
           ) : (
             <>
               <MSDxLogo className="h-7 max-w-[150px]" isLight={isLight} />

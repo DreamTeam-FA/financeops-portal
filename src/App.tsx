@@ -250,7 +250,7 @@ const PortalContent: React.FC = () => {
       case "ti":
         return <APPage filterEntityOverride="TI" />;
       case "msdx":
-        return <APPage filterEntityOverride="MSDx" />;
+        return <GasDashboardView entityKey="msdx" title="Mobile Swallowing Diagnostics" />;
       case "curcumin":
         return <GasDashboardView entityKey="curcumin" title="CurcuminPRO" />;
       case "fouryr":

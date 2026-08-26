@@ -179,8 +179,8 @@ interface FinanceContextType {
   reorderQuickNotes: (orderedIds: string[]) => void;
 
   // GAS Dashboard URLs
-  gasUrls: { curcumin: string; fouryr: string; ziglar: string };
-  updateGasUrl: (key: "curcumin" | "fouryr" | "ziglar", url: string) => void;
+  gasUrls: { curcumin: string; fouryr: string; ziglar: string; msdx: string };
+  updateGasUrl: (key: "curcumin" | "fouryr" | "ziglar" | "msdx", url: string) => void;
 
   // User Auth & Switcher
   switchUser: (email: string, name?: string) => void;
@@ -522,15 +522,20 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [quickNotes, setQuickNotes] = useState<DashboardNote[]>([]);
 
   // GAS Web App URLs for Dashboards
-  const [gasUrls, setGasUrls] = useState<{ curcumin: string; fouryr: string; ziglar: string }>(() => {
+  const [gasUrls, setGasUrls] = useState<{ curcumin: string; fouryr: string; ziglar: string; msdx: string }>(() => {
     try {
       const saved = localStorage.getItem("financeops_gas_urls");
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Back-fill msdx if not yet in saved data
+        if (!parsed.msdx) parsed.msdx = "https://script.google.com/a/macros/marktimm.com/s/AKfycbzXDYff37EY3VQKlLMNLvdT1kJJGwde9wvPllMbOtIOeKPTUunMiNg_3HVB8UV2lR_-/exec";
+        return parsed;
+      }
     } catch (e) {}
-    return { curcumin: "", fouryr: "", ziglar: "" };
+    return { curcumin: "", fouryr: "", ziglar: "", msdx: "https://script.google.com/a/macros/marktimm.com/s/AKfycbzXDYff37EY3VQKlLMNLvdT1kJJGwde9wvPllMbOtIOeKPTUunMiNg_3HVB8UV2lR_-/exec" };
   });
 
-  const updateGasUrl = (key: "curcumin" | "fouryr" | "ziglar", url: string) => {
+  const updateGasUrl = (key: "curcumin" | "fouryr" | "ziglar" | "msdx", url: string) => {
     const next = { ...gasUrls, [key]: url };
     setGasUrls(next);
     localStorage.setItem("financeops_gas_urls", JSON.stringify(next));
@@ -1025,7 +1030,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     syncLogs: SyncLogEntry[];
     localCalendarEvents: PortalCalendarEvent[];
     quickNotes: DashboardNote[];
-    gasUrls: { curcumin: string; fouryr: string; ziglar: string };
+    gasUrls: { curcumin: string; fouryr: string; ziglar: string; msdx: string };
   }>) => {
     const payload = {
       ap: updatedData.ap || apBills,

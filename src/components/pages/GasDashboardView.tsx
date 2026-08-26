@@ -2,11 +2,11 @@
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { ExternalLink, Settings, RefreshCw, Edit2, Check, AlertCircle, EyeOff, Eye, Maximize2, Minimize2 } from "lucide-react";
-import { CurcuminLogo, FourYrLogo, ZiglarLogo } from "../EntityLogos";
+import { CurcuminLogo, FourYrLogo, ZiglarLogo, MSDxLogo } from "../EntityLogos";
 import { Tooltip } from "../Tooltip";
 
 interface GasDashboardViewProps {
-  entityKey: "curcumin" | "fouryr" | "ziglar";
+  entityKey: "curcumin" | "fouryr" | "ziglar" | "msdx";
   title: string;
 }
 
@@ -26,7 +26,8 @@ export const GasDashboardView: React.FC<GasDashboardViewProps> = ({ entityKey, t
 
   const renderLogo = () => {
     if (entityKey === "curcumin") return <CurcuminLogo className="h-7 max-w-[200px]" isLight={isLight} />;
-    if (entityKey === "fouryr") return <FourYrLogo className="h-7 max-w-[200px]" isLight={isLight} />;
+    if (entityKey === "fouryr")   return <FourYrLogo   className="h-7 max-w-[200px]" isLight={isLight} />;
+    if (entityKey === "msdx")     return <MSDxLogo     className="h-7 max-w-[200px]" isLight={isLight} />;
     return <ZiglarLogo className="h-7 max-w-[200px]" isLight={isLight} />;
   };
 
@@ -34,6 +35,8 @@ export const GasDashboardView: React.FC<GasDashboardViewProps> = ({ entityKey, t
     ? "bg-[#6d4c41]"
     : entityKey === "fouryr"
     ? "bg-[#0e7a3f]"
+    : entityKey === "msdx"
+    ? "bg-[#0d6b5e]"
     : "bg-[#059669]";
 
   const handleSaveUrl = () => {
