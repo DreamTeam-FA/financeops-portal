@@ -1652,9 +1652,12 @@ export function FourYrPayrollPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={()=>setEditModalOpen(false)} />
           <div className={`relative z-10 rounded-xl shadow-2xl border ${bdr} ${bg} w-full max-w-lg overflow-hidden`}>
-            <div className={`flex items-center justify-between px-5 py-4 border-b ${bdr}`}>
-              <div><h2 className="font-bold text-sm text-blue-500">✏️ Edit Record</h2><p className={`text-[11px] ${txt2} mt-0.5`}>{editingRow.name} · {editingRow.date}</p></div>
-              <button onClick={()=>setEditModalOpen(false)} className={`w-7 h-7 flex items-center justify-center rounded ${bg3} ${txt2} text-xl`}>×</button>
+            <div className="flex items-center justify-between px-5 py-4 border-b" style={{ background: TH1 }}>
+              <div>
+                <h2 className="font-bold text-sm text-white">✏️ Edit Record</h2>
+                <p className="text-[11px] text-green-200 mt-0.5">{editingRow.name} · {editingRow.date}</p>
+              </div>
+              <button onClick={()=>setEditModalOpen(false)} className="w-7 h-7 flex items-center justify-center rounded text-white/70 hover:text-white text-xl" style={{ background:"rgba(255,255,255,.1)" }}>×</button>
             </div>
             <div className="px-5 py-4 overflow-y-auto" style={{ maxHeight:"65vh" }}>{renderForm(true)}</div>
             <div className={`flex items-center justify-end gap-2 px-5 py-3 border-t ${bdr} ${bg3}`}>
