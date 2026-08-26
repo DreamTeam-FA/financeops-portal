@@ -145,10 +145,14 @@ function mergeDatasets(liveList: any[], currentList: any[], idKey = "id") {
       || (liveItem?.row && liveItem?.vendor ? currentStableMap.get(apBillStableKey(liveItem)) : undefined);
     if (currentItem) {
       const invoiceNo = liveItem.invoiceNo || currentItem.invoiceNo || undefined;
-      // Strip keys that are explicitly undefined from liveItem BEFORE spreading — otherwise
-      // `{ ...currentItem, remarks: undefined }` would overwrite a real currentItem.remarks.
+      // Strip undefined/null/"" from liveItem before spreading — EXCEPT annotation fields
+      // (remarks, paymentInstructions, status1, paidVia) which must ALWAYS come from the
+      // live sheet to prevent stale garbage (e.g. "Paid" in remarks) from persisting forever.
+      const ANNOTATION_FIELDS = new Set(["remarks", "paymentInstructions", "status1", "paidVia"]);
       const liveItemDefined = Object.fromEntries(
-        Object.entries(liveItem).filter(([, v]) => v !== undefined && v !== null && v !== "")
+        Object.entries(liveItem).filter(([k, v]) =>
+          ANNOTATION_FIELDS.has(k) || (v !== undefined && v !== null && v !== "")
+        )
       );
       // Fresh live sheet data overrides stored item; currentItem fills in any missing fields
       const result: any = { ...currentItem, ...liveItemDefined, ...(invoiceNo ? { invoiceNo } : {}) };
