@@ -1,11 +1,15 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { useFinance } from "../../context/FinanceContext";
-import { getAccessToken } from "../../services/googleAuth";
+import firebaseConfig from "../../../firebase-applet-config.json";
 import {
   Mail, Search, Loader2, AlertTriangle, CheckCircle2,
   FileText, ChevronDown, X, Eye, Inbox, RefreshCw,
-  ChevronLeft, Paperclip
+  ChevronLeft, Paperclip, LogIn, LogOut, UserCircle2
 } from "lucide-react";
+
+const GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/oauth2/v3.userinfo.email";
+const LS_TOKEN = "gmail_scanner_token";
+const LS_EMAIL = "gmail_scanner_email";
 
 // ─────────────────────────────────────────── Types
 
@@ -287,6 +291,77 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
   const { theme, logAction, setCurrentPage } = useFinance() as any;
   const isLight = theme === "light";
 
+  // ── Gmail account state (separate from portal login) ───────────────────────
+  const [gmailToken, setGmailToken] = useState<string | null>(() => {
+    try { return localStorage.getItem(LS_TOKEN); } catch { return null; }
+  });
+  const [gmailEmail, setGmailEmail] = useState<string | null>(() => {
+    try { return localStorage.getItem(LS_EMAIL); } catch { return null; }
+  });
+  const [connecting, setConnecting] = useState(false);
+
+  // Keep localStorage in sync
+  useEffect(() => {
+    try {
+      if (gmailToken) localStorage.setItem(LS_TOKEN, gmailToken);
+      else localStorage.removeItem(LS_TOKEN);
+      if (gmailEmail) localStorage.setItem(LS_EMAIL, gmailEmail);
+      else localStorage.removeItem(LS_EMAIL);
+    } catch {}
+  }, [gmailToken, gmailEmail]);
+
+  // ── Connect a Gmail inbox ──────────────────────────────────────────────────
+  const connectGmail = useCallback(() => {
+    const gis = (window as any).google?.accounts?.oauth2;
+    const clientId = (firebaseConfig as any).oAuthClientId;
+    if (!gis || !clientId) {
+      setError("Google Identity Services not loaded. Please refresh the page.");
+      return;
+    }
+    setConnecting(true);
+    setError(null);
+    try {
+      const tokenClient = gis.initTokenClient({
+        client_id: clientId,
+        scope: "https://www.googleapis.com/auth/gmail.readonly",
+        callback: async (resp: any) => {
+          setConnecting(false);
+          if (resp.error) {
+            setError("Gmail authorization failed: " + resp.error);
+            return;
+          }
+          const tok = resp.access_token as string;
+          setGmailToken(tok);
+          // Fetch the chosen account's email address
+          try {
+            const info = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+              headers: { Authorization: "Bearer " + tok }
+            }).then(r => r.json());
+            setGmailEmail(info.email || null);
+          } catch {
+            setGmailEmail(null);
+          }
+          // Reset queue so user re-scans with the new inbox
+          setQueue([]);
+          setScanned(false);
+        },
+        error_callback: () => setConnecting(false),
+      });
+      // prompt:"select_account" forces the Google account chooser every time
+      tokenClient.requestAccessToken({ prompt: "select_account" });
+    } catch (e: any) {
+      setConnecting(false);
+      setError("Could not open account picker: " + (e?.message || e));
+    }
+  }, []);
+
+  const disconnectGmail = useCallback(() => {
+    setGmailToken(null);
+    setGmailEmail(null);
+    setQueue([]);
+    setScanned(false);
+  }, []);
+
   const [scanning, setScanning] = useState(false);
   const [queue, setQueue]       = useState<ScannedEmail[]>([]);
   const [scanned, setScanned]   = useState(false);
@@ -308,9 +383,8 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
 
   // ── Scan inbox ─────────────────────────────────────────────────────────────
   const handleScan = useCallback(async () => {
-    const token = getAccessToken();
-    if (!token) {
-      setError("Not authenticated — please sign in with Google first.");
+    if (!gmailToken) {
+      setError("No Gmail inbox connected. Click 'Connect Inbox' to choose an email account.");
       return;
     }
     setScanning(true);
@@ -319,7 +393,7 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
       const resp = await fetch("/api/email/scan-inbox", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken: token, maxResults: 50 }),
+        body: JSON.stringify({ accessToken: gmailToken, maxResults: 50 }),
       });
       const json = await resp.json();
       if (!resp.ok || !json.ok) throw new Error(json.error || json.details || "Scan failed");
@@ -349,8 +423,8 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
       return;
     }
 
-    const token = getAccessToken();
-    if (!token) { setError("Not authenticated"); return; }
+    const token = gmailToken;
+    if (!token) { setError("Gmail inbox not connected. Please connect an inbox first."); return; }
 
     // Mark processing
     setQueue(prev => prev.map(e => e.id === email.id ? { ...e, status: "processing" } : e));
@@ -473,27 +547,98 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
         </div>
         <div>
           <h1 className="text-white font-bold text-sm">Email Invoice Scanner</h1>
-          <p className="text-white/60 text-[11px]">Scan Gmail for financial emails and create bills or invoices</p>
+          <p className="text-white/60 text-[11px]">
+            {gmailEmail ? `Scanning: ${gmailEmail}` : "Connect a Gmail inbox to scan for invoices and bills"}
+          </p>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto min-h-0 p-5 flex flex-col gap-4">
-        {/* Scan button row */}
+        {/* ── Account chooser card ─────────────────────────────────────────── */}
+        <div className={cl("rounded-xl border p-4", cardBg)}>
+          <p className={`text-[11px] font-bold uppercase tracking-wider ${txt2} mb-3`}>Gmail Inbox</p>
+
+          {gmailEmail ? (
+            /* Connected state */
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-[#7c3aed]/15 flex items-center justify-center shrink-0">
+                  <UserCircle2 className="w-5 h-5 text-[#7c3aed]" />
+                </div>
+                <div>
+                  <p className={`text-sm font-semibold ${txt}`}>{gmailEmail}</p>
+                  <p className={`text-[11px] ${txt2}`}>Gmail connected · read-only access</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={connectGmail}
+                  disabled={connecting}
+                  className={cl(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold border transition-colors",
+                    isLight
+                      ? "border-slate-300 text-slate-600 hover:bg-slate-50"
+                      : "border-[#2a3140] text-slate-300 hover:bg-white/5"
+                  )}
+                >
+                  {connecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogIn className="w-3.5 h-3.5" />}
+                  Change Account
+                </button>
+                <button
+                  onClick={disconnectGmail}
+                  className={cl(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-colors",
+                    isLight ? "text-red-500 hover:bg-red-50" : "text-red-400 hover:bg-red-950/20"
+                  )}
+                >
+                  <LogOut className="w-3.5 h-3.5" /> Disconnect
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Not connected state */
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <p className={`text-sm font-semibold ${txt}`}>No inbox connected</p>
+                <p className={`text-[11px] ${txt2} mt-0.5`}>
+                  Choose which Gmail account to scan. This can be different from your portal login.
+                </p>
+              </div>
+              <button
+                onClick={connectGmail}
+                disabled={connecting}
+                className={cl(
+                  "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all shrink-0",
+                  connecting
+                    ? "bg-[#7c3aed]/40 text-violet-300 cursor-wait"
+                    : "bg-[#7c3aed] hover:bg-[#6d28d9] text-white"
+                )}
+              >
+                {connecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
+                {connecting ? "Opening…" : "Connect Inbox"}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* ── Scan trigger row ─────────────────────────────────────────────── */}
         <div className={cl("rounded-xl border p-4 flex items-center justify-between gap-4", cardBg)}>
           <div>
-            <p className={`text-sm font-semibold ${txt}`}>Inbox Scanner</p>
+            <p className={`text-sm font-semibold ${txt}`}>Scan for Financial Emails</p>
             <p className={`text-[11px] ${txt2} mt-0.5`}>
               Searches last 30 days for emails with invoice, bill, statement, or payment keywords that have PDF attachments.
             </p>
           </div>
           <button
             onClick={handleScan}
-            disabled={scanning}
+            disabled={scanning || !gmailEmail}
             className={cl(
               "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all shrink-0",
-              scanning
-                ? "bg-[#7c3aed]/40 text-violet-300 cursor-wait"
-                : "bg-[#7c3aed] hover:bg-[#6d28d9] text-white"
+              !gmailEmail
+                ? "bg-slate-300 text-slate-500 cursor-not-allowed"
+                : scanning
+                  ? "bg-[#7c3aed]/40 text-violet-300 cursor-wait"
+                  : "bg-[#7c3aed] hover:bg-[#6d28d9] text-white"
             )}
           >
             {scanning
