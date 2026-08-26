@@ -1602,6 +1602,29 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const withLinks = mergeDriveCache(bills);
     // Persist any driveViewUrls we just received (from server recovery) into cache
     saveDriveCache(withLinks);
+
+    // Push any links that came from localStorage (not in the server response) back to the
+    // server so ALL users see them — the Drive folder is shared/centralised.
+    const restoredFromCache = withLinks.filter((b, i) =>
+      b.driveViewUrl && !(bills[i] as any)?.driveViewUrl
+    );
+    if (restoredFromCache.length > 0) {
+      fetch("/api/drive/restore-links", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          links: restoredFromCache.map(b => ({
+            entity: b.entity,
+            vendor: b.vendor,
+            invoiceNo: (b as any).invoiceNo,
+            dueDate: b.dueDate,
+            driveViewUrl: (b as any).driveViewUrl,
+            driveFileName: (b as any).driveFileName || "",
+          }))
+        })
+      }).catch(() => {/* non-fatal */});
+    }
+
     return (withLinks || []).map((b) => ({
       ...b,
       bucket: computeBucket(b.dueDate, b.status)

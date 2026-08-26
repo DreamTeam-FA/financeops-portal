@@ -514,6 +514,38 @@ app.post("/api/data", (req, res) => {
   }
 });
 
+/**
+ * POST /api/drive/restore-links
+ * Called by any client that has driveViewUrls in localStorage that the server
+ * JSON doesn't know about (e.g. after a Render deploy wiped the file).
+ * Writes the links into the shared server JSON so ALL users see them.
+ */
+app.post("/api/drive/restore-links", (req, res) => {
+  const { links } = req.body || {};
+  if (!Array.isArray(links) || links.length === 0) return res.json({ ok: true, updated: 0 });
+  const data = getStoredData();
+  const n = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  let updated = 0;
+  (data.ap || []).forEach((bill: any) => {
+    if (bill.driveViewUrl) return;               // already has a link — skip
+    const match = links.find((l: any) =>
+      n(l.entity) === n(bill.entity) &&
+      n(l.vendor) === n(bill.vendor) &&
+      n(l.invoiceNo || "") === n(bill.invoiceNo || "") &&
+      l.dueDate === bill.dueDate &&
+      l.driveViewUrl
+    );
+    if (match) {
+      bill.driveViewUrl  = match.driveViewUrl;
+      bill.driveFileName = match.driveFileName || "";
+      updated++;
+    }
+  });
+  if (updated > 0) saveStoredData(data);
+  console.log(`[RestoreLinks] ${updated} bill link(s) restored to shared server JSON`);
+  return res.json({ ok: true, updated });
+});
+
 app.post("/api/audit-log", (req, res) => {
   const { action, details, user } = req.body;
   const data = getStoredData();
