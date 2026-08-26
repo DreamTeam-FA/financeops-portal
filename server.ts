@@ -605,37 +605,20 @@ app.get("/api/drive/recover-bill-links", async (req, res) => {
   catch (e: any) { return res.status(500).json({ error: e.message }); }
 
   try {
-    // Recursively list all non-folder files under BILLS_ROOT_FOLDER_ID
-    const allFiles: { id: string; name: string; webViewLink: string; parents?: string[] }[] = [];
+    // Recursively list all non-folder files under BILLS_ROOT_FOLDER_ID using ancestors query
+    const allFiles: { id: string; name: string; webViewLink: string }[] = [];
     let pageToken: string | undefined;
     do {
       const resp: any = await drive.files.list({
-        q: `'${BILLS_ROOT_FOLDER_ID}' in parents or parents in (select id from files where '${BILLS_ROOT_FOLDER_ID}' in ancestors)`,
-        fields: "nextPageToken, files(id,name,webViewLink,parents,mimeType)",
+        q: `'${BILLS_ROOT_FOLDER_ID}' in ancestors and mimeType != 'application/vnd.google-apps.folder' and trashed=false`,
+        fields: "nextPageToken, files(id,name,webViewLink,mimeType)",
         spaces: "drive",
         pageSize: 1000,
         pageToken,
       });
-      const files = (resp.data.files || []).filter((f: any) => f.mimeType !== "application/vnd.google-apps.folder");
-      allFiles.push(...files);
+      allFiles.push(...(resp.data.files || []));
       pageToken = resp.data.nextPageToken;
     } while (pageToken);
-
-    // If the flat query above misses nested files, do a broad ancestors search
-    if (allFiles.length === 0) {
-      let pt2: string | undefined;
-      do {
-        const resp2: any = await drive.files.list({
-          q: `'${BILLS_ROOT_FOLDER_ID}' in ancestors and mimeType != 'application/vnd.google-apps.folder' and trashed=false`,
-          fields: "nextPageToken, files(id,name,webViewLink)",
-          spaces: "drive",
-          pageSize: 1000,
-          pageToken: pt2,
-        });
-        allFiles.push(...(resp2.data.files || []));
-        pt2 = resp2.data.nextPageToken;
-      } while (pt2);
-    }
 
     const current = getStoredData();
     const apBills: any[] = current.ap || [];
@@ -656,17 +639,30 @@ app.get("/api/drive/recover-bill-links", async (req, res) => {
       const dueDate = dateCandidate;
       const entity = parts[0].replace(/-/g, "'").replace(/_/g, " "); // rough reverse
 
-      // Match by dueDate first (most selective), then try vendor name fuzzy
-      const vendorRaw = parts[1]; // e.g. "Sysco" or "Pacific_Gas"
+      // filename parts: [entity, vendor, invoiceNo?, YYYY-MM-DD]
+      const vendorRaw = parts[1]; // e.g. "Sysco" or "PacificGas"
+      // invoiceNo is everything between vendor and date (may span multiple underscores)
+      const invoiceRaw = parts.length > 3 ? parts.slice(2, -1).join("_") : "";
+
+      const normalise = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const fv = normalise(vendorRaw);
+      const fi = normalise(invoiceRaw);
 
       const match = apBills.find((b: any) => {
         if (b.driveViewUrl) return false; // already has a link
-        const dueDateMatch = b.dueDate === dueDate;
-        if (!dueDateMatch) return false;
+        // Date match: try dueDate first, then invoiceDate
+        const dateMatch = b.dueDate === dueDate || b.invoiceDate === dueDate;
+        if (!dateMatch) return false;
         // Vendor match: compare normalised
-        const bv = (b.vendor || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-        const fv = vendorRaw.toLowerCase().replace(/[^a-z0-9]/g, "");
-        return bv.includes(fv) || fv.includes(bv);
+        const bv = normalise(b.vendor);
+        const vendorOk = bv.includes(fv) || fv.includes(bv);
+        if (vendorOk) return true;
+        // Fallback: invoice number match (if present in filename)
+        if (fi) {
+          const bi = normalise(b.invoiceNo || b.id);
+          return bi.includes(fi) || fi.includes(bi);
+        }
+        return false;
       });
 
       if (match) {

@@ -931,6 +931,15 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         startAutoTokenRefresh();
         logAction("Google OAuth Authenticated", `Connected as ${res.user.email}`);
         window.dispatchEvent(new Event("google-token-refreshed"));
+        // Silently recover any bill copy Drive links in the background
+        setTimeout(async () => {
+          try {
+            const tok = getAccessToken();
+            if (tok) {
+              await fetch(`/api/drive/recover-bill-links?token=${encodeURIComponent(tok)}`);
+            }
+          } catch { /* non-fatal */ }
+        }, 3000);
         // Capture device + location, then ensure the logs sheet exists and append the login entry
         captureLoginMetadata().then(async (meta) => {
           const token = getAccessToken();
