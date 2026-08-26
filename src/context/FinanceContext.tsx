@@ -215,6 +215,34 @@ interface FinanceContextType {
   // Logs
   loginLogs: LoginLogEntry[];
   logsSheetId: string | null;
+
+  // Email Scanner → AP/AR prefill
+  emailPrefill: {
+    type: "bill" | "invoice";
+    data: {
+      vendor?: string;
+      invoiceNo?: string;
+      amount?: number | null;
+      dueDate?: string | null;
+      issueDate?: string | null;
+      entity?: string;
+      description?: string;
+      remarks?: string;
+    };
+  } | null;
+  setEmailPrefill: (p: {
+    type: "bill" | "invoice";
+    data: {
+      vendor?: string;
+      invoiceNo?: string;
+      amount?: number | null;
+      dueDate?: string | null;
+      issueDate?: string | null;
+      entity?: string;
+      description?: string;
+      remarks?: string;
+    };
+  } | null) => void;
 }
 
 const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit?usp=sharing";
@@ -362,6 +390,7 @@ const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentPage, setCurrentPage] = useState<PageRoute>("hub");
   const [searchHighlightId, setSearchHighlightId] = useState<string | null>(null);
+  const [emailPrefill, setEmailPrefill] = useState<FinanceContextType["emailPrefill"]>(null);
   const [userEmail, setUserEmailState] = useState<string>(() => {
     return localStorage.getItem("financeops_user_email") || "accounting@marktimm.com";
   });
@@ -2102,7 +2131,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         loginLogs,
         logsSheetId,
         searchHighlightId,
-        setSearchHighlightId
+        setSearchHighlightId,
+        emailPrefill,
+        setEmailPrefill,
       }}
     >
       {children}

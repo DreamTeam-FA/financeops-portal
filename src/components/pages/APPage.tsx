@@ -22,7 +22,9 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
     deleteBill,
     searchHighlightId,
     setSearchHighlightId,
-  } = useFinance();
+    emailPrefill,
+    setEmailPrefill,
+  } = useFinance() as any;
 
   // Deep-link: open bill modal for the item from global search
   useEffect(() => {
@@ -35,6 +37,15 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
     }, 200);
     return () => clearTimeout(timer);
   }, [searchHighlightId, apBills]);
+
+  // Email Scanner prefill: auto-open AddBillModal with pre-filled data
+  const [emailBillPrefill, setEmailBillPrefill] = useState<any>(null);
+  useEffect(() => {
+    if (!emailPrefill || emailPrefill.type !== "bill") return;
+    setEmailBillPrefill(emailPrefill.data);
+    setIsAddModalOpen(true);
+    setEmailPrefill(null);
+  }, [emailPrefill]);
 
   const isLight = theme === "light";
 
@@ -974,8 +985,9 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
 
       <AddBillModal
         isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
+        onClose={() => { setIsAddModalOpen(false); setEmailBillPrefill(null); }}
         defaultEntity={filterEntityOverride || "Ruby's"}
+        prefillData={emailBillPrefill}
       />
 
       <EditBillModal

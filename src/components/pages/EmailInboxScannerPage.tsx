@@ -403,7 +403,7 @@ interface EmailInboxScannerPageProps {
 }
 
 export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ onBack }) => {
-  const { theme, logAction, setCurrentPage } = useFinance() as any;
+  const { theme, logAction, setCurrentPage, setEmailPrefill } = useFinance() as any;
   const isLight = theme === "light";
 
   // ── Gmail account state (separate from portal login) ───────────────────────
@@ -609,11 +609,11 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
     try {
       const att = email.attachments[attachIdx];
 
-      // No attachment path — pre-fill from email metadata and open modal directly
+      // No attachment path — pre-fill from email metadata and navigate to AP/AR
       if (!att) {
         const extracted: ExtractedData = {
           vendor:      email.from.replace(/<[^>]+>/g, "").trim(),
-          invoiceNo:   null,
+          invoiceNo:   undefined,
           amount:      null,
           dueDate:     null,
           issueDate:   null,
@@ -621,8 +621,10 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
           description: email.subject,
           remarks:     `Imported from email on ${new Date().toLocaleDateString()}`,
         };
-        setQueue(prev => prev.map(e => e.id === email.id ? { ...e, status: "pending" } : e));
-        setPreview({ email, attachment: null, action, data: extracted });
+        setQueue(prev => prev.map(e => e.id === email.id ? { ...e, status: "done" } : e));
+        setDetailEmail(null);
+        setEmailPrefill?.({ type: action === "Bill" ? "bill" : "invoice", data: extracted });
+        setCurrentPage?.(action === "Bill" ? "ap" : "ar");
         return;
       }
 
@@ -656,11 +658,11 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
         remarks:     scanJson.remarks     || `Imported from email on ${new Date().toLocaleDateString()}`,
       };
 
-      // Reset processing state while modal is open
-      setQueue(prev => prev.map(e => e.id === email.id ? { ...e, status: "pending" } : e));
-
-      // 4. Show preview modal
-      setPreview({ email, attachment: att, action, data: extracted });
+      // 4. Navigate to AP/AR page with pre-filled data
+      setQueue(prev => prev.map(e => e.id === email.id ? { ...e, status: "done" } : e));
+      setDetailEmail(null);
+      setEmailPrefill?.({ type: action === "Bill" ? "bill" : "invoice", data: extracted });
+      setCurrentPage?.(action === "Bill" ? "ap" : "ar");
     } catch (e: any) {
       console.error("[EmailScanner]", e);
       setError(e?.message || "Failed to process attachment");
@@ -974,21 +976,7 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
         />
       )}
 
-      {/* Preview Modal */}
-      {preview && (
-        <PreviewModal
-          email={preview.email}
-          attachment={preview.attachment}
-          action={preview.action}
-          data={preview.data}
-          isLight={isLight}
-          onClose={() => {
-            setQueue(prev => prev.map(e => e.id === preview.email.id ? { ...e, status: "pending" } : e));
-            setPreview(null);
-          }}
-          onConfirm={handleConfirm}
-        />
-      )}
+      {/* PreviewModal removed — actions now navigate directly to AP/AR native modals */}
     </div>
   );
 };

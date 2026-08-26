@@ -21,6 +21,8 @@ export const ARPage: React.FC = () => {
     showToast,
     searchHighlightId,
     setSearchHighlightId,
+    emailPrefill,
+    setEmailPrefill,
   } = useFinance() as any;
 
   const isLight = theme === "light";
@@ -36,6 +38,23 @@ export const ARPage: React.FC = () => {
     }, 200);
     return () => clearTimeout(timer);
   }, [searchHighlightId, arItems]);
+
+  // Email Scanner prefill: auto-open Add Invoice modal with pre-filled data
+  useEffect(() => {
+    if (!emailPrefill || emailPrefill.type !== "invoice") return;
+    const d = emailPrefill.data;
+    if (d.vendor)      setCustomer(d.vendor);
+    if (d.amount != null) setAmount(String(d.amount));
+    if (d.dueDate)     setDueDate(d.dueDate);
+    if (d.description) setDescription(d.description);
+    if (d.entity) {
+      const validEntities = ["TI", "Ruby's", "MSDx", "4G", "4YR", "CPG", "E1"];
+      const matched = validEntities.find(e => d.entity?.toLowerCase().includes(e.toLowerCase()));
+      if (matched) setEntity(matched as EntityName);
+    }
+    setIsAddOpen(true);
+    setEmailPrefill(null);
+  }, [emailPrefill]);
 
   const currentMonthName = new Date().toLocaleString("default", { month: "long" });
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthName);

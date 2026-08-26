@@ -8,6 +8,16 @@ interface AddBillModalProps {
   isOpen: boolean;
   onClose: () => void;
   defaultEntity?: EntityName;
+  prefillData?: {
+    vendor?: string;
+    invoiceNo?: string;
+    amount?: number | null;
+    dueDate?: string | null;
+    issueDate?: string | null;
+    entity?: string;
+    description?: string;
+    remarks?: string;
+  };
 }
 
 const SHEET_THEMES: Record<string, { bg: string; btn: string; color: string }> = {
@@ -21,7 +31,7 @@ const DEFAULT_TI_COMPANIES = ["4G", "4YR", "Corner Property Group", "E1", "TI"];
 
 const PAY_VIA_OPTIONS = ["ACH", "Check", "Wire", "Credit Card", "Online", "Cash", "Auto-Debit", "Manual"];
 
-export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, defaultEntity = "Ruby's" }) => {
+export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, defaultEntity = "Ruby's", prefillData }) => {
   const { apBills, addBill, updateBill, theme, availableAPEntities } = useFinance();
   const isLight = theme === "light";
 
@@ -50,6 +60,24 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
   useEffect(() => {
     setSelectedSheet(`${defaultEntity} Bills`);
   }, [defaultEntity]);
+
+  // Populate form from email scanner prefill when modal opens with data
+  useEffect(() => {
+    if (!isOpen || !prefillData) return;
+    if (prefillData.vendor)      setVendor(prefillData.vendor);
+    if (prefillData.invoiceNo)   setInvoiceNo(prefillData.invoiceNo);
+    if (prefillData.amount != null) setAmount(String(prefillData.amount));
+    if (prefillData.dueDate)     setDueDate(prefillData.dueDate);
+    if (prefillData.issueDate)   setInvoiceDate(prefillData.issueDate);
+    if (prefillData.description) setDescription(prefillData.description);
+    if (prefillData.remarks)     setRemarks(prefillData.remarks);
+    if (prefillData.entity) {
+      const ent = prefillData.entity.trim();
+      if (ent.toLowerCase().includes("ruby"))      setSelectedSheet("Ruby's Bills");
+      else if (ent.toLowerCase().includes("msdx") || ent.toLowerCase().includes("ms")) setSelectedSheet("MSDx Bills");
+      else if (ent.toLowerCase().includes("ti") || ent.toLowerCase() === "ti") setSelectedSheet("TI Bills");
+    }
+  }, [isOpen, prefillData]);
 
   const isTI = selectedSheet === "TI Bills";
   const isRuby = selectedSheet === "Ruby's Bills";
