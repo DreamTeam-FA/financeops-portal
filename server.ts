@@ -2523,32 +2523,65 @@ function getParaStyle(paragraph: any): string {
   return paragraph?.paragraphStyle?.namedStyleType || "NORMAL_TEXT";
 }
 
-function docContentToSections(content: any[]): any[] {
+function paragraphHasOnlyImages(paragraph: any): boolean {
+  if (!paragraph?.elements) return false;
+  return paragraph.elements.every(
+    (el: any) => el.inlineObjectElement || (el.textRun && !el.textRun.content?.trim())
+  ) && paragraph.elements.some((el: any) => el.inlineObjectElement);
+}
+
+function extractInlineImageUrls(paragraph: any, inlineObjects: Record<string, any>): string[] {
+  if (!paragraph?.elements) return [];
+  const urls: string[] = [];
+  for (const el of paragraph.elements) {
+    const ref = el.inlineObjectElement?.inlineObjectId;
+    if (!ref) continue;
+    const obj = inlineObjects?.[ref];
+    const uri = obj?.inlineObjectProperties?.embeddedObject?.imageProperties?.contentUri
+              || obj?.inlineObjectProperties?.embeddedObject?.imageProperties?.sourceUri;
+    if (uri) urls.push(uri);
+  }
+  return urls;
+}
+
+function docContentToSections(content: any[], inlineObjects: Record<string, any> = {}): any[] {
   const sections: any[] = [];
   let i = 0;
   while (i < content.length) {
     const elem = content[i];
     if (elem.paragraph) {
+      // Check for inline images first
+      if (paragraphHasOnlyImages(elem.paragraph)) {
+        const urls = extractInlineImageUrls(elem.paragraph, inlineObjects);
+        for (const src of urls) sections.push({ type: "image", src });
+        i++; continue;
+      }
+      // Mixed paragraph: extract any inline images alongside text
+      const inlineImgUrls = extractInlineImageUrls(elem.paragraph, inlineObjects);
       const style = getParaStyle(elem.paragraph);
       const text = extractParagraphText(elem.paragraph);
       const hasBullet = !!elem.paragraph.bullet;
-      if (!text.trim()) { i++; continue; }
-      if (style === "HEADING_1") {
-        sections.push({ type: "h1", text });
-      } else if (style === "HEADING_2") {
-        sections.push({ type: "h2", text });
-      } else if (style === "HEADING_3") {
-        sections.push({ type: "h3", text });
-      } else if (hasBullet) {
-        const items: string[] = [text];
-        while (i + 1 < content.length && content[i + 1]?.paragraph?.bullet) {
-          i++;
-          const nextText = extractParagraphText(content[i].paragraph);
-          if (nextText.trim()) items.push(nextText);
+      if (!text.trim() && inlineImgUrls.length === 0) { i++; continue; }
+      // Push images that appear before the text
+      for (const src of inlineImgUrls) sections.push({ type: "image", src });
+      if (text.trim()) {
+        if (style === "HEADING_1") {
+          sections.push({ type: "h1", text });
+        } else if (style === "HEADING_2") {
+          sections.push({ type: "h2", text });
+        } else if (style === "HEADING_3") {
+          sections.push({ type: "h3", text });
+        } else if (hasBullet) {
+          const items: string[] = [text];
+          while (i + 1 < content.length && content[i + 1]?.paragraph?.bullet) {
+            i++;
+            const nextText = extractParagraphText(content[i].paragraph);
+            if (nextText.trim()) items.push(nextText);
+          }
+          sections.push({ type: "list", items });
+        } else {
+          sections.push({ type: "paragraph", text });
         }
-        sections.push({ type: "list", items });
-      } else {
-        sections.push({ type: "paragraph", text });
       }
     } else if (elem.table) {
       const rows: string[][] = [];
@@ -2751,10 +2784,12 @@ app.get("/api/workflows", async (req, res) => {
           const tabTitle: string = tab.tabProperties?.title || "";
           if (!WORKFLOW_TAB_TITLES.includes(tabTitle)) continue;
           const content: any[] = tab.documentTab?.body?.content || [];
+          const tabInlineObjects: Record<string, any> =
+            tab.documentTab?.inlineObjects || doc.inlineObjects || {};
           wfs.push({
             id: tabTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
             title: tabTitle,
-            sections: docContentToSections(content),
+            sections: docContentToSections(content, tabInlineObjects),
           });
         }
         wfs.sort((a, b) => WORKFLOW_TAB_TITLES.indexOf(a.title) - WORKFLOW_TAB_TITLES.indexOf(b.title));

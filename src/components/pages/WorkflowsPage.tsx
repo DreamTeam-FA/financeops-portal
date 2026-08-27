@@ -246,6 +246,18 @@ function renderSec(sec: any, i: number, isLight: boolean, accentCls: string): Re
           ))}
         </ul>
       );
+    case "image":
+      return sec.src ? (
+        <div key={i} className="mb-5">
+          <img
+            src={sec.src}
+            alt="Workflow screenshot"
+            className={`max-w-full rounded-xl border ${isLight ? "border-slate-200 shadow-sm" : "border-[#1a3154]"}`}
+            style={{ maxHeight: "520px", objectFit: "contain" }}
+            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+          />
+        </div>
+      ) : null;
     default: return null;
   }
 }
