@@ -47,14 +47,19 @@ function renderMd(text: string): React.ReactNode {
 }
 
 // ── Pipeline / diagram detection ─────────────────────────────────────────────
-const DATA_SIGNALS = ["date", "amount", "remarks", "company", "client", "name", "description", "due", "balance", "total", "invoice #", "ref", "rate", "qty"];
-const STAGE_SIGNALS = ["instruction", "approval", "qbo", "generation", "send for", "send to", "payment", "assign", "logging", "matching", "report gen", "billing"];
+// Data tables: any individual header cell matches these words
+const DATA_SIGNALS = ["date", "amount", "remarks", "description", "due date", "balance", "total", "invoice #", "ref #", "rate", "qty", "quantity"];
+// Pipeline diagrams: stage-action keywords
+const STAGE_SIGNALS = ["instruction", "approval", "qbo", "generation", "send for", "send to", "payment", "assign", "logging", "matching", "report gen", "billing", "report"];
 
 function isDiagram(rows: string[][]): boolean {
-  if (!rows?.length || rows[0].length < 2 || rows[0].length > 7) return false;
-  const hdr = rows[0].join(" ").toLowerCase();
-  if (DATA_SIGNALS.some(s => hdr.includes(s))) return false;
-  return STAGE_SIGNALS.filter(k => hdr.includes(k)).length >= 2;
+  if (!rows?.length || rows[0].length < 2 || rows[0].length > 8) return false;
+  const cells = rows[0].map(c => c.toLowerCase().trim());
+  // If ANY single header cell is a known data-table column name → not a diagram
+  if (cells.some(c => DATA_SIGNALS.some(s => c === s || c.startsWith(s)))) return false;
+  // Count how many header cells contain at least one stage keyword
+  const stageHits = cells.filter(c => STAGE_SIGNALS.some(k => c.includes(k))).length;
+  return stageHits >= Math.min(2, cells.length);
 }
 
 // ── Step grouper ──────────────────────────────────────────────────────────────
