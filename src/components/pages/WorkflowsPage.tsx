@@ -148,7 +148,7 @@ const DataTable: React.FC<{ rows: string[][]; isLight: boolean }> = ({ rows, isL
   return (
     <div className={`mb-6 rounded-2xl overflow-hidden border ${isLight ? "border-slate-200 shadow-sm" : "border-[#1a3154]"}`}>
       <div className="overflow-x-auto">
-        <table className="w-full text-[12.5px] border-collapse">
+        <table className="text-[12.5px] border-collapse" style={{ minWidth: "100%", tableLayout: "auto" }}>
           <thead>
             <tr className={isLight ? "bg-[#eef3ff]" : "bg-[#0a1422]"}>
               {header.map((c, i) => (
@@ -166,7 +166,7 @@ const DataTable: React.FC<{ rows: string[][]; isLight: boolean }> = ({ rows, isL
                   : `border-[#1a3154]/40 ${ri % 2 === 0 ? "bg-transparent" : "bg-[#0a1422]/40"} hover:bg-[#0d1e3a]/50`
               }`}>
                 {row.map((cell, ci) => (
-                  <td key={ci} className={`px-4 py-2.5 align-top leading-relaxed ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                  <td key={ci} className={`px-4 py-2.5 align-top leading-relaxed min-w-[120px] max-w-[280px] ${isLight ? "text-slate-700" : "text-slate-300"}`}>
                     {cell.trim() ? renderMd(cell) : <span className={isLight ? "text-slate-300" : "text-[#1e3154]"}>—</span>}
                   </td>
                 ))}
