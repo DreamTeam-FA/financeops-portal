@@ -491,6 +491,10 @@ export const parseAPSheetRows = (
     const categoryVal = String(row[5] || "").trim();
     const invoiceDateVal = parseDateVal(row[7]) || String(row[7] || "").trim();
 
+    // driveViewUrl — read from the entity's dedicated Drive links column (confirmed in sheet)
+    const driveUrlRaw = map.driveViewUrlCol !== null ? String(row[map.driveViewUrlCol] || "").trim() : "";
+    const driveViewUrl = /^https?:\/\//i.test(driveUrlRaw) ? driveUrlRaw : undefined;
+
     bills.push({
       id: `ap-gs-${idx + 1}-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       vendor,
@@ -513,6 +517,7 @@ export const parseAPSheetRows = (
       paymentInstructions: paymentInstructions || undefined,
       category: categoryVal || undefined,
       invoiceDate: invoiceDateVal || undefined,
+      driveViewUrl,
     });
   });
 
@@ -955,9 +960,9 @@ const AP_COL_MAPS: Record<string, APColMap> = {
     paidDateCol: 11, methodCol: null, paytypeCol: 17,
     status: 12, inQBO: 13, onHold: 18,  // col S = On Hold
     remarksCol: 10, payInstCol: 14, status1Col: 11,
-    driveViewUrlCol: null,  // TODO: identify a safe empty column before enabling
-    totalCols: 19,
-    dataRange: "'Ruby''s Bills'!A5:S1504"
+    driveViewUrlCol: 38,   // col AM (0-based index 38) — "Drive links" header confirmed in sheet
+    totalCols: 39,
+    dataRange: "'Ruby''s Bills'!A5:AM1504"
   },
   "TI": {
     vendor: 5, company: 4, invoiceNo: 6, invoiceDateCol: 7, categoryCol: null, descriptionCol: null,
@@ -965,9 +970,9 @@ const AP_COL_MAPS: Record<string, APColMap> = {
     paidDateCol: 10, methodCol: 12, paytypeCol: 19,
     status: 13, inQBO: 15, onHold: 22,  // holdCol:22 per CALcode
     remarksCol: 14, payInstCol: 16, status1Col: 17,
-    driveViewUrlCol: null,  // TODO: identify a safe empty column before enabling
-    totalCols: 23,
-    dataRange: "'TI Bills'!A7:W1506"
+    driveViewUrlCol: 26,   // col AA (0-based index 26) — "Drive links" header confirmed in sheet
+    totalCols: 27,
+    dataRange: "'TI Bills'!A7:AA1506"
   },
   "MSDx": {
     vendor: 3, company: null, invoiceNo: 6, invoiceDateCol: 7, categoryCol: 5, descriptionCol: 4,
@@ -975,9 +980,9 @@ const AP_COL_MAPS: Record<string, APColMap> = {
     paidDateCol: 11, methodCol: null, paytypeCol: 17,
     status: 12, inQBO: 13, onHold: 18,  // holdCol:18 per CALcode
     remarksCol: 10, payInstCol: 14, status1Col: 11,
-    driveViewUrlCol: null,  // TODO: identify a safe empty column before enabling
-    totalCols: 19,
-    dataRange: "'MSDx Bills'!A6:S1505"
+    driveViewUrlCol: 26,   // col AA (0-based index 26) — "Drive links" header confirmed in sheet
+    totalCols: 27,
+    dataRange: "'MSDx Bills'!A6:AA1505"
   }
 };
 
