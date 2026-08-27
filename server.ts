@@ -1,4 +1,4 @@
-import express from "express";
+﻿import express from "express";
 import path from "path";
 import fs from "fs";
 import * as XLSX from "xlsx";
@@ -2503,7 +2503,7 @@ const WORKFLOWS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 // ── Docs API parser ──────────────────────────────────────────────────────────
 // Characters to strip from Docs text (special markers, zero-width, non-printable)
-const STRIP_CHARS_RE = /[≡​‌‍﻿­  ]/g;
+const STRIP_CHARS_RE = /[\u2261\u200B\u200C\u200D\uFEFF\u00AD\u00A0]/g;
 
 function cleanDocText(text: string): string {
   return text.replace(/\n$/, "").replace(STRIP_CHARS_RE, "").trim();
@@ -2864,3 +2864,4 @@ export default app;
 if (!process.env.VERCEL) {
   startServer();
 }
+
