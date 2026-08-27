@@ -556,6 +556,15 @@ app.post("/api/pull-live", async (req, res) => {
     await runBillLinkRecovery(accessToken).catch((e) =>
       console.warn("[pull-live] bill link recovery skipped:", e?.message)
     );
+
+    // Flush any driveViewUrls already in JSON to the sheet's Drive links column.
+    // This is idempotent — already-written cells simply get overwritten with the same value.
+    const toFlush = (getStoredData().ap || []).filter((b: any) => b.driveViewUrl && b.row && b.entity);
+    for (const bill of toFlush) {
+      writeSingleAPBill(bill, bill.entity, AP_SPREADSHEET_ID, accessToken)
+        .catch((e: any) => console.warn(`[pull-live/flush] sheet write failed for ${bill.vendor}:`, e?.message));
+    }
+    if (toFlush.length) console.log(`[pull-live] flushing ${toFlush.length} driveViewUrl(s) to sheet`);
   }
 
   // Reload stored data post-recovery so driveViewUrl is in the response immediately
@@ -633,6 +642,33 @@ app.post("/api/drive/restore-links", (req, res) => {
   }
   console.log(`[RestoreLinks] ${updated} bill link(s) restored`);
   return res.json({ ok: true, updated });
+});
+
+/**
+ * POST /api/drive/flush-links-to-sheet
+ * One-shot backfill: reads every AP bill in the JSON store that already has a
+ * driveViewUrl and writes it to the sheet's Drive links column.
+ * Safe to call multiple times — only bills with a driveViewUrl are touched.
+ * Body: { userAccessToken?: string }
+ */
+app.post("/api/drive/flush-links-to-sheet", async (req, res) => {
+  const token = getEffectiveDriveToken((req.body || {}).userAccessToken);
+  if (!token) return res.status(401).json({ ok: false, error: "No OAuth token available — sign in first" });
+
+  const stored = getStoredData();
+  const bills = (stored.ap || []).filter((b: any) => b.driveViewUrl && b.row && b.entity);
+  let written = 0, failed = 0;
+  for (const bill of bills) {
+    try {
+      await writeSingleAPBill(bill, bill.entity, AP_SPREADSHEET_ID, token);
+      written++;
+    } catch (e: any) {
+      console.warn(`[FlushLinks] failed for ${bill.vendor} row ${bill.row}:`, e?.message);
+      failed++;
+    }
+  }
+  console.log(`[FlushLinks] wrote ${written} driveViewUrl(s) to sheet (${failed} failed)`);
+  return res.json({ ok: true, written, failed, total: bills.length });
 });
 
 app.post("/api/audit-log", (req, res) => {
