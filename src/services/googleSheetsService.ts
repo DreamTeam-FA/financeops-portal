@@ -1081,7 +1081,19 @@ export const buildAPBillRow = (b: APBill, entity: string): any[] => {
   return row;
 };
 
-// Compute the exact single-row range for a bill (e.g. "'Ruby''s Bills'!A5:S5")
+/** Convert a 1-based column number to its A1 letter(s). Works for any column depth.
+ *  e.g. 1→A, 26→Z, 27→AA, 39→AM, 52→AZ, 53→BA … */
+export function colNumToLetter(n: number): string {
+  let s = "";
+  while (n > 0) {
+    const rem = (n - 1) % 26;
+    s = String.fromCharCode(65 + rem) + s;
+    n = Math.floor((n - 1) / 26);
+  }
+  return s;
+}
+
+// Compute the exact single-row range for a bill (e.g. "'Ruby''s Bills'!A5:AM5")
 // Returns null if the bill has no sheet row number yet (newly added, not in sheet)
 export const getAPBillSingleRowRange = (
   bill: APBill,
@@ -1090,11 +1102,36 @@ export const getAPBillSingleRowRange = (
   if (!bill.row || bill.row < 1) return null;
   const map = getAPColMap(entity);
   const tabPart    = map.dataRange.split("!")[0];
-  const rangeBody  = map.dataRange.split("!")[1];            // e.g. "A5:S1504"
+  const rangeBody  = map.dataRange.split("!")[1];            // e.g. "A5:AM1504"
   const dataStart  = parseInt(rangeBody.split(":")[0].replace(/\D/g, "")); // 5
   const sheetRow   = dataStart + bill.row - 1;
-  const colLetter  = String.fromCharCode(64 + map.totalCols); // 19→S, 23→W
+  const colLetter  = colNumToLetter(map.totalCols);          // 39→AM, 27→AA, 19→S …
   return `${tabPart}!A${sheetRow}:${colLetter}${sheetRow}`;
+};
+
+/** Write ONLY the Drive links cell for a bill — safe backfill that never touches other columns. */
+export const writeBillDriveUrl = async (
+  billRow: number,
+  entity: string,
+  driveViewUrl: string,
+  spreadsheetId: string,
+  accessToken: string
+): Promise<void> => {
+  const map = getAPColMap(entity);
+  if (map.driveViewUrlCol === null || map.driveViewUrlCol === undefined) {
+    throw new Error(`No Drive links column configured for entity ${entity}`);
+  }
+  const tabPart   = map.dataRange.split("!")[0];
+  const rangeBody = map.dataRange.split("!")[1];
+  const dataStart = parseInt(rangeBody.split(":")[0].replace(/\D/g, ""));
+  const sheetRow  = dataStart + billRow - 1;
+  const colLetter = colNumToLetter(map.driveViewUrlCol + 1); // 0-based→1-based
+  await updateSheetValues(
+    spreadsheetId,
+    `${tabPart}!${colLetter}${sheetRow}`,
+    [[driveViewUrl]],
+    accessToken
+  );
 };
 
 // Write ONE bill to its exact sheet row — touches only that row, nothing else
@@ -1115,7 +1152,7 @@ export const writeSingleAPBill = async (
   const skipH = !fullRow[map.invoiceDateCol];
   const tabPart = range.split("!")[0];
   const rowNum  = range.match(/\d+/)?.[0];
-  const colEnd  = String.fromCharCode(64 + map.totalCols); // S (Ruby's/MSDx) or W (TI)
+  const colEnd  = colNumToLetter(map.totalCols); // 19→S, 23→W, 27→AA, 39→AM …
 
   if (skipG && skipH) {
     // Skip both G and H → write A-F, then I-end

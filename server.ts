@@ -4,7 +4,7 @@ import fs from "fs";
 import * as XLSX from "xlsx";
 import { createServer as createViteServer } from "vite";
 import { fetchFullLiveDataset } from "./src/services/liveSheetsFetcher";
-import { writeSingleAPBill } from "./src/services/googleSheetsService";
+import { writeSingleAPBill, writeBillDriveUrl } from "./src/services/googleSheetsService";
 import {
   getRawData as fourYrGetRawData,
   getMasterListWeeks as fourYrGetWeeks,
@@ -558,10 +558,10 @@ app.post("/api/pull-live", async (req, res) => {
     );
 
     // Flush any driveViewUrls already in JSON to the sheet's Drive links column.
-    // This is idempotent — already-written cells simply get overwritten with the same value.
+    // Uses single-cell writes — safe, idempotent, touches only the Drive links column.
     const toFlush = (getStoredData().ap || []).filter((b: any) => b.driveViewUrl && b.row && b.entity);
     for (const bill of toFlush) {
-      writeSingleAPBill(bill, bill.entity, AP_SPREADSHEET_ID, accessToken)
+      writeBillDriveUrl(bill.row, bill.entity, bill.driveViewUrl, AP_SPREADSHEET_ID, accessToken)
         .catch((e: any) => console.warn(`[pull-live/flush] sheet write failed for ${bill.vendor}:`, e?.message));
     }
     if (toFlush.length) console.log(`[pull-live] flushing ${toFlush.length} driveViewUrl(s) to sheet`);
@@ -631,8 +631,8 @@ app.post("/api/drive/restore-links", (req, res) => {
     const token = userAccessToken || getEffectiveDriveToken();
     if (token) {
       for (const bill of updatedBills) {
-        if (!bill.row || !bill.entity) continue;
-        writeSingleAPBill(bill, bill.entity, AP_SPREADSHEET_ID, token)
+        if (!bill.row || !bill.entity || !bill.driveViewUrl) continue;
+        writeBillDriveUrl(bill.row, bill.entity, bill.driveViewUrl, AP_SPREADSHEET_ID, token)
           .catch((e: any) => console.warn(`[RestoreLinks] sheet write failed for ${bill.vendor}:`, e?.message));
       }
       console.log(`[RestoreLinks] writing ${updatedBills.length} driveViewUrl(s) to sheet`);
@@ -660,7 +660,7 @@ app.post("/api/drive/flush-links-to-sheet", async (req, res) => {
   let written = 0, failed = 0;
   for (const bill of bills) {
     try {
-      await writeSingleAPBill(bill, bill.entity, AP_SPREADSHEET_ID, token);
+      await writeBillDriveUrl(bill.row, bill.entity, bill.driveViewUrl, AP_SPREADSHEET_ID, token);
       written++;
     } catch (e: any) {
       console.warn(`[FlushLinks] failed for ${bill.vendor} row ${bill.row}:`, e?.message);
@@ -884,8 +884,8 @@ app.post("/api/drive/upload-bill", async (req, res) => {
         targetBill.driveViewUrl  = viewUrl;
         targetBill.driveFileName = fileName;
         saveStoredData(stored);
-        if (targetBill.row) {
-          writeSingleAPBill(targetBill, targetBill.entity, AP_SPREADSHEET_ID, userAccessToken)
+        if (targetBill.row && targetBill.driveViewUrl) {
+          writeBillDriveUrl(targetBill.row, targetBill.entity, targetBill.driveViewUrl, AP_SPREADSHEET_ID, userAccessToken)
             .catch((e: any) => console.warn("[DriveUpload] sheet write failed:", e?.message));
           console.log(`[DriveUpload] driveViewUrl written to sheet row ${targetBill.row} for ${targetBill.vendor}`);
         }
@@ -988,7 +988,7 @@ async function runBillLinkRecovery(userAccessToken: string): Promise<{
     );
     for (const bill of restoredBills) {
       if (!bill.driveViewUrl || !bill.row || !bill.entity) continue;
-      writeSingleAPBill(bill, bill.entity, AP_SPREADSHEET_ID, userAccessToken)
+      writeBillDriveUrl(bill.row, bill.entity, bill.driveViewUrl, AP_SPREADSHEET_ID, userAccessToken)
         .catch((e: any) => console.warn(`[BillLinkRecovery] sheet write failed for ${bill.vendor}:`, e?.message));
     }
     console.log(`[BillLinkRecovery] writing ${restoredBills.length} driveViewUrl(s) to sheet`);
