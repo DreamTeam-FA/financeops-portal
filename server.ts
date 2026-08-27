@@ -2501,6 +2501,7 @@ const WORKFLOW_TAB_TITLES = [
 let workflowsCache: { data: any; fetchedAt: number } | null = null;
 const WORKFLOWS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
+// ── Docs API parser ──────────────────────────────────────────────────────────
 function extractParagraphText(paragraph: any): string {
   if (!paragraph?.elements) return "";
   return paragraph.elements
@@ -2539,7 +2540,6 @@ function docContentToSections(content: any[]): any[] {
       } else if (style === "HEADING_3") {
         sections.push({ type: "h3", text });
       } else if (hasBullet) {
-        // Accumulate consecutive list items
         const items: string[] = [text];
         while (i + 1 < content.length && content[i + 1]?.paragraph?.bullet) {
           i++;
@@ -2557,8 +2557,7 @@ function docContentToSections(content: any[]): any[] {
         for (const cell of (row.tableCells || [])) {
           const cellText = (cell.content || [])
             .map((c: any) => c.paragraph ? extractParagraphText(c.paragraph) : "")
-            .join(" ")
-            .trim();
+            .join(" ").trim();
           cells.push(cellText);
         }
         rows.push(cells);
@@ -2570,9 +2569,114 @@ function docContentToSections(content: any[]): any[] {
   return sections;
 }
 
+// ── Drive HTML export parser (fallback when Docs API not enabled) ────────────
+function htmlToMd(s: string): string {
+  let r = s;
+  // bold+italic combos
+  r = r.replace(/<(b|strong)[^>]*><(i|em)[^>]*>([\s\S]*?)<\/\2><\/\1>/gi, "***$3***");
+  r = r.replace(/<(i|em)[^>]*><(b|strong)[^>]*>([\s\S]*?)<\/\2><\/\1>/gi, "***$3***");
+  r = r.replace(/<(b|strong)[^>]*>([\s\S]*?)<\/\1>/gi, "**$2**");
+  r = r.replace(/<(i|em)[^>]*>([\s\S]*?)<\/\1>/gi, "*$2*");
+  // strip remaining tags
+  r = r.replace(/<[^>]+>/g, "");
+  // decode entities
+  r = r.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+       .replace(/&nbsp;/g, " ").replace(/&#39;/g, "'").replace(/&apos;/g, "'")
+       .replace(/&quot;/g, '"').replace(/&ldquo;/g, '"').replace(/&rdquo;/g, '"')
+       .replace(/&lsquo;/g, "'").replace(/&rsquo;/g, "'").replace(/&mdash;/g, "—")
+       .replace(/&ndash;/g, "–");
+  return r.replace(/\s+/g, " ").trim();
+}
+
+function parseHtmlWorkflows(html: string): any[] {
+  // Strip head/style/script
+  let body = html
+    .replace(/<head[\s\S]*?<\/head>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<\/?html[^>]*>/gi, "")
+    .replace(/<\/?body[^>]*>/gi, "");
+
+  // Split into table vs non-table chunks so we can handle nested HTML in tables
+  const parts: { kind: "html" | "table"; content: string }[] = [];
+  const tableRe = /<table[\s\S]*?<\/table>/gi;
+  let last = 0;
+  let tm: RegExpExecArray | null;
+  while ((tm = tableRe.exec(body)) !== null) {
+    if (tm.index > last) parts.push({ kind: "html", content: body.slice(last, tm.index) });
+    parts.push({ kind: "table", content: tm[0] });
+    last = tm.index + tm[0].length;
+  }
+  if (last < body.length) parts.push({ kind: "html", content: body.slice(last) });
+
+  const allSections: any[] = [];
+
+  for (const part of parts) {
+    if (part.kind === "table") {
+      const rows: string[][] = [];
+      const rowRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+      let rm: RegExpExecArray | null;
+      while ((rm = rowRe.exec(part.content)) !== null) {
+        const cells: string[] = [];
+        const cellRe = /<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi;
+        let cm: RegExpExecArray | null;
+        while ((cm = cellRe.exec(rm[1])) !== null) cells.push(htmlToMd(cm[1]));
+        if (cells.some(c => c.trim())) rows.push(cells);
+      }
+      if (rows.length) allSections.push({ type: "table", rows });
+    } else {
+      // Match headings, paragraphs, list items
+      const elemRe = /<(h[1-3]|p|li)[^>]*>([\s\S]*?)<\/\1>/gi;
+      let em: RegExpExecArray | null;
+      while ((em = elemRe.exec(part.content)) !== null) {
+        const tag = em[1].toLowerCase();
+        const text = htmlToMd(em[2]);
+        if (!text) continue;
+        if (tag === "h1") allSections.push({ type: "h1", text });
+        else if (tag === "h2") allSections.push({ type: "h2", text });
+        else if (tag === "h3") allSections.push({ type: "h3", text });
+        else if (tag === "p") allSections.push({ type: "paragraph", text });
+        else if (tag === "li") {
+          const last2 = allSections[allSections.length - 1];
+          if (last2?.type === "list") last2.items.push(text);
+          else allSections.push({ type: "list", items: [text] });
+        }
+      }
+    }
+  }
+
+  // Split allSections into per-workflow buckets by matching headings to tab titles
+  const workflows: any[] = [];
+  let current: any | null = null;
+  for (const sec of allSections) {
+    if (sec.type === "h1" || sec.type === "h2") {
+      const matched = WORKFLOW_TAB_TITLES.find(t =>
+        sec.text.trim().toLowerCase() === t.toLowerCase() ||
+        sec.text.trim().toLowerCase().startsWith(t.toLowerCase())
+      );
+      if (matched) {
+        if (current) workflows.push(current);
+        current = {
+          id: matched.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+          title: matched,
+          sections: [],
+        };
+        continue;
+      }
+    }
+    if (current) current.sections.push(sec);
+  }
+  if (current) workflows.push(current);
+
+  workflows.sort((a, b) => {
+    return WORKFLOW_TAB_TITLES.indexOf(a.title) - WORKFLOW_TAB_TITLES.indexOf(b.title);
+  });
+  return workflows;
+}
+
+// ── /api/workflows endpoint ──────────────────────────────────────────────────
 app.get("/api/workflows", async (req, res) => {
   try {
-    // Serve from cache if fresh
     if (workflowsCache && Date.now() - workflowsCache.fetchedAt < WORKFLOWS_CACHE_TTL_MS) {
       return res.json({ ok: true, workflows: workflowsCache.data, cached: true });
     }
@@ -2582,39 +2686,49 @@ app.get("/api/workflows", async (req, res) => {
       return res.status(401).json({ ok: false, error: "No OAuth token — sign in first" });
     }
 
-    const docsUrl = `https://docs.googleapis.com/v1/documents/${WORKFLOWS_DOC_ID}?includeTabsContent=true`;
-    const docsResp = await fetch(docsUrl, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!docsResp.ok) {
-      const errBody = await docsResp.text();
-      console.error("[Workflows] Docs API error:", errBody);
-      return res.status(502).json({ ok: false, error: "Docs API error", details: errBody });
+    // ── Try Google Docs API first (structured tabs, richest data) ──
+    let workflows: any[] | null = null;
+    try {
+      const docsUrl = `https://docs.googleapis.com/v1/documents/${WORKFLOWS_DOC_ID}?includeTabsContent=true`;
+      const docsResp = await fetch(docsUrl, { headers: { Authorization: `Bearer ${token}` } });
+      if (docsResp.ok) {
+        const doc = await docsResp.json() as any;
+        const tabs: any[] = doc.tabs || [];
+        const wfs: any[] = [];
+        for (const tab of tabs) {
+          const tabTitle: string = tab.tabProperties?.title || "";
+          if (!WORKFLOW_TAB_TITLES.includes(tabTitle)) continue;
+          const content: any[] = tab.documentTab?.body?.content || [];
+          wfs.push({
+            id: tabTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+            title: tabTitle,
+            sections: docContentToSections(content),
+          });
+        }
+        wfs.sort((a, b) => WORKFLOW_TAB_TITLES.indexOf(a.title) - WORKFLOW_TAB_TITLES.indexOf(b.title));
+        workflows = wfs;
+        console.log(`[Workflows] Loaded ${wfs.length} workflows via Docs API`);
+      } else {
+        const errSnip = (await docsResp.text()).slice(0, 300);
+        console.warn("[Workflows] Docs API unavailable, falling back to Drive export:", errSnip);
+      }
+    } catch (docsErr: any) {
+      console.warn("[Workflows] Docs API failed, falling back to Drive export:", docsErr?.message);
     }
 
-    const doc = await docsResp.json() as any;
-    const tabs: any[] = doc.tabs || [];
-
-    const workflows: any[] = [];
-    for (const tab of tabs) {
-      const tabTitle: string = tab.tabProperties?.title || "";
-      // Skip tabs not in our list (e.g. "Copy of Accounts Payable")
-      if (!WORKFLOW_TAB_TITLES.includes(tabTitle)) continue;
-      const content: any[] = tab.documentTab?.body?.content || [];
-      const sections = docContentToSections(content);
-      workflows.push({
-        id: tabTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-        title: tabTitle,
-        sections,
-      });
+    // ── Fallback: Drive HTML export (works with drive scope, no extra API needed) ──
+    if (!workflows) {
+      const exportUrl = `https://www.googleapis.com/drive/v3/files/${WORKFLOWS_DOC_ID}/export?mimeType=text%2Fhtml`;
+      const exportResp = await fetch(exportUrl, { headers: { Authorization: `Bearer ${token}` } });
+      if (!exportResp.ok) {
+        const errSnip = (await exportResp.text()).slice(0, 300);
+        console.error("[Workflows] Drive export also failed:", errSnip);
+        return res.status(502).json({ ok: false, error: "Could not load document. Make sure the file is shared (View access) and Drive scope is authorized.", details: errSnip });
+      }
+      const html = await exportResp.text();
+      workflows = parseHtmlWorkflows(html);
+      console.log(`[Workflows] Loaded ${workflows.length} workflows via Drive HTML export`);
     }
-
-    // Sort by WORKFLOW_TAB_TITLES order
-    workflows.sort((a, b) => {
-      const ai = WORKFLOW_TAB_TITLES.indexOf(a.title);
-      const bi = WORKFLOW_TAB_TITLES.indexOf(b.title);
-      return ai - bi;
-    });
 
     workflowsCache = { data: workflows, fetchedAt: Date.now() };
     return res.json({ ok: true, workflows, cached: false });

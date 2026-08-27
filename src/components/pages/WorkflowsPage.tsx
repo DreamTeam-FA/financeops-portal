@@ -294,11 +294,13 @@ export const WorkflowsPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const token = (googleUser as any)?.accessToken || "";
+      // Use the same token source as other pages (stored after sign-in)
+      const token = typeof window !== "undefined"
+        ? localStorage.getItem("google_access_token") || (googleUser as any)?.accessToken || ""
+        : "";
       const qs = token ? `?userAccessToken=${encodeURIComponent(token)}` : "";
-      const url = forceRefresh
-        ? `/api/workflows${qs}${qs ? "&" : "?"}bust=${Date.now()}`
-        : `/api/workflows${qs}`;
+      const bust = forceRefresh ? `${qs ? "&" : "?"}bust=${Date.now()}` : "";
+      const url = `/api/workflows${qs}${bust}`;
       const resp = await fetch(url);
       const data = await resp.json();
       if (!data.ok) throw new Error(data.error || "Failed to load workflows");
