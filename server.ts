@@ -2728,14 +2728,26 @@ app.get("/api/workflows", async (req, res) => {
 
     // ── Try Google Docs API first (structured tabs, richest data) ──
     let workflows: any[] | null = null;
+    let workflowSource = "drive-html";
     try {
       const docsUrl = `https://docs.googleapis.com/v1/documents/${WORKFLOWS_DOC_ID}?includeTabsContent=true`;
       const docsResp = await fetch(docsUrl, { headers: { Authorization: `Bearer ${token}` } });
       if (docsResp.ok) {
         const doc = await docsResp.json() as any;
-        const tabs: any[] = doc.tabs || [];
+
+        // Recursively flatten tabs + childTabs (handles nested subtabs)
+        function flattenTabs(tabs: any[]): any[] {
+          const out: any[] = [];
+          for (const tab of (tabs || [])) {
+            out.push(tab);
+            if (tab.childTabs?.length) out.push(...flattenTabs(tab.childTabs));
+          }
+          return out;
+        }
+
+        const allTabs = flattenTabs(doc.tabs || []);
         const wfs: any[] = [];
-        for (const tab of tabs) {
+        for (const tab of allTabs) {
           const tabTitle: string = tab.tabProperties?.title || "";
           if (!WORKFLOW_TAB_TITLES.includes(tabTitle)) continue;
           const content: any[] = tab.documentTab?.body?.content || [];
@@ -2747,7 +2759,8 @@ app.get("/api/workflows", async (req, res) => {
         }
         wfs.sort((a, b) => WORKFLOW_TAB_TITLES.indexOf(a.title) - WORKFLOW_TAB_TITLES.indexOf(b.title));
         workflows = wfs;
-        console.log(`[Workflows] Loaded ${wfs.length} workflows via Docs API`);
+        workflowSource = "docs-api";
+        console.log(`[Workflows] Loaded ${wfs.length} workflows via Docs API (${allTabs.length} total tabs scanned)`);
       } else {
         const errSnip = (await docsResp.text()).slice(0, 300);
         console.warn("[Workflows] Docs API unavailable, falling back to Drive export:", errSnip);
@@ -2771,7 +2784,7 @@ app.get("/api/workflows", async (req, res) => {
     }
 
     workflowsCache = { data: workflows, fetchedAt: Date.now() };
-    return res.json({ ok: true, workflows, cached: false });
+    return res.json({ ok: true, workflows, cached: false, source: workflowSource });
   } catch (e: any) {
     console.error("[Workflows]", e?.message || e);
     return res.status(500).json({ ok: false, error: e?.message || "Unknown error" });
