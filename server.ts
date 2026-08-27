@@ -149,12 +149,19 @@ function mergeDatasets(liveList: any[], currentList: any[], idKey = "id") {
       // Strip undefined/null/"" from liveItem before spreading — EXCEPT annotation fields
       // (remarks, paymentInstructions, status1, paidVia) which must ALWAYS come from the
       // live sheet to prevent stale garbage (e.g. "Paid" in remarks) from persisting forever.
-      const ANNOTATION_FIELDS = new Set(["remarks", "paymentInstructions", "status1", "paidVia"]);
+      // ANNOTATION_FIELDS: always take value from live sheet, even if undefined.
+      // This clears stale garbage like remarks:"Paid" that old buggy syncs wrote to JSON.
+      // IMPORTANT: Ruby's/MSDx liveItem has "paymentInstructions" not "remarks".
+      // If liveItem doesn't have a given field, we still must set it to undefined in the
+      // merge so the spread overwrites any stale value from currentItem.
+      const ANNOTATION_FIELDS = ["remarks", "paymentInstructions", "status1", "paidVia"] as const;
       const liveItemDefined = Object.fromEntries(
-        Object.entries(liveItem).filter(([k, v]) =>
-          ANNOTATION_FIELDS.has(k) || (v !== undefined && v !== null && v !== "")
-        )
+        Object.entries(liveItem).filter(([_k, v]) => v !== undefined && v !== null && v !== "")
       );
+      // Force all annotation fields to their live value (undefined = field wasn't in live sheet → clear it)
+      for (const field of ANNOTATION_FIELDS) {
+        liveItemDefined[field] = (liveItem as any)[field];
+      }
       // Fresh live sheet data overrides stored item; currentItem fills in any missing fields
       const result: any = { ...currentItem, ...liveItemDefined, ...(invoiceNo ? { invoiceNo } : {}) };
       // driveViewUrl: prefer live sheet value (now stored in col T/X) over cached JSON value.
