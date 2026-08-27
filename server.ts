@@ -2684,15 +2684,20 @@ function parseHtmlWorkflows(html: string): any[] {
     if (sec.type === "h1" || sec.type === "h2") {
       const matched = matchWorkflowTitle(sec.text);
       if (matched) {
-        if (current) workflows.push(current);
-        current = {
-          id: matched.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-          title: matched,
-          sections: [],
-        };
-        continue; // skip the heading itself — it's the tab title shown in page header
+        // Only start a new workflow when title differs from the current one
+        if (!current || matched !== current.title) {
+          if (current) workflows.push(current);
+          current = {
+            id: matched.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+            title: matched,
+            sections: [],
+          };
+          continue; // skip this heading — it becomes the page header
+        }
+        // Same title again (e.g. "Invoices WorkFlow" inside "Invoice to Clients") — skip
+        continue;
       } else {
-        // Normal heading inside a workflow — clean it
+        // Normal heading inside a workflow — clean and add
         if (current) current.sections.push({ ...sec, text: cleanHeading(sec.text) });
         continue;
       }
@@ -2710,9 +2715,11 @@ function parseHtmlWorkflows(html: string): any[] {
 // ── /api/workflows endpoint ──────────────────────────────────────────────────
 app.get("/api/workflows", async (req, res) => {
   try {
-    if (workflowsCache && Date.now() - workflowsCache.fetchedAt < WORKFLOWS_CACHE_TTL_MS) {
+    const forceRefresh = !!(req.query as any).bust;
+    if (!forceRefresh && workflowsCache && Date.now() - workflowsCache.fetchedAt < WORKFLOWS_CACHE_TTL_MS) {
       return res.json({ ok: true, workflows: workflowsCache.data, cached: true });
     }
+    if (forceRefresh) workflowsCache = null;
 
     const token = getEffectiveDriveToken((req.query as any).userAccessToken);
     if (!token) {
