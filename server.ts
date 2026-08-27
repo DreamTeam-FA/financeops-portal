@@ -2502,13 +2502,21 @@ let workflowsCache: { data: any; fetchedAt: number } | null = null;
 const WORKFLOWS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 // ── Docs API parser ──────────────────────────────────────────────────────────
+// Characters to strip from Docs text (special markers, zero-width, non-printable)
+const STRIP_CHARS_RE = /[≡​‌‍﻿­  ]/g;
+
+function cleanDocText(text: string): string {
+  return text.replace(/\n$/, "").replace(STRIP_CHARS_RE, "").trim();
+}
+
 function extractParagraphText(paragraph: any): string {
   if (!paragraph?.elements) return "";
   return paragraph.elements
     .map((el: any) => {
       const run = el.textRun;
       if (!run || !run.content) return "";
-      const text = run.content.replace(/\n$/, "");
+      const text = cleanDocText(run.content);
+      if (!text) return "";
       const bold = run.textStyle?.bold;
       const italic = run.textStyle?.italic;
       if (bold && italic) return `***${text}***`;
@@ -2782,13 +2790,16 @@ app.get("/api/workflows", async (req, res) => {
         const wfs: any[] = [];
         for (const tab of allTabs) {
           const tabTitle: string = tab.tabProperties?.title || "";
-          if (!WORKFLOW_TAB_TITLES.includes(tabTitle)) continue;
+          const matchedTitle = WORKFLOW_TAB_TITLES.find(
+            t => t.toLowerCase() === tabTitle.toLowerCase()
+          );
+          if (!matchedTitle) continue;
           const content: any[] = tab.documentTab?.body?.content || [];
           const tabInlineObjects: Record<string, any> =
             tab.documentTab?.inlineObjects || doc.inlineObjects || {};
           wfs.push({
-            id: tabTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-            title: tabTitle,
+            id: matchedTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+            title: matchedTitle,
             sections: docContentToSections(content, tabInlineObjects),
           });
         }
