@@ -2498,7 +2498,7 @@ const WORKFLOW_TAB_TITLES = [
   "Ziglar Reports",
 ];
 
-let workflowsCache: { data: any; fetchedAt: number } | null = null;
+let workflowsCache: { data: any; fetchedAt: number; source: string } | null = null;
 const WORKFLOWS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 // ── Docs API parser ──────────────────────────────────────────────────────────
@@ -2829,7 +2829,7 @@ app.get("/api/workflows", async (req, res) => {
   try {
     const forceRefresh = !!(req.query as any).bust;
     if (!forceRefresh && workflowsCache && Date.now() - workflowsCache.fetchedAt < WORKFLOWS_CACHE_TTL_MS) {
-      return res.json({ ok: true, workflows: workflowsCache.data, cached: true });
+      return res.json({ ok: true, workflows: workflowsCache.data, cached: true, source: workflowsCache.source });
     }
     if (forceRefresh) workflowsCache = null;
 
@@ -2900,7 +2900,7 @@ app.get("/api/workflows", async (req, res) => {
       console.log(`[Workflows] Loaded ${workflows.length} workflows via Drive HTML export`);
     }
 
-    workflowsCache = { data: workflows, fetchedAt: Date.now() };
+    workflowsCache = { data: workflows, fetchedAt: Date.now(), source: workflowSource };
     return res.json({ ok: true, workflows, cached: false, source: workflowSource });
   } catch (e: any) {
     console.error("[Workflows]", e?.message || e);

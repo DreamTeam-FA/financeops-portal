@@ -384,7 +384,7 @@ export const WorkflowsPage: React.FC = () => {
                 Workflows
               </p>
               <p className={`text-[10px] mt-0.5 font-medium ${isLight ? "text-slate-400" : "text-slate-600"}`}>
-                SOPs · {source === "docs-api" ? "live" : "partial"}
+                SOPs · {source === "docs-api" ? "live" : cached ? "synced" : "loading"}
               </p>
             </div>
           </div>
@@ -432,6 +432,16 @@ export const WorkflowsPage: React.FC = () => {
               {lastFetched.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </p>
           )}
+          <a
+            href="https://docs.google.com/document/d/1McY0JUbJTqURmXtAWntos2pcl-Ttq9IMiV7aLnWHozc/edit"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`mt-2 w-full flex items-center justify-center gap-1.5 text-[10.5px] font-medium py-1.5 rounded-lg transition-all ${
+              isLight ? "text-slate-400 hover:text-blue-600 hover:bg-blue-50" : "text-slate-600 hover:text-blue-400 hover:bg-[#0d1f3c]/50"
+            }`}>
+            <ExternalLink className="w-3 h-3" />
+            Open Source Doc
+          </a>
         </div>
       </aside>
 
