@@ -4,6 +4,7 @@ import fs from "fs";
 import * as XLSX from "xlsx";
 import { createServer as createViteServer } from "vite";
 import { fetchFullLiveDataset } from "./src/services/liveSheetsFetcher";
+import { writeSingleAPBill } from "./src/services/googleSheetsService";
 import {
   getRawData as fourYrGetRawData,
   getMasterListWeeks as fourYrGetWeeks,
@@ -156,9 +157,10 @@ function mergeDatasets(liveList: any[], currentList: any[], idKey = "id") {
       );
       // Fresh live sheet data overrides stored item; currentItem fills in any missing fields
       const result: any = { ...currentItem, ...liveItemDefined, ...(invoiceNo ? { invoiceNo } : {}) };
-      // Portal-only fields: always preserve from currentItem (sheet has no columns for these)
-      if (currentItem.driveViewUrl)  result.driveViewUrl  = currentItem.driveViewUrl;
-      if (currentItem.driveFileName) result.driveFileName = currentItem.driveFileName;
+      // driveViewUrl: prefer live sheet value (now stored in col T/X) over cached JSON value.
+      // Fall back to currentItem value for bills not yet written to sheet.
+      if (!result.driveViewUrl && currentItem.driveViewUrl) result.driveViewUrl = currentItem.driveViewUrl;
+      if (!result.driveFileName && currentItem.driveFileName) result.driveFileName = currentItem.driveFileName;
       // NOTE: URL filtering is handled in the parser (googleSheetsService.ts) per entity/field.
       // Do NOT strip URLs here — Ruby's/MSDx col K legitimately contains Gmail/Drive links.
       return result;
@@ -402,7 +404,31 @@ app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// POST /api/calendar-action — persist calendar changes server-side so they survive GViz cache
+// THE LAW — write calendar changes directly to the Google Sheet so they survive server deploys.
+// col P (index 15) = done; col C (2) = title; col D (3) = notes; col I (8) = urgency;
+// col J (9) = category/type; col L (11) = assignee
+const CALENDAR_SPREADSHEET_ID = "1ChoHr7dsfai0Unl-Gk-HyPmgrpWOYu07gllY9PA8epo";
+const CALENDAR_TAB = "Events"; // primary tab name (matches Google Apps Script convention)
+const CALENDAR_COL_MAP = { done: 15, title: 2, notes: 3, urgency: 8, type: 9, assignee: 11 };
+
+async function writeCalendarCellToSheet(
+  token: string, tab: string, sheetRow: number, colIndex: number, value: any
+): Promise<void> {
+  const col = String.fromCharCode(65 + colIndex);
+  const range = `${tab}!${col}${sheetRow}`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${CALENDAR_SPREADSHEET_ID}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`;
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ range, majorDimension: "ROWS", values: [[value]] })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as any;
+    throw new Error(err?.error?.message || `HTTP ${res.status}`);
+  }
+}
+
+// POST /api/calendar-action — persist calendar changes server-side AND to the source Google Sheet.
 // type: "delete" | "done" | "edit"
 // id: event ID
 // value: boolean (for done) | {title?, notes?, urgency?, type?, assignee?} (for edit) | undefined (for delete)
@@ -414,6 +440,11 @@ app.post("/api/calendar-action", (req, res) => {
     const data = getStoredData();
     const overrides = data.calendarOverrides || { deleted: [], done: {}, edits: {} };
 
+    // Find the event to get its sheet row (for writing back to the source calendar sheet)
+    const calEvent = (data.calendarLocalEvents || []).find((e: any) => e.id === id);
+    const sheetRow = calEvent?.row || calEvent?.sheetRow;
+    const token = getEffectiveDriveToken();
+
     if (type === "delete") {
       if (!overrides.deleted.includes(id)) overrides.deleted.push(id);
       // Remove any done/edit overrides for this event (no longer needed)
@@ -421,18 +452,50 @@ app.post("/api/calendar-action", (req, res) => {
       delete overrides.edits[id];
       // Also remove from calendarLocalEvents immediately
       data.calendarLocalEvents = (data.calendarLocalEvents || []).filter((e: any) => e.id !== id);
+      // Sheet write: mark done=TRUE as a soft-delete signal (cannot delete rows via Sheets API easily)
+      // Real row deletion would require the batchUpdate API — mark done instead as a proxy
+      if (token && sheetRow) {
+        writeCalendarCellToSheet(token, CALENDAR_TAB, sheetRow, CALENDAR_COL_MAP.done, "TRUE")
+          .catch((e: any) => console.warn(`[CalAction/delete] sheet write failed for id=${id}:`, e?.message));
+      }
     } else if (type === "done") {
       overrides.done[id] = !!value;
       // Apply immediately to stored calendarLocalEvents
       data.calendarLocalEvents = (data.calendarLocalEvents || []).map((e: any) =>
         e.id === id ? { ...e, done: !!value } : e
       );
+      // THE LAW: write done status back to calendar sheet col P
+      if (token && sheetRow) {
+        writeCalendarCellToSheet(token, CALENDAR_TAB, sheetRow, CALENDAR_COL_MAP.done, value ? "TRUE" : "FALSE")
+          .catch((e: any) => console.warn(`[CalAction/done] sheet write failed for id=${id}:`, e?.message));
+      } else if (!token) {
+        console.log(`[CalAction/done] no OAuth token — done for id=${id} stored in JSON only`);
+      }
     } else if (type === "edit") {
       overrides.edits[id] = { ...(overrides.edits[id] || {}), ...value };
       // Apply immediately to stored calendarLocalEvents
       data.calendarLocalEvents = (data.calendarLocalEvents || []).map((e: any) =>
         e.id === id ? { ...e, ...value } : e
       );
+      // THE LAW: write edits back to calendar sheet
+      if (token && sheetRow) {
+        const fieldMap: Record<string, number> = {
+          title: CALENDAR_COL_MAP.title,
+          notes: CALENDAR_COL_MAP.notes,
+          urgency: CALENDAR_COL_MAP.urgency,
+          type: CALENDAR_COL_MAP.type,
+          assignee: CALENDAR_COL_MAP.assignee,
+        };
+        for (const [field, val] of Object.entries(value as Record<string, any>)) {
+          const colIdx = fieldMap[field];
+          if (colIdx !== undefined && val !== undefined) {
+            writeCalendarCellToSheet(token, CALENDAR_TAB, sheetRow, colIdx, val)
+              .catch((e: any) => console.warn(`[CalAction/edit] sheet write failed for ${field} id=${id}:`, e?.message));
+          }
+        }
+      } else if (!token) {
+        console.log(`[CalAction/edit] no OAuth token — edits for id=${id} stored in JSON only`);
+      }
     } else {
       return res.status(400).json({ error: "unknown type" });
     }
@@ -524,11 +587,12 @@ app.post("/api/data", (req, res) => {
  * Writes the links into the shared server JSON so ALL users see them.
  */
 app.post("/api/drive/restore-links", (req, res) => {
-  const { links } = req.body || {};
+  const { links, userAccessToken } = req.body || {};
   if (!Array.isArray(links) || links.length === 0) return res.json({ ok: true, updated: 0 });
   const data = getStoredData();
   const n = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
   let updated = 0;
+  const updatedBills: any[] = [];
   (data.ap || []).forEach((bill: any) => {
     if (bill.driveViewUrl) return;               // already has a link — skip
     const match = links.find((l: any) =>
@@ -542,10 +606,25 @@ app.post("/api/drive/restore-links", (req, res) => {
       bill.driveViewUrl  = match.driveViewUrl;
       bill.driveFileName = match.driveFileName || "";
       updated++;
+      updatedBills.push(bill);
     }
   });
-  if (updated > 0) saveStoredData(data);
-  console.log(`[RestoreLinks] ${updated} bill link(s) restored to shared server JSON`);
+  if (updated > 0) {
+    saveStoredData(data);
+    // THE LAW: write driveViewUrl permanently to the source Google Sheet.
+    const token = userAccessToken || getEffectiveDriveToken();
+    if (token) {
+      for (const bill of updatedBills) {
+        if (!bill.row || !bill.entity) continue;
+        writeSingleAPBill(bill, bill.entity, AP_SPREADSHEET_ID, token)
+          .catch((e: any) => console.warn(`[RestoreLinks] sheet write failed for ${bill.vendor}:`, e?.message));
+      }
+      console.log(`[RestoreLinks] writing ${updatedBills.length} driveViewUrl(s) to sheet`);
+    } else {
+      console.log("[RestoreLinks] no OAuth token available — driveViewUrl written to JSON only; will sync to sheet on next authenticated Pull Live");
+    }
+  }
+  console.log(`[RestoreLinks] ${updated} bill link(s) restored`);
   return res.json({ ok: true, updated });
 });
 
@@ -674,6 +753,9 @@ async function getOrCreateFolder(drive: any, parentId: string, name: string): Pr
 // Shared central Drive folder — all bill copies go here regardless of who's logged in
 const BILLS_ROOT_FOLDER_ID = "1AzwpWEMdyp1SEeNtXrie5171cSk5L7Za";
 
+// Main AP spreadsheet — driveViewUrl is written here permanently so it survives server deploys
+const AP_SPREADSHEET_ID = "15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs";
+
 /** Ensure the full path exists under the bills root folder, return the leaf folder ID. */
 async function ensurePath(drive: any, segments: string[]): Promise<string> {
   let parentId = BILLS_ROOT_FOLDER_ID;
@@ -743,6 +825,33 @@ app.post("/api/drive/upload-bill", async (req, res) => {
       fileId,
       requestBody: { role: "reader", type: "anyone" },
     });
+
+    // THE LAW: persist driveViewUrl to the source Google Sheet so it survives deploys.
+    // Also update the in-memory JSON so the response is immediately accurate.
+    try {
+      const stored = getStoredData();
+      const targetBill = (stored.ap || []).find((b: any) => {
+        if (!b.entity || b.entity !== entity) return false;
+        if (invoiceNo && b.invoiceNo && b.invoiceNo !== invoiceNo) return false;
+        if (dueDate && b.dueDate !== dueDate) return false;
+        const n = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+        return n(b.vendor) === n(vendor || "");
+      });
+      if (targetBill) {
+        targetBill.driveViewUrl  = viewUrl;
+        targetBill.driveFileName = fileName;
+        saveStoredData(stored);
+        if (targetBill.row) {
+          writeSingleAPBill(targetBill, targetBill.entity, AP_SPREADSHEET_ID, userAccessToken)
+            .catch((e: any) => console.warn("[DriveUpload] sheet write failed:", e?.message));
+          console.log(`[DriveUpload] driveViewUrl written to sheet row ${targetBill.row} for ${targetBill.vendor}`);
+        }
+      } else {
+        console.log("[DriveUpload] bill not found in stored data — driveViewUrl not written to sheet (will appear after next Pull Live)");
+      }
+    } catch (saveErr: any) {
+      console.warn("[DriveUpload] failed to persist driveViewUrl:", saveErr?.message);
+    }
 
     return res.json({ ok: true, fileId, viewUrl, fileName });
   } catch (e: any) {
@@ -828,6 +937,18 @@ async function runBillLinkRecovery(userAccessToken: string): Promise<{
 
   if (restored > 0) {
     saveStoredData({ ...current, ap: apBills });
+
+    // THE LAW: write driveViewUrl back to the source Google Sheet permanently so it
+    // survives every server deploy without needing Drive recovery again.
+    const restoredBills = apBills.filter((b: any) =>
+      matches.some(m => m.vendor === b.vendor && m.date === b.dueDate)
+    );
+    for (const bill of restoredBills) {
+      if (!bill.driveViewUrl || !bill.row || !bill.entity) continue;
+      writeSingleAPBill(bill, bill.entity, AP_SPREADSHEET_ID, userAccessToken)
+        .catch((e: any) => console.warn(`[BillLinkRecovery] sheet write failed for ${bill.vendor}:`, e?.message));
+    }
+    console.log(`[BillLinkRecovery] writing ${restoredBills.length} driveViewUrl(s) to sheet`);
   }
 
   return {

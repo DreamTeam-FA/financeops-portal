@@ -491,6 +491,12 @@ export const parseAPSheetRows = (
     const categoryVal = String(row[5] || "").trim();
     const invoiceDateVal = parseDateVal(row[7]) || String(row[7] || "").trim();
 
+    // driveViewUrl — read from the entity's dedicated column (col T=19 for Ruby's/MSDx, col X=23 for TI)
+    // This is the permanent store so bill copies survive server deploys without needing Drive recovery
+    const driveUrlColIdx = isTITab ? 23 : 19;
+    const driveUrlRaw = String(row[driveUrlColIdx] || "").trim();
+    const driveViewUrl = /^https?:\/\//i.test(driveUrlRaw) ? driveUrlRaw : undefined;
+
     bills.push({
       id: `ap-gs-${idx + 1}-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       vendor,
@@ -513,6 +519,7 @@ export const parseAPSheetRows = (
       paymentInstructions: paymentInstructions || undefined,
       category: categoryVal || undefined,
       invoiceDate: invoiceDateVal || undefined,
+      driveViewUrl,
     });
   });
 
@@ -943,6 +950,7 @@ interface APColMap {
   remarksCol: number;
   payInstCol: number;
   status1Col: number;
+  driveViewUrlCol: number | null;  // column that stores the Drive bill-copy URL permanently
   totalCols: number;
   dataRange: string;
 }
@@ -953,24 +961,30 @@ const AP_COL_MAPS: Record<string, APColMap> = {
     dueDate: 8, amount: 9,
     paidDateCol: 11, methodCol: null, paytypeCol: 17,
     status: 12, inQBO: 13, onHold: 18,  // col S = On Hold
-    remarksCol: 10, payInstCol: 14, status1Col: 11, totalCols: 19,
-    dataRange: "'Ruby''s Bills'!A5:S1504"   // 1500 data rows starting row 5
+    remarksCol: 10, payInstCol: 14, status1Col: 11,
+    driveViewUrlCol: 19,   // col T — new permanent bill-copy link column
+    totalCols: 20,         // extended from S(19) to T(20)
+    dataRange: "'Ruby''s Bills'!A5:T1504"   // 1500 data rows starting row 5
   },
   "TI": {
     vendor: 5, company: 4, invoiceNo: 6, invoiceDateCol: 7, categoryCol: null, descriptionCol: null,
     dueDate: 8, amount: 9,
     paidDateCol: 10, methodCol: 12, paytypeCol: 19,
     status: 13, inQBO: 15, onHold: 22,  // holdCol:22 per CALcode
-    remarksCol: 14, payInstCol: 16, status1Col: 17, totalCols: 23,
-    dataRange: "'TI Bills'!A7:W1506"    // 1500 data rows starting row 7
+    remarksCol: 14, payInstCol: 16, status1Col: 17,
+    driveViewUrlCol: 23,   // col X — new permanent bill-copy link column
+    totalCols: 24,         // extended from W(23) to X(24)
+    dataRange: "'TI Bills'!A7:X1506"    // 1500 data rows starting row 7
   },
   "MSDx": {
     vendor: 3, company: null, invoiceNo: 6, invoiceDateCol: 7, categoryCol: 5, descriptionCol: 4,
     dueDate: 8, amount: 9,
     paidDateCol: 11, methodCol: null, paytypeCol: 17,
     status: 12, inQBO: 13, onHold: 18,  // holdCol:18 per CALcode
-    remarksCol: 10, payInstCol: 14, status1Col: 11, totalCols: 19,
-    dataRange: "'MSDx Bills'!A6:S1505"  // 1500 data rows starting row 6
+    remarksCol: 10, payInstCol: 14, status1Col: 11,
+    driveViewUrlCol: 19,   // col T — new permanent bill-copy link column
+    totalCols: 20,         // extended from S(19) to T(20)
+    dataRange: "'MSDx Bills'!A6:T1505"  // 1500 data rows starting row 6
   }
 };
 
@@ -1048,6 +1062,11 @@ export const buildAPBillRow = (b: APBill, entity: string): any[] => {
   // unpaid → status col stays blank; hold → status col stays blank (on-hold col set below)
   if (b.inQBO) row[map.inQBO] = "TRUE";
   if (b.status === "hold") row[map.onHold] = "on hold";
+
+  // Bill-copy Drive URL — written to the entity's dedicated driveViewUrl column (col T or X)
+  if (b.driveViewUrl && map.driveViewUrlCol !== null && map.driveViewUrlCol !== undefined) {
+    row[map.driveViewUrlCol] = b.driveViewUrl;
+  }
 
   // Remarks routing per layout
   if (entity === "TI") {
