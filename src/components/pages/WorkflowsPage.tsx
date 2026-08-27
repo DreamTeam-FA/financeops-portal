@@ -423,7 +423,7 @@ export const WorkflowsPage: React.FC = () => {
             ))}
           </div>
         ) : (
-          <div className="max-w-3xl px-8 py-8">
+          <div className="px-8 py-8 min-w-0">
 
             {/* Partial-load notice */}
             {partial && (
