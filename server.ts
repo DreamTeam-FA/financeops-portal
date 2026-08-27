@@ -2506,17 +2506,19 @@ const WORKFLOWS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const STRIP_CHARS_RE = /[\u2261\u200B\u200C\u200D\uFEFF\u00AD\u00A0]/g;
 
 function cleanDocText(text: string): string {
-  return text.replace(/\n$/, "").replace(STRIP_CHARS_RE, "").trim();
+  // Strip trailing newline and special chars — do NOT trim individual runs
+  // because trimming strips the spaces between adjacent runs
+  return text.replace(/\n$/, "").replace(STRIP_CHARS_RE, "");
 }
 
 function extractParagraphText(paragraph: any): string {
   if (!paragraph?.elements) return "";
-  return paragraph.elements
+  const raw = paragraph.elements
     .map((el: any) => {
       const run = el.textRun;
       if (!run || !run.content) return "";
       const text = cleanDocText(run.content);
-      if (!text) return "";
+      if (!text.trim()) return "";
       const bold = run.textStyle?.bold;
       const italic = run.textStyle?.italic;
       if (bold && italic) return `***${text}***`;
@@ -2525,6 +2527,15 @@ function extractParagraphText(paragraph: any): string {
       return text;
     })
     .join("");
+  return raw.trim();
+}
+
+// Split "Heading text  (Note: some note)" into [heading, note] parts
+function splitHeadingNote(text: string): { heading: string; note: string | null } {
+  const m = text.match(/^(.+?)\s{2,}\((Note:|note:|NOTE:)(.+)\)$/) ||
+            text.match(/^(.+?)\s+\((Note:|note:|NOTE:)(.+)\)$/);
+  if (m) return { heading: m[1].trim(), note: `(${m[2]}${m[3]})` };
+  return { heading: text, note: null };
 }
 
 function getParaStyle(paragraph: any): string {
@@ -2574,11 +2585,17 @@ function docContentToSections(content: any[], inlineObjects: Record<string, any>
       for (const src of inlineImgUrls) sections.push({ type: "image", src });
       if (text.trim()) {
         if (style === "HEADING_1") {
-          sections.push({ type: "h1", text });
+          const { heading, note } = splitHeadingNote(text);
+          sections.push({ type: "h1", text: heading });
+          if (note) sections.push({ type: "paragraph", text: note });
         } else if (style === "HEADING_2") {
-          sections.push({ type: "h2", text });
+          const { heading, note } = splitHeadingNote(text);
+          sections.push({ type: "h2", text: heading });
+          if (note) sections.push({ type: "paragraph", text: note });
         } else if (style === "HEADING_3") {
-          sections.push({ type: "h3", text });
+          const { heading, note } = splitHeadingNote(text);
+          sections.push({ type: "h3", text: heading });
+          if (note) sections.push({ type: "paragraph", text: note });
         } else if (hasBullet) {
           const items: string[] = [text];
           while (i + 1 < content.length && content[i + 1]?.paragraph?.bullet) {
