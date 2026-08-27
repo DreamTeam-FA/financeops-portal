@@ -2542,6 +2542,38 @@ function getParaStyle(paragraph: any): string {
   return paragraph?.paragraphStyle?.namedStyleType || "NORMAL_TEXT";
 }
 
+// Extract Google resource rich-link chips (linked Google Sheets/Docs)
+function extractRichLinks(paragraph: any): Array<{ title: string; uri: string }> {
+  if (!paragraph?.elements) return [];
+  const links: Array<{ title: string; uri: string }> = [];
+  for (const el of paragraph.elements) {
+    const rl = el.richLink?.richLinkProperties;
+    if (rl?.title) links.push({ title: rl.title, uri: rl.uri || "" });
+  }
+  return links;
+}
+
+// Extract only the non-rich-link text runs from a paragraph
+function paragraphNonRichLinkText(paragraph: any): string {
+  if (!paragraph?.elements) return "";
+  const raw = paragraph.elements
+    .filter((el: any) => !el.richLink)
+    .map((el: any) => {
+      const run = el.textRun;
+      if (!run || !run.content) return "";
+      const text = cleanDocText(run.content);
+      if (!text.trim()) return "";
+      const bold = run.textStyle?.bold;
+      const italic = run.textStyle?.italic;
+      if (bold && italic) return `***${text}***`;
+      if (bold) return `**${text}**`;
+      if (italic) return `*${text}*`;
+      return text;
+    })
+    .join("");
+  return raw.trim();
+}
+
 function paragraphHasOnlyImages(paragraph: any): boolean {
   if (!paragraph?.elements) return false;
   return paragraph.elements.every(
@@ -2569,6 +2601,18 @@ function docContentToSections(content: any[], inlineObjects: Record<string, any>
   while (i < content.length) {
     const elem = content[i];
     if (elem.paragraph) {
+      // Check for Google resource rich-link chips first (e.g. linked Google Sheets/Docs)
+      const richLinks = extractRichLinks(elem.paragraph);
+      if (richLinks.length > 0) {
+        const restText = paragraphNonRichLinkText(elem.paragraph);
+        // Check if the remaining text is a note annotation "(Note: ...)"
+        const noteMatch = restText.match(/^\s*\((Note:|note:|NOTE:)(.+)\)\s*$/);
+        const noteText = noteMatch ? restText.trim() : (restText.trim() || null);
+        for (const link of richLinks) {
+          sections.push({ type: "file-link", text: link.title, url: link.uri, ...(noteText ? { note: noteText } : {}) });
+        }
+        i++; continue;
+      }
       // Check for inline images first
       if (paragraphHasOnlyImages(elem.paragraph)) {
         const urls = extractInlineImageUrls(elem.paragraph, inlineObjects);

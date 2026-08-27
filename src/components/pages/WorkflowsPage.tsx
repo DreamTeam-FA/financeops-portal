@@ -4,16 +4,18 @@ import {
   BookOpen, ChevronRight, RefreshCw, AlertCircle, FileText,
   ArrowRight, Receipt, TrendingUp, DollarSign, Banknote,
   Calculator, Repeat, BarChart3, FileSpreadsheet, ClipboardList,
-  Building2, Info, AlertTriangle,
+  Building2, Info, AlertTriangle, ExternalLink,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface WorkflowSection {
-  type: "h1" | "h2" | "h3" | "paragraph" | "list" | "table" | "image";
+  type: "h1" | "h2" | "h3" | "paragraph" | "list" | "table" | "image" | "file-link";
   text?: string;
   items?: string[];
   rows?: string[][];
   src?: string;
+  url?: string;
+  note?: string;
 }
 interface Workflow { id: string; title: string; sections: WorkflowSection[] }
 
@@ -285,6 +287,38 @@ function renderSec(sec: any, i: number, isLight: boolean, accent: string): React
           />
         </div>
       ) : null;
+
+    case "file-link": {
+      const isSheet = (sec.url || "").includes("spreadsheets");
+      const isDoc = (sec.url || "").includes("/document");
+      const fileLabel = isSheet ? "Google Sheet" : isDoc ? "Google Doc" : "File";
+      return (
+        <div key={i} className={`mt-8 mb-3 pb-3 border-b ${isLight ? "border-slate-100" : "border-[#1e3457]"}`}>
+          <a
+            href={sec.url || "#"}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex items-center gap-2.5 w-fit"
+          >
+            <span
+              className="flex items-center gap-1.5 text-[14px] font-bold tracking-tight hover:underline underline-offset-2 transition-colors"
+              style={{ color: accent }}
+            >
+              <ExternalLink size={14} className="shrink-0 opacity-70 group-hover:opacity-100" />
+              {sec.text || ""}
+            </span>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide ${
+              isLight ? "bg-slate-100 text-slate-400" : "bg-[#0d1a2e] text-slate-500"
+            }`}>{fileLabel}</span>
+          </a>
+          {sec.note && (
+            <p className={`mt-1.5 ml-[22px] text-[12px] leading-relaxed italic ${isLight ? "text-slate-400" : "text-slate-500"}`}>
+              {sec.note}
+            </p>
+          )}
+        </div>
+      );
+    }
 
     default: return null;
   }
