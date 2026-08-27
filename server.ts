@@ -2171,22 +2171,24 @@ app.post("/api/config/set-sheet-id", (req, res) => {
   const VALID_KEYS = ["main", "payroll4yr", "calendar", "cc"];
   if (!VALID_KEYS.includes(key)) return res.status(400).json({ ok: false, error: `key must be one of ${VALID_KEYS.join(", ")}` });
   if (!id || typeof id !== "string" || !/^[A-Za-z0-9_-]{20,60}$/.test(id)) return res.status(400).json({ ok: false, error: "Invalid sheet ID format" });
-  if (!data.sheetIdOverrides) data.sheetIdOverrides = {};
-  data.sheetIdOverrides[key] = id;
-  persistChanges({ sheetIdOverrides: data.sheetIdOverrides });
+  const stored = getStoredData();
+  if (!stored.sheetIdOverrides) stored.sheetIdOverrides = {};
+  stored.sheetIdOverrides[key] = id;
+  saveStoredData(stored);
   console.log(`[SheetOverride] ${key} → ${id}`);
   res.json({ ok: true, key, id });
 });
 
 // GET /api/config/sheet-ids — return current active sheet IDs (overrides + defaults)
 app.get("/api/config/sheet-ids", (_req, res) => {
+  const overrides = getStoredData().sheetIdOverrides || {};
   res.json({
     ok: true,
     ids: {
-      main:       data.sheetIdOverrides?.main       || "15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs",
-      payroll4yr: data.sheetIdOverrides?.payroll4yr || "1SITtQDT3iFo5yIOBgjbERbqJjYJ8rk6drXwkLm3sAGE",
-      calendar:   data.sheetIdOverrides?.calendar   || "1ChoHr7dsfai0Unl-Gk-HyPmgrpWOYu07gllY9PA8epo",
-      cc:         data.sheetIdOverrides?.cc         || "1gKCKrWw8mkqJDiRl_9xYIhkzmtjOEoauQZgbtW9gIew",
+      main:       overrides.main       || "15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs",
+      payroll4yr: overrides.payroll4yr || "1SITtQDT3iFo5yIOBgjbERbqJjYJ8rk6drXwkLm3sAGE",
+      calendar:   overrides.calendar   || "1ChoHr7dsfai0Unl-Gk-HyPmgrpWOYu07gllY9PA8epo",
+      cc:         overrides.cc         || "1gKCKrWw8mkqJDiRl_9xYIhkzmtjOEoauQZgbtW9gIew",
     },
   });
 });
