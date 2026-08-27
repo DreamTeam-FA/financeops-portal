@@ -2483,6 +2483,147 @@ app.get("/api/email/attachment/:messageId/:attachmentId", async (req, res) => {
   }
 });
 
+// ── Workflows: fetch + parse Google Doc ──────────────────────────────────────
+const WORKFLOWS_DOC_ID = "1McY0JUbJTqURmXtAWntos2pcl-Ttq9IMiV7aLnWHozc";
+const WORKFLOW_TAB_TITLES = [
+  "Invoice to Clients",
+  "Accounts Receivable",
+  "Reimbursements",
+  "Accounts Payable",
+  "QBO Clarifications",
+  "Transfers",
+  "Ruby's USU FTA Report",
+  "Ruby's Toast Recon Report",
+  "CPRO Reports",
+  "Ziglar Reports",
+];
+
+let workflowsCache: { data: any; fetchedAt: number } | null = null;
+const WORKFLOWS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+function extractParagraphText(paragraph: any): string {
+  if (!paragraph?.elements) return "";
+  return paragraph.elements
+    .map((el: any) => {
+      const run = el.textRun;
+      if (!run || !run.content) return "";
+      const text = run.content.replace(/\n$/, "");
+      const bold = run.textStyle?.bold;
+      const italic = run.textStyle?.italic;
+      if (bold && italic) return `***${text}***`;
+      if (bold) return `**${text}**`;
+      if (italic) return `*${text}*`;
+      return text;
+    })
+    .join("");
+}
+
+function getParaStyle(paragraph: any): string {
+  return paragraph?.paragraphStyle?.namedStyleType || "NORMAL_TEXT";
+}
+
+function docContentToSections(content: any[]): any[] {
+  const sections: any[] = [];
+  let i = 0;
+  while (i < content.length) {
+    const elem = content[i];
+    if (elem.paragraph) {
+      const style = getParaStyle(elem.paragraph);
+      const text = extractParagraphText(elem.paragraph);
+      const hasBullet = !!elem.paragraph.bullet;
+      if (!text.trim()) { i++; continue; }
+      if (style === "HEADING_1") {
+        sections.push({ type: "h1", text });
+      } else if (style === "HEADING_2") {
+        sections.push({ type: "h2", text });
+      } else if (style === "HEADING_3") {
+        sections.push({ type: "h3", text });
+      } else if (hasBullet) {
+        // Accumulate consecutive list items
+        const items: string[] = [text];
+        while (i + 1 < content.length && content[i + 1]?.paragraph?.bullet) {
+          i++;
+          const nextText = extractParagraphText(content[i].paragraph);
+          if (nextText.trim()) items.push(nextText);
+        }
+        sections.push({ type: "list", items });
+      } else {
+        sections.push({ type: "paragraph", text });
+      }
+    } else if (elem.table) {
+      const rows: string[][] = [];
+      for (const row of (elem.table.tableRows || [])) {
+        const cells: string[] = [];
+        for (const cell of (row.tableCells || [])) {
+          const cellText = (cell.content || [])
+            .map((c: any) => c.paragraph ? extractParagraphText(c.paragraph) : "")
+            .join(" ")
+            .trim();
+          cells.push(cellText);
+        }
+        rows.push(cells);
+      }
+      sections.push({ type: "table", rows });
+    }
+    i++;
+  }
+  return sections;
+}
+
+app.get("/api/workflows", async (req, res) => {
+  try {
+    // Serve from cache if fresh
+    if (workflowsCache && Date.now() - workflowsCache.fetchedAt < WORKFLOWS_CACHE_TTL_MS) {
+      return res.json({ ok: true, workflows: workflowsCache.data, cached: true });
+    }
+
+    const token = getEffectiveDriveToken((req.query as any).userAccessToken);
+    if (!token) {
+      return res.status(401).json({ ok: false, error: "No OAuth token — sign in first" });
+    }
+
+    const docsUrl = `https://docs.googleapis.com/v1/documents/${WORKFLOWS_DOC_ID}?includeTabsContent=true`;
+    const docsResp = await fetch(docsUrl, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!docsResp.ok) {
+      const errBody = await docsResp.text();
+      console.error("[Workflows] Docs API error:", errBody);
+      return res.status(502).json({ ok: false, error: "Docs API error", details: errBody });
+    }
+
+    const doc = await docsResp.json() as any;
+    const tabs: any[] = doc.tabs || [];
+
+    const workflows: any[] = [];
+    for (const tab of tabs) {
+      const tabTitle: string = tab.tabProperties?.title || "";
+      // Skip tabs not in our list (e.g. "Copy of Accounts Payable")
+      if (!WORKFLOW_TAB_TITLES.includes(tabTitle)) continue;
+      const content: any[] = tab.documentTab?.body?.content || [];
+      const sections = docContentToSections(content);
+      workflows.push({
+        id: tabTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        title: tabTitle,
+        sections,
+      });
+    }
+
+    // Sort by WORKFLOW_TAB_TITLES order
+    workflows.sort((a, b) => {
+      const ai = WORKFLOW_TAB_TITLES.indexOf(a.title);
+      const bi = WORKFLOW_TAB_TITLES.indexOf(b.title);
+      return ai - bi;
+    });
+
+    workflowsCache = { data: workflows, fetchedAt: Date.now() };
+    return res.json({ ok: true, workflows, cached: false });
+  } catch (e: any) {
+    console.error("[Workflows]", e?.message || e);
+    return res.status(500).json({ ok: false, error: e?.message || "Unknown error" });
+  }
+});
+
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

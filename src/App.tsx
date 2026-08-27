@@ -24,6 +24,7 @@ import { BankStatementPage } from "./components/pages/BankStatementPage";
 import { PDFTableExtractorPage } from "./components/pages/PDFTableExtractorPage";
 import { EmailInboxScannerPage } from "./components/pages/EmailInboxScannerPage";
 import { CCExpensePage } from "./components/pages/CCExpensePage";
+import { WorkflowsPage } from "./components/pages/WorkflowsPage";
 import { GlobalSearchModal } from "./components/GlobalSearchModal";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { NotesFloatingWidget } from "./components/modals/NotesFloatingWidget";
@@ -296,6 +297,8 @@ const PortalContent: React.FC = () => {
         return <EmailInboxScannerPage onBack={() => setCurrentPage("workspace-tools")} />;
       case "cc-expenses":
         return <CCExpensePage />;
+      case "workflows":
+        return <WorkflowsPage />;
       default:
         return <HubPage />;
     }

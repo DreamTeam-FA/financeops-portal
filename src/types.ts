@@ -265,4 +265,5 @@ export type PageRoute =
   | "bank-statement"
   | "pdf-table-extractor"
   | "email-scanner"
-  | "cc-expenses";
+  | "cc-expenses"
+  | "workflows";

@@ -46,7 +46,8 @@ import {
   Layers,
   PanelLeftClose,
   PanelLeftOpen,
-  Search
+  Search,
+  BookOpen
 } from "lucide-react";
 import { PageRoute, ExternalLinkItem } from "../types";
 
@@ -139,6 +140,7 @@ export const Sidebar: React.FC = () => {
     { id: "calendar",    label: "Calendar",            icon: <CalendarDays className="w-4 h-4" />,     badgeKey: "calendar",   badgeColor: "bg-[#0d9488]",  badgeTitle: "upcoming this week" },
     { id: "notes",       label: "Quick Notes",         icon: <StickyNote className="w-4 h-4 text-purple-400" />, badgeKey: "notes", badgeColor: "bg-purple-700", badgeTitle: "open notes" },
     { id: "cc-expenses",    label: "CC Expenses",          icon: <CreditCard className="w-4 h-4" /> },
+    { id: "workflows",      label: "Workflows",            icon: <BookOpen className="w-4 h-4 text-sky-400" /> },
   ];
 
   const userInitial = userEmail ? userEmail.slice(0, 2).toUpperCase() : "MC";
