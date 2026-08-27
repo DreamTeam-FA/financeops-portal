@@ -146,10 +146,9 @@ const DataTable: React.FC<{ rows: string[][]; isLight: boolean; accent: string }
   const [header, ...body] = rows;
   const accentLight = accent + "18"; // 10% opacity
   return (
-    <div className={`mb-7 rounded-2xl overflow-hidden border ${isLight ? "border-slate-200" : "border-[#1e3457]"}`}
+    <div className={`mb-7 rounded-2xl border overflow-x-auto ${isLight ? "border-slate-200" : "border-[#1e3457]"}`}
       style={{ boxShadow: isLight ? "0 1px 6px rgba(0,0,0,0.06)" : "none" }}>
-      <div className="overflow-x-auto">
-        <table className="text-[12.5px] border-collapse" style={{ minWidth: "100%", tableLayout: "auto" }}>
+        <table className="text-[12.5px] border-collapse" style={{ minWidth: "100%", tableLayout: "auto", borderRadius: "1rem", overflow: "hidden" }}>
           <thead>
             <tr>
               {header.map((c, i) => (
@@ -179,7 +178,6 @@ const DataTable: React.FC<{ rows: string[][]; isLight: boolean; accent: string }
             ))}
           </tbody>
         </table>
-      </div>
     </div>
   );
 };
