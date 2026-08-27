@@ -2645,15 +2645,44 @@ function parseHtmlWorkflows(html: string): any[] {
     }
   }
 
-  // Split allSections into per-workflow buckets by matching headings to tab titles
+  // Keyword map for fuzzy workflow-title matching
+  const WORKFLOW_KEYWORDS: Record<string, string[]> = {
+    "Invoice to Clients":        ["invoic"],
+    "Accounts Receivable":       ["receivable"],
+    "Reimbursements":            ["reimburs"],
+    "Accounts Payable":          ["accounts payable", " payable", "a/p"],
+    "QBO Clarifications":        ["qbo", "clarif"],
+    "Transfers":                 ["transfer"],
+    "Ruby's USU FTA Report":     ["usu", "fta"],
+    "Ruby's Toast Recon Report": ["toast", "recon"],
+    "CPRO Reports":              ["cpro"],
+    "Ziglar Reports":            ["ziglar"],
+  };
+
+  function matchWorkflowTitle(headingText: string): string | null {
+    const lower = headingText.toLowerCase();
+    for (const [title, keywords] of Object.entries(WORKFLOW_KEYWORDS)) {
+      if (keywords.some(kw => lower.includes(kw))) return title;
+    }
+    return null;
+  }
+
+  // Clean up heading text: strip "WorkFlow", "Workflow", "(% Name)", trailing punctuation
+  function cleanHeading(text: string): string {
+    return text
+      .replace(/\s*workflow\s*/gi, " ")
+      .replace(/\s*\(%[^)]*\)\s*/gi, " ")
+      .replace(/\s*\([^)]*\)\s*$/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  // Split allSections into per-workflow buckets
   const workflows: any[] = [];
   let current: any | null = null;
   for (const sec of allSections) {
     if (sec.type === "h1" || sec.type === "h2") {
-      const matched = WORKFLOW_TAB_TITLES.find(t =>
-        sec.text.trim().toLowerCase() === t.toLowerCase() ||
-        sec.text.trim().toLowerCase().startsWith(t.toLowerCase())
-      );
+      const matched = matchWorkflowTitle(sec.text);
       if (matched) {
         if (current) workflows.push(current);
         current = {
@@ -2661,6 +2690,10 @@ function parseHtmlWorkflows(html: string): any[] {
           title: matched,
           sections: [],
         };
+        continue; // skip the heading itself — it's the tab title shown in page header
+      } else {
+        // Normal heading inside a workflow — clean it
+        if (current) current.sections.push({ ...sec, text: cleanHeading(sec.text) });
         continue;
       }
     }
