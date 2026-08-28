@@ -30,68 +30,6 @@ const DATA_FILE = process.env.VERCEL
   ? "/tmp/financeops_data.json"
   : path.join(process.cwd(), "financeops_data.json");
 
-// ── Invoice Submission Schedule (seeded from Invoices 2026.xlsx) ────────────
-// One portal calendar task per bi-weekly pay period, 2026-01-26 → 2028-01-10.
-// Date = Invoice Submission Date (3 days before Payroll Date).
-// Past dates (≤ 2026-08-28) are pre-marked done. Assignee: all 3 members.
-const INVOICE_SUBMIT_EVENTS = [
-  // ── 2026 ────────────────────────────────────────────────────────────────────
-  { id:"invoice-submit-2026-01-26", title:"Invoice Submission Due", date:"2026-01-26", type:"task" as const, entity:"ALL" as const, done:true,  assignee:"Norlan, Micah, Monica", description:"Pay Period: Jan 10 – Jan 23, 2026 | Payroll: Jan 29, 2026" },
-  { id:"invoice-submit-2026-02-09", title:"Invoice Submission Due", date:"2026-02-09", type:"task" as const, entity:"ALL" as const, done:true,  assignee:"Norlan, Micah, Monica", description:"Pay Period: Jan 24 – Feb 6, 2026 | Payroll: Feb 12, 2026" },
-  { id:"invoice-submit-2026-02-23", title:"Invoice Submission Due", date:"2026-02-23", type:"task" as const, entity:"ALL" as const, done:true,  assignee:"Norlan, Micah, Monica", description:"Pay Period: Feb 7 – Feb 20, 2026 | Payroll: Feb 26, 2026" },
-  { id:"invoice-submit-2026-03-09", title:"Invoice Submission Due", date:"2026-03-09", type:"task" as const, entity:"ALL" as const, done:true,  assignee:"Norlan, Micah, Monica", description:"Pay Period: Feb 21 – Mar 6, 2026 | Payroll: Mar 12, 2026" },
-  { id:"invoice-submit-2026-03-23", title:"Invoice Submission Due", date:"2026-03-23", type:"task" as const, entity:"ALL" as const, done:true,  assignee:"Norlan, Micah, Monica", description:"Pay Period: Mar 7 – Mar 20, 2026 | Payroll: Mar 26, 2026" },
-  { id:"invoice-submit-2026-04-06", title:"Invoice Submission Due", date:"2026-04-06", type:"task" as const, entity:"ALL" as const, done:true,  assignee:"Norlan, Micah, Monica", description:"Pay Period: Mar 21 – Apr 3, 2026 | Payroll: Apr 9, 2026" },
-  { id:"invoice-submit-2026-04-20", title:"Invoice Submission Due", date:"2026-04-20", type:"task" as const, entity:"ALL" as const, done:true,  assignee:"Norlan, Micah, Monica", description:"Pay Period: Apr 4 – Apr 17, 2026 | Payroll: Apr 23, 2026" },
-  { id:"invoice-submit-2026-05-04", title:"Invoice Submission Due", date:"2026-05-04", type:"task" as const, entity:"ALL" as const, done:true,  assignee:"Norlan, Micah, Monica", description:"Pay Period: Apr 18 – May 1, 2026 | Payroll: May 7, 2026" },
-  { id:"invoice-submit-2026-05-18", title:"Invoice Submission Due", date:"2026-05-18", type:"task" as const, entity:"ALL" as const, done:true,  assignee:"Norlan, Micah, Monica", description:"Pay Period: May 2 – May 15, 2026 | Payroll: May 21, 2026" },
-  { id:"invoice-submit-2026-06-01", title:"Invoice Submission Due", date:"2026-06-01", type:"task" as const, entity:"ALL" as const, done:true,  assignee:"Norlan, Micah, Monica", description:"Pay Period: May 16 – May 29, 2026 | Payroll: Jun 4, 2026" },
-  { id:"invoice-submit-2026-06-15", title:"Invoice Submission Due", date:"2026-06-15", type:"task" as const, entity:"ALL" as const, done:true,  assignee:"Norlan, Micah, Monica", description:"Pay Period: May 30 – Jun 12, 2026 | Payroll: Jun 18, 2026" },
-  { id:"invoice-submit-2026-06-29", title:"Invoice Submission Due", date:"2026-06-29", type:"task" as const, entity:"ALL" as const, done:true,  assignee:"Norlan, Micah, Monica", description:"Pay Period: Jun 13 – Jun 26, 2026 | Payroll: Jul 2, 2026" },
-  { id:"invoice-submit-2026-07-13", title:"Invoice Submission Due", date:"2026-07-13", type:"task" as const, entity:"ALL" as const, done:true,  assignee:"Norlan, Micah, Monica", description:"Pay Period: Jun 27 – Jul 10, 2026 | Payroll: Jul 16, 2026" },
-  { id:"invoice-submit-2026-07-27", title:"Invoice Submission Due", date:"2026-07-27", type:"task" as const, entity:"ALL" as const, done:true,  assignee:"Norlan, Micah, Monica", description:"Pay Period: Jul 11 – Jul 24, 2026 | Payroll: Jul 30, 2026" },
-  { id:"invoice-submit-2026-08-10", title:"Invoice Submission Due", date:"2026-08-10", type:"task" as const, entity:"ALL" as const, done:true,  assignee:"Norlan, Micah, Monica", description:"Pay Period: Jul 25 – Aug 7, 2026 | Payroll: Aug 13, 2026" },
-  { id:"invoice-submit-2026-08-24", title:"Invoice Submission Due", date:"2026-08-24", type:"task" as const, entity:"ALL" as const, done:true,  assignee:"Norlan, Micah, Monica", description:"Pay Period: Aug 8 – Aug 21, 2026 | Payroll: Aug 27, 2026" },
-  { id:"invoice-submit-2026-09-07", title:"Invoice Submission Due", date:"2026-09-07", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Aug 22 – Sep 4, 2026 | Payroll: Sep 10, 2026" },
-  { id:"invoice-submit-2026-09-21", title:"Invoice Submission Due", date:"2026-09-21", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Sep 5 – Sep 18, 2026 | Payroll: Sep 24, 2026" },
-  { id:"invoice-submit-2026-10-05", title:"Invoice Submission Due", date:"2026-10-05", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Sep 19 – Oct 2, 2026 | Payroll: Oct 8, 2026" },
-  { id:"invoice-submit-2026-10-19", title:"Invoice Submission Due", date:"2026-10-19", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Oct 3 – Oct 16, 2026 | Payroll: Oct 22, 2026" },
-  { id:"invoice-submit-2026-11-02", title:"Invoice Submission Due", date:"2026-11-02", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Oct 17 – Oct 30, 2026 | Payroll: Nov 5, 2026" },
-  { id:"invoice-submit-2026-11-16", title:"Invoice Submission Due", date:"2026-11-16", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Oct 31 – Nov 13, 2026 | Payroll: Nov 19, 2026" },
-  { id:"invoice-submit-2026-11-30", title:"Invoice Submission Due", date:"2026-11-30", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Nov 14 – Nov 27, 2026 | Payroll: Dec 3, 2026" },
-  { id:"invoice-submit-2026-12-14", title:"Invoice Submission Due", date:"2026-12-14", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Nov 28 – Dec 11, 2026 | Payroll: Dec 17, 2026" },
-  { id:"invoice-submit-2026-12-28", title:"Invoice Submission Due", date:"2026-12-28", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Dec 12 – Dec 25, 2026 | Payroll: Dec 31, 2026" },
-  // ── 2027 ────────────────────────────────────────────────────────────────────
-  { id:"invoice-submit-2027-01-11", title:"Invoice Submission Due", date:"2027-01-11", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Dec 26, 2026 – Jan 8, 2027 | Payroll: Jan 14, 2027" },
-  { id:"invoice-submit-2027-01-25", title:"Invoice Submission Due", date:"2027-01-25", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Jan 9 – Jan 22, 2027 | Payroll: Jan 28, 2027" },
-  { id:"invoice-submit-2027-02-08", title:"Invoice Submission Due", date:"2027-02-08", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Jan 23 – Feb 5, 2027 | Payroll: Feb 11, 2027" },
-  { id:"invoice-submit-2027-02-22", title:"Invoice Submission Due", date:"2027-02-22", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Feb 6 – Feb 19, 2027 | Payroll: Feb 25, 2027" },
-  { id:"invoice-submit-2027-03-08", title:"Invoice Submission Due", date:"2027-03-08", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Feb 20 – Mar 5, 2027 | Payroll: Mar 11, 2027" },
-  { id:"invoice-submit-2027-03-22", title:"Invoice Submission Due", date:"2027-03-22", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Mar 6 – Mar 19, 2027 | Payroll: Mar 25, 2027" },
-  { id:"invoice-submit-2027-04-05", title:"Invoice Submission Due", date:"2027-04-05", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Mar 20 – Apr 2, 2027 | Payroll: Apr 8, 2027" },
-  { id:"invoice-submit-2027-04-19", title:"Invoice Submission Due", date:"2027-04-19", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Apr 3 – Apr 16, 2027 | Payroll: Apr 22, 2027" },
-  { id:"invoice-submit-2027-05-03", title:"Invoice Submission Due", date:"2027-05-03", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Apr 17 – Apr 30, 2027 | Payroll: May 6, 2027" },
-  { id:"invoice-submit-2027-05-17", title:"Invoice Submission Due", date:"2027-05-17", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: May 1 – May 14, 2027 | Payroll: May 20, 2027" },
-  { id:"invoice-submit-2027-05-31", title:"Invoice Submission Due", date:"2027-05-31", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: May 15 – May 28, 2027 | Payroll: Jun 3, 2027" },
-  { id:"invoice-submit-2027-06-14", title:"Invoice Submission Due", date:"2027-06-14", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: May 29 – Jun 11, 2027 | Payroll: Jun 17, 2027" },
-  { id:"invoice-submit-2027-06-28", title:"Invoice Submission Due", date:"2027-06-28", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Jun 12 – Jun 25, 2027 | Payroll: Jul 1, 2027" },
-  { id:"invoice-submit-2027-07-12", title:"Invoice Submission Due", date:"2027-07-12", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Jun 26 – Jul 9, 2027 | Payroll: Jul 15, 2027" },
-  { id:"invoice-submit-2027-07-26", title:"Invoice Submission Due", date:"2027-07-26", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Jul 10 – Jul 23, 2027 | Payroll: Jul 29, 2027" },
-  { id:"invoice-submit-2027-08-09", title:"Invoice Submission Due", date:"2027-08-09", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Jul 24 – Aug 6, 2027 | Payroll: Aug 12, 2027" },
-  { id:"invoice-submit-2027-08-23", title:"Invoice Submission Due", date:"2027-08-23", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Aug 7 – Aug 20, 2027 | Payroll: Aug 26, 2027" },
-  { id:"invoice-submit-2027-09-06", title:"Invoice Submission Due", date:"2027-09-06", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Aug 21 – Sep 3, 2027 | Payroll: Sep 9, 2027" },
-  { id:"invoice-submit-2027-09-20", title:"Invoice Submission Due", date:"2027-09-20", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Sep 4 – Sep 17, 2027 | Payroll: Sep 23, 2027" },
-  { id:"invoice-submit-2027-10-04", title:"Invoice Submission Due", date:"2027-10-04", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Sep 18 – Oct 1, 2027 | Payroll: Oct 7, 2027" },
-  { id:"invoice-submit-2027-10-18", title:"Invoice Submission Due", date:"2027-10-18", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Oct 2 – Oct 15, 2027 | Payroll: Oct 21, 2027" },
-  { id:"invoice-submit-2027-11-01", title:"Invoice Submission Due", date:"2027-11-01", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Oct 16 – Oct 29, 2027 | Payroll: Nov 4, 2027" },
-  { id:"invoice-submit-2027-11-15", title:"Invoice Submission Due", date:"2027-11-15", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Oct 30 – Nov 12, 2027 | Payroll: Nov 18, 2027" },
-  { id:"invoice-submit-2027-11-29", title:"Invoice Submission Due", date:"2027-11-29", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Nov 13 – Nov 26, 2027 | Payroll: Dec 2, 2027" },
-  { id:"invoice-submit-2027-12-13", title:"Invoice Submission Due", date:"2027-12-13", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Nov 27 – Dec 10, 2027 | Payroll: Dec 16, 2027" },
-  { id:"invoice-submit-2027-12-27", title:"Invoice Submission Due", date:"2027-12-27", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Dec 11 – Dec 24, 2027 | Payroll: Dec 30, 2027" },
-  // ── 2028 ────────────────────────────────────────────────────────────────────
-  { id:"invoice-submit-2028-01-10", title:"Invoice Submission Due", date:"2028-01-10", type:"task" as const, entity:"ALL" as const, done:false, assignee:"Norlan, Micah, Monica", description:"Pay Period: Dec 25, 2027 – Jan 7, 2028 | Payroll: Jan 13, 2028" },
-];
-
 // Default initial backend data structure
 const DEFAULT_DATA = {
   ap: [],
@@ -136,8 +74,8 @@ const DEFAULT_DATA = {
     { id: "map-statements", module: "statements", name: "Bank Statements Checklist", spreadsheetIdOrUrl: "https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit?usp=sharing", tabName: "Bank Statements", range: "'Bank Statements'!A1:Z100", status: "connected" },
     { id: "map-payroll", module: "payroll", name: "4YR Payroll", spreadsheetIdOrUrl: "https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit?usp=sharing", tabName: "raw", range: "'raw'!A1:Z500", status: "connected" }
   ],
-  // Invoice submission schedule — seeded from Invoices 2026.xlsx
-  localCalendarEvents: INVOICE_SUBMIT_EVENTS as any[],
+  // Portal-only calendar tasks (not from Google Sheet). Sheet is the primary source.
+  localCalendarEvents: [] as any[],
   // Runtime sheet ID overrides — set via /api/config/set-sheet-id to switch active sheet
   // without a code redeploy. Keys: "main", "payroll4yr", "calendar", "cc"
   sheetIdOverrides: {} as Record<string, string>,
@@ -323,17 +261,6 @@ function getStoredData() {
     if (fs.existsSync(DATA_FILE)) {
       const content = fs.readFileSync(DATA_FILE, "utf-8");
       const parsed = JSON.parse(content);
-      // Merge invoice submission events if not already present
-      const hasInvoiceEvents = (parsed.localCalendarEvents || []).some(
-        (e: any) => typeof e.id === "string" && e.id.startsWith("invoice-submit-")
-      );
-      if (!hasInvoiceEvents) {
-        parsed.localCalendarEvents = [
-          ...INVOICE_SUBMIT_EVENTS,
-          ...(parsed.localCalendarEvents || []),
-        ];
-        saveStoredData(parsed);
-      }
       return parsed;
     }
   } catch (e) {
