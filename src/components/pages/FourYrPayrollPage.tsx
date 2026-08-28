@@ -175,9 +175,6 @@ export function FourYrPayrollPage() {
   const [empModalLoading, setEmpModalLoading] = useState(false);
 
   // ── Edit / modal state ────────────────────────────────────────────────────
-  const [editingCell,   setEditingCell]   = useState<{ rowIndex:number; field:string }|null>(null);
-  const [editVal,       setEditVal]       = useState("");
-  const editInputRef                      = useRef<HTMLInputElement>(null);
   const [addModalOpen,  setAddModalOpen]  = useState(false);
   const [scanKey, setScanKey] = useState(0);
   const [tscanResult, setTscanResult] = useState<any>(null);
@@ -441,20 +438,6 @@ export function FourYrPayrollPage() {
     setTypeFilters(prev => { const n = new Set(prev); n.has(t) ? n.delete(t) : n.add(t); return n; });
   }, []);
 
-  // ── Inline edit ───────────────────────────────────────────────────────────
-  const startEdit  = (ri:number, field:string, val:string) => { setEditingCell({rowIndex:ri,field}); setEditVal(val); setTimeout(()=>editInputRef.current?.focus(),30); };
-  const cancelEdit = () => setEditingCell(null);
-  const commitEdit = async () => {
-    if (!editingCell) return;
-    const { rowIndex, field } = editingCell; setEditingCell(null);
-    try {
-      if      (field==="remark") await apiPost("/api/4yr/save-remark", {rowIndex, remark:editVal});
-      else if (field==="hours")  await apiPost("/api/4yr/save-hours",  {rowIndex, hours:parseFloat(editVal)||0});
-      else if (field==="total")  await apiPost("/api/4yr/save-total",  {rowIndex, total:parseFloat(editVal)||0});
-      else if (field==="job")    await apiPost("/api/4yr/save-job",    {rowIndex, job:editVal});
-      showToast("Saved", "success"); lastKeyRef.current = ""; doLoad();
-    } catch(e:any) { showToast(`Save failed: ${e.message}`, "error"); }
-  };
 
   // ── Modal openers ─────────────────────────────────────────────────────────
   const openAddModal = async () => {
@@ -664,7 +647,7 @@ export function FourYrPayrollPage() {
           <div className="flex items-center gap-2 flex-wrap">
             <span className={`font-bold text-sm ${txt}`}>Weekly Summary</span>
             {selectedWeeks.length > 0 && <span className={`text-xs px-2 py-0.5 rounded font-medium ${isLight?"bg-green-100 text-green-800":"bg-green-900/40 text-green-400"}`}>{weekLabel}</span>}
-            <span className={`text-[10px] ml-auto italic ${txt2}`}>* click row to expand · double-click hours to edit</span>
+            <span className={`text-[10px] ml-auto italic ${txt2}`}>* click row to expand</span>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <button onClick={expandAll}   className={`text-[11px] px-2.5 py-1 rounded border font-medium transition-colors ${btnCls}`}>⊞ Expand All</button>
@@ -957,48 +940,22 @@ export function FourYrPayrollPage() {
                 const isNP   = !isDed && /reimburse|adjustment|allowance|bonus|incentive|extra|misc/i.test(row.subCat);
                 const rowBg  = isDed ? DED_BG : isNP ? NP_BG : undefined;
                 const amtCls = isDed ? DED_FG : isNP ? NP_FG : isLight?"#1a5c2a":"#7fd99a";
-                const isEJ   = editingCell?.rowIndex === row.rowIndex;
                 return (
                   <tr key={row.rowIndex} className={`border-t ${tbBdr} ${tbRow}`} style={{ background:rowBg }}>
                     <td className="px-2 py-1.5 tabular-nums" style={{ color:isLight?"#2d8a52":"#7fd99a", whiteSpace:"nowrap" }}>{row.date}</td>
                     <td className={`px-2 py-1.5 font-semibold ${txt3}`} style={{ whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{row.name}</td>
-                    <td className="px-2 py-1.5" style={{ whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
-                      {isEJ && editingCell?.field==="job"
-                        ? <input ref={editInputRef} value={editVal} className={`w-full rounded border text-xs px-1.5 py-0.5 outline-none ${inp}`}
-                            onChange={e=>setEditVal(e.target.value)} onBlur={commitEdit}
-                            onKeyDown={e=>{if(e.key==="Enter")commitEdit();if(e.key==="Escape")cancelEdit();}} />
-                        : <span className={`cursor-text hover:underline decoration-dashed ${txt3}`} onClick={()=>startEdit(row.rowIndex,"job",row.job)}>{row.job}</span>}
-                    </td>
+                    <td className={`px-2 py-1.5 ${txt3}`} style={{ whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{row.job}</td>
                     <td className={`px-2 py-1.5 ${txt2}`} style={{ whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{(!row.subCat || row.subCat==="(none)") ? "" : row.subCat}</td>
                     <td className={`px-2 py-1.5 tabular-nums ${txt2}`} style={{ whiteSpace:"nowrap" }}>{row.started.replace(/(\d{1,2}:\d{2}):\d{2}(\s*[AP]M)$/i, '$1$2')}</td>
                     <td className={`px-2 py-1.5 tabular-nums ${txt2}`} style={{ whiteSpace:"nowrap" }}>{row.finished.replace(/(\d{1,2}:\d{2}):\d{2}(\s*[AP]M)$/i, '$1$2')}</td>
-                    <td className="text-right px-2 py-1.5">
-                      {isEJ && editingCell?.field==="hours"
-                        ? <input ref={editInputRef} value={editVal} className={`w-14 rounded border text-xs px-1 py-0.5 text-right outline-none ${inp}`}
-                            onChange={e=>setEditVal(e.target.value)} onBlur={commitEdit}
-                            onKeyDown={e=>{if(e.key==="Enter")commitEdit();if(e.key==="Escape")cancelEdit();}} />
-                        : <span className={`cursor-text tabular-nums ${row.hrsRed?"text-red-500":txt3}`}
-                            onClick={()=>startEdit(row.rowIndex,"hours",String(row.hours))}>{fmtHrs(row.hours)}</span>}
-                    </td>
+                    <td className={`text-right px-2 py-1.5 tabular-nums ${row.hrsRed?"text-red-500":txt3}`}>{fmtHrs(row.hours)}</td>
                     <td className={`text-right px-2 py-1.5 tabular-nums ${txt2}`} style={{ whiteSpace:"nowrap" }}>{row.rate ? `$${fmt2(row.rate)}/hr` : "—"}</td>
-                    <td className="text-right px-2 py-1.5">
-                      {isEJ && editingCell?.field==="total"
-                        ? <input ref={editInputRef} value={editVal} className={`w-20 rounded border text-xs px-1 py-0.5 text-right outline-none ${inp}`}
-                            onChange={e=>setEditVal(e.target.value)} onBlur={commitEdit}
-                            onKeyDown={e=>{if(e.key==="Enter")commitEdit();if(e.key==="Escape")cancelEdit();}} />
-                        : <span className="cursor-text tabular-nums font-semibold" style={{ color:amtCls }}
-                            onClick={()=>startEdit(row.rowIndex,"total",String(row.total))}>{fmtAmt(row.total)}</span>}
-                    </td>
+                    <td className="text-right px-2 py-1.5 tabular-nums font-semibold" style={{ color:amtCls }}>{fmtAmt(row.total)}</td>
                     <td className="text-center px-2 py-1.5">{row.company && <CoChip co={row.company} isLight={isLight} />}</td>
                     <td className="px-2 py-1.5" style={{ whiteSpace:"normal", overflow:"visible", minWidth:110, maxWidth:180 }}>
-                      {isEJ && editingCell?.field==="remark"
-                        ? <input ref={editInputRef} value={editVal} className={`w-full rounded border text-xs px-1.5 py-0.5 outline-none ${inp}`}
-                            onChange={e=>setEditVal(e.target.value)} onBlur={commitEdit}
-                            onKeyDown={e=>{if(e.key==="Enter")commitEdit();if(e.key==="Escape")cancelEdit();}} />
-                        : <span className={`cursor-text text-[11px] ${row.remarks?"text-[#c62828] font-semibold":txt2}`}
-                            onClick={()=>startEdit(row.rowIndex,"remark",row.remarks)}>
-                            {row.remarks || <em className="opacity-40">add note…</em>}
-                          </span>}
+                      <span className={`text-[11px] ${row.remarks?"text-[#c62828] font-semibold":txt2}`}>
+                        {row.remarks || <em className="opacity-40">—</em>}
+                      </span>
                     </td>
                     <td className="text-center px-2 py-1.5">
                       <div className="flex items-center justify-center gap-1">
