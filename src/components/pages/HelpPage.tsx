@@ -318,7 +318,7 @@ const SHEETS = [
     purpose: "AP Bills · AR · Banks · Loans · Notes · Statements",
     tabs: [
       { name: "Ruby's Bills",         gid: "1244424272", note: "AP bills — Ruby's Pizzeria & Grill" },
-      { name: "TI Bills",             gid: "1881273371", note: "AP bills — Timm Investments LLC" },
+      { name: "TI Bills",             gid: "1881273371", note: "AP bills — Tmm Investments" },
       { name: "MSDx Bills",           gid: "626198915",  note: "AP bills — Mobile Swallowing Dx" },
       { name: "AR Dashboard Data",    gid: "1095820813", note: "Accounts Receivable" },
       { name: "Bank Balances",        gid: "573058575",  note: "Bank account balances" },
@@ -860,6 +860,265 @@ export const HelpPage: React.FC = () => {
                   ))}
                 </div>
                 <p className={`text-[10px] mt-4 ${muted}`}>Last updated 2026-08-26 — keep in sync whenever sheet structure or GCP credentials change.</p>
+              </Section>
+
+              {/* ── Tech Stack ── */}
+              <Section title="Tech Stack" iconBg="bg-violet-500/15" isLight={isLight}
+                icon={<Layers className="w-4 h-4 text-violet-400" />}
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[
+                    { label: "Frontend", color: "#a78bfa", items: [
+                      "React 19 + TypeScript",
+                      "Vite 6 (build + dev server)",
+                      "Tailwind CSS v4 (@tailwindcss/vite plugin)",
+                      "Lucide React (icons)",
+                      "Recharts (charts in Hub, Payroll)",
+                      "Motion / framer-motion v12",
+                      "pdfjs-dist, tesseract.js (PDF & OCR tools)",
+                      "html2canvas, html-to-image (screenshots)",
+                      "xlsx (spreadsheet export)",
+                    ]},
+                    { label: "Backend", color: "#4da3ff", items: [
+                      "Express 4 (server.ts — API + SPA host)",
+                      "tsx (dev runtime), esbuild (production bundle)",
+                      "googleapis (Sheets API v4, Drive API)",
+                      "firebase (Auth login gate)",
+                      "@google/genai (Gemini AI)",
+                      "dotenv, vitest",
+                      "Single process: Express serves API + built React SPA",
+                      "In-memory data store — no database, Sheets is source of truth",
+                    ]},
+                  ].map(({ label, color, items }) => (
+                    <div key={label} className={`rounded-xl border p-4 space-y-2 ${border} ${cardBg}`}>
+                      <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color }}>{label}</p>
+                      <ul className="space-y-1">
+                        {items.map(item => (
+                          <li key={item} className={`text-[11px] flex items-start gap-2 ${td}`}>
+                            <span className="mt-1.5 w-1 h-1 rounded-full shrink-0" style={{ background: color }} />
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </Section>
+
+              {/* ── Page Routes ── */}
+              <Section title="Page Routes" iconBg="bg-emerald-500/15" isLight={isLight}
+                icon={<GitBranch className="w-4 h-4 text-emerald-400" />}
+              >
+                <p className={`text-[11px] mb-3 ${td}`}>No React Router — navigation is a <code className={`px-1 py-0.5 rounded text-[10px] font-mono ${codeBg}`}>currentPage</code> string in FinanceContext. <code className={`px-1 py-0.5 rounded text-[10px] font-mono ${codeBg}`}>setCurrentPage(route)</code> is called from sidebar buttons; <code className={`px-1 py-0.5 rounded text-[10px] font-mono ${codeBgBlu}`}>App.tsx</code> routes via a switch.</p>
+                <div className={tableWrap}>
+                  <table className="w-full text-[11px]">
+                    <thead>
+                      <tr className={`${cardBg} border-b ${border}`}>
+                        <th className={`text-left px-3.5 py-2.5 font-bold ${th} w-[30%]`}>Route key</th>
+                        <th className={`text-left px-3.5 py-2.5 font-bold ${th}`}>Page / Component</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        { r: '"hub"',                  d: 'HubPage — KPI cards, AP summary chart, bank totals, recent activity' },
+                        { r: '"ap"',                   d: 'APPage — full bill table, entity filter, bucket grouping, inline edit' },
+                        { r: '"rubys" / "ti"',         d: 'APPage with filterEntityOverride — entity-scoped AP view' },
+                        { r: '"banks"',                d: 'BankBalancesPage — account cards per entity, trend indicators' },
+                        { r: '"loans"',                d: 'LoansPage — loan cards with outstanding / monthly / maturity' },
+                        { r: '"ar"',                   d: 'ARPage — AR invoice checklist (invoice / approval / sent / payment)' },
+                        { r: '"statements"',           d: 'BankStatementsPage — monthly statement download checklist' },
+                        { r: '"payroll"',              d: 'PayrollPage — weekly pivot from payroll sheet, entity breakdown' },
+                        { r: '"calendar"',             d: 'CalendarPage — monthly view, AP due dates, local event overlays' },
+                        { r: '"msdx" / "curcumin" / "fouryr" / "ziglar"', d: 'GasDashboardView — full-page iframe of GAS web app URL from gasUrls' },
+                        { r: '"datasync"',             d: 'DataSyncPage — Settings & Data Sync (gear icon)' },
+                        { r: '"cc-expenses"',          d: 'CCExpensePage — credit card transactions, adjustments, reconciliation' },
+                        { r: '"fouryr-payroll"',       d: 'FourYrPayrollPage — 4YR raw payroll data view' },
+                        { r: '"workspace-*"',          d: 'WorkspacePage — Tools / Platforms / Drive tabbed view' },
+                        { r: '"member-workspace"',     d: 'MemberWorkspacePage — per-member (Norlan, Micah, Monica) workspace' },
+                        { r: '"notes"',                d: 'NotesPage — full notes page (floating widget also shown on all pages)' },
+                        { r: '"logs"',                 d: 'LogsPage — action audit log' },
+                        { r: '"service-limits"',       d: 'ServiceLimitsPage — Google API quota / usage tracker' },
+                        { r: '"help"',                 d: 'HelpPage — this page (FAQ, how-tos, reference docs)' },
+                        { r: '"receipt-renamer" / "bank-statement" / "pdf-table-extractor" / "email-scanner"', d: 'Tool pages — AI OCR/parsing utilities, from Workspace → Tools' },
+                      ].map(({ r, d }, i) => (
+                        <tr key={r} className={`border-t ${border} transition-colors ${rowHover} ${i % 2 === 0 ? rowEven : rowOdd}`}>
+                          <td className={`px-3.5 py-2 font-mono font-bold text-[10px] ${isLight ? "text-violet-600" : "text-violet-400"}`}>{r}</td>
+                          <td className={`px-3.5 py-2 ${td}`}>{d}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Section>
+
+              {/* ── Data Models ── */}
+              <Section title="Data Models (types.ts)" iconBg="bg-amber-500/15" isLight={isLight}
+                icon={<Database className="w-4 h-4 text-amber-400" />}
+              >
+                <p className={`text-[11px] mb-3 ${td}`}>All TypeScript interfaces live in <code className={`px-1 py-0.5 rounded text-[10px] font-mono ${codeBgBlu}`}>src/types.ts</code>. Key fields below — see the file for the full shape.</p>
+                <div className="space-y-3">
+                  {[
+                    { name: "APBill", color: "#a78bfa", fields: [
+                      "id, vendor, entity, amount, dueDate, paidDate, method, status",
+                      'status: "unpaid" | "paid" | "hold"',
+                      "bucket: APBucket (computed client-side from dueDate — NOT in sheet)",
+                      "sheet, row (for per-cell write-back to Google Sheets)",
+                      "driveViewUrl, driveFileName (attached bill file in Drive)",
+                    ]},
+                    { name: "BankAccount", color: "#4da3ff", fields: [
+                      "id, entity, bank, type, acct, balance, asOf, status, trend, yesterday, row",
+                    ]},
+                    { name: "Loan", color: "#34d399", fields: [
+                      "id, entity, lender, purpose, principal, outstanding, monthly, nextPay, maturity, status, row",
+                    ]},
+                    { name: "ARItem", color: "#f59e0b", fields: [
+                      "id, entity, customer, occurrence, description, month",
+                      "invoice, approval, sent, payment (boolean checklist columns)",
+                      "dueDate, amount, remarks, row",
+                    ]},
+                    { name: "SheetMappingConfig", color: "#94a3b8", fields: [
+                      "id, module, name, spreadsheetIdOrUrl, tabName",
+                      "range field exists in model but is NOT used by liveSheetsFetcher — fetcher uses tab name only (full sheet)",
+                    ]},
+                    { name: "ExternalLinkItem", color: "#c084fc", fields: [
+                      'id, name, url, category ("entities" | "quicklinks"), iconType',
+                      "Drives sidebar Quick Links and entity link sections",
+                    ]},
+                  ].map(({ name, color, fields }) => (
+                    <div key={name} className={`rounded-xl border overflow-hidden ${border}`}>
+                      <div className={`flex items-center gap-2 px-4 py-2.5 border-b ${border} ${cardBg}`}>
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                        <code className="text-[12px] font-mono font-bold" style={{ color }}>{name}</code>
+                      </div>
+                      <ul className={`px-4 py-3 space-y-1.5 ${isLight ? "bg-slate-50" : "bg-[#070b12]"}`}>
+                        {fields.map(f => (
+                          <li key={f} className={`text-[11px] font-mono ${td}`}>{f}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+                <div className={`mt-3 rounded-xl border px-4 py-3 text-[11px] ${border} ${isLight ? "bg-amber-50 text-amber-700" : "bg-amber-900/10 text-amber-400"}`}>
+                  <strong>Important:</strong> The <code className="font-mono">bucket</code> field on APBill is computed client-side from <code className="font-mono">dueDate</code> — it is NOT stored in the sheet. Always recompute it during parsing.
+                </div>
+              </Section>
+
+              {/* ── Design System ── */}
+              <Section title="Design System" iconBg="bg-[#1a73e8]/15" isLight={isLight}
+                icon={<BarChart3 className="w-4 h-4 text-[#4da3ff]" />}
+              >
+                <p className={`text-[11px] mb-3 ${td}`}>No external component library. All components are hand-built with Tailwind CSS v4. A CSS token system is defined inline at the top of each page component's <code className={`px-1 py-0.5 rounded text-[10px] font-mono ${codeBg}`}>return()</code> — always after <code className={`px-1 py-0.5 rounded text-[10px] font-mono ${codeBg}`}>const isLight = theme === "light"</code>.</p>
+
+                <div className={`rounded-xl border overflow-hidden ${border} mb-4`}>
+                  <div className={`px-4 py-2.5 border-b text-[10px] font-bold uppercase tracking-wider ${border} ${cardBg} ${muted}`}>CSS Token Pattern — copy to every new page</div>
+                  <pre className={`p-4 text-[11px] font-mono leading-[1.85] overflow-x-auto ${isLight ? "bg-slate-50 text-slate-600" : "bg-[#070b12] text-[#5a6a80]"}`}>{`const card     = isLight ? "bg-white border-slate-200"       : "bg-[#0d111a] border-[#1a2235]";
+const inner    = isLight ? "bg-slate-50 border-slate-200"     : "bg-[#070b12] border-[#1a2235]";
+const divider  = isLight ? "border-slate-100"                 : "border-[#1a2235]";
+const heading  = isLight ? "text-slate-900"                   : "text-white";
+const sub      = isLight ? "text-slate-500"                   : "text-[#888]";
+const muted    = isLight ? "text-slate-400"                   : "text-[#555]";
+const label    = isLight ? "text-slate-500"                   : "text-[#666]";
+const inp      = \`w-full rounded-lg border px-3 py-2 text-xs focus:outline-none \${
+  isLight ? "bg-white border-slate-200 text-slate-900 focus:border-[#1a73e8]"
+          : "bg-[#070b12] border-[#1a2235] text-white focus:border-[#1a73e8]"}\`;
+const btnGhost = \`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 \${
+  isLight ? "bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200"
+          : "bg-[#0d111a] hover:bg-[#1a2235] text-[#aaa] hover:text-white border border-[#1a2235]"}\`;`}</pre>
+                </div>
+
+                <div className={`rounded-xl border overflow-hidden ${border} mb-4`}>
+                  <div className={`px-4 py-2.5 border-b text-[10px] font-bold uppercase tracking-wider ${border} ${cardBg} ${muted}`}>Standard card pattern</div>
+                  <pre className={`p-4 text-[11px] font-mono leading-[1.85] overflow-x-auto ${isLight ? "bg-slate-50 text-slate-600" : "bg-[#070b12] text-[#5a6a80]"}`}>{`<div className={\`border rounded-2xl p-6 space-y-4 \${card}\`}>
+  <div className="flex items-start gap-3">
+    <IconName className="w-4 h-4 text-[#1a73e8] mt-0.5 shrink-0" />
+    <div>
+      <h3 className={\`text-sm font-bold \${heading}\`}>Section Title</h3>
+      <p className={\`text-xs mt-0.5 \${sub}\`}>Subtitle / description</p>
+    </div>
+  </div>
+  {/* content */}
+</div>`}</pre>
+                </div>
+
+                <div className={`rounded-xl border overflow-hidden ${border}`}>
+                  <div className={`px-4 py-2.5 border-b text-[10px] font-bold uppercase tracking-wider ${border} ${cardBg} ${muted}`}>Core color palette (dark theme)</div>
+                  <div className={`p-4 grid grid-cols-2 sm:grid-cols-3 gap-2 ${isLight ? "bg-slate-50" : "bg-[#070b12]"}`}>
+                    {[
+                      { label: "Page bg",     val: "#070b12" },
+                      { label: "Card bg",     val: "#0d111a" },
+                      { label: "Border",      val: "#1a2235" },
+                      { label: "Accent blue", val: "#1a73e8" },
+                      { label: "Emerald",     val: "#10b981" },
+                      { label: "Amber",       val: "#f59e0b" },
+                      { label: "Violet",      val: "#8b5cf6" },
+                      { label: "Teal (MSDx)", val: "#14b8a6" },
+                      { label: "Danger red",  val: "#ef4444" },
+                    ].map(({ label: lbl, val }) => (
+                      <div key={lbl} className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border ${border}`}>
+                        <span className="w-4 h-4 rounded shrink-0 border border-white/10" style={{ background: val }} />
+                        <div>
+                          <p className={`text-[10px] font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>{lbl}</p>
+                          <p className={`text-[9px] font-mono ${muted}`}>{val}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </Section>
+
+              {/* ── Rebuild Notes ── */}
+              <Section title="Rebuild Notes" iconBg="bg-red-500/15" isLight={isLight}
+                icon={<Wrench className="w-4 h-4 text-red-400" />}
+              >
+                <div className="space-y-3">
+                  <div className={`rounded-xl border px-4 py-3.5 space-y-2 ${border} ${cardBg}`}>
+                    <p className={`text-[10px] font-bold uppercase tracking-wider text-emerald-500`}>What's complete and working</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1">
+                      {[
+                        "All pages in the routing table",
+                        "Google OAuth 2-way sync (pull + push per module)",
+                        "Firebase login gate",
+                        "Auto-push (edits instantly write to Sheets)",
+                        "Sheet Continuity (usage check, clone, 3-layer switch)",
+                        "Bill Copy Recovery (Drive scan → re-link)",
+                        "Integration test endpoint + Vitest suite",
+                        "Integration Test button in Settings page",
+                        "GAS Dashboard iframe views (all 4 entities)",
+                        "CC Expenses page (separate CC Expense sheet)",
+                        "Portal audit (48-hour health check modal)",
+                        "Light/dark theme toggle",
+                        "Ctrl+K global search",
+                        "Member workspaces (Norlan, Micah, Monica)",
+                        "Floating notes widget",
+                        "Shared config sheet (cross-user gasUrls, sheetMappings)",
+                      ].map(item => (
+                        <div key={item} className={`flex items-start gap-1.5 text-[11px] py-0.5 ${td}`}>
+                          <span className="text-emerald-500 mt-0.5 shrink-0">✓</span>
+                          {item}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className={`rounded-xl border px-4 py-3.5 space-y-2 ${border} ${isLight ? "bg-amber-50" : "bg-amber-900/10"}`}>
+                    <p className={`text-[10px] font-bold uppercase tracking-wider text-amber-500`}>Critical quirks — do not break these</p>
+                    <ul className="space-y-2">
+                      {[
+                        { k: "AP multi-tab merge", v: 'Bills from three tabs (Ruby\'s Bills, TI Bills, MSDX Bills) are merged into one apBills array. Entity is detected from the tab name stored in bill.sheet — not from a column.' },
+                        { k: "Per-cell writes use bill.row", v: 'bill.row is a 1-indexed row within the fetched range. Preserve this field — it\'s what makes "mark paid" write to the correct sheet row.' },
+                        { k: "getEffectiveDriveToken()", v: 'Caches the last valid OAuth token server-side (~55 min). Required for scheduled sync and the integration test to work without a live browser session.' },
+                        { k: "bucket is computed, not stored", v: 'The bucket field (past-due, this-week, paid…) is computed client-side from dueDate. It does NOT exist in the sheet. Always recompute it during parse.' },
+                        { k: "Range field is vestigial", v: 'SheetMappingConfig.range exists in the data model but liveSheetsFetcher.ts uses only the tab name (returns full sheet). Do not add row/column limits.' },
+                        { k: "GAS URLs are cross-user", v: 'gasUrls changes are written to the shared _config tab in the logs sheet so all users on all devices see the same URLs immediately.' },
+                      ].map(({ k, v }) => (
+                        <li key={k} className="space-y-0.5">
+                          <span className={`text-[11px] font-bold ${isLight ? "text-amber-700" : "text-amber-400"}`}>{k}</span>
+                          <p className={`text-[11px] ${isLight ? "text-amber-800" : "text-amber-300/70"}`}>{v}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
               </Section>
             </>
           )}
