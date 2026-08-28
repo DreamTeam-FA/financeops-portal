@@ -270,7 +270,7 @@ export const DataSyncPage: React.FC = () => {
   const [newMappingModule, setNewMappingModule] = useState<SheetMappingConfig["module"]>("ap");
   const [newMappingUrl, setNewMappingUrl] = useState("");
   const [newMappingTab, setNewMappingTab] = useState("");
-  const [newMappingRange, setNewMappingRange] = useState("A1:Z200");
+  const [newMappingRange, setNewMappingRange] = useState("A:Z");
 
   // New External Link modal state
   const [showAddLinkModal, setShowAddLinkModal] = useState(false);
@@ -469,11 +469,12 @@ export const DataSyncPage: React.FC = () => {
               <p className={`text-xs mt-0.5 ${sub}`}>Google Apps Script web app URLs for each entity dashboard. Changes are saved cross-user via the shared config sheet.</p>
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {[
-              { key: "curcumin", label: "CurcuminPRO", color: "text-amber-500", dot: "bg-amber-500" },
-              { key: "fouryr",   label: "4YR Payroll",  color: "text-emerald-500", dot: "bg-emerald-500" },
-              { key: "ziglar",   label: "Ziglar",        color: "text-purple-400", dot: "bg-purple-400" },
+              { key: "curcumin", label: "CurcuminPRO",               color: "text-amber-500",   dot: "bg-amber-500" },
+              { key: "fouryr",   label: "4YR Payroll",                color: "text-emerald-500", dot: "bg-emerald-500" },
+              { key: "ziglar",   label: "Ziglar",                     color: "text-purple-400",  dot: "bg-purple-400" },
+              { key: "msdx",     label: "Mobile Swallowing (MSDx)",   color: "text-teal-400",    dot: "bg-teal-400" },
             ].map(({ key, label: lbl, color, dot }) => (
               <div key={key} className={`rounded-xl border p-4 space-y-2.5 ${inner}`}>
                 <div className="flex items-center gap-2">
@@ -483,7 +484,7 @@ export const DataSyncPage: React.FC = () => {
                 <input
                   type="url"
                   value={(gasUrls as any)?.[key] || ""}
-                  onChange={(e) => updateGasUrl(key, e.target.value)}
+                  onChange={(e) => updateGasUrl(key as any, e.target.value)}
                   placeholder="https://script.google.com/macros/s/.../exec"
                   className={`${inp} font-mono text-[11px]`}
                 />
@@ -557,11 +558,10 @@ export const DataSyncPage: React.FC = () => {
                       )}
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                     {[
                       { field: "spreadsheetIdOrUrl", ph: "Spreadsheet URL or ID", lbl: "Spreadsheet" },
-                      { field: "tabName",            ph: "Tab name",              lbl: "Tab" },
-                      { field: "range",              ph: "A1:Z200",              lbl: "Range" },
+                      { field: "tabName",            ph: "Tab name (e.g. AP Bills)", lbl: "Tab" },
                     ].map(({ field, ph, lbl: fl }) => (
                       <div key={field}>
                         <label className={`block text-[10px] font-semibold uppercase tracking-wide mb-1 ${label}`}>{fl}</label>
@@ -846,24 +846,24 @@ export const DataSyncPage: React.FC = () => {
               <Plus className="w-3.5 h-3.5" /> Add Link
             </button>
           </div>
-          <div className="space-y-2">
+          <div className={`rounded-xl border overflow-hidden divide-y ${inner} ${isLight ? "divide-slate-100" : "divide-[#0f1520]"}`}>
+            {externalLinks.length === 0 && (
+              <p className={`text-xs text-center py-5 ${muted}`}>No links yet. Add one above.</p>
+            )}
             {externalLinks.map(link => (
-              <div key={link.id} className={`flex flex-wrap items-center gap-2 p-3 rounded-xl border ${inner}`}>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-500/15 text-purple-400 uppercase shrink-0`}>
-                  {link.category || "entities"}
-                </span>
+              <div key={link.id} className={`flex items-center gap-2 px-4 py-2.5 transition-colors ${isLight ? "hover:bg-slate-50" : "hover:bg-white/[.02]"}`}>
                 <input type="text" value={link.name}
                   onChange={e => updateExternalLink(link.id, { name: e.target.value })}
-                  className={`${inp} w-36 font-semibold`} />
+                  className={`w-32 shrink-0 rounded-lg border px-2.5 py-1.5 text-xs font-semibold focus:outline-none transition-colors ${isLight ? "bg-white border-slate-200 text-slate-900 focus:border-[#1a73e8]" : "bg-[#070b12] border-[#1a2235] text-white focus:border-[#1a73e8]"}`} />
                 <input type="text" value={link.url}
                   onChange={e => updateExternalLink(link.id, { url: e.target.value })}
-                  className={`${inp} flex-1 min-w-[200px]`} />
+                  className={`flex-1 min-w-0 rounded-lg border px-2.5 py-1.5 text-[11px] font-mono focus:outline-none transition-colors ${isLight ? "bg-white border-slate-200 text-slate-600 focus:border-[#1a73e8]" : "bg-[#070b12] border-[#1a2235] text-[#aaa] focus:border-[#1a73e8]"}`} />
                 <a href={link.url} target="_blank" rel="noopener noreferrer"
-                  className="p-1.5 text-sky-400 hover:text-sky-300 transition-colors" title="Test link">
+                  className={`p-1.5 rounded-lg transition-colors shrink-0 ${isLight ? "text-slate-400 hover:text-sky-500" : "text-[#555] hover:text-sky-400"}`} title="Open link">
                   <ExternalLink className="w-3.5 h-3.5" />
                 </a>
                 <button onClick={() => deleteExternalLink(link.id)}
-                  className="p-1.5 text-red-400 hover:text-red-300 transition-colors" title="Remove">
+                  className={`p-1.5 rounded-lg transition-colors shrink-0 ${isLight ? "text-slate-300 hover:text-red-500" : "text-[#444] hover:text-red-400"}`} title="Remove">
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
