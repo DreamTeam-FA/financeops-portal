@@ -63,7 +63,7 @@ const FAQ = [
   },
   {
     q: "How does the AI Timesheet Scanner work?",
-    a: "On the Timesheets page, click 'Add Timesheet' → 'Scan with AI'. Upload a photo or PDF of a physical or printed timesheet. Gemini AI extracts employee names, hours worked, and dates and pre-fills the timesheet form. Review all fields before saving.",
+    a: "On the 4YR Payroll page, open 'Add Record' and use the 'Scan Timesheet' panel. Upload a photo or PDF of the timesheet. Gemini AI extracts employee name, job location, and per-day hours (clock in, clock out, total hours). Each day is shown as a pill — click a day to pre-fill the form. Employee name and job location are fuzzy-matched to the closest existing entry to handle OCR discrepancies. For multi-day scans, the modal stays open after each entry is saved so you can log every day. To close with scan data loaded, click × or Cancel — a confirmation dialog will prompt you to verify all required entries have been logged before discarding the scan.",
   },
   {
     q: "How do I track bank statements?",

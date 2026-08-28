@@ -48,6 +48,32 @@ function editHoursFromAmPm(startStr: string, endStr: string): string {
   return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}${sx ? ':' + String(sx).padStart(2,'0') : ''}`;
 }
 
+/** Levenshtein distance — used for fuzzy name/job matching in scan-to-fill */
+function levenshtein(a: string, b: string): number {
+  const aa = a.toLowerCase(), bb = b.toLowerCase();
+  const m = aa.length, n = bb.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, (_, i) =>
+    Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
+  );
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = aa[i-1] === bb[j-1]
+        ? dp[i-1][j-1]
+        : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+  return dp[m][n];
+}
+/** Returns closest candidate from list; falls back to original if no close match found */
+function fuzzyBest(query: string, candidates: string[]): string {
+  if (!query || candidates.length === 0) return query;
+  let best = "", bestDist = Infinity;
+  for (const c of candidates) {
+    const d = levenshtein(query, c);
+    if (d < bestDist) { bestDist = d; best = c; }
+  }
+  const maxLen = Math.max(query.length, best.length);
+  return bestDist <= Math.ceil(maxLen * 0.45) ? best : query;
+}
+
 function today() {
   const d = new Date();
   return `${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}/${d.getFullYear()}`;
@@ -176,6 +202,7 @@ export function FourYrPayrollPage() {
   const [addModalOpen,  setAddModalOpen]  = useState(false);
   const [scanKey, setScanKey] = useState(0);
   const [tscanResult, setTscanResult] = useState<any>(null);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<RawRow|null>(null);
   const [editingRow,    setEditingRow]    = useState<RawRow|null>(null);
@@ -502,8 +529,13 @@ export function FourYrPayrollPage() {
     setModalBusy(true);
     try {
       await apiPost("/api/4yr/add-entry", { ...form, amount: finalAmount });
-      showToast("Entry added", "success");
-      setAddModalOpen(false);
+      showToast("Entry added ✓", "success");
+      // If a scan is loaded, keep the modal open so the user can pick the next day
+      if (tscanResult) {
+        setForm(f => ({ ...f, date: "", started: "", finished: "", hours: "", remarks: "" }));
+      } else {
+        setAddModalOpen(false);
+      }
       doLoad(true); // force: skip dedup + wait 1.2 s for Sheets to commit
     } catch(e:any) { showToast(`Add failed: ${e.message}`,"error"); }
     finally { setModalBusy(false); }
@@ -1551,7 +1583,7 @@ export function FourYrPayrollPage() {
       {/* ── Add Modal ── */}
       {addModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={()=>{ setAddModalOpen(false); setTscanResult(null); setScanKey(k=>k+1); }} />
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={()=>{ if (tscanResult) { setShowCloseConfirm(true); } else { setAddModalOpen(false); setScanKey(k=>k+1); } }} />
           <div className={`relative z-10 rounded-2xl shadow-2xl border ${bdr} ${bg} w-full max-w-lg overflow-hidden`}>
             <div className="h-1.5 w-full" style={{ backgroundColor: TH1 }} />
             <div className={`flex items-center justify-between px-5 py-4 border-b ${bdr}`}>
@@ -1559,7 +1591,7 @@ export function FourYrPayrollPage() {
                 <h2 className="font-bold text-sm" style={{ color: TH1 }}>➕ Add Record</h2>
                 <p className={`text-[11px] mt-0.5 ${txt2}`}>Payroll, deduction, or non-payroll entry</p>
               </div>
-              <button onClick={()=>{ setAddModalOpen(false); setTscanResult(null); setScanKey(k=>k+1); }} className={`w-7 h-7 flex items-center justify-center rounded text-xl ${isLight ? "text-slate-400 hover:text-slate-700 hover:bg-slate-100" : "text-[#666] hover:text-white hover:bg-[#2a2a2a]"}`}>×</button>
+              <button onClick={()=>{ if (tscanResult) { setShowCloseConfirm(true); } else { setAddModalOpen(false); setScanKey(k=>k+1); } }} className={`w-7 h-7 flex items-center justify-center rounded text-xl ${isLight ? "text-slate-400 hover:text-slate-700 hover:bg-slate-100" : "text-[#666] hover:text-white hover:bg-[#2a2a2a]"}`}>×</button>
             </div>
             <div className="px-5 py-4 overflow-y-auto space-y-4" style={{ maxHeight:"65vh" }}>
               {/* Scan timesheet to auto-fill */}
@@ -1618,14 +1650,21 @@ export function FourYrPayrollPage() {
                             const y = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
                             dateFmt = `${parts[0].padStart(2,"0")}/${parts[1].padStart(2,"0")}/${y}`;
                           }
+                          // Fuzzy-match scanned name/job to closest existing entry
+                          const matchedName = tscanResult.employeeName
+                            ? fuzzyBest(tscanResult.employeeName, allNames)
+                            : "";
+                          const matchedJob = tscanResult.job
+                            ? fuzzyBest(tscanResult.job, allJobs)
+                            : "";
                           setForm(f => ({
                             ...f,
-                            name: tscanResult.employeeName || f.name,
+                            name: matchedName || tscanResult.employeeName || f.name,
                             date: dateFmt || f.date,
                             started: normTime(day.clockIn || ""),
                             finished: normTime(day.clockOut || "", true),
                             hours: day.totalHours != null ? String(day.totalHours) : f.hours,
-                            job: tscanResult.job || f.job,
+                            job: matchedJob || tscanResult.job || f.job,
                           }));
                           // Keep picker open — user can pick next day after submitting this one
                         }}
@@ -1642,9 +1681,44 @@ export function FourYrPayrollPage() {
               {renderForm(false)}
             </div>
             <div className={`flex items-center justify-end gap-2 px-5 py-3 border-t ${bdr} ${bg3}`}>
-              <button disabled={modalBusy} onClick={()=>{ setAddModalOpen(false); setTscanResult(null); setScanKey(k => k+1); }} className={`text-xs px-4 py-2 rounded border ${bdr} ${txt2} disabled:opacity-40`}>Cancel</button>
+              <button disabled={modalBusy} onClick={()=>{ if (tscanResult) { setShowCloseConfirm(true); } else { setAddModalOpen(false); setScanKey(k=>k+1); } }} className={`text-xs px-4 py-2 rounded border ${bdr} ${txt2} disabled:opacity-40`}>Cancel</button>
               <button disabled={modalBusy} onClick={submitAdd} className="text-xs px-5 py-2 rounded text-white font-semibold flex items-center gap-1.5 disabled:opacity-60" style={{ background:TH1 }}>
                 {modalBusy ? <><span className="inline-block w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />Saving…</> : <>💾 Add to Sheet</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Scan Close Confirmation Dialog ── */}
+      {showCloseConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowCloseConfirm(false)} />
+          <div className={`relative z-10 rounded-2xl shadow-2xl border overflow-hidden w-full max-w-sm ${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#1c2030] border-[#2e3340] text-white"}`}
+            style={{ boxShadow: "0 0 0 1px rgba(255,165,0,.15), 0 24px 64px rgba(0,0,0,.5)" }}>
+            <div className="h-1 w-full" style={{ background: "#f97316" }} />
+            <div className="px-6 py-5 space-y-3">
+              <div className="flex items-start gap-3">
+                <span className="text-2xl leading-none mt-0.5">⚠️</span>
+                <div>
+                  <h3 className="font-bold text-sm leading-snug">Confirm discard scan results?</h3>
+                  <p className={`text-[12px] mt-1.5 leading-relaxed ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                    Closing now will clear the current scan data. Make sure all required entries have been logged — you'll need to re-scan the timesheet if any are missing.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className={`flex items-center justify-end gap-2 px-5 py-3 border-t ${isLight ? "border-slate-100 bg-slate-50" : "border-[#2e3340] bg-[#161922]"}`}>
+              <button
+                onClick={() => setShowCloseConfirm(false)}
+                className={`text-xs px-4 py-2 rounded border font-medium transition-colors ${isLight ? "border-slate-200 text-slate-600 hover:bg-slate-100" : "border-[#2e3340] text-slate-400 hover:bg-[#22262f]"}`}>
+                Continue logging
+              </button>
+              <button
+                onClick={() => { setShowCloseConfirm(false); setAddModalOpen(false); setTscanResult(null); setScanKey(k => k + 1); }}
+                className="text-xs px-4 py-2 rounded text-white font-semibold transition-colors"
+                style={{ background: "#f97316" }}>
+                Discard &amp; close
               </button>
             </div>
           </div>
