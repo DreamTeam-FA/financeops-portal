@@ -418,6 +418,14 @@ export const CalendarPage: React.FC = () => {
     category === "meeting" ? "🤝" : category === "event" ? "📅" : category === "task" ? "✅" :
     type === "loan" ? "🏛️" : type === "ar" ? "💵" : type === "payroll" ? "⏱️" : type === "google" ? "🗓️" : "";
 
+  // Per-level urgency pill styles — dot color + inactive/active classes
+  const URGENCY_PILL: Record<"critical"|"high"|"normal"|"low", { dot: string; active: string; inactive: string }> = {
+    critical: { dot: "text-red-500",    active: "bg-red-500    border-red-500    text-white",  inactive: "bg-red-50    dark:bg-red-900/15    border-red-200    dark:border-red-700    text-red-600    dark:text-red-400"    },
+    high:     { dot: "text-orange-500", active: "bg-orange-500 border-orange-500 text-white",  inactive: "bg-orange-50 dark:bg-orange-900/15 border-orange-200 dark:border-orange-700 text-orange-600 dark:text-orange-400" },
+    normal:   { dot: "text-blue-500",   active: "bg-blue-500   border-blue-500   text-white",  inactive: "bg-blue-50   dark:bg-blue-900/15   border-blue-200   dark:border-blue-700   text-blue-600   dark:text-blue-400"   },
+    low:      { dot: "text-green-500",  active: "bg-green-500  border-green-500  text-white",  inactive: "bg-green-50  dark:bg-green-900/15  border-green-200  dark:border-green-700  text-green-600  dark:text-green-400"  },
+  };
+
   const getEventHexColor = (type: string, category?: string, urgency?: string): string => {
     if (type === "loan")    return "#8B5CF6";
     if (type === "ar")      return "#10B981";
@@ -1541,13 +1549,19 @@ export const CalendarPage: React.FC = () => {
                     </div>
                     <div>
                       <label className={`block text-[11px] font-bold mb-1 ${isLight ? "text-slate-500" : "text-slate-400"}`}>Urgency</label>
-                      <select value={editUrgency} onChange={e => setEditUrgency(e.target.value as any)}
-                        className={`w-full rounded-lg px-2.5 py-2 border-[1.5px] text-[13px] transition-colors focus:outline-none focus:border-[#1D6AE5] ${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#2a2f3e] border-[#3a3f50] text-white"}`}>
-                        <option value="low">Low</option>
-                        <option value="normal">Normal</option>
-                        <option value="high">High</option>
-                        <option value="critical">Critical</option>
-                      </select>
+                      <div className="grid grid-cols-2 gap-1">
+                        {(["critical", "high", "normal", "low"] as const).map((urg) => {
+                          const p = URGENCY_PILL[urg];
+                          const isSel = editUrgency === urg;
+                          return (
+                            <button key={urg} type="button" onClick={() => setEditUrgency(urg)}
+                              className={`py-1 rounded-full border text-[10px] font-extrabold capitalize transition-all flex items-center justify-center gap-1 ${isSel ? p.active : p.inactive}`}>
+                              <span className={`text-[7px] leading-none ${isSel ? "text-white" : p.dot}`}>●</span>
+                              {urg.charAt(0).toUpperCase() + urg.slice(1)}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                   <div>
@@ -1630,36 +1644,39 @@ export const CalendarPage: React.FC = () => {
                           ⚡ Urgency
                         </button>
                         {showUrgencyPicker && (
-                          <div className={`absolute bottom-full mb-1 left-0 rounded-lg shadow-xl border overflow-hidden z-10 ${isLight ? "bg-white border-slate-200" : "bg-[#20242E] border-[#2E3340]"}`}>
-                            {(["critical","high","normal","low"] as const).map(u => (
-                              <button key={u} onClick={() => {
-                                const eventId = selectedEvent.id;
-                                setSelectedEvent(prev => prev ? { ...prev, urgency: u } : null);
-                                // Persist urgency to portal server
-                                if (eventId) {
-                                  fetch("/api/calendar-action", {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ type: "edit", id: eventId, value: { urgency: u } })
-                                  }).catch(err => console.warn("calendar-action urgency failed:", err));
-                                  const token = getAccessToken();
-                                  const sheetRow = (selectedEvent.sheetRow && selectedEvent.sheetRow > 0)
-                                    ? selectedEvent.sheetRow
-                                    : sheetEvents.find(e => e.id === eventId)?.sheetRow;
-                                  if (token && sheetRow && sheetRow > 0) {
-                                    updateCalendarRow(token, sheetTab, sheetRow, sheetColMap, { urgency: u })
-                                      .then(() => loadSheetEvents())
-                                      .catch(err => console.warn("Sheet urgency write failed:", err));
+                          <div className={`absolute bottom-full mb-1 left-0 rounded-xl shadow-xl border p-2 z-10 grid grid-cols-2 gap-1.5 w-40 ${isLight ? "bg-white border-slate-200" : "bg-[#20242E] border-[#2E3340]"}`}>
+                            {(["critical","high","normal","low"] as const).map(u => {
+                              const p = URGENCY_PILL[u];
+                              const isSel = selectedEvent.urgency === u;
+                              return (
+                                <button key={u} onClick={() => {
+                                  const eventId = selectedEvent.id;
+                                  setSelectedEvent(prev => prev ? { ...prev, urgency: u } : null);
+                                  if (eventId) {
+                                    fetch("/api/calendar-action", {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ type: "edit", id: eventId, value: { urgency: u } })
+                                    }).catch(err => console.warn("calendar-action urgency failed:", err));
+                                    const token = getAccessToken();
+                                    const sheetRow = (selectedEvent.sheetRow && selectedEvent.sheetRow > 0)
+                                      ? selectedEvent.sheetRow
+                                      : sheetEvents.find(e => e.id === eventId)?.sheetRow;
+                                    if (token && sheetRow && sheetRow > 0) {
+                                      updateCalendarRow(token, sheetTab, sheetRow, sheetColMap, { urgency: u })
+                                        .then(() => loadSheetEvents())
+                                        .catch(err => console.warn("Sheet urgency write failed:", err));
+                                    }
+                                    updateCalendarEvent(eventId, { urgency: u } as any);
                                   }
-                                  updateCalendarEvent(eventId, { urgency: u } as any);
-                                }
-                                setShowUrgencyPicker(false);
-                              }}
-                              className={`w-full text-left px-4 py-2 text-xs font-bold transition-colors capitalize ${isLight ? "hover:bg-slate-50" : "hover:bg-white/5"} ${selectedEvent.urgency === u ? "font-black" : ""}`}
-                              style={selectedEvent.urgency === u ? { color: evColor } : {}}>
-                                {u === "critical" ? "🔴 Critical" : u === "high" ? "🟠 High" : u === "normal" ? "🔵 Normal" : "🟢 Low"}
-                              </button>
-                            ))}
+                                  setShowUrgencyPicker(false);
+                                }}
+                                className={`py-1 rounded-full border text-[10px] font-extrabold capitalize transition-all flex items-center justify-center gap-1 ${isSel ? p.active : p.inactive}`}>
+                                  <span className={`text-[7px] leading-none ${isSel ? "text-white" : p.dot}`}>●</span>
+                                  {u.charAt(0).toUpperCase() + u.slice(1)}
+                                </button>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -1890,22 +1907,23 @@ export const CalendarPage: React.FC = () => {
 
               {/* Urgency */}
               <div>
-                <label className="block font-semibold mb-1 text-slate-500">Urgency Priority</label>
+                <label className="block font-semibold mb-1 text-slate-500">Urgency Level</label>
                 <div className="grid grid-cols-4 gap-1.5">
-                  {(["critical", "high", "normal", "low"] as const).map((urg) => (
-                    <button
-                      key={urg}
-                      type="button"
-                      onClick={() => setTaskUrgency(urg)}
-                      className={`py-1 rounded-md border text-[11px] font-extrabold capitalize transition-all ${
-                        taskUrgency === urg
-                          ? "bg-[#0d9488] text-white border-[#0d9488]"
-                          : isLight ? "bg-slate-100 border-slate-300 text-slate-700" : "bg-[#1e1e1e] border-[#333] text-[#aaa]"
-                      }`}
-                    >
-                      {urg}
-                    </button>
-                  ))}
+                  {(["critical", "high", "normal", "low"] as const).map((urg) => {
+                    const p = URGENCY_PILL[urg];
+                    const isSelected = taskUrgency === urg;
+                    return (
+                      <button
+                        key={urg}
+                        type="button"
+                        onClick={() => setTaskUrgency(urg)}
+                        className={`py-1.5 rounded-full border text-[11px] font-extrabold capitalize transition-all flex items-center justify-center gap-1 ${isSelected ? p.active : p.inactive}`}
+                      >
+                        <span className={`text-[8px] leading-none ${isSelected ? "text-white" : p.dot}`}>●</span>
+                        {urg.charAt(0).toUpperCase() + urg.slice(1)}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
