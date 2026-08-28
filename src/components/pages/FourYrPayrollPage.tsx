@@ -8,6 +8,9 @@ import { getAccessToken } from "../../services/googleAuth";
 import { FourYrLogo } from "../EntityLogos";
 import { capturePage } from "../../lib/pageScreenshot";
 import { ScanToFill } from "../ScanToFill";
+import { fuzzyBest } from "../../utils/fuzzyMatch";
+import { Sun, Moon } from "lucide-react";
+
 const fmt2   = (n: number) => n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 const fmtAmt = (n: number) => `$${fmt2(n)}`;
 const fmtHrs = (n: number) => fmt2(n);
@@ -123,7 +126,7 @@ interface RawRow {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 export function FourYrPayrollPage() {
-  const { theme, handleGoogleSignIn, showToast, showConfirm } = useFinance() as any;
+  const { theme, toggleTheme, handleGoogleSignIn, showToast, showConfirm } = useFinance() as any;
   const isLight = theme === "light";
   const pageRef = useRef<HTMLDivElement>(null);
 
@@ -328,12 +331,15 @@ export function FourYrPayrollPage() {
       setYears(data.years||[]); setAllWeeks(data.weeks||[]);
       setAllNames(data.names||[]); setAllJobs(data.jobs||[]);
       setWeekContext(data.weekContext||{});
-      // Auto-select current week
+      // Auto-select current week.
+      // Week runs Fri–Thu. On Fridays the new week just started but payroll is still
+      // reviewing the prior week, so shift the lookup back by one day (to Thursday).
       const now = new Date();
+      const lookup = now.getDay() === 5 ? new Date(now.getTime() - 24 * 3600 * 1000) : now;
       const toDate = (mmddyyyy: string) => { const p = mmddyyyy.split('/'); return new Date(+p[2], +p[0]-1, +p[1]); };
       const cur = (data.weeks as WeekMeta[]).find(w => {
         const s = toDate(w.startDate), e = toDate(w.endDate);
-        e.setHours(23,59,59,999); return now >= s && now <= e;
+        e.setHours(23,59,59,999); return lookup >= s && lookup <= e;
       });
       if (cur) {
         filtersRef.current = { ...filtersRef.current, weekNums: [cur.weekNum] };
@@ -1312,15 +1318,27 @@ export function FourYrPayrollPage() {
         )}
         {loading && <span className="text-[11px] text-green-200 animate-pulse ml-1">Refreshing…</span>}
 
-        {/* Right side: Open Dashboard link + trademark */}
-        <div className="ml-auto flex flex-col items-end gap-0.5">
-          <a href="https://docs.google.com/spreadsheets/d/1SITtQDT3iFo5yIOBgjbERbqJjYJ8rk6drXwkLm3sAGE/edit#gid=1484569924"
-            target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-3 py-1 rounded text-[11px] font-semibold text-white no-underline transition-all"
-            style={{ background:"rgba(255,255,255,.18)", border:"1px solid rgba(255,255,255,.3)", height:28 }}>
-            Open Source Sheet ↗
-          </a>
-          <span className="text-[9px] font-light opacity-50 tracking-wide text-white pr-0.5">® Made by Finance Team</span>
+        {/* Right side: theme toggle + Open Dashboard link + trademark */}
+        <div className="ml-auto flex items-center gap-2">
+          {/* Light / Dark toggle */}
+          <button
+            onClick={toggleTheme}
+            title={isLight ? "Switch to dark mode" : "Switch to light mode"}
+            className="flex items-center justify-center w-8 h-8 rounded-full transition-all"
+            style={{ background:"rgba(255,255,255,.15)", border:"1px solid rgba(255,255,255,.3)" }}>
+            {isLight
+              ? <Moon className="w-3.5 h-3.5 text-white" />
+              : <Sun  className="w-3.5 h-3.5 text-amber-300" />}
+          </button>
+          <div className="flex flex-col items-end gap-0.5">
+            <a href="https://docs.google.com/spreadsheets/d/1SITtQDT3iFo5yIOBgjbERbqJjYJ8rk6drXwkLm3sAGE/edit#gid=1484569924"
+              target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1 rounded text-[11px] font-semibold text-white no-underline transition-all"
+              style={{ background:"rgba(255,255,255,.18)", border:"1px solid rgba(255,255,255,.3)", height:28 }}>
+              Open Source Sheet ↗
+            </a>
+            <span className="text-[9px] font-light opacity-50 tracking-wide text-white pr-0.5">® Made by Finance Team</span>
+          </div>
         </div>
       </div>
 
