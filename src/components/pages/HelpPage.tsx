@@ -928,7 +928,7 @@ export const HelpPage: React.FC = () => {
                         { r: '"ar"',                   d: 'ARPage — AR invoice checklist (invoice / approval / sent / payment)' },
                         { r: '"statements"',           d: 'BankStatementsPage — monthly statement download checklist' },
                         { r: '"payroll"',              d: 'PayrollPage — weekly pivot from payroll sheet, entity breakdown' },
-                        { r: '"calendar"',             d: 'CalendarPage — monthly view, AP due dates, local event overlays' },
+                        { r: '"calendar"',             d: 'CalendarPage — monthly view, AP due dates, events from Calendar Sheet (calendarLocalEvents)' },
                         { r: '"msdx" / "curcumin" / "fouryr" / "ziglar"', d: 'GasDashboardView — full-page iframe of GAS web app URL from gasUrls' },
                         { r: '"datasync"',             d: 'DataSyncPage — Settings & Data Sync (gear icon)' },
                         { r: '"cc-expenses"',          d: 'CCExpensePage — credit card transactions, adjustments, reconciliation' },
@@ -979,6 +979,21 @@ export const HelpPage: React.FC = () => {
                     { name: "SheetMappingConfig", color: "#94a3b8", fields: [
                       "id, module, name, spreadsheetIdOrUrl, tabName",
                       "range field exists in model but is NOT used by liveSheetsFetcher — fetcher uses tab name only (full sheet)",
+                    ]},
+                    { name: "CalendarLocalEvent", color: "#34d399", fields: [
+                      "id, createdDate, weekLabel, date, time, entity, vendor",
+                      "description, done, completedAt, row",
+                      "Source: Calendar Google Sheet (Events tab) — read via liveSheetsFetcher",
+                      "Sheet columns: A=id, B=source, C=title, D=description, E=start_ms, F=end_ms",
+                      "G=allDay, H=calName, I=urgency, J=category, K=assigneeId, L=assigneeName",
+                      "M=assigneeColor, N=assigneeIds, O=seriesId, P=done (TRUE/FALSE)",
+                      "Timestamps in Manila time (UTC+8); midnight = all-day display",
+                    ]},
+                    { name: "PortalCalendarEvent", color: "#a78bfa", fields: [
+                      "id, title, date (YYYY-MM-DD), time, type, description",
+                      "entity, isGoogleEvent, done, urgency, assignee",
+                      "Source: server.ts localCalendarEvents (portal-only tasks, not from Sheet)",
+                      "Currently empty — all calendar events live in the Calendar Sheet",
                     ]},
                     { name: "ExternalLinkItem", color: "#c084fc", fields: [
                       'id, name, url, category ("entities" | "quicklinks"), iconType',
@@ -1091,6 +1106,7 @@ const btnGhost = \`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-cente
                         "Member workspaces (Norlan, Micah, Monica)",
                         "Floating notes widget",
                         "Shared config sheet (cross-user gasUrls, sheetMappings)",
+                        "Invoice submission schedule (52 events 2026–2028) in Calendar Sheet",
                       ].map(item => (
                         <div key={item} className={`flex items-start gap-1.5 text-[11px] py-0.5 ${td}`}>
                           <span className="text-emerald-500 mt-0.5 shrink-0">✓</span>
@@ -1110,6 +1126,7 @@ const btnGhost = \`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-cente
                         { k: "bucket is computed, not stored", v: 'The bucket field (past-due, this-week, paid…) is computed client-side from dueDate. It does NOT exist in the sheet. Always recompute it during parse.' },
                         { k: "Range field is vestigial", v: 'SheetMappingConfig.range exists in the data model but liveSheetsFetcher.ts uses only the tab name (returns full sheet). Do not add row/column limits.' },
                         { k: "GAS URLs are cross-user", v: 'gasUrls changes are written to the shared _config tab in the logs sheet so all users on all devices see the same URLs immediately.' },
+                        { k: "Calendar Sheet is the single source", v: 'All calendar events (including the 52 invoice submission events) live in the Calendar Google Sheet Events tab. localCalendarEvents in server.ts is intentionally empty — do not seed events there. The sheet is read via liveSheetsFetcher → calendarLocalEvents. done/assignee columns (P, L) are in the sheet.' },
                       ].map(({ k, v }) => (
                         <li key={k} className="space-y-0.5">
                           <span className={`text-[11px] font-bold ${isLight ? "text-amber-700" : "text-amber-400"}`}>{k}</span>
