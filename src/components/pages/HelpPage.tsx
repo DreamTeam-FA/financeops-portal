@@ -1107,6 +1107,7 @@ const btnGhost = \`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-cente
                         "Floating notes widget",
                         "Shared config sheet (cross-user gasUrls, sheetMappings)",
                         "Invoice submission schedule (52 events 2026–2028) in Calendar Sheet",
+                        "AR + AP calendar chips grouped per day; paid items auto-hidden",
                       ].map(item => (
                         <div key={item} className={`flex items-start gap-1.5 text-[11px] py-0.5 ${td}`}>
                           <span className="text-emerald-500 mt-0.5 shrink-0">✓</span>
@@ -1127,6 +1128,7 @@ const btnGhost = \`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-cente
                         { k: "Range field is vestigial", v: 'SheetMappingConfig.range exists in the data model but liveSheetsFetcher.ts uses only the tab name (returns full sheet). Do not add row/column limits.' },
                         { k: "GAS URLs are cross-user", v: 'gasUrls changes are written to the shared _config tab in the logs sheet so all users on all devices see the same URLs immediately.' },
                         { k: "Calendar Sheet is the single source", v: 'All calendar events (including the 52 invoice submission events) live in the Calendar Google Sheet Events tab. localCalendarEvents in server.ts is intentionally empty — do not seed events there. The sheet is read via liveSheetsFetcher → calendarLocalEvents. done/assignee columns (P, L) are in the sheet.' },
+                        { k: "AR/AP calendar chips are grouped + payment-gated", v: 'AP bills excluded from calendar when status === "paid". AR items excluded when payment === true. Both grouped into one summary chip per day (like "🧾 AR (2)" or "📋 AP Bills (3)") — not individual chips per item. Clicking a chip opens a read-only detail modal listing all items for that day.' },
                       ].map(({ k, v }) => (
                         <li key={k} className="space-y-0.5">
                           <span className={`text-[11px] font-bold ${isLight ? "text-amber-700" : "text-amber-400"}`}>{k}</span>

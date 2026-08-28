@@ -210,6 +210,7 @@ export const CalendarPage: React.FC = () => {
     category?: string;
     entity?: string;
     billsList?: typeof apBills;
+    arList?: typeof arItems;
   } | null>(null);
 
   const [taskTitle, setTaskTitle] = useState("");
@@ -330,6 +331,15 @@ export const CalendarPage: React.FC = () => {
     if (!key) return;
     if (!apBillsByDate[key]) apBillsByDate[key] = [];
     apBillsByDate[key].push(b);
+  });
+
+  // AR Items by Date Key — exclude paid (payment===true) receivables from calendar
+  const arByDate: { [dateStr: string]: typeof arItems } = {};
+  arItems.filter((a) => !a.payment).forEach((a) => {
+    const key = normalizeDateToYYYYMMDD(a.dueDate);
+    if (!key) return;
+    if (!arByDate[key]) arByDate[key] = [];
+    arByDate[key].push(a);
   });
 
   // Calculate Status & Color for AP Due Date Pills
@@ -579,18 +589,7 @@ export const CalendarPage: React.FC = () => {
     });
   }
 
-  // AR
-  if (showArFilter) {
-    arItems.forEach((a) => {
-      const key = normalizeDateToYYYYMMDD(a.dueDate);
-      if (!key) return;
-      if (!eventsByDate[key]) eventsByDate[key] = [];
-      eventsByDate[key].push({
-        label: `AR: ${a.customer}${a.amount > 0 ? ` ($${a.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })})` : ""}`,
-        type: "ar"
-      });
-    });
-  }
+  // AR items are now rendered via arByDate (summary chip per day, like AP bills)
 
   // Payroll
   if (showPayrollFilter) {
@@ -1128,6 +1127,40 @@ export const CalendarPage: React.FC = () => {
                               </div>
                             )}
 
+                            {/* AR Summary Pill */}
+                            {showArFilter && (arByDate[dateKey] || []).length > 0 && (() => {
+                              const dayArItems = arByDate[dateKey] || [];
+                              const totalArAmt = dayArItems.reduce((sum, a) => sum + a.amount, 0);
+                              return (
+                                <div
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedEvent({
+                                      title: `AR Due (${dayArItems.length})`,
+                                      type: "AR",
+                                      date: dateKey,
+                                      amount: totalArAmt,
+                                      arList: dayArItems,
+                                      description: dayArItems
+                                        .map((a) => `${a.customer}${a.amount > 0 ? ` · $${a.amount.toFixed(2)}` : ""} [Open]`)
+                                        .join("\n")
+                                    });
+                                  }}
+                                  title={dayArItems.map((a) => `${a.customer}${a.amount > 0 ? ` ($${a.amount.toFixed(2)})` : ""}`).join("\n")}
+                                  className="text-[11px] px-2 py-1 rounded-md font-bold bg-orange-500/20 text-orange-700 dark:text-orange-300 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] cursor-pointer transition-opacity hover:opacity-90 flex flex-col gap-0.5 border border-orange-400/30"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span>🧾 AR ({dayArItems.length})</span>
+                                    {totalArAmt > 0 && <span>${totalArAmt.toLocaleString("en-US", { minimumFractionDigits: 0 })}</span>}
+                                  </div>
+                                  <div className="text-[10px] opacity-90 font-medium truncate">
+                                    {dayArItems.map((a) => a.customer).slice(0, 2).join(", ")}
+                                    {dayArItems.length > 2 ? "..." : ""}
+                                  </div>
+                                </div>
+                              );
+                            })()}
+
                             {/* Other Events */}
                             {dayEvents.map((ev, idx) => {
                               const style = getChipStyle(ev.type, ev.category, ev.urgency);
@@ -1273,6 +1306,38 @@ export const CalendarPage: React.FC = () => {
                           </div>
                         )}
 
+                        {/* AR Summary Pill */}
+                        {showArFilter && (arByDate[dateKey] || []).length > 0 && (() => {
+                          const dayArItems = arByDate[dateKey] || [];
+                          const totalArAmt = dayArItems.reduce((sum, a) => sum + a.amount, 0);
+                          return (
+                            <div
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedEvent({
+                                  title: `AR Due (${dayArItems.length})`,
+                                  type: "AR",
+                                  date: dateKey,
+                                  amount: totalArAmt,
+                                  arList: dayArItems,
+                                  description: dayArItems
+                                    .map((a) => `${a.customer}${a.amount > 0 ? ` · $${a.amount.toFixed(2)}` : ""} [Open]`)
+                                    .join("\n")
+                                });
+                              }}
+                              title={dayArItems.map((a) => `${a.customer}${a.amount > 0 ? ` ($${a.amount.toFixed(2)})` : ""}`).join("\n")}
+                              className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-orange-500/20 text-orange-700 dark:text-orange-300 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] cursor-pointer truncate transition-opacity hover:opacity-90 flex items-center gap-1"
+                            >
+                              <span>🧾</span>
+                              <span className="truncate">
+                                {dayArItems.length === 1
+                                  ? `${dayArItems[0].customer}${totalArAmt > 0 ? ` $${totalArAmt.toLocaleString("en-US", { minimumFractionDigits: 0 })}` : ""}`
+                                  : `${dayArItems.length} AR due${totalArAmt > 0 ? `: $${totalArAmt.toLocaleString("en-US", { minimumFractionDigits: 0 })}` : ""}`}
+                              </span>
+                            </div>
+                          );
+                        })()}
+
                         {/* Other Events */}
                         {dayEvents.map((ev, idx) => {
                           const style = getChipStyle(ev.type, ev.category, ev.urgency);
@@ -1347,7 +1412,7 @@ export const CalendarPage: React.FC = () => {
       </div>
 
       {/* Selected Event Details Modal */}
-      {selectedEvent && !selectedEvent.billsList && (() => {
+      {selectedEvent && !selectedEvent.billsList && !selectedEvent.arList && (() => {
         const displayTitle = selectedEvent.title.replace(/^\[[^\]]+\]\s*/, "");
         const entityMatch = selectedEvent.title.match(/^\[([^\]]+)\]/);
         const detectedEntity = selectedEvent.entity || entityMatch?.[1] || "";
@@ -1655,6 +1720,46 @@ export const CalendarPage: React.FC = () => {
               </button>
             </div>
             </div>{/* end p-5 */}
+          </div>
+        </div>
+      )}
+
+      {/* AR Detail Modal (separate, read-only) */}
+      {selectedEvent?.arList && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className={`${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#141414] border-[#333] text-white"} border rounded-2xl max-w-md w-full shadow-2xl overflow-hidden`}>
+            <div className="h-1.5 w-full bg-orange-500" />
+            <div className="p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold">{selectedEvent.title}</h3>
+                <button onClick={() => setSelectedEvent(null)} className="text-slate-400 hover:text-slate-700 p-1">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className={`flex items-center gap-2 text-xs ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                <Clock className="w-3.5 h-3.5" />
+                <span>{selectedEvent.date}</span>
+                {selectedEvent.amount !== undefined && selectedEvent.amount > 0 && (
+                  <span className="ml-auto font-bold text-orange-500">${selectedEvent.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                )}
+              </div>
+              <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                {selectedEvent.arList.map((a, idx) => (
+                  <div key={idx} className={`p-2 rounded-lg border flex items-center justify-between text-xs ${isLight ? "bg-slate-50 border-slate-200" : "bg-[#1c1c1c] border-[#2c2c2c]"}`}>
+                    <div>
+                      <span className="font-bold text-orange-500">[{a.entity || "AR"}]</span> <span className="font-semibold">{a.customer}</span>
+                      {a.description && <div className="text-[10px] text-slate-500 mt-0.5">{a.description}</div>}
+                    </div>
+                    {a.amount > 0 && <span className="font-bold text-orange-500">${a.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>}
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-end">
+                <button onClick={() => setSelectedEvent(null)} className={`px-4 py-1.5 rounded text-xs font-semibold ${isLight ? "bg-slate-200 hover:bg-slate-300 text-slate-800" : "bg-[#262626] hover:bg-[#333] text-white"}`}>
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
