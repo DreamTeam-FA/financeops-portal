@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useFinance } from "../../context/FinanceContext";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, ExternalLink } from "lucide-react";
+import { readLogsSheet, SHARED_LOGS_SHEET_ID } from "../../services/logsSheetService";
+import { getAccessToken } from "../../services/googleAuth";
 
 const TABS = [
   { id: "login",    label: "🔐 Login History" },
@@ -114,6 +116,7 @@ export const LogsPage: React.FC = () => {
   const [error, setError]               = useState<string | null>(null);
   const [loginRows, setLoginRows]       = useState<any[]>([]);
   const [activityRows, setActivityRows] = useState<any[]>([]);
+  const [sheetUrl, setSheetUrl]         = useState<string>("");
 
   const bg   = isLight ? "bg-slate-100"  : "bg-[#070b12]";
   const card = isLight ? "bg-white border-slate-200" : "bg-[#111318] border-[#1e2433]";
@@ -127,14 +130,34 @@ export const LogsPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const [loginRes, actRes] = await Promise.all([
-        fetch("/api/login-log"),
-        fetch("/api/activity-log"),
-      ]);
-      const loginData = await loginRes.json();
-      const actData   = await actRes.json();
-      if (Array.isArray(loginData)) setLoginRows(loginData);
-      if (Array.isArray(actData))   setActivityRows(actData);
+      const token = getAccessToken();
+      if (token) {
+        // Primary: read from the shared Google Sheet (persists across Render deploys)
+        const { loginRows: lr, activityRows: ar, sheetUrl: url } =
+          await readLogsSheet(token, SHARED_LOGS_SHEET_ID);
+
+        // Sheet rows are oldest-first; reverse for newest-first display
+        const mappedLogin = [...lr].reverse().map(r => ({
+          timestamp: r[0] || "", user: r[1] || "", device: r[2] || "",
+          city: r[3] || "", region: r[4] || "", country: r[5] || "", ip: r[6] || "",
+        }));
+        const mappedActivity = [...ar].reverse().map(r => ({
+          timestamp: r[0] || "", user: r[1] || "", action: r[2] || "", details: r[3] || "",
+        }));
+        setLoginRows(mappedLogin);
+        setActivityRows(mappedActivity);
+        setSheetUrl(url);
+      } else {
+        // Fallback to server JSON when not signed in (ephemeral, for current session only)
+        const [loginRes, actRes] = await Promise.all([
+          fetch("/api/login-log"),
+          fetch("/api/activity-log"),
+        ]);
+        const loginData = await loginRes.json();
+        const actData   = await actRes.json();
+        if (Array.isArray(loginData)) setLoginRows(loginData);
+        if (Array.isArray(actData))   setActivityRows(actData);
+      }
     } catch (e: any) {
       setError(`Could not load logs: ${e.message}`);
     } finally {
@@ -173,6 +196,24 @@ export const LogsPage: React.FC = () => {
             onChange={e => setSearch(e.target.value)}
             className={`w-44 text-xs px-3 py-1.5 rounded-lg border focus:outline-none ${inp}`}
           />
+
+          {/* Open source sheet */}
+          {sheetUrl && (
+            <a
+              href={sheetUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`flex items-center gap-1.5 text-[11px] font-medium px-3 py-1.5 rounded-lg border transition-colors ${
+                isLight
+                  ? "border-slate-300 text-slate-600 hover:bg-slate-50"
+                  : "border-[#2a3140] text-slate-400 hover:bg-[#1a1e27]"
+              }`}
+              title="Open the shared logs Google Sheet"
+            >
+              <ExternalLink className="w-3 h-3" />
+              Open Source Sheet
+            </a>
+          )}
 
           {/* Refresh */}
           <button
