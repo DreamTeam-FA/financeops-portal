@@ -31,6 +31,7 @@ import {
   FlaskConical,
   CheckCircle,
   XCircle,
+  ShieldAlert,
 } from "lucide-react";
 import { SheetMappingConfig } from "../../types";
 import { emailPasswordSignIn } from "../../services/googleAuth";
@@ -270,7 +271,6 @@ export const DataSyncPage: React.FC = () => {
   const [newMappingModule, setNewMappingModule] = useState<SheetMappingConfig["module"]>("ap");
   const [newMappingUrl, setNewMappingUrl] = useState("");
   const [newMappingTab, setNewMappingTab] = useState("");
-  const [newMappingRange, setNewMappingRange] = useState("");
 
   // New External Link modal state
   const [showAddLinkModal, setShowAddLinkModal] = useState(false);
@@ -322,13 +322,14 @@ export const DataSyncPage: React.FC = () => {
       name: newMappingName,
       spreadsheetIdOrUrl: newMappingUrl,
       tabName: newMappingTab || "Sheet1",
-      range: newMappingRange || "A1:Z200",
+      range: "",
       status: "connected"
     });
     setNewMappingName("");
     setNewMappingUrl("");
     setNewMappingTab("");
     setShowAddModal(false);
+
   };
 
   const handleExportJSON = () => {
