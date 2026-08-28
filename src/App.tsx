@@ -1,5 +1,12 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { FinanceProvider, useFinance } from "./context/FinanceContext";
+import { PortalAuditModal } from "./components/PortalAuditModal";
+import {
+  shouldRunAudit,
+  saveAuditResult,
+  runPortalAudit,
+  type AuditFinding,
+} from "./utils/portalAudit";
 import { Sidebar } from "./components/Sidebar";
 import { HubPage } from "./components/pages/HubPage";
 import { APPage } from "./components/pages/APPage";
@@ -218,7 +225,33 @@ const GlobalDatePickerModal: React.FC = () => {
 };
 
 const PortalContent: React.FC = () => {
-  const { currentPage, setCurrentPage, isLoading, theme, activeMember, needsAuth } = useFinance();
+  const { currentPage, setCurrentPage, isLoading, theme, activeMember, needsAuth,
+          apBills, bankAccounts, loans, arItems, lastSyncedAt, syncLogs } = useFinance();
+
+  // ── Scheduled portal audit (fires every 48 h, after data loads) ─────────
+  const [auditFindings, setAuditFindings] = useState<AuditFinding[] | null>(null);
+  const [auditTs, setAuditTs]             = useState<number>(0);
+  const [auditOpen, setAuditOpen]         = useState(false);
+
+  useEffect(() => {
+    if (isLoading) return;                          // wait until data is ready
+    if (!shouldRunAudit()) return;                  // not yet 48 h since last run
+    const ts       = Date.now();
+    const findings = runPortalAudit({
+      apBills:      apBills      || [],
+      bankAccounts: bankAccounts || [],
+      loans:        loans        || [],
+      arItems:      arItems      || [],
+      lastSyncedAt: lastSyncedAt || null,
+      syncLogs:     syncLogs     || [],
+    });
+    saveAuditResult({ ts, findings });
+    setAuditFindings(findings);
+    setAuditTs(ts);
+    // Brief delay so the portal finishes rendering before the modal pops
+    setTimeout(() => setAuditOpen(true), 2_500);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading]);
 
   if (isLoading) {
     return (
@@ -326,6 +359,17 @@ const PortalContent: React.FC = () => {
 
       {/* Alert Toasts — fires on login for critical/warn items */}
       <AlertsToasts isLight={theme === "light"} />
+
+      {/* Scheduled Portal Health Audit — every 48 h */}
+      {auditOpen && auditFindings !== null && (
+        <PortalAuditModal
+          findings={auditFindings}
+          auditTs={auditTs}
+          isLight={theme === "light"}
+          onDismiss={() => setAuditOpen(false)}
+          onNavigate={(page) => setCurrentPage(page as any)}
+        />
+      )}
 
       {/* Sync Toast Notification */}
       <SyncToastBanner />
