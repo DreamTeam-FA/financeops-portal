@@ -7,7 +7,6 @@ import {
   Upload,
   CheckCircle2,
   FileSpreadsheet,
-  ShieldAlert,
   ArrowDownToLine,
   ArrowUpFromLine,
   Key,
@@ -381,302 +380,199 @@ export const DataSyncPage: React.FC = () => {
     }
   }, []);
 
-  return (
-    <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#070b12] text-[#e8e8e8]"}`}>
-      <PageHeader title="2-Way Google Sheets Sync Hub" bgClass={isLight ? "bg-slate-800 text-white" : "bg-[#0d111a] border-b border-[#1a2235]"} />
+  // ── Shared style tokens ──────────────────────────────────────────────────────
+  const card  = isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]";
+  const inner = isLight ? "bg-slate-50 border-slate-200" : "bg-[#070b12] border-[#1a2235]";
+  const divider = isLight ? "border-slate-100" : "border-[#1a2235]";
+  const label = isLight ? "text-slate-500" : "text-[#666]";
+  const muted = isLight ? "text-slate-400" : "text-[#555]";
+  const heading = isLight ? "text-slate-900" : "text-white";
+  const sub   = isLight ? "text-slate-500" : "text-[#888]";
+  const inp   = `w-full rounded-lg border px-3 py-2 text-xs focus:outline-none transition-colors ${isLight ? "bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-[#1a73e8]" : "bg-[#070b12] border-[#1a2235] text-white placeholder-[#444] focus:border-[#1a73e8]"}`;
+  const btnGhost = `px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 ${isLight ? "bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200" : "bg-[#0d111a] hover:bg-[#1a2235] text-[#aaa] hover:text-white border border-[#1a2235]"}`;
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
-        {/* Google Authentication & Connection Status Card */}
-        <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-5 space-y-4 shadow-sm`}>
-          <div className={`flex flex-wrap items-center justify-between gap-3 border-b ${isLight ? "border-slate-200" : "border-[#222]"} pb-4`}>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#1a73e8]/20 border border-[#1a73e8]/40 flex items-center justify-center text-[#1a73e8] dark:text-[#60a5fa]">
+  return (
+    <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-50 text-slate-800" : "bg-[#070b12] text-[#e8e8e8]"}`}>
+      <PageHeader title="Settings & Data Sync" bgClass={isLight ? "bg-slate-800 text-white" : "bg-[#0d111a] border-b border-[#1a2235]"} />
+
+      <div className="flex-1 overflow-y-auto p-5 space-y-5">
+
+        {/* ── 1. Google Connection ─────────────────────────────────────────── */}
+        <div className={`border rounded-2xl overflow-hidden ${card}`}>
+          {/* Header row */}
+          <div className={`flex flex-wrap items-center justify-between gap-4 px-6 py-5 border-b ${divider}`}>
+            <div className="flex items-center gap-4">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${googleUser ? "bg-emerald-500/15 text-emerald-500" : "bg-[#1a73e8]/15 text-[#1a73e8]"}`}>
                 <Key className="w-5 h-5" />
               </div>
               <div>
-                <h2 className={`text-sm font-bold flex items-center gap-2 ${isLight ? "text-slate-900" : "text-white"}`}>
-                  Google Workspace Authentication
-                  {googleUser ? (
-                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
-                      Connected
-                    </span>
-                  ) : (
-                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
-                      Needs OAuth Login
-                    </span>
-                  )}
-                </h2>
-                <p className={`text-xs ${isLight ? "text-slate-500" : "text-[#888]"}`}>
+                <div className="flex items-center gap-2">
+                  <h2 className={`text-sm font-bold ${heading}`}>Google Workspace</h2>
                   {googleUser
-                    ? `Signed in as ${googleUser.email || "accounting@marktimm.com"} (Read & Write permissions granted)`
-                    : "Connect your Google account to enable live 2-way syncing with your target Google Sheets."}
+                    ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/20">Connected</span>
+                    : <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500 border border-amber-500/20">Not connected</span>
+                  }
+                </div>
+                <p className={`text-xs mt-0.5 ${sub}`}>
+                  {googleUser
+                    ? `${googleUser.email || "accounting@marktimm.com"} · read & write access granted`
+                    : "Connect your Google account to enable live 2-way sync with Google Sheets."}
                 </p>
               </div>
             </div>
-
-            <div className="flex items-center gap-2">
-              {googleUser ? (
-                <button
-                  onClick={handleGoogleSignOut}
-                  className={`px-3 py-1.5 rounded-lg border text-xs font-semibold ${
-                    isLight ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300" : "bg-[#1e1e1e] hover:bg-[#282828] text-[#888] hover:text-white border-[#333]"
-                  } flex items-center gap-1.5 transition-colors`}
-                >
-                  <LogOut className="w-3.5 h-3.5" /> Sign Out
-                </button>
-              ) : (
-                <button
-                  onClick={handleGoogleSignIn}
-                  className="px-4 py-2 rounded-lg bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs font-semibold flex items-center gap-2 transition-colors shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
-                >
-                  <Key className="w-4 h-4" /> Sign In with Google
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Master Sync Action Buttons & Instant Auto-Push Toggle */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-            <div className="flex items-center gap-3">
-              <span className={`text-xs ${isLight ? "text-slate-500" : "text-[#aaa]"}`}>
-                Sync Engine Controls:
-              </span>
-              <button
-                onClick={() => setAutoPushEnabled(!autoPushEnabled)}
-                className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all border ${
-                  autoPushEnabled
-                    ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/40"
-                    : isLight
-                    ? "bg-slate-100 text-slate-600 border-slate-300"
-                    : "bg-[#222] text-[#888] border-[#333]"
-                }`}
-                title="When enabled, any edit in the dashboard instantly pushes updates back to Google Sheets automatically"
-              >
-                <Zap className={`w-3.5 h-3.5 ${autoPushEnabled ? "text-emerald-500 fill-emerald-500" : ""}`} />
-                {autoPushEnabled ? "Instant Auto-Push: ON" : "Instant Auto-Push: OFF"}
+            {googleUser ? (
+              <button onClick={handleGoogleSignOut} className={btnGhost}>
+                <LogOut className="w-3.5 h-3.5" /> Sign Out
               </button>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={syncAllFromGoogleSheets}
-                disabled={isSyncing}
-                className="px-3.5 py-1.5 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] disabled:opacity-50"
-              >
-                <ArrowDownToLine className={`w-4 h-4 ${isSyncing ? "animate-bounce" : ""}`} />
-                Pull All Modules
+            ) : (
+              <button onClick={handleGoogleSignIn} className="px-4 py-2 rounded-lg bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs font-semibold flex items-center gap-2 transition-colors">
+                <Key className="w-4 h-4" /> Sign in with Google
               </button>
-              <button
-                onClick={() => syncAllToGoogleSheets(true)}
-                disabled={isSyncing}
-                className="px-3.5 py-1.5 rounded-lg bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] disabled:opacity-50"
-              >
-                <ArrowUpFromLine className="w-4 h-4" />
-                Push All Modules
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* GAS Dashboard Web App URLs Section */}
-        <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] p-5 space-y-4`}>
-          <div>
-            <h3 className={`text-xs font-extrabold uppercase tracking-wider ${isLight ? "text-slate-900" : "text-white"} flex items-center gap-2`}>
-              <Zap className="w-4 h-4 text-purple-500" />
-              Other Dashboards Web App URLs (Google Apps Script)
-            </h3>
-            <p className={`text-xs ${isLight ? "text-slate-500" : "text-gray-400"} mt-0.5`}>
-              Input the deployed Google Apps Script (GAS) Web App URL for each entity. Clicking these dashboards in the sidebar will open their custom interactive views.
-            </p>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* CurcuminPRO */}
-            <div className={`p-4 rounded-xl border space-y-2 ${isLight ? "bg-slate-50 border-slate-200" : "bg-[#161616] border-[#2a2a2a]"}`}>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-amber-600 dark:text-amber-400">CurcuminPRO</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 font-mono">GAS Dashboard</span>
-              </div>
-              <input
-                type="url"
-                value={gasUrls?.curcumin || ""}
-                onChange={(e) => updateGasUrl("curcumin", e.target.value)}
-                placeholder="https://script.google.com/macros/s/.../exec"
-                className={`w-full px-3 py-2 rounded-lg border text-xs font-mono ${
-                  isLight ? "bg-white border-slate-300 text-slate-900 placeholder-slate-400" : "bg-[#1f1f1f] border-[#333] text-white placeholder-[#666]"
-                } focus:ring-2 focus:ring-amber-500 focus:outline-none`}
-              />
-            </div>
-
-            {/* 4YR Payroll */}
-            <div className={`p-4 rounded-xl border space-y-2 ${isLight ? "bg-slate-50 border-slate-200" : "bg-[#161616] border-[#2a2a2a]"}`}>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">4YR Payroll</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 font-mono">GAS Dashboard</span>
-              </div>
-              <input
-                type="url"
-                value={gasUrls?.fouryr || ""}
-                onChange={(e) => updateGasUrl("fouryr", e.target.value)}
-                placeholder="https://script.google.com/macros/s/.../exec"
-                className={`w-full px-3 py-2 rounded-lg border text-xs font-mono ${
-                  isLight ? "bg-white border-slate-300 text-slate-900 placeholder-slate-400" : "bg-[#1f1f1f] border-[#333] text-white placeholder-[#666]"
-                } focus:ring-2 focus:ring-emerald-500 focus:outline-none`}
-              />
-            </div>
-
-            {/* Ziglar */}
-            <div className={`p-4 rounded-xl border space-y-2 ${isLight ? "bg-slate-50 border-slate-200" : "bg-[#161616] border-[#2a2a2a]"}`}>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-purple-600 dark:text-purple-400">Ziglar</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-500 font-mono">GAS Dashboard</span>
-              </div>
-              <input
-                type="url"
-                value={gasUrls?.ziglar || ""}
-                onChange={(e) => updateGasUrl("ziglar", e.target.value)}
-                placeholder="https://script.google.com/macros/s/.../exec"
-                className={`w-full px-3 py-2 rounded-lg border text-xs font-mono ${
-                  isLight ? "bg-white border-slate-300 text-slate-900 placeholder-slate-400" : "bg-[#1f1f1f] border-[#333] text-white placeholder-[#666]"
-                } focus:ring-2 focus:ring-purple-500 focus:outline-none`}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Module Sheet Mappings Config Table */}
-        <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl overflow-hidden shadow-sm`}>
-          <div className={`p-4 ${isLight ? "bg-slate-50 border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border-b flex flex-wrap items-center justify-between gap-2`}>
-            <div>
-              <h3 className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-slate-900" : "text-white"} flex items-center gap-2`}>
-                <FileSpreadsheet className="w-4 h-4 text-[#1a73e8]" />
-                Target Google Sheet Mappings & Sync Controls
-              </h3>
-              <p className={`text-[11px] ${isLight ? "text-slate-500" : "text-[#888]"} mt-0.5`}>
-                Paste Google Sheet URL/ID. Click "Auto-Detect Tabs" to read tab names and cell ranges directly from Google's API.
-              </p>
-            </div>
+          {/* Sync controls */}
+          <div className={`flex flex-wrap items-center justify-between gap-3 px-6 py-4 ${isLight ? "bg-slate-50" : "bg-[#070b12]/60"}`}>
             <button
-              onClick={() => setShowAddModal(true)}
-              className="px-3 py-1.5 rounded bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs font-semibold flex items-center gap-1.5 transition-colors"
+              onClick={() => setAutoPushEnabled(!autoPushEnabled)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all border ${
+                autoPushEnabled
+                  ? "bg-emerald-500/15 text-emerald-500 border-emerald-500/25"
+                  : isLight ? "bg-white text-slate-500 border-slate-200 hover:border-slate-300" : "bg-[#0d111a] text-[#666] border-[#1a2235] hover:text-[#aaa]"
+              }`}
+              title="When enabled, dashboard edits instantly push back to Google Sheets"
             >
-              <Plus className="w-3.5 h-3.5" /> Add New Sheet Mapping
+              <Zap className={`w-3.5 h-3.5 ${autoPushEnabled ? "fill-emerald-500" : ""}`} />
+              Auto-Push {autoPushEnabled ? "ON" : "OFF"}
+            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={syncAllFromGoogleSheets} disabled={isSyncing}
+                className="px-4 py-2 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50">
+                <ArrowDownToLine className={`w-3.5 h-3.5 ${isSyncing ? "animate-bounce" : ""}`} />
+                Pull All
+              </button>
+              <button onClick={() => syncAllToGoogleSheets(true)} disabled={isSyncing}
+                className="px-4 py-2 rounded-lg bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50">
+                <ArrowUpFromLine className="w-3.5 h-3.5" />
+                Push All
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ── 2. GAS Dashboard URLs ────────────────────────────────────────── */}
+        <div className={`border rounded-2xl p-6 space-y-4 ${card}`}>
+          <div className="flex items-start gap-3">
+            <Zap className="w-4 h-4 text-purple-400 mt-0.5 shrink-0" />
+            <div>
+              <h3 className={`text-sm font-bold ${heading}`}>GAS Dashboard URLs</h3>
+              <p className={`text-xs mt-0.5 ${sub}`}>Google Apps Script web app URLs for each entity dashboard. Changes are saved cross-user via the shared config sheet.</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {[
+              { key: "curcumin", label: "CurcuminPRO", color: "text-amber-500", dot: "bg-amber-500" },
+              { key: "fouryr",   label: "4YR Payroll",  color: "text-emerald-500", dot: "bg-emerald-500" },
+              { key: "ziglar",   label: "Ziglar",        color: "text-purple-400", dot: "bg-purple-400" },
+            ].map(({ key, label: lbl, color, dot }) => (
+              <div key={key} className={`rounded-xl border p-4 space-y-2.5 ${inner}`}>
+                <div className="flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full ${dot}`} />
+                  <span className={`text-xs font-bold ${color}`}>{lbl}</span>
+                </div>
+                <input
+                  type="url"
+                  value={(gasUrls as any)?.[key] || ""}
+                  onChange={(e) => updateGasUrl(key, e.target.value)}
+                  placeholder="https://script.google.com/macros/s/.../exec"
+                  className={`${inp} font-mono text-[11px]`}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── 3. Sheet Mappings ────────────────────────────────────────────── */}
+        <div className={`border rounded-2xl overflow-hidden ${card}`}>
+          <div className={`flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b ${divider}`}>
+            <div className="flex items-center gap-3">
+              <FileSpreadsheet className="w-4 h-4 text-[#1a73e8] shrink-0" />
+              <div>
+                <h3 className={`text-sm font-bold ${heading}`}>Sheet Mappings</h3>
+                <p className={`text-xs ${sub}`}>Configure the source Google Sheet for each module. Auto-Detect reads tab names directly from the Sheets API.</p>
+              </div>
+            </div>
+            <button onClick={() => setShowAddModal(true)}
+              className="px-3 py-1.5 rounded-lg bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs font-semibold flex items-center gap-1.5 transition-colors">
+              <Plus className="w-3.5 h-3.5" /> Add Mapping
             </button>
           </div>
 
-          <div className="divide-y divide-[#222]">
+          <div className={`divide-y ${isLight ? "divide-slate-100" : "divide-[#0f1520]"}`}>
             {sheetMappings.map((cfg) => {
               const currentEdit = editingConfigs[cfg.id] || cfg;
-
               return (
-                <div key={cfg.id} className="p-4 space-y-3 hover:bg-white/2 transition-colors">
+                <div key={cfg.id} className={`px-6 py-4 space-y-3 transition-colors ${isLight ? "hover:bg-slate-50" : "hover:bg-white/[.02]"}`}>
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2.5 py-0.5 rounded text-xs font-bold bg-[#1a73e8]/20 text-[#60a5fa] uppercase tracking-wider">
+                    <div className="flex items-center gap-2.5">
+                      <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-md uppercase tracking-wide ${isLight ? "bg-[#1a73e8]/10 text-[#1a73e8]" : "bg-[#1a73e8]/15 text-[#60a5fa]"}`}>
                         {cfg.name}
                       </span>
                       {cfg.lastSyncedAt && (
-                        <span className="text-[11px] text-[#666] flex items-center gap-1">
-                          <Clock className="w-3 h-3" /> Last synced: {cfg.lastSyncedAt}
+                        <span className={`text-[11px] flex items-center gap-1 ${muted}`}>
+                          <Clock className="w-3 h-3" /> {cfg.lastSyncedAt}
                         </span>
                       )}
                     </div>
-
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       <button
                         onClick={async () => {
                           const detected = await autoDetectSheetTabs(cfg.id);
-                          if (detected && detected.length > 0) {
-                            const updatedMapping = sheetMappings.find((m) => m.id === cfg.id);
-                            if (updatedMapping) {
-                              setEditingConfigs((prev) => ({
-                                ...prev,
-                                [cfg.id]: updatedMapping
-                              }));
-                            }
+                          if (detected?.length > 0) {
+                            const updated = sheetMappings.find(m => m.id === cfg.id);
+                            if (updated) setEditingConfigs(p => ({ ...p, [cfg.id]: updated }));
                           }
                         }}
                         disabled={isSyncing}
-                        className="px-2.5 py-1 rounded bg-[#8b5cf6]/20 hover:bg-[#8b5cf6]/30 text-[#c084fc] border border-[#8b5cf6]/40 text-xs font-semibold flex items-center gap-1 transition-colors disabled:opacity-50"
-                        title="Inspect Google Sheet and auto-detect all tab names & ranges"
+                        className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold flex items-center gap-1 transition-colors disabled:opacity-50 bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 border border-violet-500/20"
                       >
-                        <Sparkles className="w-3 h-3" /> Auto-Detect Tabs
+                        <Sparkles className="w-3 h-3" /> Auto-Detect
                       </button>
-
-                      <button
-                        onClick={() => handleSaveConfig(cfg.id)}
-                        className="px-2.5 py-1 rounded bg-[#222] hover:bg-[#333] text-xs font-medium text-white border border-[#444] flex items-center gap-1 transition-colors"
-                      >
-                        <Save className="w-3 h-3" /> Save Config
+                      <button onClick={() => handleSaveConfig(cfg.id)} className={btnGhost}>
+                        <Save className="w-3 h-3" /> Save
                       </button>
-
-                      <button
-                        onClick={() => syncModuleFromGoogleSheet(cfg.id)}
-                        disabled={isSyncing}
-                        className="px-2.5 py-1 rounded bg-[#16a34a]/20 hover:bg-[#16a34a]/30 text-[#4ade80] border border-[#16a34a]/40 text-xs font-semibold flex items-center gap-1 transition-colors disabled:opacity-50"
-                      >
+                      <button onClick={() => syncModuleFromGoogleSheet(cfg.id)} disabled={isSyncing}
+                        className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold flex items-center gap-1 transition-colors disabled:opacity-50 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20">
                         <ArrowDownToLine className="w-3 h-3" /> Pull
                       </button>
-
-                      <button
-                        onClick={() => syncModuleToGoogleSheet(cfg.id, true)}
-                        disabled={isSyncing}
-                        className="px-2.5 py-1 rounded bg-[#1a73e8]/20 hover:bg-[#1a73e8]/30 text-[#60a5fa] border border-[#1a73e8]/40 text-xs font-semibold flex items-center gap-1 transition-colors disabled:opacity-50"
-                      >
+                      <button onClick={() => syncModuleToGoogleSheet(cfg.id, true)} disabled={isSyncing}
+                        className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold flex items-center gap-1 transition-colors disabled:opacity-50 bg-[#1a73e8]/10 hover:bg-[#1a73e8]/20 text-[#60a5fa] border border-[#1a73e8]/20">
                         <ArrowUpFromLine className="w-3 h-3" /> Push
                       </button>
-
                       {cfg.id.startsWith("map-custom-") && (
-                        <button
-                          onClick={() => deleteSheetMapping(cfg.id)}
-                          className="p-1 rounded text-red-400 hover:bg-red-500/20 transition-colors"
-                          title="Delete custom mapping"
-                        >
+                        <button onClick={() => deleteSheetMapping(cfg.id)}
+                          className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/15 transition-colors" title="Delete mapping">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       )}
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
-                    <div>
-                      <label className="block text-[10px] font-semibold text-[#888] uppercase mb-1">
-                        Spreadsheet ID or URL
-                      </label>
-                      <input
-                        type="text"
-                        value={currentEdit.spreadsheetIdOrUrl}
-                        onChange={(e) => handleConfigChange(cfg.id, "spreadsheetIdOrUrl", e.target.value)}
-                        placeholder="https://docs.google.com/spreadsheets/d/..."
-                        className="w-full bg-[#0d111a] border border-[#1a2235] rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-[#1a73e8]"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-semibold text-[#888] uppercase mb-1">
-                        Sheet Tab Name
-                      </label>
-                      <input
-                        type="text"
-                        value={currentEdit.tabName}
-                        onChange={(e) => handleConfigChange(cfg.id, "tabName", e.target.value)}
-                        placeholder="e.g. Accounts Payable"
-                        className="w-full bg-[#0d111a] border border-[#1a2235] rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-[#1a73e8]"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-semibold text-[#888] uppercase mb-1">
-                        Cell Range
-                      </label>
-                      <input
-                        type="text"
-                        value={currentEdit.range}
-                        onChange={(e) => handleConfigChange(cfg.id, "range", e.target.value)}
-                        placeholder="A1:Z100"
-                        className="w-full bg-[#0d111a] border border-[#1a2235] rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-[#1a73e8]"
-                      />
-                    </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                    {[
+                      { field: "spreadsheetIdOrUrl", ph: "Spreadsheet URL or ID", lbl: "Spreadsheet" },
+                      { field: "tabName",            ph: "Tab name",              lbl: "Tab" },
+                      { field: "range",              ph: "A1:Z200",              lbl: "Range" },
+                    ].map(({ field, ph, lbl: fl }) => (
+                      <div key={field}>
+                        <label className={`block text-[10px] font-semibold uppercase tracking-wide mb-1 ${label}`}>{fl}</label>
+                        <input type="text"
+                          value={(currentEdit as any)[field]}
+                          onChange={e => handleConfigChange(cfg.id, field as any, e.target.value)}
+                          placeholder={ph}
+                          className={inp}
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
               );
@@ -684,473 +580,90 @@ export const DataSyncPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Bill Copy Links Recovery Card */}
-        <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-5 space-y-4 shadow-sm`}>
-          <div className="flex flex-wrap items-center justify-between border-b border-[#1a2235] pb-3 gap-2">
-            <div>
-              <h3 className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-slate-900" : "text-white"} flex items-center gap-2`}>
-                <FolderSearch className="w-4 h-4 text-amber-400" /> Bill Copy Link Recovery
-              </h3>
-              <p className={`text-[11px] ${isLight ? "text-slate-500" : "text-[#888]"} mt-0.5`}>
-                Re-link saved Drive bill copies to their AP records. Scans your Drive folder and restores missing links.
-              </p>
+        {/* ── 4. Sync Log ──────────────────────────────────────────────────── */}
+        <div className={`border rounded-2xl p-6 space-y-3 ${card}`}>
+          <div className="flex items-center gap-3">
+            <Clock className="w-4 h-4 text-orange-400 shrink-0" />
+            <h3 className={`text-sm font-bold ${heading}`}>Sync Activity Log</h3>
+          </div>
+          <div className={`rounded-xl border p-4 max-h-52 overflow-y-auto space-y-2 font-mono text-[11px] ${inner}`}>
+            {syncLogs.length > 0 ? syncLogs.map(log => (
+              <div key={log.id} className={`flex items-start justify-between gap-2 pb-2 border-b last:border-0 last:pb-0 ${divider}`}>
+                <div className="flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full shrink-0 mt-0.5 ${log.status === "SUCCESS" ? "bg-emerald-400" : "bg-red-400"}`} />
+                  <span className={`font-bold uppercase ${heading}`}>{log.module}</span>
+                  <span className={sub}>{log.direction}</span>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className={`block ${isLight ? "text-slate-600" : "text-[#aaa]"}`}>{log.details}</span>
+                  <span className={`text-[10px] ${muted}`}>{log.timestamp}</span>
+                </div>
+              </div>
+            )) : (
+              <p className={`text-center py-4 ${muted}`}>No sync activity yet. Pull or Push a module to get started.</p>
+            )}
+          </div>
+        </div>
+
+        {/* ── 5. Integration Test ──────────────────────────────────────────── */}
+        <div className={`border rounded-2xl p-6 space-y-4 ${card}`}>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
+              <FlaskConical className="w-4 h-4 text-violet-400 shrink-0" />
+              <div>
+                <h3 className={`text-sm font-bold ${heading}`}>Integration Test</h3>
+                <p className={`text-xs ${sub}`}>8 live server checks — no OAuth required. Run after any deploy or config change.</p>
+              </div>
             </div>
-            <button
-              onClick={recoverBillCopyLinks}
-              disabled={recoveringBills || !googleUser}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-gradient-to-r from-amber-500 to-orange-600 hover:opacity-90 text-white shadow-lg shadow-amber-500/25 active:scale-[.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {recoveringBills ? (
-                <><Loader2 className="w-3.5 h-3.5 animate-spin" />Scanning Drive…</>
-              ) : (
-                <><FolderSearch className="w-3.5 h-3.5" />Recover Bill Links</>
+            <div className="flex items-center gap-3">
+              {testResult && (
+                <span className={`text-[11px] font-bold px-2.5 py-1 rounded-lg ${testResult.ok ? "bg-emerald-500/15 text-emerald-500 border border-emerald-500/20" : "bg-red-500/15 text-red-400 border border-red-500/20"}`}>
+                  {testResult.ok ? `✓ All ${testResult.total} passed` : `✗ ${testResult.failed}/${testResult.total} failed`}
+                </span>
               )}
-            </button>
-          </div>
-
-          {!googleUser && (
-            <p className="text-[11px] text-amber-400/70 flex items-center gap-1.5">
-              <AlertTriangle className="w-3.5 h-3.5" />
-              Connect your Google account above to use this feature.
-            </p>
-          )}
-
-          {recoveryError && (
-            <div className="rounded-lg bg-red-900/20 border border-red-700/30 px-4 py-3 text-xs text-red-300 flex items-start gap-2">
-              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-              <span>{recoveryError}</span>
-            </div>
-          )}
-
-          {recoveryResult && (
-            <div className="space-y-3">
-              <div className={`rounded-lg border px-4 py-3 ${recoveryResult.restored > 0 ? "bg-emerald-900/15 border-emerald-700/30" : "bg-[#0d111a] border-[#1a2235]"}`}>
-                <div className="flex flex-wrap items-center gap-4 text-xs">
-                  <span className="flex items-center gap-1.5 text-[#888]">
-                    <FolderSearch className="w-3.5 h-3.5 text-amber-400" />
-                    <span className="text-white font-bold">{recoveryResult.driveFilesFound}</span> files found in Drive
-                  </span>
-                  <span className="flex items-center gap-1.5 text-[#888]">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="text-white font-bold">{recoveryResult.restored}</span> links restored
-                  </span>
-                </div>
-                <p className="text-[11px] text-[#888] mt-1.5">{recoveryResult.message}</p>
-              </div>
-
-              {recoveryResult.matches && recoveryResult.matches.length > 0 && (
-                <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-[#888]">Restored matches</p>
-                  {recoveryResult.matches.map((m, i) => (
-                    <div key={i} className="flex items-center gap-2 text-[11px] text-[#aaa] bg-white/3 rounded px-3 py-1.5">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
-                      <span className="truncate">{m.file}</span>
-                      <span className="text-[#555] shrink-0">→</span>
-                      <span className="truncate text-white/70">{m.bill}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* External Links & Sheets Manager Card */}
-        <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-5 space-y-4 shadow-sm`}>
-          <div className="flex flex-wrap items-center justify-between border-b border-[#1a2235] pb-3 gap-2">
-            <div>
-              <h3 className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-slate-900" : "text-white"} flex items-center gap-2`}>
-                <LinkIcon className="w-4 h-4 text-purple-400" /> Sidebar External Links Manager
-              </h3>
-              <p className={`text-[11px] ${isLight ? "text-slate-500" : "text-[#888]"} mt-0.5`}>
-                Edit, add, or delete sidebar links (CurcuminPRO, 4YR Payroll, Gmail, Google Calendar, etc.). Changes update immediately in the sidebar!
-              </p>
-            </div>
-            <button
-              onClick={() => setShowAddLinkModal(true)}
-              className="px-3 py-1.5 rounded bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
-            >
-              <Plus className="w-3.5 h-3.5" /> Add External Link
-            </button>
-          </div>
-
-          <div className="space-y-2.5">
-            {externalLinks.map((link) => (
-              <div key={link.id} className={`flex flex-wrap items-center justify-between gap-3 p-3 ${isLight ? "bg-slate-50 border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-lg`}>
-                <div className="flex flex-wrap items-center gap-2 min-w-0 flex-1">
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500/20 text-purple-400 uppercase">
-                    {link.category || "entities"}
-                  </span>
-                  <input
-                    type="text"
-                    value={link.name}
-                    onChange={(e) => updateExternalLink(link.id, { name: e.target.value })}
-                    className={`border rounded px-2.5 py-1 text-xs font-semibold w-36 ${isLight ? "bg-white border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"}`}
-                  />
-                  <input
-                    type="text"
-                    value={link.url}
-                    onChange={(e) => updateExternalLink(link.id, { url: e.target.value })}
-                    className={`border rounded px-2.5 py-1 text-xs flex-1 min-w-[220px] ${isLight ? "bg-white border-slate-300 text-slate-700" : "bg-[#0d111a] border-[#333] text-[#aaa]"}`}
-                  />
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <a
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-1 text-sky-400 hover:text-sky-300 transition-colors"
-                    title="Test Link"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
-                  <button
-                    onClick={() => deleteExternalLink(link.id)}
-                    className="p-1 text-red-500 hover:text-red-400 transition-colors"
-                    title="Delete Link"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Modal to add Custom External Link */}
-        {showAddLinkModal && (
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-            <div className="bg-[#0d111a] border border-[#333] rounded-xl max-w-md w-full p-5 space-y-4">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <LinkIcon className="w-4 h-4 text-purple-400" /> Add New External Sidebar Link
-              </h3>
-              <form onSubmit={handleCreateExternalLink} className="space-y-3">
-                <div>
-                  <label className="block text-xs font-semibold text-[#aaa] mb-1">Link Label / Name</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. CurcuminPRO Sheet"
-                    value={newLinkName}
-                    onChange={(e) => setNewLinkName(e.target.value)}
-                    className="w-full bg-[#0d111a] border border-[#333] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-[#aaa] mb-1">URL</label>
-                  <input
-                    type="url"
-                    required
-                    placeholder="https://docs.google.com/spreadsheets/d/..."
-                    value={newLinkUrl}
-                    onChange={(e) => setNewLinkUrl(e.target.value)}
-                    className="w-full bg-[#0d111a] border border-[#333] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-[#aaa] mb-1">Category</label>
-                    <select
-                      value={newLinkCategory}
-                      onChange={(e) => setNewLinkCategory(e.target.value as any)}
-                      className="w-full bg-[#0d111a] border border-[#333] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500"
-                    >
-                      <option value="entities">Entities Section</option>
-                      <option value="quicklinks">Quick Links Section</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-[#aaa] mb-1">Icon Type</label>
-                    <select
-                      value={newLinkIcon}
-                      onChange={(e) => setNewLinkIcon(e.target.value as any)}
-                      className="w-full bg-[#0d111a] border border-[#333] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500"
-                    >
-                      <option value="sheet">Google Sheet</option>
-                      <option value="users">Payroll / Users</option>
-                      <option value="mail">Mail / Email</option>
-                      <option value="calendar">Calendar</option>
-                      <option value="link">Generic Link</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowAddLinkModal(false)}
-                    className="px-3 py-1.5 rounded bg-[#222] text-xs font-semibold text-[#aaa] hover:text-white"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-1.5 rounded bg-purple-600 hover:bg-purple-700 text-xs font-semibold text-white"
-                  >
-                    Add Link
-                  </button>
-                </div>
-              </form>
+              <button onClick={runIntegrationTest} disabled={testRunning}
+                className="px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold flex items-center gap-2 transition-colors disabled:opacity-50">
+                {testRunning ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Running…</> : <><FlaskConical className="w-3.5 h-3.5" /> Run Test</>}
+              </button>
             </div>
           </div>
-        )}
-
-        {/* Modal to add Custom Sheet Mapping */}
-        {showAddModal && (
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-            <div className={`${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded-xl max-w-md w-full p-5 space-y-4`}>
-              <h3 className={`text-sm font-bold ${isLight ? "text-slate-900" : "text-white"} flex items-center gap-2`}>
-                <FileSpreadsheet className="w-4 h-4 text-[#1a73e8]" /> Add Custom Sheet Mapping
-              </h3>
-              <form onSubmit={handleCreateCustomMapping} className="space-y-3">
-                <div>
-                  <label className={`block text-xs font-semibold ${isLight ? "text-slate-600" : "text-[#aaa]"} mb-1`}>Mapping Name</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Custom Payroll Sheet"
-                    value={newMappingName}
-                    onChange={(e) => setNewMappingName(e.target.value)}
-                    className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded px-3 py-1.5 text-xs focus:outline-none focus:border-[#1a73e8]`}
-                  />
-                </div>
-
-                <div>
-                  <label className={`block text-xs font-semibold ${isLight ? "text-slate-600" : "text-[#aaa]"} mb-1`}>Target Module</label>
-                  <select
-                    value={newMappingModule}
-                    onChange={(e) => setNewMappingModule(e.target.value as any)}
-                    className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded px-3 py-1.5 text-xs focus:outline-none focus:border-[#1a73e8]`}
-                  >
-                    <option value="ap">Accounts Payable (AP)</option>
-                    <option value="banks">Bank Balances</option>
-                    <option value="loans">Loans & Credit</option>
-                    <option value="ar">Accounts Receivable (AR)</option>
-                    <option value="statements">Bank Statements Checklist</option>
-                    <option value="payroll">Payroll Summary</option>
-                    <option value="calendar">Financial Calendar / Events</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className={`block text-xs font-semibold ${isLight ? "text-slate-600" : "text-[#aaa]"} mb-1`}>Spreadsheet ID or URL</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="https://docs.google.com/spreadsheets/d/..."
-                    value={newMappingUrl}
-                    onChange={(e) => setNewMappingUrl(e.target.value)}
-                    className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded px-3 py-1.5 text-xs focus:outline-none focus:border-[#1a73e8]`}
-                  />
-                </div>
-
-                <div>
-                  <label className={`block text-xs font-semibold ${isLight ? "text-slate-600" : "text-[#aaa]"} mb-1`}>Tab Name (Optional)</label>
-                  <input
-                    type="text"
-                    placeholder="Auto-detected if left blank"
-                    value={newMappingTab}
-                    onChange={(e) => setNewMappingTab(e.target.value)}
-                    className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded px-3 py-1.5 text-xs focus:outline-none focus:border-[#1a73e8]`}
-                  />
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowAddModal(false)}
-                    className={`px-3 py-1.5 rounded ${isLight ? "bg-slate-100 hover:bg-slate-200 text-slate-700" : "bg-[#222] hover:bg-[#333] text-[#aaa] hover:text-white"} text-xs font-semibold`}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-1.5 rounded bg-[#1a73e8] hover:bg-[#1557b0] text-xs font-semibold text-white"
-                  >
-                    Add Mapping
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* Sync Logs */}
-        <div className="bg-[#0d111a] border border-[#1a2235] rounded-xl p-5 space-y-3">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-2">
-            <Clock className="w-4 h-4 text-[#fb923c]" /> 2-Way Sync Activity Log
-          </h3>
-          <div className="bg-[#0d111a] border border-[#1a2235] rounded-lg p-3 max-h-48 overflow-y-auto space-y-2 font-mono text-[11px]">
-            {syncLogs.length > 0 ? (
-              syncLogs.map((log) => (
-                <div key={log.id} className="flex items-start justify-between gap-2 border-b border-[#222] pb-1.5 last:border-0 last:pb-0">
-                  <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${log.status === "SUCCESS" ? "bg-emerald-400" : "bg-red-400"}`} />
-                    <span className="font-bold text-white uppercase">{log.module}</span>
-                    <span className="text-[#888]">{log.direction}</span>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <span className="text-[#aaa] block">{log.details}</span>
-                    <span className="text-[#555] text-[10px]">{log.timestamp}</span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-4 text-[#666]">
-                No sync activity logged yet. Click "Pull" or "Push" on any module above to initiate sync.
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Diagnostic Explanation Card */}
-        <div className="bg-[#0d111a] border border-[#1a2235] rounded-xl p-5 space-y-3 shadow-sm">
-          <div className="flex items-center gap-2 text-[#fb923c] font-bold text-sm">
-            <ShieldAlert className="w-5 h-5" /> Architecture Analysis: Why your original GAS Portal struggled
-          </div>
-          <div className="text-xs text-[#aaa] space-y-2 leading-relaxed">
-            <p>
-              1. <strong>Synchronous Execution Bottleneck:</strong> In Google Apps Script HTMLService, calling <code>google.script.run</code> multiple times asynchronously on page load queues synchronous executions on GAS servers, leading to timeouts, 10+ second delays, and silent <code>script error</code> failures.
-            </p>
-            <p>
-              2. <strong>Unindexed Spreadsheet Queries:</strong> Opening spreadsheet ranges by row on every browser boot causes severe execution throttling in Google Sheets.
-            </p>
-            <p>
-              3. <strong>Solution in this Modern Portal:</strong> This portal decouples the frontend UI into a high-performance Express & React application with instant client state, real-time filters, full sub-dashboard feature inheritance (Ruby's, TI, MSDx, 4YR Payroll, AR matrix), and direct 2-way Google Sheets API integration!
-            </p>
-          </div>
-        </div>
-
-        {/* Data Export / Backup Utility */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-[#0d111a] border border-[#1a2235] rounded-xl p-5 space-y-4">
-            <div className="flex items-center gap-2 text-white font-bold text-sm">
-              <Download className="w-4 h-4 text-[#1a73e8]" /> Export Portal Data (JSON Backup)
-            </div>
-            <p className="text-xs text-[#888]">
-              Download your current consolidated financial state (AP Bills, Bank Balances, Loans, AR Invoices, Statements) as JSON to back up or migrate.
-            </p>
-            <button
-              onClick={handleExportJSON}
-              className="px-4 py-2 rounded-lg bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs font-semibold flex items-center gap-2 transition-colors shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
-            >
-              <Download className="w-4 h-4" /> Export Complete Dataset
-            </button>
-          </div>
-
-          <div className="bg-[#0d111a] border border-[#1a2235] rounded-xl p-5 space-y-4">
-            <div className="flex items-center gap-2 text-white font-bold text-sm">
-              <Upload className="w-4 h-4 text-[#16a34a]" /> Import Data Payload
-            </div>
-            <p className="text-xs text-[#888]">
-              Paste exported JSON or structured data to update all portal tables instantly.
-            </p>
-            <textarea
-              rows={3}
-              value={pasteData}
-              onChange={(e) => setPasteData(e.target.value)}
-              placeholder="Paste JSON payload here..."
-              className="w-full bg-[#0d111a] border border-[#1a2235] rounded-lg p-2.5 text-xs text-white font-mono focus:outline-none focus:border-[#1a73e8]"
-            />
-            {importStatus && (
-              <div className="text-xs font-semibold text-[#4ade80] flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4" /> {importStatus}
-              </div>
-            )}
-            <button
-              onClick={handleImportPastedJSON}
-              className="px-4 py-2 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white text-xs font-semibold flex items-center gap-2 transition-colors shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
-            >
-              <RefreshCw className="w-4 h-4" /> Apply & Update Portal
-            </button>
-          </div>
-        </div>
-
-        {/* ── Integration Test ─────────────────────────────────────────────── */}
-        <div className={`rounded-xl border p-5 space-y-4 ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"}`}>
-          <div className="flex items-center gap-2">
-            <FlaskConical className={`w-4 h-4 ${isLight ? "text-violet-600" : "text-violet-400"}`} />
-            <h3 className={`text-sm font-bold ${isLight ? "text-slate-900" : "text-white"}`}>Portal Integration Test</h3>
-            {testResult && (
-              <span className={`ml-auto text-[11px] font-semibold px-2 py-0.5 rounded-full ${testResult.ok ? (isLight ? "bg-emerald-100 text-emerald-700" : "bg-emerald-900/40 text-emerald-400") : (isLight ? "bg-red-100 text-red-700" : "bg-red-900/40 text-red-400")}`}>
-                {testResult.ok ? `All ${testResult.total} checks passed` : `${testResult.failed} of ${testResult.total} failed`}
-              </span>
-            )}
-          </div>
-          <p className={`text-[12px] ${isLight ? "text-slate-500" : "text-[#888]"}`}>
-            Runs a quick health check against the live server: data loaded, AP bills present, banks, loans, AR items, and sync timestamp.
-            No OAuth required — uses the server's cached token.
-          </p>
-
-          <button
-            onClick={runIntegrationTest}
-            disabled={testRunning}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-semibold transition-colors disabled:opacity-50 ${
-              isLight
-                ? "bg-violet-600 hover:bg-violet-700 text-white"
-                : "bg-violet-700 hover:bg-violet-600 text-white"
-            }`}
-          >
-            {testRunning
-              ? <><Loader2 className="w-4 h-4 animate-spin" /> Running tests…</>
-              : <><FlaskConical className="w-4 h-4" /> Run Integration Test</>
-            }
-          </button>
 
           {testError && (
-            <div className={`rounded-lg px-4 py-3 text-xs flex items-start gap-2 ${isLight ? "bg-red-50 border border-red-200 text-red-700" : "bg-red-900/20 border border-red-700/30 text-red-300"}`}>
-              <XCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>Test runner failed: {testError}</span>
+            <div className={`rounded-xl px-4 py-3 text-xs flex items-start gap-2 border ${isLight ? "bg-red-50 border-red-200 text-red-700" : "bg-red-900/15 border-red-700/25 text-red-300"}`}>
+              <XCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              <span>{testError}</span>
             </div>
           )}
 
           {testResult && (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {testResult.checks.map((check, i) => (
-                <div
-                  key={i}
-                  className={`flex items-start gap-2.5 rounded-lg px-3 py-2.5 text-[12px] ${
-                    check.ok
-                      ? (isLight ? "bg-emerald-50 border border-emerald-200" : "bg-emerald-900/10 border border-emerald-700/20")
-                      : (isLight ? "bg-red-50 border border-red-200" : "bg-red-900/15 border border-red-700/30")
-                  }`}
-                >
+                <div key={i} className={`flex items-center gap-3 rounded-xl px-4 py-2.5 border ${check.ok
+                  ? (isLight ? "bg-emerald-50 border-emerald-100" : "bg-emerald-900/10 border-emerald-700/15")
+                  : (isLight ? "bg-red-50 border-red-100" : "bg-red-900/10 border-red-700/20")}`}>
                   {check.ok
-                    ? <CheckCircle className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${isLight ? "text-emerald-600" : "text-emerald-400"}`} />
-                    : <XCircle    className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${isLight ? "text-red-500" : "text-red-400"}`} />
-                  }
-                  <div className="flex-1 min-w-0">
-                    <span className={`font-semibold ${check.ok ? (isLight ? "text-slate-800" : "text-slate-200") : (isLight ? "text-red-700" : "text-red-300")}`}>
-                      {check.name}
-                    </span>
-                    {check.detail && (
-                      <span className={`ml-2 ${isLight ? "text-slate-500" : "text-[#888]"}`}>{check.detail}</span>
-                    )}
-                  </div>
+                    ? <CheckCircle className="w-3.5 h-3.5 shrink-0 text-emerald-500" />
+                    : <XCircle    className="w-3.5 h-3.5 shrink-0 text-red-400" />}
+                  <span className={`text-xs font-semibold ${check.ok ? (isLight ? "text-slate-700" : "text-slate-300") : (isLight ? "text-red-700" : "text-red-300")}`}>{check.name}</span>
+                  {check.detail && <span className={`text-xs ml-auto ${muted}`}>{check.detail}</span>}
                 </div>
               ))}
-              <p className={`text-[11px] pt-1 ${isLight ? "text-slate-400" : "text-[#555]"}`}>
-                Run at {new Date(testResult.runAt).toLocaleString()}
-              </p>
+              <p className={`text-[10px] pt-1 ${muted}`}>Run at {new Date(testResult.runAt).toLocaleString()}</p>
             </div>
           )}
         </div>
 
-        {/* ── Sheet Continuity ─────────────────────────────────────────────── */}
-        <div className={`rounded-xl border p-5 space-y-4 ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"}`}>
-          <div className="flex items-center gap-2">
-            <Archive className={`w-4 h-4 ${isLight ? "text-amber-600" : "text-amber-400"}`} />
-            <h3 className={`text-sm font-bold ${isLight ? "text-slate-900" : "text-white"}`}>Sheet Continuity</h3>
-            <span className={`ml-auto text-[11px] ${isLight ? "text-slate-400" : "text-[#555]"}`}>Google Sheets limit: 10M cells / spreadsheet</span>
+        {/* ── 6. Sheet Continuity ──────────────────────────────────────────── */}
+        <div className={`border rounded-2xl p-6 space-y-4 ${card}`}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <Archive className="w-4 h-4 text-amber-400 shrink-0" />
+              <div>
+                <h3 className={`text-sm font-bold ${heading}`}>Sheet Continuity</h3>
+                <p className={`text-xs ${sub}`}>Monitor cell usage and clone sheets before they hit the 10M cell limit. Original stays as archive.</p>
+              </div>
+            </div>
           </div>
-          <p className={`text-[12px] ${isLight ? "text-slate-500" : "text-[#888]"}`}>
-            Before a sheet fills up, create a blank clone — same tabs, same headers, same formatting, no data.
-            The original stays as your archive. Update your sheet mappings to point to the new clone.
-          </p>
-
           <div className="space-y-3">
             {TRACKED_SHEETS.map(sheet => {
               const usage = usageMap[sheet.id];
@@ -1158,86 +671,65 @@ export const DataSyncPage: React.FC = () => {
               const isHigh = pct !== null && pct >= 70;
               const isCritical = pct !== null && pct >= 90;
               const cloneResult = cloneResults[sheet.id];
-
               return (
-                <div key={sheet.id} className={`rounded-lg border p-4 space-y-3 ${isLight ? "border-slate-200 bg-slate-50" : "border-[#1e2535] bg-[#070b12]"}`}>
+                <div key={sheet.id} className={`rounded-xl border p-4 space-y-3 ${inner}`}>
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="flex items-center gap-2">
-                        <FileSpreadsheet className={`w-3.5 h-3.5 ${isLight ? "text-slate-500" : "text-[#666]"}`} />
-                        <span className={`text-[13px] font-bold ${isLight ? "text-slate-800" : "text-white"}`}>{sheet.label}</span>
+                        <FileSpreadsheet className={`w-3.5 h-3.5 ${isLight ? "text-slate-400" : "text-[#555]"}`} />
+                        <span className={`text-[13px] font-bold ${heading}`}>{sheet.label}</span>
                         {isCritical && <span className="flex items-center gap-1 text-[10px] font-bold text-red-500"><AlertTriangle className="w-3 h-3" />CRITICAL</span>}
                         {isHigh && !isCritical && <span className="text-[10px] font-bold text-amber-500">HIGH</span>}
                       </div>
-                      <span className={`text-[11px] ${isLight ? "text-slate-400" : "text-[#555]"}`}>{sheet.desc}</span>
+                      <span className={`text-[11px] ${muted}`}>{sheet.desc}</span>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        onClick={() => fetchUsage(sheet.id)}
-                        disabled={loadingUsage[sheet.id]}
-                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors ${isLight ? "bg-slate-200 hover:bg-slate-300 text-slate-600" : "bg-[#1a2235] hover:bg-[#1e2a40] text-slate-300"} disabled:opacity-50`}
-                      >
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button onClick={() => fetchUsage(sheet.id)} disabled={loadingUsage[sheet.id]} className={btnGhost}>
                         {loadingUsage[sheet.id] ? <Loader2 className="w-3 h-3 animate-spin" /> : <BarChart3 className="w-3 h-3" />}
                         Check Usage
                       </button>
-                      <button
-                        onClick={() => cloneBlank(sheet.id, sheet.label)}
-                        disabled={cloningSheet[sheet.id]}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-50 transition-colors"
-                      >
+                      <button onClick={() => cloneBlank(sheet.id, sheet.label)} disabled={cloningSheet[sheet.id]}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-white disabled:opacity-50 transition-colors">
                         {cloningSheet[sheet.id] ? <Loader2 className="w-3 h-3 animate-spin" /> : <Copy className="w-3 h-3" />}
-                        {cloningSheet[sheet.id] ? "Cloning…" : "Create Blank Clone"}
+                        {cloningSheet[sheet.id] ? "Cloning…" : "Clone"}
                       </button>
                     </div>
                   </div>
 
-                  {/* Manual switch expander */}
                   {showManual[sheet.id] ? (
                     <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={manualIds[sheet.id] || ""}
+                      <input type="text" value={manualIds[sheet.id] || ""} autoFocus
                         onChange={e => setManualIds(m => ({ ...m, [sheet.id]: e.target.value }))}
-                        placeholder="Paste sheet URL or ID…"
-                        className={`flex-1 text-[12px] px-2.5 py-1.5 rounded-lg border focus:outline-none focus:border-amber-400 ${isLight ? "bg-white border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#2a3550] text-white"}`}
                         onKeyDown={e => e.key === "Enter" && manualSwitch(sheet)}
-                        autoFocus
-                      />
-                      <button
-                        onClick={() => manualSwitch(sheet)}
-                        disabled={manualSwitching[sheet.id]}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-50"
-                      >
+                        placeholder="Paste sheet URL or ID…"
+                        className={`flex-1 ${inp}`} />
+                      <button onClick={() => manualSwitch(sheet)} disabled={manualSwitching[sheet.id]}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-white disabled:opacity-50">
                         {manualSwitching[sheet.id] ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
                         Switch
                       </button>
-                      <button onClick={() => setShowManual(s => ({ ...s, [sheet.id]: false }))} className="text-[11px] text-slate-400 hover:text-slate-600">Cancel</button>
+                      <button onClick={() => setShowManual(s => ({ ...s, [sheet.id]: false }))} className={`text-xs ${muted} hover:underline`}>Cancel</button>
                     </div>
                   ) : (
-                    <button
-                      onClick={() => setShowManual(s => ({ ...s, [sheet.id]: true }))}
-                      className={`text-[11px] underline ${isLight ? "text-slate-400 hover:text-slate-600" : "text-[#555] hover:text-slate-400"}`}
-                    >
+                    <button onClick={() => setShowManual(s => ({ ...s, [sheet.id]: true }))}
+                      className={`text-[11px] underline ${muted} hover:${isLight ? "text-slate-600" : "text-slate-400"}`}>
                       Switch to an existing sheet manually…
                     </button>
                   )}
 
-                  {/* Usage bar */}
                   {usage && (
                     <div className="space-y-1.5">
-                      <div className={`flex justify-between text-[11px] ${isLight ? "text-slate-500" : "text-[#777]"}`}>
-                        <span>{usage.tabs.length} tab{usage.tabs.length !== 1 ? "s" : ""} · {usage.totalCells.toLocaleString()} cells used</span>
-                        <span className={`font-bold ${isCritical ? "text-red-500" : isHigh ? "text-amber-500" : isLight ? "text-slate-600" : "text-slate-300"}`}>{pct}% of limit</span>
+                      <div className={`flex justify-between text-[11px] ${sub}`}>
+                        <span>{usage.tabs.length} tab{usage.tabs.length !== 1 ? "s" : ""} · {usage.totalCells.toLocaleString()} cells</span>
+                        <span className={`font-bold ${isCritical ? "text-red-500" : isHigh ? "text-amber-500" : isLight ? "text-slate-600" : "text-slate-300"}`}>{pct}%</span>
                       </div>
-                      <div className={`h-2 rounded-full overflow-hidden ${isLight ? "bg-slate-200" : "bg-[#1e2535]"}`}>
-                        <div
-                          className={`h-full rounded-full transition-all ${isCritical ? "bg-red-500" : isHigh ? "bg-amber-500" : "bg-[#16a34a]"}`}
-                          style={{ width: `${Math.min(pct ?? 0, 100)}%` }}
-                        />
+                      <div className={`h-1.5 rounded-full overflow-hidden ${isLight ? "bg-slate-200" : "bg-[#1a2235]"}`}>
+                        <div className={`h-full rounded-full transition-all ${isCritical ? "bg-red-500" : isHigh ? "bg-amber-500" : "bg-emerald-500"}`}
+                          style={{ width: `${Math.min(pct ?? 0, 100)}%` }} />
                       </div>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-1.5">
                         {usage.tabs.map(t => (
-                          <span key={t.title} className={`text-[10px] px-1.5 py-0.5 rounded ${isLight ? "bg-slate-200 text-slate-500" : "bg-[#1e2535] text-[#666]"}`}>
+                          <span key={t.title} className={`text-[10px] px-2 py-0.5 rounded-md ${isLight ? "bg-slate-100 text-slate-500" : "bg-[#1a2235] text-[#666]"}`}>
                             {t.title}: {t.rows.toLocaleString()} rows
                           </span>
                         ))}
@@ -1245,37 +737,32 @@ export const DataSyncPage: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Clone result + one-click switch */}
                   {cloneResult && (() => {
                     const switched = mappingsSwitched[sheet.id];
                     const affectedCount = sheetMappings.filter(m => m.spreadsheetIdOrUrl.includes(sheet.mappingMatch)).length;
                     return (
-                      <div className={`rounded-lg border px-3 py-3 space-y-2.5 ${isLight ? "bg-green-50 border-green-200" : "bg-green-900/10 border-green-700/30"}`}>
+                      <div className={`rounded-xl border p-3 space-y-2.5 ${isLight ? "bg-emerald-50 border-emerald-200" : "bg-emerald-900/10 border-emerald-700/20"}`}>
                         <div className="flex items-start gap-2">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-green-500 mt-0.5 shrink-0" />
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />
                           <div className="space-y-0.5 min-w-0">
-                            <p className={`text-[11px] font-bold ${isLight ? "text-green-700" : "text-green-400"}`}>Blank clone ready</p>
+                            <p className={`text-[11px] font-bold ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>Blank clone ready</p>
                             <p className={`text-[11px] break-all ${isLight ? "text-slate-600" : "text-slate-300"}`}>{cloneResult.name}</p>
                             <a href={cloneResult.url} target="_blank" rel="noreferrer"
-                              className={`inline-flex items-center gap-1 text-[11px] underline ${isLight ? "text-green-700" : "text-green-400"}`}>
-                              <ExternalLink className="w-3 h-3" /> Open new sheet ↗
+                              className={`inline-flex items-center gap-1 text-[11px] underline ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
+                              <ExternalLink className="w-3 h-3" /> Open new sheet
                             </a>
                           </div>
                         </div>
                         {switched ? (
-                          <div className="flex items-center gap-1.5 text-[11px] font-bold text-green-500">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            All references switched to new sheet
-                            {affectedCount > 0 && <span className={`font-normal ${isLight ? "text-slate-500" : "text-slate-400"}`}>({affectedCount} mapping{affectedCount !== 1 ? "s" : ""} updated)</span>}
+                          <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-500">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> All {affectedCount} mapping{affectedCount !== 1 ? "s" : ""} updated
                           </div>
                         ) : (
-                          <button
-                            onClick={() => switchAllMappings(sheet.id, cloneResult.newId, cloneResult.url, sheet.configKey, sheet.mappingMatch)}
-                            className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-[12px] font-bold bg-[#16a34a] hover:bg-[#15803d] text-white transition-colors"
-                          >
+                          <button onClick={() => switchAllMappings(sheet.id, cloneResult.newId, cloneResult.url, sheet.configKey, sheet.mappingMatch)}
+                            className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold bg-[#16a34a] hover:bg-[#15803d] text-white transition-colors">
                             <RefreshCw className="w-3.5 h-3.5" />
                             Switch Portal to New Sheet
-                            {affectedCount > 0 && <span className="font-normal opacity-80">({affectedCount} mapping{affectedCount !== 1 ? "s" : ""} + service layer)</span>}
+                            {affectedCount > 0 && <span className="font-normal opacity-75">({affectedCount} mapping{affectedCount !== 1 ? "s" : ""})</span>}
                           </button>
                         )}
                       </div>
@@ -1287,7 +774,237 @@ export const DataSyncPage: React.FC = () => {
           </div>
         </div>
 
+        {/* ── 7. Bill Copy Recovery ────────────────────────────────────────── */}
+        <div className={`border rounded-2xl p-6 space-y-4 ${card}`}>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <FolderSearch className="w-4 h-4 text-orange-400 mt-0.5 shrink-0" />
+              <div>
+                <h3 className={`text-sm font-bold ${heading}`}>Bill Copy Recovery</h3>
+                <p className={`text-xs ${sub}`}>Scans Google Drive and re-links saved bill copies to AP records. Requires Google sign-in.</p>
+              </div>
+            </div>
+            <button onClick={recoverBillCopyLinks} disabled={recoveringBills || !googleUser}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-orange-500 hover:bg-orange-400 text-white transition-colors disabled:opacity-40">
+              {recoveringBills ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Scanning…</> : <><FolderSearch className="w-3.5 h-3.5" /> Recover Links</>}
+            </button>
+          </div>
+
+          {!googleUser && (
+            <p className={`text-xs flex items-center gap-1.5 ${isLight ? "text-amber-600" : "text-amber-400/70"}`}>
+              <AlertTriangle className="w-3.5 h-3.5" /> Connect your Google account above first.
+            </p>
+          )}
+
+          {recoveryError && (
+            <div className={`rounded-xl px-4 py-3 text-xs flex items-start gap-2 border ${isLight ? "bg-red-50 border-red-200 text-red-700" : "bg-red-900/15 border-red-700/25 text-red-300"}`}>
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /><span>{recoveryError}</span>
+            </div>
+          )}
+
+          {recoveryResult && (
+            <div className="space-y-3">
+              <div className={`rounded-xl border px-4 py-3 flex flex-wrap gap-4 text-xs ${recoveryResult.restored > 0 ? (isLight ? "bg-emerald-50 border-emerald-200" : "bg-emerald-900/10 border-emerald-700/20") : `${inner}`}`}>
+                <span className={`flex items-center gap-1.5 ${sub}`}>
+                  <FolderSearch className="w-3.5 h-3.5 text-orange-400" />
+                  <span className={`font-bold ${heading}`}>{recoveryResult.driveFilesFound}</span> files in Drive
+                </span>
+                <span className={`flex items-center gap-1.5 ${sub}`}>
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className={`font-bold ${heading}`}>{recoveryResult.restored}</span> links restored
+                </span>
+                <span className={`text-[11px] w-full ${muted}`}>{recoveryResult.message}</span>
+              </div>
+              {recoveryResult.matches?.length > 0 && (
+                <div className="max-h-44 overflow-y-auto space-y-1 pr-1">
+                  {recoveryResult.matches.map((m, i) => (
+                    <div key={i} className={`flex items-center gap-2 text-[11px] rounded-lg px-3 py-1.5 ${isLight ? "bg-slate-50" : "bg-white/[.03]"}`}>
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                      <span className={`truncate ${sub}`}>{m.file}</span>
+                      <span className={`shrink-0 ${muted}`}>→</span>
+                      <span className={`truncate ${isLight ? "text-slate-600" : "text-slate-300"}`}>{m.bill}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ── 8. Sidebar Links Manager ─────────────────────────────────────── */}
+        <div className={`border rounded-2xl p-6 space-y-4 ${card}`}>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <LinkIcon className="w-4 h-4 text-purple-400 mt-0.5 shrink-0" />
+              <div>
+                <h3 className={`text-sm font-bold ${heading}`}>Sidebar Links</h3>
+                <p className={`text-xs ${sub}`}>Manage external links in the sidebar (entity dashboards, Gmail, Calendar, etc.). Changes update instantly.</p>
+              </div>
+            </div>
+            <button onClick={() => setShowAddLinkModal(true)}
+              className="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors">
+              <Plus className="w-3.5 h-3.5" /> Add Link
+            </button>
+          </div>
+          <div className="space-y-2">
+            {externalLinks.map(link => (
+              <div key={link.id} className={`flex flex-wrap items-center gap-2 p-3 rounded-xl border ${inner}`}>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-500/15 text-purple-400 uppercase shrink-0`}>
+                  {link.category || "entities"}
+                </span>
+                <input type="text" value={link.name}
+                  onChange={e => updateExternalLink(link.id, { name: e.target.value })}
+                  className={`${inp} w-36 font-semibold`} />
+                <input type="text" value={link.url}
+                  onChange={e => updateExternalLink(link.id, { url: e.target.value })}
+                  className={`${inp} flex-1 min-w-[200px]`} />
+                <a href={link.url} target="_blank" rel="noopener noreferrer"
+                  className="p-1.5 text-sky-400 hover:text-sky-300 transition-colors" title="Test link">
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+                <button onClick={() => deleteExternalLink(link.id)}
+                  className="p-1.5 text-red-400 hover:text-red-300 transition-colors" title="Remove">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── 9. Data Backup ───────────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className={`border rounded-2xl p-6 space-y-4 ${card}`}>
+            <div className="flex items-center gap-3">
+              <Download className="w-4 h-4 text-[#1a73e8] shrink-0" />
+              <div>
+                <h3 className={`text-sm font-bold ${heading}`}>Export Backup</h3>
+                <p className={`text-xs ${sub}`}>Download full portal state (AP, Banks, Loans, AR, Statements) as JSON.</p>
+              </div>
+            </div>
+            <button onClick={handleExportJSON}
+              className="px-4 py-2 rounded-lg bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs font-semibold flex items-center gap-2 transition-colors">
+              <Download className="w-3.5 h-3.5" /> Download JSON
+            </button>
+          </div>
+
+          <div className={`border rounded-2xl p-6 space-y-4 ${card}`}>
+            <div className="flex items-center gap-3">
+              <Upload className="w-4 h-4 text-emerald-500 shrink-0" />
+              <div>
+                <h3 className={`text-sm font-bold ${heading}`}>Import Payload</h3>
+                <p className={`text-xs ${sub}`}>Paste exported JSON to update all portal tables instantly.</p>
+              </div>
+            </div>
+            <textarea rows={3} value={pasteData} onChange={e => setPasteData(e.target.value)}
+              placeholder="Paste JSON here…"
+              className={`${inp} font-mono resize-none`} />
+            {importStatus && (
+              <div className="text-xs font-semibold text-emerald-500 flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4" /> {importStatus}
+              </div>
+            )}
+            <button onClick={handleImportPastedJSON}
+              className="px-4 py-2 rounded-lg bg-[#16a34a] hover:bg-[#15803d] text-white text-xs font-semibold flex items-center gap-2 transition-colors">
+              <RefreshCw className="w-3.5 h-3.5" /> Apply to Portal
+            </button>
+          </div>
+        </div>
+
       </div>
+
+      {/* ── Add External Link Modal ──────────────────────────────────────────────── */}
+      {showAddLinkModal && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className={`w-full max-w-md rounded-2xl border shadow-2xl overflow-hidden ${card}`}>
+            <div className={`px-6 py-4 border-b ${divider}`}>
+              <h3 className={`text-sm font-bold flex items-center gap-2 ${heading}`}>
+                <LinkIcon className="w-4 h-4 text-purple-400" /> Add Sidebar Link
+              </h3>
+            </div>
+            <form onSubmit={handleCreateExternalLink} className="px-6 py-5 space-y-4">
+              <div className="space-y-1">
+                <label className={`block text-[10px] font-semibold uppercase tracking-wide ${label}`}>Label</label>
+                <input type="text" required placeholder="e.g. CurcuminPRO Sheet"
+                  value={newLinkName} onChange={e => setNewLinkName(e.target.value)} className={inp} />
+              </div>
+              <div className="space-y-1">
+                <label className={`block text-[10px] font-semibold uppercase tracking-wide ${label}`}>URL</label>
+                <input type="url" required placeholder="https://…"
+                  value={newLinkUrl} onChange={e => setNewLinkUrl(e.target.value)} className={inp} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className={`block text-[10px] font-semibold uppercase tracking-wide ${label}`}>Section</label>
+                  <select value={newLinkCategory} onChange={e => setNewLinkCategory(e.target.value as any)} className={inp}>
+                    <option value="entities">Entities</option>
+                    <option value="quicklinks">Quick Links</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className={`block text-[10px] font-semibold uppercase tracking-wide ${label}`}>Icon</label>
+                  <select value={newLinkIcon} onChange={e => setNewLinkIcon(e.target.value as any)} className={inp}>
+                    <option value="sheet">Google Sheet</option>
+                    <option value="users">Payroll / Users</option>
+                    <option value="mail">Mail</option>
+                    <option value="calendar">Calendar</option>
+                    <option value="link">Generic Link</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-1">
+                <button type="button" onClick={() => setShowAddLinkModal(false)} className={btnGhost}>Cancel</button>
+                <button type="submit" className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-xs font-semibold text-white transition-colors">Add Link</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Add Sheet Mapping Modal ───────────────────────────────────────────────── */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className={`w-full max-w-md rounded-2xl border shadow-2xl overflow-hidden ${card}`}>
+            <div className={`px-6 py-4 border-b ${divider}`}>
+              <h3 className={`text-sm font-bold flex items-center gap-2 ${heading}`}>
+                <FileSpreadsheet className="w-4 h-4 text-[#1a73e8]" /> Add Sheet Mapping
+              </h3>
+            </div>
+            <form onSubmit={handleCreateCustomMapping} className="px-6 py-5 space-y-4">
+              <div className="space-y-1">
+                <label className={`block text-[10px] font-semibold uppercase tracking-wide ${label}`}>Name</label>
+                <input type="text" required placeholder="e.g. Custom Payroll Sheet"
+                  value={newMappingName} onChange={e => setNewMappingName(e.target.value)} className={inp} />
+              </div>
+              <div className="space-y-1">
+                <label className={`block text-[10px] font-semibold uppercase tracking-wide ${label}`}>Module</label>
+                <select value={newMappingModule} onChange={e => setNewMappingModule(e.target.value as any)} className={inp}>
+                  <option value="ap">Accounts Payable (AP)</option>
+                  <option value="banks">Bank Balances</option>
+                  <option value="loans">Loans & Credit</option>
+                  <option value="ar">Accounts Receivable (AR)</option>
+                  <option value="statements">Bank Statements</option>
+                  <option value="payroll">Payroll Summary</option>
+                  <option value="calendar">Financial Calendar</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className={`block text-[10px] font-semibold uppercase tracking-wide ${label}`}>Spreadsheet URL or ID</label>
+                <input type="text" required placeholder="https://docs.google.com/spreadsheets/d/…"
+                  value={newMappingUrl} onChange={e => setNewMappingUrl(e.target.value)} className={inp} />
+              </div>
+              <div className="space-y-1">
+                <label className={`block text-[10px] font-semibold uppercase tracking-wide ${label}`}>Tab Name (optional)</label>
+                <input type="text" placeholder="Auto-detected if blank"
+                  value={newMappingTab} onChange={e => setNewMappingTab(e.target.value)} className={inp} />
+              </div>
+              <div className="flex justify-end gap-2 pt-1">
+                <button type="button" onClick={() => setShowAddModal(false)} className={btnGhost}>Cancel</button>
+                <button type="submit" className="px-4 py-2 rounded-lg bg-[#1a73e8] hover:bg-[#1557b0] text-xs font-semibold text-white transition-colors">Add Mapping</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ── 3-Layer Sheet Switch Confirmation Modal ─────────────────────────────── */}
     {confirmTarget && (() => {
