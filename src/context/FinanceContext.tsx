@@ -726,134 +726,171 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
   }, []);
 
-  // Fetch initial data from server API
+  // ── Startup data load ────────────────────────────────────────────────────────
+  //
+  //  Order of operations:
+  //   1. localStorage cache  → instant paint with last-session data (survives deploys)
+  //   2. Server JSON         → config fields (mappings, auditLog) + financial fallback if no cache
+  //   3. Wait for OAuth token (polls until Firebase auth fires, up to 10 s)
+  //   4. pull-live           → authoritative Sheets data; saves back to localStorage cache
+  //                            → one automatic retry on failure + error toast
+  //
+  //  This eliminates the stale flash and the "token not ready" silent-fail that
+  //  previously caused the portal to show old data until the user clicked Sync.
   useEffect(() => {
-    fetch("/api/data")
-      .then((res) => res.json())
-      .then((data) => {
-        let hasSufficientData = false;
-        if (data) {
-          if (data.ap && data.ap.length >= 20) {
-            const tiCount = data.ap.filter((b: APBill) => b.entity === "TI" || b.sheet === "TI Bills").length;
-            if (tiCount >= 5) {
-              hasSufficientData = true;
-            }
-            setApBills(recomputeBills(data.ap));
+    const CACHE_KEY = "financeops_data_cache_v2";
+    const CACHE_TTL = 20 * 60 * 1000; // 20 min — fresh enough; pull-live always replaces anyway
+
+    // ── Cache helpers ────────────────────────────────────────────────────
+    const loadCache = (): any | null => {
+      try {
+        const raw = localStorage.getItem(CACHE_KEY);
+        if (!raw) return null;
+        const { ts, data } = JSON.parse(raw);
+        if (Date.now() - ts > CACHE_TTL) return null;
+        return data;
+      } catch { return null; }
+    };
+
+    const saveCache = (data: any) => {
+      try {
+        // Only cache financial/display fields — not config or server-only fields
+        const slim = {
+          ap: data.ap, banks: data.banks, loans: data.loans, ar: data.ar,
+          statements: data.statements, headleys: data.headleys,
+          payrollPivot: data.payrollPivot, payrollWeeks: data.payrollWeeks,
+          calendarLocalEvents: data.calendarLocalEvents,
+          quickNotes: data.quickNotes, lastSyncedAt: data.lastSyncedAt,
+        };
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: slim }));
+      } catch {}
+    };
+
+    // ── Apply financial data to React state ──────────────────────────────
+    const applyData = (data: any) => {
+      if (data.ap && data.ap.length > 0) setApBills(recomputeBills(data.ap));
+      if (data.banks)      setBankAccounts(data.banks);
+      if (data.loans)      setLoans(data.loans);
+      if (data.ar)         setArItems(data.ar);
+      if (data.statements) setBankStatements(data.statements);
+      if (data.headleys)   setHeadleys(data.headleys);
+      if (data.payrollPivot)  setPayrollPivot(data.payrollPivot);
+      if (data.payrollWeeks)  setPayrollWeeks(data.payrollWeeks);
+      if (data.lastSyncedAt)  setLastSyncedAt(data.lastSyncedAt);
+      if (data.calendarLocalEvents && Array.isArray(data.calendarLocalEvents))
+        setCalendarLocalEvents(data.calendarLocalEvents);
+      if (data.quickNotes && Array.isArray(data.quickNotes) && data.quickNotes.length > 0) {
+        const seen = new Set<string>();
+        const deduped = (data.quickNotes as DashboardNote[]).filter((n) => {
+          if (!n.id) return true;
+          if (seen.has(String(n.id))) return false;
+          seen.add(String(n.id));
+          return true;
+        });
+        setQuickNotes(deduped);
+        localStorage.setItem("financeops_quick_notes", JSON.stringify(deduped));
+      }
+    };
+
+    // ── Poll for OAuth token — Firebase auth is async, don't fire pull-live blind ──
+    const waitForToken = (timeoutMs = 10_000): Promise<string | null> =>
+      new Promise(resolve => {
+        const start = Date.now();
+        const check = () => {
+          const tok = getAccessToken();
+          if (tok) return resolve(tok);
+          if (Date.now() - start >= timeoutMs) return resolve(null);
+          setTimeout(check, 300);
+        };
+        check();
+      });
+
+    // ── Main init sequence ───────────────────────────────────────────────
+    const init = async () => {
+
+      // Step 1 — localStorage cache: instant paint with last-session data
+      const cache = loadCache();
+      if (cache) {
+        applyData(cache);
+        setIsLoading(false);
+      }
+
+      // Step 2 — Server JSON: config fields + financial fallback when no cache
+      try {
+        const serverData = await fetch("/api/data").then(r => r.json());
+        if (serverData) {
+          // Config / server-only fields (always apply regardless of cache)
+          if (serverData.auditLog)   setAuditLogs(serverData.auditLog);
+          if (serverData.syncLogs)   setSyncLogs(serverData.syncLogs);
+          if (serverData.sheetMappings && Array.isArray(serverData.sheetMappings)) {
+            const existingIds = new Set(serverData.sheetMappings.map((m: SheetMappingConfig) => m.id));
+            const missingDefaults = DEFAULT_MAPPINGS.filter(dm => !existingIds.has(dm.id));
+            setSheetMappings([...serverData.sheetMappings, ...missingDefaults]);
           }
-          if (data.banks) setBankAccounts(data.banks);
-          if (data.loans) setLoans(data.loans);
-          if (data.ar) setArItems(data.ar);
-          if (data.statements) setBankStatements(data.statements);
-          if (data.quickNotes && Array.isArray(data.quickNotes) && data.quickNotes.length > 0) {
-            // Sheet is the exclusive source of truth — deduplicate by id, no local-only notes added
-            const seen = new Set<string>();
-            const deduped = (data.quickNotes as DashboardNote[]).filter((n) => {
-              if (!n.id) return true;
-              if (seen.has(String(n.id))) return false;
-              seen.add(String(n.id));
-              return true;
-            });
-            setQuickNotes(deduped);
-            localStorage.setItem("financeops_quick_notes", JSON.stringify(deduped));
-          }
-          if (data.calendarLocalEvents && Array.isArray(data.calendarLocalEvents)) setCalendarLocalEvents(data.calendarLocalEvents);
-          if (data.payrollWeeks) setPayrollWeeks(data.payrollWeeks);
-          if (data.payrollPivot) setPayrollPivot(data.payrollPivot);
-          if (data.auditLog) setAuditLogs(data.auditLog);
-          // Fetch login log + logs sheet ID separately
+          // Fire-and-forget: logs are read from Google Sheet, sheet ID from server
           fetch("/api/login-log").then(r => r.json()).then(ll => { if (Array.isArray(ll)) setLoginLogs(ll); }).catch(() => {});
           fetch("/api/logs-sheet-id").then(r => r.json()).then(({ logsSheetId: id }) => { if (id) setLogsSheetId(id); }).catch(() => {});
-          if (data.headleys) setHeadleys(data.headleys);
-          if (data.lastSyncedAt) setLastSyncedAt(data.lastSyncedAt);
-          if (data.sheetMappings && Array.isArray(data.sheetMappings)) {
-            const existingIds = new Set(data.sheetMappings.map((m: SheetMappingConfig) => m.id));
-            const missingDefaults = DEFAULT_MAPPINGS.filter((dm) => !existingIds.has(dm.id));
-            setSheetMappings([...data.sheetMappings, ...missingDefaults]);
+
+          // Financial fallback: only use server JSON when localStorage cache is absent
+          if (!cache) {
+            applyData(serverData);
+            setIsLoading(false);
           }
-          if (data.syncLogs) setSyncLogs(data.syncLogs);
         }
+      } catch (err) {
+        console.error("[init] Failed to load server data:", err);
+        if (!cache) setIsLoading(false);
+      }
 
-        // Sheet is the exclusive source of truth — return sheet notes as-is.
-        // Done-state is written back to the sheet immediately when marked, so
-        // the next pull will already reflect the correct status.
-        const mergeSheetNotes = (sheetNotes: DashboardNote[]) => sheetNotes;
+      // Step 3 — Wait for OAuth token (Firebase auth fires asynchronously)
+      setIsSyncing(true);
+      const tok = await waitForToken(10_000);
 
-        // Only auto-pull-live for AP data if sparse/missing — prevents the sheet from
-        // overwriting portal-side changes that haven't been pushed to the sheet yet.
-        // Notes are always refreshed from the sheet (lightweight, non-destructive to AP data).
-        const hasCalendarData = data.calendarLocalEvents && Array.isArray(data.calendarLocalEvents) && data.calendarLocalEvents.length > 0;
-        if (hasSufficientData) {
-          setIsLoading(false);
-          // Stale-while-revalidate: show cached data instantly, then silently replace ALL
-          // data with live Sheets values so the portal is always up-to-date on load.
-          const startupTok = getAccessToken();
-          setIsSyncing(true);
-          fetch("/api/pull-live", {
+      if (!tok) {
+        // No token after 10 s — user not yet signed in; auth listener handles sign-in flow
+        setIsSyncing(false);
+        if (!cache) setIsLoading(false);
+        return;
+      }
+
+      // Step 4 — pull-live: authoritative data from Google Sheets, one retry on failure
+      let pullOk = false;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const resp = await fetch("/api/pull-live", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ accessToken: startupTok || undefined })
-          })
-            .then((res) => res.json())
-            .then((resp) => {
-              if (resp?.data) {
-                const live = resp.data;
-                // Refresh all main financial data in the background
-                if (live.ap) setApBills(recomputeBills(live.ap));
-                if (live.banks) setBankAccounts(live.banks);
-                if (live.loans) setLoans(live.loans);
-                if (live.ar) setArItems(live.ar);
-                if (live.statements) setBankStatements(live.statements);
-                if (live.headleys) setHeadleys(live.headleys);
-                if (live.payrollPivot) setPayrollPivot(live.payrollPivot);
-                if (live.payrollWeeks) setPayrollWeeks(live.payrollWeeks);
-                if (live.lastSyncedAt) setLastSyncedAt(live.lastSyncedAt);
-                if (live.quickNotes && Array.isArray(live.quickNotes) && live.quickNotes.length > 0) {
-                  const merged = mergeSheetNotes(live.quickNotes as DashboardNote[]);
-                  setQuickNotes(merged);
-                  localStorage.setItem("financeops_quick_notes", JSON.stringify(merged));
-                }
-                if (live.calendarLocalEvents && Array.isArray(live.calendarLocalEvents)) {
-                  setCalendarLocalEvents(live.calendarLocalEvents);
-                }
-              }
-            })
-            .catch(() => {}) // silent — cached data already shown
-            .finally(() => setIsSyncing(false));
-        } else {
-          setIsSyncing(true);
-          fetch("/api/pull-live", { method: "POST" })
-            .then((res) => res.json())
-            .then((resp) => {
-              if (resp && resp.data) {
-                const live = resp.data;
-                if (live.ap) setApBills(recomputeBills(live.ap));
-                if (live.banks) setBankAccounts(live.banks);
-                if (live.loans) setLoans(live.loans);
-                if (live.ar) setArItems(live.ar);
-                if (live.statements) setBankStatements(live.statements);
-                if (live.quickNotes && Array.isArray(live.quickNotes) && live.quickNotes.length > 0) {
-                  const merged = mergeSheetNotes(live.quickNotes as DashboardNote[]);
-                  setQuickNotes(merged);
-                  localStorage.setItem("financeops_quick_notes", JSON.stringify(merged));
-                }
-                if (!hasCalendarData && live.calendarLocalEvents && Array.isArray(live.calendarLocalEvents)) setCalendarLocalEvents(live.calendarLocalEvents);
-                if (live.payrollPivot) setPayrollPivot(live.payrollPivot);
-                if (live.payrollWeeks) setPayrollWeeks(live.payrollWeeks);
-                if (live.lastSyncedAt) setLastSyncedAt(live.lastSyncedAt);
-                if (live.headleys) setHeadleys(live.headleys);
-              }
-            })
-            .catch((e) => console.error("Initial live pull failed:", e))
-            .finally(() => {
-              setIsSyncing(false);
-              setIsLoading(false);
-            });
+            body: JSON.stringify({ accessToken: tok }),
+          }).then(r => r.json());
+
+          if (resp?.data) {
+            applyData(resp.data);
+            saveCache(resp.data); // refresh localStorage cache with authoritative live data
+            pullOk = true;
+            break;
+          }
+        } catch {
+          if (attempt === 0) {
+            // Wait 3 s then retry once before giving up
+            await new Promise(r => setTimeout(r, 3_000));
+          }
         }
-      })
-      .catch((err) => {
-        console.error("Failed to load initial finance data:", err);
-        setIsLoading(false);
-      });
+      }
+
+      if (!pullOk) {
+        // Both attempts failed — tell the user and let them manually sync
+        setSyncToast({
+          message: "⚠️ Live data refresh failed — showing cached data. Click Sync to retry.",
+          type: "error",
+        });
+        setTimeout(() => setSyncToast(null), 9_000);
+      }
+
+      setIsSyncing(false);
+      setIsLoading(false);
+    };
+
+    init();
   }, []);
 
   // Cross-tab auth sharing via BroadcastChannel:
