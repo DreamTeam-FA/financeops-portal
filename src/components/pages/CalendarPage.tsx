@@ -1280,7 +1280,7 @@ export const CalendarPage: React.FC = () => {
                                     entity: (ev as any).entity || "",
                                   };
                                   setSelectedEvent(sel);
-                                  setEditTitle(sel.title);
+                                  setEditTitle(sel.title.replace(/^\[[^\]]+\]\s*/, ""));
                                   setEditDate(sel.date);
                                   setEditTime(sel.time || "");
                                   setEditCategory((sel.category as any) || "task");
@@ -1457,7 +1457,7 @@ export const CalendarPage: React.FC = () => {
                                 entity: (ev as any).entity || "",
                               };
                               setSelectedEvent(sel);
-                              setEditTitle(sel.title);
+                              setEditTitle(sel.title.replace(/^\[[^\]]+\]\s*/, ""));
                               setEditDate(sel.date);
                               setEditTime(sel.time || "");
                               setEditCategory((sel.category as any) || "task");
@@ -1506,11 +1506,13 @@ export const CalendarPage: React.FC = () => {
       {selectedEvent && !selectedEvent.billsList && !selectedEvent.arList && (() => {
         const displayTitle = selectedEvent.title.replace(/^\[[^\]]+\]\s*/, "");
         const entityMatch = selectedEvent.title.match(/^\[([^\]]+)\]/);
-        const detectedEntity = selectedEvent.entity || entityMatch?.[1] || "";
-        const sourceLabel = detectedEntity
-          ? detectedEntity.toUpperCase()
-          : selectedEvent.type === "google" ? "GOOGLE CALENDAR"
-          : selectedEvent.category?.toUpperCase() || selectedEvent.type?.toUpperCase() || "DASHBOARD EVENT";
+        // sourceLabel: prefer explicit entity field; for Google events always show "GOOGLE CALENDAR";
+        // never show the bracket-prefix extraction as a source label (it's already stripped from displayTitle)
+        const sourceLabel = selectedEvent.type === "google" || selectedEvent.isGoogleEvent
+          ? "GOOGLE CALENDAR"
+          : selectedEvent.entity
+            ? selectedEvent.entity.toUpperCase()
+            : selectedEvent.category?.toUpperCase() || selectedEvent.type?.toUpperCase() || "CALENDAR EVENT";
         const typeLabel = selectedEvent.category
           ? selectedEvent.category.charAt(0).toUpperCase() + selectedEvent.category.slice(1)
           : selectedEvent.type === "task" ? "Task"
@@ -1537,13 +1539,17 @@ export const CalendarPage: React.FC = () => {
               </div>
               {/* Title */}
               {isEditingEvent ? (
-                <input
-                  className={`w-full text-lg font-extrabold rounded-lg px-2 py-1.5 border-2 leading-snug transition-colors focus:outline-none ${isLight ? "bg-slate-50 text-slate-900" : "bg-[#2a2f3e] text-white"}`}
-                  style={{ borderColor: URGENCY_ACCENT[editUrgency].hex }}
-                  value={editTitle}
-                  onChange={e => setEditTitle(e.target.value)}
-                  autoFocus
-                />
+                <div>
+                  <label className={`block text-[11px] font-bold mb-1 ${isLight ? "text-slate-500" : "text-slate-400"}`}>Title</label>
+                  <input
+                    className={`w-full rounded-lg px-3 py-1.5 border text-[13px] transition-colors focus:outline-none ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"}`}
+                    value={editTitle}
+                    onChange={e => setEditTitle(e.target.value)}
+                    onFocus={e => { e.target.style.borderColor = URGENCY_ACCENT[editUrgency].hex; }}
+                    onBlur={e => { e.target.style.borderColor = ""; }}
+                    autoFocus
+                  />
+                </div>
               ) : (
                 <h3 className={`text-[18px] font-extrabold leading-snug pr-6 ${selectedEvent.done ? "line-through opacity-60" : ""}`}>
                   {displayTitle}
