@@ -778,7 +778,7 @@ export const CalendarPage: React.FC = () => {
         /^task[-_:\s]/i.test(cleanSum) ||
         /^map[-_]/i.test(cleanSum) ||
         /^cal\s*:/i.test(cleanSum) ||      // bank-calendar junk like "Cal: Ruby's - Zions"
-        /^\d+\.?\d*$/.test(cleanSum) ||    // pure numeric amounts like "693.57"
+        /^\$?[\d,]+\.?\d{0,2}$/.test(cleanSum) ||    // bank balance amounts: "693.57", "$607.76", "2,716.33"
         ["title", "vendor", "event title", "date", "id", "remarks", "amount", "status", "company", "description"].includes(lowerSum)
       ) {
         return;
