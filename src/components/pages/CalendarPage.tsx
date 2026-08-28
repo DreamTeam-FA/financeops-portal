@@ -418,6 +418,14 @@ export const CalendarPage: React.FC = () => {
     category === "meeting" ? "🤝" : category === "event" ? "📅" : category === "task" ? "✅" :
     type === "loan" ? "🏛️" : type === "ar" ? "💵" : type === "payroll" ? "⏱️" : type === "google" ? "🗓️" : "";
 
+  // Per-level urgency accent hex — used to theme the Add modal dynamically
+  const URGENCY_ACCENT: Record<"critical"|"high"|"normal"|"low", { hex: string; hover: string }> = {
+    critical: { hex: "#ef4444", hover: "#dc2626" },
+    high:     { hex: "#f97316", hover: "#ea580c" },
+    normal:   { hex: "#3b82f6", hover: "#2563eb" },
+    low:      { hex: "#22c55e", hover: "#16a34a" },
+  };
+
   // Per-level urgency pill styles — dot color + inactive/active classes
   const URGENCY_PILL: Record<"critical"|"high"|"normal"|"low", { dot: string; active: string; inactive: string }> = {
     critical: { dot: "text-red-500",    active: "bg-red-500    border-red-500    text-white",  inactive: "bg-red-50    dark:bg-red-900/15    border-red-200    dark:border-red-700    text-red-600    dark:text-red-400"    },
@@ -1455,7 +1463,8 @@ export const CalendarPage: React.FC = () => {
               {/* Title */}
               {isEditingEvent ? (
                 <input
-                  className={`w-full text-lg font-extrabold rounded px-2 py-1 border leading-snug ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#2a2f3e] border-[#3a3f50] text-white"}`}
+                  className={`w-full text-lg font-extrabold rounded-lg px-2 py-1.5 border-2 leading-snug transition-colors focus:outline-none ${isLight ? "bg-slate-50 text-slate-900" : "bg-[#2a2f3e] text-white"}`}
+                  style={{ borderColor: URGENCY_ACCENT[editUrgency].hex }}
                   value={editTitle}
                   onChange={e => setEditTitle(e.target.value)}
                   autoFocus
@@ -1524,61 +1533,74 @@ export const CalendarPage: React.FC = () => {
                 </div>
               ) : (
                 /* Edit form */
+                {(() => {
+                  const ea = URGENCY_ACCENT[editUrgency];
+                  const inputCls = `w-full rounded-lg px-2.5 py-2 border-[1.5px] text-[13px] transition-colors focus:outline-none ${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#2a2f3e] border-[#3a3f50] text-white"}`;
+                  const onFocus = (e: React.FocusEvent<HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement>) => { e.target.style.borderColor = ea.hex; };
+                  const onBlur  = (e: React.FocusEvent<HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement>) => { e.target.style.borderColor = ""; };
+                  const lbl = `block text-[11px] font-bold mb-1 ${isLight ? "text-slate-500" : "text-slate-400"}`;
+                  return (
                 <div className="flex flex-col gap-3 text-xs">
+                  {/* Date + Time */}
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className={`block text-[11px] font-bold mb-1 ${isLight ? "text-slate-500" : "text-slate-400"}`}>Date</label>
+                      <label className={lbl}>Date</label>
                       <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)}
-                        className={`w-full rounded-lg px-2.5 py-2 border-[1.5px] text-[13px] transition-colors focus:outline-none focus:border-[#1D6AE5] ${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#2a2f3e] border-[#3a3f50] text-white"}`} />
+                        className={inputCls} onFocus={onFocus} onBlur={onBlur} />
                     </div>
                     <div>
-                      <label className={`block text-[11px] font-bold mb-1 ${isLight ? "text-slate-500" : "text-slate-400"}`}>Time</label>
+                      <label className={lbl}>Time</label>
                       <input type="time" value={editTime} onChange={e => setEditTime(e.target.value)}
-                        className={`w-full rounded-lg px-2.5 py-2 border-[1.5px] text-[13px] transition-colors focus:outline-none focus:border-[#1D6AE5] ${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#2a2f3e] border-[#3a3f50] text-white"}`} />
+                        className={inputCls} onFocus={onFocus} onBlur={onBlur} />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className={`block text-[11px] font-bold mb-1 ${isLight ? "text-slate-500" : "text-slate-400"}`}>Category</label>
-                      <select value={editCategory} onChange={e => setEditCategory(e.target.value as any)}
-                        className={`w-full rounded-lg px-2.5 py-2 border-[1.5px] text-[13px] transition-colors focus:outline-none focus:border-[#1D6AE5] ${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#2a2f3e] border-[#3a3f50] text-white"}`}>
-                        <option value="task">✅ Task</option>
-                        <option value="event">📅 Event</option>
-                        <option value="meeting">🤝 Meeting</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className={`block text-[11px] font-bold mb-1 ${isLight ? "text-slate-500" : "text-slate-400"}`}>Urgency</label>
-                      <div className="grid grid-cols-2 gap-1">
-                        {(["critical", "high", "normal", "low"] as const).map((urg) => {
-                          const p = URGENCY_PILL[urg];
-                          const isSel = editUrgency === urg;
-                          return (
-                            <button key={urg} type="button" onClick={() => setEditUrgency(urg)}
-                              className={`py-1 rounded-full border text-[10px] font-extrabold capitalize transition-all flex items-center justify-center gap-1 ${isSel ? p.active : p.inactive}`}>
-                              <span className={`text-[7px] leading-none ${isSel ? "text-white" : p.dot}`}>●</span>
-                              {urg.charAt(0).toUpperCase() + urg.slice(1)}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
+                  {/* Category — full width */}
                   <div>
-                    <label className={`block text-[11px] font-bold mb-1 ${isLight ? "text-slate-500" : "text-slate-400"}`}>Assignee</label>
+                    <label className={lbl}>Category</label>
+                    <select value={editCategory} onChange={e => setEditCategory(e.target.value as any)}
+                      className={inputCls} onFocus={onFocus} onBlur={onBlur}>
+                      <option value="task">✅ Task</option>
+                      <option value="event">📅 Event</option>
+                      <option value="meeting">🤝 Meeting</option>
+                    </select>
+                  </div>
+                  {/* Urgency — full-width 4-pill row */}
+                  <div>
+                    <label className={lbl}>Urgency Level</label>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {(["critical", "high", "normal", "low"] as const).map((urg) => {
+                        const p = URGENCY_PILL[urg];
+                        const isSel = editUrgency === urg;
+                        return (
+                          <button key={urg} type="button" onClick={() => setEditUrgency(urg)}
+                            className={`py-1.5 rounded-full border text-[11px] font-extrabold capitalize transition-all flex items-center justify-center gap-1 ${isSel ? p.active : p.inactive}`}>
+                            <span className={`text-[8px] leading-none ${isSel ? "text-white" : p.dot}`}>●</span>
+                            {urg.charAt(0).toUpperCase() + urg.slice(1)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  {/* Assignee */}
+                  <div>
+                    <label className={lbl}>Assignee</label>
                     <select value={editAssignee} onChange={e => setEditAssignee(e.target.value)}
-                      className={`w-full rounded-lg px-2.5 py-2 border-[1.5px] text-[13px] transition-colors focus:outline-none focus:border-[#1D6AE5] ${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#2a2f3e] border-[#3a3f50] text-white"}`}>
+                      className={inputCls} onFocus={onFocus} onBlur={onBlur}>
                       <option value="">— Unassigned —</option>
                       {assignees.map(a => <option key={a.id} value={a.name}>{a.name}</option>)}
                     </select>
                   </div>
+                  {/* Notes */}
                   <div>
-                    <label className={`block text-[11px] font-bold mb-1 ${isLight ? "text-slate-500" : "text-slate-400"}`}>Notes / Description</label>
+                    <label className={lbl}>Notes / Description</label>
                     <textarea value={editDesc} onChange={e => setEditDesc(e.target.value)} rows={3}
-                      className={`w-full rounded-lg px-2.5 py-2 border-[1.5px] text-[13px] resize-vertical transition-colors focus:outline-none focus:border-[#1D6AE5] ${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#2a2f3e] border-[#3a3f50] text-white"}`}
-                      placeholder="Add notes..." />
+                      className={`${inputCls} resize-vertical`}
+                      placeholder="Add notes..."
+                      onFocus={onFocus as any} onBlur={onBlur as any} />
                   </div>
                 </div>
+                  );
+                })()}
               )}
             </div>
 
@@ -1587,7 +1609,8 @@ export const CalendarPage: React.FC = () => {
                 {isEditingEvent ? (
                   <>
                     <button onClick={handleSaveEdit}
-                      className="px-[14px] py-[7px] rounded-lg bg-[#1D6AE5] hover:bg-[#1559C7] text-white text-xs font-bold flex items-center gap-1.5 transition-colors">
+                      className="px-[14px] py-[7px] rounded-lg text-white text-xs font-bold flex items-center gap-1.5 transition-all hover:brightness-110"
+                      style={{ background: URGENCY_ACCENT[editUrgency].hex }}>
                       <CheckCircle2 className="w-3.5 h-3.5" /> Save Changes
                     </button>
                     <button onClick={() => setIsEditingEvent(false)}
@@ -1838,14 +1861,20 @@ export const CalendarPage: React.FC = () => {
       )}
 
       {/* Add Event Modal */}
-      {showModal && (
+      {showModal && (() => {
+        const accent = URGENCY_ACCENT[taskUrgency];
+        return (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className={`${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded-2xl max-w-md w-full shadow-2xl overflow-hidden`}>
-            {/* Accent bar — calendar green */}
-            <div className="h-1.5 w-full bg-[#10b981]" />
+          <div
+            className={`${isLight ? "bg-white text-slate-900" : "bg-[#0d111a] text-white"} border rounded-2xl max-w-md w-full shadow-2xl overflow-hidden transition-all duration-300`}
+            style={{ borderColor: accent.hex + "55", boxShadow: `0 0 0 1px ${accent.hex}22, 0 20px 60px rgba(0,0,0,.5)` }}
+          >
+            {/* Urgency-colored accent bar */}
+            <div className="h-1.5 w-full transition-colors duration-300" style={{ background: accent.hex }} />
             <div className="p-5 space-y-4">
             <h3 className="text-sm font-bold flex items-center gap-2">
-              <CalendarDays className="w-4 h-4 text-[#10b981]" /> Add Calendar Event or Task
+              <CalendarDays className="w-4 h-4 transition-colors duration-300" style={{ color: accent.hex }} />
+              <span>Add Calendar Event or Task</span>
             </h3>
 
             <form onSubmit={handleCreateTask} className="space-y-3 text-xs">
@@ -1860,9 +1889,10 @@ export const CalendarPage: React.FC = () => {
                       onClick={() => setTaskCategory(cat)}
                       className={`py-1.5 rounded-lg border font-bold capitalize transition-all ${
                         taskCategory === cat
-                          ? "bg-[#0d9488] text-white border-[#0d9488]"
+                          ? "text-white"
                           : isLight ? "bg-slate-100 border-slate-300 text-slate-700" : "bg-[#1e1e1e] border-[#333] text-[#aaa]"
                       }`}
+                      style={taskCategory === cat ? { background: accent.hex, borderColor: accent.hex } : {}}
                     >
                       {cat === "event" ? "📅 Event" : cat === "task" ? "✅ Task" : "🤝 Meeting"}
                     </button>
@@ -1878,7 +1908,10 @@ export const CalendarPage: React.FC = () => {
                   placeholder="e.g. Executive Cash Flow Review"
                   value={taskTitle}
                   onChange={(e) => setTaskTitle(e.target.value)}
-                  className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#0d9488]`}
+                  className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded-lg px-3 py-1.5 focus:outline-none transition-colors`}
+                  style={{ outlineColor: accent.hex }}
+                  onFocus={e => (e.target.style.borderColor = accent.hex)}
+                  onBlur={e => (e.target.style.borderColor = "")}
                 />
               </div>
 
@@ -1890,7 +1923,9 @@ export const CalendarPage: React.FC = () => {
                     required
                     value={taskDate}
                     onChange={(e) => setTaskDate(e.target.value)}
-                    className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#0d9488]`}
+                    className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded-lg px-3 py-1.5 focus:outline-none`}
+                    onFocus={e => (e.target.style.borderColor = accent.hex)}
+                    onBlur={e => (e.target.style.borderColor = "")}
                   />
                 </div>
 
@@ -1900,7 +1935,9 @@ export const CalendarPage: React.FC = () => {
                     type="time"
                     value={taskTime}
                     onChange={(e) => setTaskTime(e.target.value)}
-                    className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#0d9488]`}
+                    className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded-lg px-3 py-1.5 focus:outline-none`}
+                    onFocus={e => (e.target.style.borderColor = accent.hex)}
+                    onBlur={e => (e.target.style.borderColor = "")}
                   />
                 </div>
               </div>
@@ -1932,7 +1969,9 @@ export const CalendarPage: React.FC = () => {
                 <select
                   value={taskAssignee}
                   onChange={(e) => setTaskAssignee(e.target.value)}
-                  className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#0d9488]`}
+                  className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded-lg px-3 py-1.5 focus:outline-none`}
+                  onFocus={e => (e.target.style.borderColor = accent.hex)}
+                  onBlur={e => (e.target.style.borderColor = "")}
                 >
                   <option value="">Unassigned</option>
                   {assignees.map((a) => (
@@ -1950,7 +1989,9 @@ export const CalendarPage: React.FC = () => {
                   placeholder="Details..."
                   value={taskDesc}
                   onChange={(e) => setTaskDesc(e.target.value)}
-                  className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#0d9488]`}
+                  className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded-lg px-3 py-1.5 focus:outline-none`}
+                  onFocus={e => (e.target.style.borderColor = accent.hex)}
+                  onBlur={e => (e.target.style.borderColor = "")}
                 />
               </div>
 
@@ -1960,7 +2001,8 @@ export const CalendarPage: React.FC = () => {
                     type="checkbox"
                     checked={syncToGoogleCal}
                     onChange={(e) => setSyncToGoogleCal(e.target.checked)}
-                    className="rounded text-[#0d9488] focus:ring-0"
+                    className="rounded focus:ring-0"
+                    style={{ accentColor: accent.hex }}
                   />
                   <span>Sync to connected Google Calendar</span>
                 </label>
@@ -1977,7 +2019,8 @@ export const CalendarPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-1.5 rounded-lg bg-[#10b981] hover:bg-[#059669] text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer"
+                  className="px-4 py-1.5 rounded-lg text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer transition-colors duration-300 hover:brightness-110"
+                  style={{ background: accent.hex }}
                 >
                   <Plus className="w-3.5 h-3.5" /> Save Event
                 </button>
@@ -1986,7 +2029,8 @@ export const CalendarPage: React.FC = () => {
             </div>{/* end p-5 */}
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Manage Assignees Modal */}
       {showAssigneeModal && (
