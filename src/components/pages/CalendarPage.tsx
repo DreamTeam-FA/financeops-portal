@@ -978,7 +978,7 @@ export const CalendarPage: React.FC = () => {
                 onClick={() => setShowArFilter(!showArFilter)}
                 className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
                   showArFilter
-                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-extrabold"
+                    ? "bg-orange-500/10 border-orange-500/30 text-orange-600 dark:text-orange-400 font-extrabold"
                     : isLight ? "bg-slate-100 text-slate-400 border-slate-200" : "bg-[#0d111a] text-[#4a5568] border-[#1a2235]"
                 }`}
               >
@@ -1002,7 +1002,7 @@ export const CalendarPage: React.FC = () => {
                     : isLight ? "bg-slate-100 text-slate-400 border-slate-200" : "bg-[#0d111a] text-[#4a5568] border-[#1a2235]"
                 }`}
               >
-                📅 Google / Sheet Events
+                🗓️ Google Events
               </button>
               <button
                 onClick={() => setShowTasksFilter(!showTasksFilter)}
