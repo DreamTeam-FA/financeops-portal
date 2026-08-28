@@ -627,7 +627,7 @@ export const CalendarPage: React.FC = () => {
   }
 
   // Calendar Sheet Events (meetings, tasks, events) — render on calendar day cells
-  sheetEvents.forEach((ev) => {
+  if (showTasksFilter) sheetEvents.forEach((ev) => {
     if (deletedEventIds.has(ev.id)) return;
     if (!ev.date) return;
     const key = normalizeDateToYYYYMMDD(ev.date);
@@ -665,7 +665,7 @@ export const CalendarPage: React.FC = () => {
     }
   });
 
-  // Google Calendar Events & Sheet Events
+  // Google Calendar Events (actual Google Calendar, not Sheet)
   if (showGoogleCalFilter) {
     googleEvents.forEach((ge) => {
       if (!ge.summary) return;
