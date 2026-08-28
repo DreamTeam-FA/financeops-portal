@@ -8,7 +8,6 @@ import { getAccessToken } from "../../services/googleAuth";
 import { FourYrLogo } from "../EntityLogos";
 import { capturePage } from "../../lib/pageScreenshot";
 import { ScanToFill } from "../ScanToFill";
-
 const fmt2   = (n: number) => n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 const fmtAmt = (n: number) => `$${fmt2(n)}`;
 const fmtHrs = (n: number) => fmt2(n);
@@ -48,31 +47,7 @@ function editHoursFromAmPm(startStr: string, endStr: string): string {
   return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}${sx ? ':' + String(sx).padStart(2,'0') : ''}`;
 }
 
-/** Levenshtein distance — used for fuzzy name/job matching in scan-to-fill */
-function levenshtein(a: string, b: string): number {
-  const aa = a.toLowerCase(), bb = b.toLowerCase();
-  const m = aa.length, n = bb.length;
-  const dp: number[][] = Array.from({ length: m + 1 }, (_, i) =>
-    Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
-  );
-  for (let i = 1; i <= m; i++)
-    for (let j = 1; j <= n; j++)
-      dp[i][j] = aa[i-1] === bb[j-1]
-        ? dp[i-1][j-1]
-        : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
-  return dp[m][n];
-}
-/** Returns closest candidate from list; falls back to original if no close match found */
-function fuzzyBest(query: string, candidates: string[]): string {
-  if (!query || candidates.length === 0) return query;
-  let best = "", bestDist = Infinity;
-  for (const c of candidates) {
-    const d = levenshtein(query, c);
-    if (d < bestDist) { bestDist = d; best = c; }
-  }
-  const maxLen = Math.max(query.length, best.length);
-  return bestDist <= Math.ceil(maxLen * 0.45) ? best : query;
-}
+import { fuzzyBest } from "../../utils/fuzzyMatch";
 
 function today() {
   const d = new Date();

@@ -59,7 +59,7 @@ const FAQ = [
   },
   {
     q: "How does the AI Bill Scanner work?",
-    a: "Same workflow as the Invoice Scanner but for Accounts Payable. On the AP / Bills page, click 'Add Bill' → 'Scan with AI'. Upload a photo, scanned PDF, or digital PDF of the bill. Gemini AI extracts vendor, amount, due date, and other fields and pre-fills the form. Review and save to confirm.",
+    a: "On the AP / Bills page, click 'Add Bill' → 'Scan with AI'. Upload a photo, scanned PDF, or digital PDF of the bill. Gemini AI extracts vendor, amount, due date, and other fields. The scanned vendor name is fuzzy-matched to the closest existing vendor in your bill history — so category, description, and sub-company fields auto-populate from the matched vendor's prior bill. Review all pre-filled fields, add your own remarks if needed, and click Save to confirm.",
   },
   {
     q: "How does the AI Timesheet Scanner work?",
@@ -71,7 +71,7 @@ const FAQ = [
   },
   {
     q: "How does the Email Invoice Scanner work?",
-    a: "The Email Invoice Scanner automatically scans your Gmail inbox for financial emails — it searches for messages containing keywords like invoice, statement, payment due, bill, and receipt. Found emails appear in a review queue; nothing is saved automatically. For each email you can: view the message, scan any PDF attachments with Gemini AI, and create a Bill or Invoice directly from the extracted data. You review and confirm every action before anything is written to the portal or your sheets.",
+    a: "The Email Invoice Scanner scans your Gmail inbox for financial emails. Found emails appear in a review queue; nothing is saved automatically. For each email you can create a Bill or Invoice: Gemini AI scans any PDF attachment and extracts vendor, amount, due date, invoice number, and description. The scanned vendor name is fuzzy-matched to your closest existing vendor in bill history — so category, entity, and description auto-populate from the matched vendor. The email's Gmail link is automatically placed in the Remarks field so you can trace the bill back to its source. Review all pre-filled fields in the AP/AR form, then save to confirm.",
   },
   {
     q: "What is Gemini AI used for in the portal?",

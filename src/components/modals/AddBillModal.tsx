@@ -3,6 +3,7 @@ import { useFinance } from "../../context/FinanceContext";
 import { EntityName } from "../../types";
 import { X, Check, Paperclip, FileCheck2 } from "lucide-react";
 import { ScanToFill } from "../ScanToFill";
+import { fuzzyBest } from "../../utils/fuzzyMatch";
 
 interface AddBillModalProps {
   isOpen: boolean;
@@ -173,9 +174,12 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
   const handleScanFill = (data: any, file: File) => {
     if (!data) return;
     if (data.vendor) {
-      setVendor(data.vendor);
+      // Fuzzy-match scanned vendor to closest known vendor so autofill maps work correctly
+      const allVendors = Array.from(new Set(apBills.map(b => b.vendor).filter(Boolean))) as string[];
+      const resolvedVendor = fuzzyBest(data.vendor, allVendors);
+      setVendor(resolvedVendor);
       // Apply the same vendor → category / description / sub-company rules as handleVendorChange
-      const key = data.vendor.toLowerCase().trim();
+      const key = resolvedVendor.toLowerCase().trim();
       const cats = vendorCategoriesMap[key];
       if (cats && cats.size >= 1) setCategory(Array.from(cats)[0]);
       // Only fall back to vendor-history description when scan didn't extract one

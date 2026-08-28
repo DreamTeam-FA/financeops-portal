@@ -1,5 +1,6 @@
-﻿import React, { useState, useCallback, useEffect } from "react";
+﻿import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { useFinance } from "../../context/FinanceContext";
+import { fuzzyBest } from "../../utils/fuzzyMatch";
 import { bumpGeminiCounter } from "../../utils/geminiCounter";
 import firebaseConfig from "../../../firebase-applet-config.json";
 import {
@@ -415,8 +416,35 @@ interface EmailInboxScannerPageProps {
 }
 
 export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ onBack }) => {
-  const { theme, logAction, setCurrentPage, setEmailPrefill, setHeadleysPrefill } = useFinance() as any;
+  const { theme, logAction, setCurrentPage, setEmailPrefill, setHeadleysPrefill, apBills = [] } = useFinance() as any;
   const isLight = theme === "light";
+
+  // ── Vendor lookup maps (mirrors AddBillModal) — used for email scan autofill ─
+  const allVendorNames = useMemo(
+    () => Array.from(new Set((apBills as any[]).map((b: any) => b.vendor).filter(Boolean))) as string[],
+    [apBills]
+  );
+  const vendorCategoriesMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    (apBills as any[]).forEach((b: any) => {
+      if (b.vendor && b.category) map[b.vendor.toLowerCase().trim()] = b.category;
+    });
+    return map;
+  }, [apBills]);
+  const vendorDescriptionMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    (apBills as any[]).forEach((b: any) => {
+      if (b.vendor && b.description) map[b.vendor.toLowerCase().trim()] = b.description;
+    });
+    return map;
+  }, [apBills]);
+  const vendorEntityMap = useMemo(() => {
+    const map: Record<string, { entity?: string; company?: string }> = {};
+    (apBills as any[]).forEach((b: any) => {
+      if (b.vendor) map[b.vendor.toLowerCase().trim()] = { entity: b.entity, company: b.company };
+    });
+    return map;
+  }, [apBills]);
 
   // ── Gmail account state (separate from portal login) ───────────────────────
   const [gmailToken, setGmailToken] = useState<string | null>(() => {
@@ -632,15 +660,19 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
           setCurrentPage?.("headleys");
           return;
         }
+        // Fuzzy-match vendor to closest known vendor, then autofill from bill history
+        const resolvedVendor = fuzzyBest(vendorRaw, allVendorNames);
+        const vendorKey = resolvedVendor.toLowerCase().trim();
+        const emailLink = `https://mail.google.com/mail/u/0/#inbox/${email.id}`;
         const extracted: ExtractedData = {
-          vendor:      vendorRaw,
+          vendor:      resolvedVendor,
           invoiceNo:   undefined,
           amount:      null,
           dueDate:     null,
           issueDate:   null,
-          entity:      "",
-          description: email.subject,
-          remarks:     `Imported from email on ${new Date().toLocaleDateString()}`,
+          entity:      vendorEntityMap[vendorKey]?.entity || "",
+          description: vendorDescriptionMap[vendorKey] || email.subject,
+          remarks:     emailLink,
         };
         setQueue(prev => prev.map(e => e.id === email.id ? { ...e, status: "done" } : e));
         setDetailEmail(null);
@@ -671,15 +703,20 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
       const inv = scanJson.invoice || scanJson;
 
       // 3. Pre-populate with email metadata if Gemini left fields empty
+      const rawVendor = inv.vendor || email.from.replace(/<[^>]+>/g, "").trim();
+      // Fuzzy-match vendor to closest known vendor, then autofill from bill history
+      const resolvedVendor = fuzzyBest(rawVendor, allVendorNames);
+      const vendorKey = resolvedVendor.toLowerCase().trim();
+      const emailLink = `https://mail.google.com/mail/u/0/#inbox/${email.id}`;
       const extracted: ExtractedData = {
-        vendor:      inv.vendor      || email.from.replace(/<[^>]+>/g, "").trim(),
+        vendor:      resolvedVendor,
         invoiceNo:   inv.invoiceNo   || null,
         amount:      inv.amount      ?? null,
         dueDate:     inv.dueDate     || null,
         issueDate:   inv.issueDate   || null,
-        entity:      inv.entity      || "",
-        description: inv.description || email.subject,
-        remarks:     inv.remarks     || `Imported from email on ${new Date().toLocaleDateString()}`,
+        entity:      inv.entity      || vendorEntityMap[vendorKey]?.entity || "",
+        description: inv.description || vendorDescriptionMap[vendorKey] || email.subject,
+        remarks:     emailLink,
       };
 
       // 4. Route based on vendor — Headley's goes to the dedicated import tool
@@ -716,7 +753,7 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
       setError(e?.message || "Failed to process attachment");
       setQueue(prev => prev.map(e => e.id === email.id ? { ...e, status: "pending" } : e));
     }
-  }, [gmailToken]);
+  }, [gmailToken, allVendorNames, vendorEntityMap, vendorDescriptionMap]);
 
   // ── Confirm from modal ─────────────────────────────────────────────────────
   const handleConfirm = useCallback(async (data: ExtractedData) => {
