@@ -34,6 +34,10 @@ import {
   appendLogRow,
 } from "../services/logsSheetService";
 import {
+  readAllConfig,
+  writeConfigKey,
+} from "../services/configSheetService";
+import {
   fetchSheetValues,
   updateSheetValues,
   fetchSpreadsheetTabs,
@@ -545,6 +549,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setGasUrls(next);
     localStorage.setItem("financeops_gas_urls", JSON.stringify(next));
     persistChanges({ gasUrls: next } as any);
+    // Persist to shared Google Sheet config tab so all users get the updated URL
+    const tok = getAccessToken();
+    if (tok) writeConfigKey(tok, "gasUrls", next, userEmail).catch(err =>
+      console.warn("[updateGasUrl] config sheet write failed:", err)
+    );
     logAction("Updated GAS Dashboard URL", `Updated URL for ${key}`);
   };
 
@@ -853,6 +862,35 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return;
       }
 
+      // Step 3.5 — Config sheet: load shared config (sheetMappings, gasUrls) that
+      //            survives Render deploys and is visible to all users.
+      //            Also flush any pending log rows that were queued while offline.
+      readAllConfig(tok).then(cfg => {
+        if (cfg.sheetMappings && Array.isArray(cfg.sheetMappings)) {
+          const existingIds = new Set(cfg.sheetMappings.map((m: SheetMappingConfig) => m.id));
+          const missingDefaults = DEFAULT_MAPPINGS.filter(dm => !existingIds.has(dm.id));
+          setSheetMappings([...cfg.sheetMappings, ...missingDefaults]);
+        }
+        if (cfg.gasUrls && typeof cfg.gasUrls === "object") {
+          setGasUrls(prev => ({ ...prev, ...cfg.gasUrls }));
+          localStorage.setItem("financeops_gas_urls", JSON.stringify({ ...cfg.gasUrls }));
+        }
+      }).catch(() => {}); // non-fatal — fall back to server JSON / localStorage
+
+      // Flush pending log rows queued while offline
+      try {
+        const pending = JSON.parse(localStorage.getItem("financeops_pending_logs") || "[]");
+        if (pending.length > 0) {
+          localStorage.removeItem("financeops_pending_logs");
+          Promise.all(
+            pending.map((entry: { ts: string; user: string; action: string; details: string }) =>
+              appendLogRow(tok, SHARED_LOGS_SHEET_ID, "Activity Log",
+                [entry.ts, entry.user, entry.action, entry.details]).catch(() => {})
+            )
+          );
+        }
+      } catch {}
+
       // Step 4 — pull-live: authoritative data from Google Sheets, one retry on failure
       let pullOk = false;
       for (let attempt = 0; attempt < 2; attempt++) {
@@ -866,6 +904,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           if (resp?.data) {
             applyData(resp.data);
             saveCache(resp.data); // refresh localStorage cache with authoritative live data
+            // Notify other open tabs so they re-read the cache without a full pull-live
+            try {
+              const bc = new BroadcastChannel("financeops_sync");
+              bc.postMessage({ type: "data-refreshed", ts: Date.now() });
+              bc.close();
+            } catch {}
             pullOk = true;
             break;
           }
@@ -891,6 +935,25 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
 
     init();
+
+    // ── Cross-tab sync via BroadcastChannel ──────────────────────────────────
+    // When another tab completes a pull-live it broadcasts "data-refreshed".
+    // This tab re-reads the updated localStorage cache to stay in sync
+    // without its own network request.
+    let bc: BroadcastChannel | null = null;
+    try {
+      bc = new BroadcastChannel("financeops_sync");
+      bc.onmessage = (e) => {
+        if (e.data?.type === "data-refreshed") {
+          const fresh = loadCache();
+          if (fresh) applyData(fresh);
+        }
+      };
+    } catch {}
+
+    return () => {
+      try { bc?.close(); } catch {}
+    };
   }, []);
 
   // Cross-tab auth sharing via BroadcastChannel:
@@ -1144,10 +1207,38 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       body: JSON.stringify({ user: userEmail, action, details, timestamp: ts })
     }).catch(() => {});
 
-    // Append to the shared logs Google Sheet
+    // Append to the shared logs Google Sheet.
+    // If no token is available right now, queue the entry in localStorage and
+    // show a subtle toast. The queue is flushed automatically when the user
+    // reconnects (auth listener → Step 3.5 in init()).
     const token = getAccessToken();
     if (token) {
-      appendLogRow(token, SHARED_LOGS_SHEET_ID, "Activity Log", [ts, userEmail, action, details]).catch(() => {});
+      appendLogRow(token, SHARED_LOGS_SHEET_ID, "Activity Log", [ts, userEmail, action, details])
+        .catch(() => {
+          // Sheet write failed even with a token — queue for retry
+          try {
+            const pending = JSON.parse(localStorage.getItem("financeops_pending_logs") || "[]");
+            pending.push({ ts, user: userEmail, action, details });
+            localStorage.setItem("financeops_pending_logs", JSON.stringify(pending.slice(-50)));
+          } catch {}
+        });
+    } else {
+      // No token — queue the entry; it will be flushed on reconnect
+      try {
+        const pending = JSON.parse(localStorage.getItem("financeops_pending_logs") || "[]");
+        pending.push({ ts, user: userEmail, action, details });
+        localStorage.setItem("financeops_pending_logs", JSON.stringify(pending.slice(-50)));
+      } catch {}
+      // Notify only once per session per token-gap to avoid toast fatigue
+      const lastWarn = Number(sessionStorage.getItem("_log_warn_ts") || "0");
+      if (Date.now() - lastWarn > 120_000) {
+        sessionStorage.setItem("_log_warn_ts", String(Date.now()));
+        setSyncToast({
+          message: "📋 Activity logged locally — reconnect Google Sheets to sync to the log sheet.",
+          type: "auth-error",
+        });
+        setTimeout(() => setSyncToast(null), 7_000);
+      }
     }
   };
 
@@ -1165,6 +1256,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const next = sheetMappings.map((m) => (m.id === id ? { ...m, ...updates } : m));
     setSheetMappings(next);
     persistChanges({ sheetMappings: next });
+    // Persist to shared Google Sheet config tab so ALL users see the change
+    // and it survives Render deploys (server JSON is ephemeral).
+    const tok = getAccessToken();
+    if (tok) writeConfigKey(tok, "sheetMappings", next, userEmail).catch(err =>
+      console.warn("[updateSheetMapping] config sheet write failed:", err)
+    );
     logAction("Updated Sheet Mapping", `Mapping ID ${id} modified`);
   };
 

@@ -23,6 +23,9 @@ interface UsageSnapshot {
   geminiPdf: number;
   geminiTimesheet: number;
   geminiEmail: number;
+  driveLinks: number;       // entries in billDriveLinks_v2
+  driveLinkBytes: number;   // bytes used by that key
+  pendingLogs: number;      // queued log entries awaiting token
 }
 
 function loadSnapshots(): UsageSnapshot[] {
@@ -64,6 +67,21 @@ async function captureSnapshot(): Promise<UsageSnapshot> {
   const c = getApiCounter();
   const g = getGeminiCounter();
 
+  // Drive link cache stats
+  let driveLinks = 0, driveLinkBytes = 0;
+  try {
+    const dlRaw = localStorage.getItem("billDriveLinks_v2") || "{}";
+    driveLinks = Object.keys(JSON.parse(dlRaw)).length;
+    driveLinkBytes = (dlRaw.length + "billDriveLinks_v2".length) * 2;
+  } catch {}
+
+  // Pending log queue
+  let pendingLogs = 0;
+  try {
+    const pl = JSON.parse(localStorage.getItem("financeops_pending_logs") || "[]");
+    pendingLogs = Array.isArray(pl) ? pl.length : 0;
+  } catch {}
+
   return {
     ts: Date.now(),
     localStorageBytes: lsBytes,
@@ -76,6 +94,9 @@ async function captureSnapshot(): Promise<UsageSnapshot> {
     geminiPdf: g.pdfExtracts,
     geminiTimesheet: g.timesheetScans,
     geminiEmail: g.emailScans,
+    driveLinks,
+    driveLinkBytes,
+    pendingLogs,
   };
 }
 
@@ -486,6 +507,99 @@ export const ServiceLimitsPage: React.FC = () => {
                   </div>
                 ))}
               </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* ── Drive Link Cache + Pending Logs — second metrics row ── */}
+        {active && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+            {/* Drive Link Cache */}
+            <div className={`rounded-xl border p-4 ${cardBg}`}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">🔗</span>
+                  <span className={`text-[11px] font-bold uppercase tracking-wider ${mutedTxt}`}>Drive Link Cache</span>
+                </div>
+                <button
+                  onClick={() => {
+                    if (!window.confirm("Clear the Drive link cache? Links will be re-fetched from Google Sheets on the next sync.")) return;
+                    localStorage.removeItem("billDriveLinks_v2");
+                    takeSnapshot(true);
+                  }}
+                  className={`text-[10px] font-semibold px-2 py-0.5 rounded border transition-colors ${
+                    isLight
+                      ? "border-slate-200 text-slate-500 hover:bg-red-50 hover:border-red-200 hover:text-red-600"
+                      : "border-[#2a3140] text-[#666] hover:bg-red-950/20 hover:border-red-800/40 hover:text-red-400"
+                  }`}
+                >
+                  Clear
+                </button>
+              </div>
+              <p className={`text-xl font-bold ${headTxt} mb-1`}>
+                {active.driveLinks ?? 0}
+                <span className={`text-xs font-normal ml-1 ${mutedTxt}`}>entries · {fmtBytes(active.driveLinkBytes ?? 0)}</span>
+              </p>
+              <div className={`w-full h-1.5 rounded-full ${isLight ? "bg-slate-200" : "bg-[#1a2235]"} mb-1`}>
+                <div
+                  className="h-1.5 rounded-full transition-all"
+                  style={{
+                    width: `${Math.min(((active.driveLinkBytes ?? 0) / (5 * 1024 * 1024)) * 100 * 10, 100)}%`,
+                    background: (active.driveLinks ?? 0) > 800 ? "#f59e0b" : "#3b82f6",
+                  }}
+                />
+              </div>
+              <p className={`text-[10px] ${mutedTxt}`}>
+                Cached bill Drive URLs · grows with scanned bills · auto-recovered from Sheet on sync
+              </p>
+            </div>
+
+            {/* Pending Log Queue */}
+            <div className={`rounded-xl border p-4 ${
+              (active.pendingLogs ?? 0) > 0
+                ? isLight ? "bg-amber-50 border-amber-200" : "bg-amber-950/20 border-amber-700/40"
+                : cardBg
+            }`}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">📋</span>
+                  <span className={`text-[11px] font-bold uppercase tracking-wider ${
+                    (active.pendingLogs ?? 0) > 0
+                      ? isLight ? "text-amber-600" : "text-amber-400"
+                      : mutedTxt
+                  }`}>Pending Log Queue</span>
+                </div>
+                {(active.pendingLogs ?? 0) > 0 && (
+                  <button
+                    onClick={() => {
+                      localStorage.removeItem("financeops_pending_logs");
+                      takeSnapshot(true);
+                    }}
+                    className={`text-[10px] font-semibold px-2 py-0.5 rounded border transition-colors ${
+                      isLight
+                        ? "border-amber-300 text-amber-700 hover:bg-amber-100"
+                        : "border-amber-700/40 text-amber-400 hover:bg-amber-900/30"
+                    }`}
+                  >
+                    Discard
+                  </button>
+                )}
+              </div>
+              <p className={`text-xl font-bold mb-1 ${
+                (active.pendingLogs ?? 0) > 0
+                  ? isLight ? "text-amber-700" : "text-amber-400"
+                  : headTxt
+              }`}>
+                {active.pendingLogs ?? 0}
+                <span className={`text-xs font-normal ml-1 ${mutedTxt}`}>entries</span>
+              </p>
+              <p className={`text-[10px] ${mutedTxt}`}>
+                {(active.pendingLogs ?? 0) > 0
+                  ? "Activity log entries queued while offline — will auto-sync to Google Sheet on reconnect."
+                  : "All activity log entries have been synced to the shared Google Sheet."}
+              </p>
             </div>
 
           </div>
