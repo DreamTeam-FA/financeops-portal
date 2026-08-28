@@ -825,6 +825,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
 
       // Step 2 — Server JSON: config fields + financial fallback when no cache
+      // serverMappings is captured here and used in Step 3.5 to seed the config
+      // sheet on first run (one-time migration from ephemeral server JSON → Sheet).
+      let serverMappings: SheetMappingConfig[] | null = null;
+      let serverGasUrls: Record<string, string> | null = null;
       try {
         const serverData = await fetch("/api/data").then(r => r.json());
         if (serverData) {
@@ -834,7 +838,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           if (serverData.sheetMappings && Array.isArray(serverData.sheetMappings)) {
             const existingIds = new Set(serverData.sheetMappings.map((m: SheetMappingConfig) => m.id));
             const missingDefaults = DEFAULT_MAPPINGS.filter(dm => !existingIds.has(dm.id));
-            setSheetMappings([...serverData.sheetMappings, ...missingDefaults]);
+            const merged = [...serverData.sheetMappings, ...missingDefaults];
+            setSheetMappings(merged);
+            serverMappings = merged; // captured for Step 3.5 seed
+          }
+          if (serverData.gasUrls && typeof serverData.gasUrls === "object") {
+            serverGasUrls = serverData.gasUrls; // captured for Step 3.5 seed
           }
           // Fire-and-forget: logs are read from Google Sheet, sheet ID from server
           fetch("/api/login-log").then(r => r.json()).then(ll => { if (Array.isArray(ll)) setLoginLogs(ll); }).catch(() => {});
@@ -867,13 +876,23 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       //            Also flush any pending log rows that were queued while offline.
       readAllConfig(tok).then(cfg => {
         if (cfg.sheetMappings && Array.isArray(cfg.sheetMappings)) {
+          // Config sheet has mappings — apply them (authoritative, cross-user)
           const existingIds = new Set(cfg.sheetMappings.map((m: SheetMappingConfig) => m.id));
           const missingDefaults = DEFAULT_MAPPINGS.filter(dm => !existingIds.has(dm.id));
           setSheetMappings([...cfg.sheetMappings, ...missingDefaults]);
+        } else if (serverMappings && serverMappings.length > 0) {
+          // Config tab is empty (first deploy with this feature) — seed it now
+          // from the server JSON mappings captured in Step 2. This is a one-time
+          // migration; after this every updateSheetMapping call keeps the tab current.
+          writeConfigKey(tok, "sheetMappings", serverMappings, userEmail).catch(() => {});
         }
         if (cfg.gasUrls && typeof cfg.gasUrls === "object") {
+          // Config sheet has gasUrls — apply them (cross-user)
           setGasUrls(prev => ({ ...prev, ...cfg.gasUrls }));
           localStorage.setItem("financeops_gas_urls", JSON.stringify({ ...cfg.gasUrls }));
+        } else if (serverGasUrls && Object.keys(serverGasUrls).length > 0) {
+          // Seed gasUrls too on first run
+          writeConfigKey(tok, "gasUrls", serverGasUrls, userEmail).catch(() => {});
         }
       }).catch(() => {}); // non-fatal — fall back to server JSON / localStorage
 
