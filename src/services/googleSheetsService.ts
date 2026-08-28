@@ -1191,7 +1191,7 @@ export const appendAPBill = async (
   const tabName = map.dataRange.split("!")[0]; // e.g. "'Ruby''s Bills'"
   const dataStart = parseInt(map.dataRange.split("!")[1].replace(/^[A-Z]+/, "")); // e.g. 5
   const vendorCol = String.fromCharCode(65 + map.vendor); // e.g. D
-  const lastDataCol = String.fromCharCode(64 + map.totalCols); // e.g. S
+  const lastDataCol = colNumToLetter(map.totalCols); // e.g. S (19), AA (27), AM (39)
 
   // Read only the vendor column to find the last row that actually has bill data
   const vendorRange = `${tabName}!${vendorCol}${dataStart}:${vendorCol}`;

@@ -172,7 +172,22 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
 
   const handleScanFill = (data: any, file: File) => {
     if (!data) return;
-    if (data.vendor)         setVendor(data.vendor);
+    if (data.vendor) {
+      setVendor(data.vendor);
+      // Apply the same vendor → category / description / sub-company rules as handleVendorChange
+      const key = data.vendor.toLowerCase().trim();
+      const cats = vendorCategoriesMap[key];
+      if (cats && cats.size >= 1) setCategory(Array.from(cats)[0]);
+      // Only fall back to vendor-history description when scan didn't extract one
+      if (!data.description && !isTI) {
+        const desc = vendorDescriptionMap[key];
+        if (desc) setDescription(desc);
+      }
+      if (isTI) {
+        const match = apBills.find((b) => b.vendor?.toLowerCase() === key && b.entity === "TI");
+        if (match?.company) setSubCompany(match.company);
+      }
+    }
     if (data.invoiceNo)      setInvoiceNo(String(data.invoiceNo));
     if (data.amount != null) setAmount(String(data.amount));
     if (data.description)    setDescription(data.description);
