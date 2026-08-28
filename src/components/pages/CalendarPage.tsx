@@ -617,6 +617,9 @@ export const CalendarPage: React.FC = () => {
       const vendorLower = (ev.vendor || "").toLowerCase();
       const descLower = (ev.description || "").toLowerCase();
       // Skip if it's an AP/AR bill or note duplicate logged into calendar sheet
+      const vendorRaw = (ev.vendor || "").trim();
+      const descRaw  = (ev.description || "").trim();
+      const isRawAmount = (s: string) => /^\$?[\d,]+\.?\d{0,2}$/.test(s) && s.length > 0;
       if (
         vendorLower.includes("bills") ||
         descLower.includes("bills") ||
@@ -633,7 +636,10 @@ export const CalendarPage: React.FC = () => {
         vendorLower.includes("meeting notes") ||
         descLower.includes("meeting notes") ||
         vendorLower.startsWith("note") ||
-        descLower.startsWith("note")
+        descLower.startsWith("note") ||
+        // Skip rows whose label text is just a dollar/numeric amount (e.g. "469.99", "$607.76")
+        isRawAmount(vendorRaw) ||
+        isRawAmount(descRaw)
       ) {
         return;
       }
