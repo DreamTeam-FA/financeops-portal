@@ -586,7 +586,7 @@ export const CalendarPage: React.FC = () => {
       if (!key) return;
       if (!eventsByDate[key]) eventsByDate[key] = [];
       eventsByDate[key].push({
-        label: `AR: ${a.customer} ($${a.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })})`,
+        label: `AR: ${a.customer}${a.amount > 0 ? ` ($${a.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })})` : ""}`,
         type: "ar"
       });
     });
