@@ -1320,7 +1320,7 @@ export function FourYrPayrollPage() {
         {loading && <span className="text-[11px] text-green-200 animate-pulse ml-1">Refreshing…</span>}
 
         {/* Right side: Refresh + Screenshot + ··· more menu */}
-        <div className="ml-auto flex items-center gap-2 relative flex-shrink-0">
+        <div className="ml-auto flex items-center gap-2 relative flex-shrink-0 pl-2">
           {/* Refresh */}
           <button onClick={() => { lastKeyRef.current = ""; doLoad(); }} disabled={loading}
             className="flex items-center justify-center w-8 h-8 rounded transition-all"
@@ -1349,7 +1349,6 @@ export function FourYrPayrollPage() {
               </div>
             )}
           </div>
-          <span className="text-[9px] font-light opacity-40 tracking-wide text-white">® Made by Finance Team</span>
           <button
             onClick={() => setMoreMenuOpen(o => !o)}
             className="flex items-center gap-1 px-2.5 h-8 rounded font-bold text-white text-xs transition-all"
@@ -1413,6 +1412,7 @@ export function FourYrPayrollPage() {
             {t.l}
           </button>
         ))}
+        <span className="ml-auto text-[9px] font-light tracking-wide pr-1" style={{ color:"rgba(255,255,255,.35)" }}>® Made by Finance Team</span>
       </div>
 
       {/* ── Filter bar (GAS: .filter-bar) ── */}
