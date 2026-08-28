@@ -3,6 +3,7 @@ import { PageHeader } from "../PageHeader";
 import { useFinance } from "../../context/FinanceContext";
 import { ExternalLink, Info, RefreshCw, Clock, HardDrive } from "lucide-react";
 import { getApiCounter } from "../../utils/apiCounter";
+import { getGeminiCounter } from "../../utils/geminiCounter";
 
 // ── Snapshot system ─────────────────────────────────────────────────────────────
 
@@ -17,6 +18,11 @@ interface UsageSnapshot {
   originTotalBytes: number;
   apiReads: number;
   apiWrites: number;
+  geminiTotal: number;
+  geminiInvoice: number;
+  geminiPdf: number;
+  geminiTimesheet: number;
+  geminiEmail: number;
 }
 
 function loadSnapshots(): UsageSnapshot[] {
@@ -54,8 +60,9 @@ async function captureSnapshot(): Promise<UsageSnapshot> {
     }
   } catch {}
 
-  // API counter
+  // API counters
   const c = getApiCounter();
+  const g = getGeminiCounter();
 
   return {
     ts: Date.now(),
@@ -64,6 +71,11 @@ async function captureSnapshot(): Promise<UsageSnapshot> {
     originTotalBytes: originTotal,
     apiReads: c.reads,
     apiWrites: c.writes,
+    geminiTotal: g.total,
+    geminiInvoice: g.invoiceScans,
+    geminiPdf: g.pdfExtracts,
+    geminiTimesheet: g.timesheetScans,
+    geminiEmail: g.emailScans,
   };
 }
 
@@ -337,10 +349,10 @@ export const ServiceLimitsPage: React.FC = () => {
 
         {/* ── Live Metrics Cards ── */}
         {active && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
 
             {/* localStorage */}
-            <div className={`rounded-xl border p-4 ${cardBg}`}>
+            <div className={`rounded-xl border p-4 ${cardBg} xl:col-span-1`}>
               <div className="flex items-center gap-2 mb-2">
                 <HardDrive className="w-4 h-4 text-indigo-400" />
                 <span className={`text-[11px] font-bold uppercase tracking-wider ${mutedTxt}`}>localStorage</span>
@@ -359,7 +371,7 @@ export const ServiceLimitsPage: React.FC = () => {
             </div>
 
             {/* Browser origin storage */}
-            <div className={`rounded-xl border p-4 ${cardBg}`}>
+            <div className={`rounded-xl border p-4 ${cardBg} xl:col-span-1`}>
               <div className="flex items-center gap-2 mb-2">
                 <HardDrive className="w-4 h-4 text-purple-400" />
                 <span className={`text-[11px] font-bold uppercase tracking-wider ${mutedTxt}`}>Browser Quota</span>
@@ -377,47 +389,105 @@ export const ServiceLimitsPage: React.FC = () => {
               )}
             </div>
 
-            {/* Sheet API Reads today */}
-            <div className={`rounded-xl border p-4 ${cardBg}`}>
+            {/* Sheet API Reads today — bar vs 500/day soft budget (no hard daily cap) */}
+            <div className={`rounded-xl border p-4 ${cardBg} xl:col-span-1`}>
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-base">📊</span>
                 <span className={`text-[11px] font-bold uppercase tracking-wider ${mutedTxt}`}>Sheet Reads Today</span>
               </div>
-              <p className={`text-xl font-bold ${active.apiReads > 50 ? "text-amber-500" : isLight ? "text-emerald-700" : "text-emerald-400"} mb-1`}>
+              <p className={`text-xl font-bold font-variant-numeric-tabular ${
+                active.apiReads > 400 ? "text-amber-500" : isLight ? "text-emerald-700" : "text-emerald-400"
+              } mb-1`}>
                 {active.apiReads}
               </p>
               <div className={`w-full h-1.5 rounded-full ${isLight ? "bg-slate-200" : "bg-[#1a2235]"} mb-1`}>
                 <div
                   className="h-1.5 rounded-full transition-all"
                   style={{
-                    width: `${Math.min((active.apiReads / 60) * 100, 100)}%`,
-                    background: active.apiReads > 50 ? "#f59e0b" : "#22c55e",
+                    width: `${Math.min((active.apiReads / 500) * 100, 100)}%`,
+                    background: active.apiReads > 400 ? "#f59e0b" : "#22c55e",
                   }}
                 />
               </div>
-              <p className={`text-[10px] ${mutedTxt}`}>60 req / min limit (daily: no cap)</p>
+              <p className={`text-[10px] ${mutedTxt}`}>Rate limit: 60 / min · no daily cap</p>
             </div>
 
-            {/* Sheet API Writes today */}
-            <div className={`rounded-xl border p-4 ${cardBg}`}>
+            {/* Sheet API Writes today — bar vs 200/day soft budget */}
+            <div className={`rounded-xl border p-4 ${cardBg} xl:col-span-1`}>
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-base">✏️</span>
                 <span className={`text-[11px] font-bold uppercase tracking-wider ${mutedTxt}`}>Sheet Writes Today</span>
               </div>
-              <p className={`text-xl font-bold ${active.apiWrites > 50 ? "text-amber-500" : isLight ? "text-emerald-700" : "text-emerald-400"} mb-1`}>
+              <p className={`text-xl font-bold ${
+                active.apiWrites > 150 ? "text-amber-500" : isLight ? "text-emerald-700" : "text-emerald-400"
+              } mb-1`}>
                 {active.apiWrites}
               </p>
               <div className={`w-full h-1.5 rounded-full ${isLight ? "bg-slate-200" : "bg-[#1a2235]"} mb-1`}>
                 <div
                   className="h-1.5 rounded-full transition-all"
                   style={{
-                    width: `${Math.min((active.apiWrites / 60) * 100, 100)}%`,
-                    background: active.apiWrites > 50 ? "#f59e0b" : "#22c55e",
+                    width: `${Math.min((active.apiWrites / 200) * 100, 100)}%`,
+                    background: active.apiWrites > 150 ? "#f59e0b" : "#22c55e",
                   }}
                 />
               </div>
-              <p className={`text-[10px] ${mutedTxt}`}>60 req / min limit (daily: no cap)</p>
+              <p className={`text-[10px] ${mutedTxt}`}>Rate limit: 60 / min · no daily cap</p>
             </div>
+
+            {/* Gemini AI scans today — vs 1,500/day flash limit */}
+            <div className={`rounded-xl border p-4 ${cardBg} xl:col-span-1`}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-base">🤖</span>
+                <span className={`text-[11px] font-bold uppercase tracking-wider ${mutedTxt}`}>Gemini Scans Today</span>
+              </div>
+              <p className={`text-xl font-bold ${
+                (active.geminiTotal ?? 0) > 1200 ? "text-red-500"
+                : (active.geminiTotal ?? 0) > 900  ? "text-amber-500"
+                : isLight ? "text-violet-700" : "text-violet-400"
+              } mb-1`}>
+                {active.geminiTotal ?? 0}
+                <span className={`text-xs font-normal ml-1 ${mutedTxt}`}>/ 1,500</span>
+              </p>
+              <div className={`w-full h-1.5 rounded-full ${isLight ? "bg-slate-200" : "bg-[#1a2235]"} mb-1`}>
+                <div
+                  className="h-1.5 rounded-full transition-all"
+                  style={{
+                    width: `${Math.min(((active.geminiTotal ?? 0) / 1500) * 100, 100)}%`,
+                    background: (active.geminiTotal ?? 0) > 1200 ? "#ef4444"
+                      : (active.geminiTotal ?? 0) > 900 ? "#f59e0b" : "#8b5cf6",
+                  }}
+                />
+              </div>
+              <p className={`text-[10px] ${mutedTxt}`}>Free tier daily cap (flash models)</p>
+            </div>
+
+            {/* Gemini breakdown by scan type */}
+            <div className={`rounded-xl border p-4 ${cardBg} xl:col-span-1`}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-base">🔍</span>
+                <span className={`text-[11px] font-bold uppercase tracking-wider ${mutedTxt}`}>Scan Breakdown</span>
+              </div>
+              <div className="space-y-1.5 mt-1">
+                {[
+                  { label: "Bill / Invoice", val: active.geminiInvoice ?? 0, color: "#8b5cf6" },
+                  { label: "PDF Extract",    val: active.geminiPdf      ?? 0, color: "#06b6d4" },
+                  { label: "Timesheet",      val: active.geminiTimesheet ?? 0, color: "#10b981" },
+                  { label: "Email scan",     val: active.geminiEmail    ?? 0, color: "#f59e0b" },
+                ].map(({ label, val, color }) => (
+                  <div key={label} className="flex items-center justify-between gap-2">
+                    <span className={`text-[10px] ${mutedTxt} truncate`}>{label}</span>
+                    <span
+                      className="text-[11px] font-bold tabular-nums min-w-[18px] text-right"
+                      style={{ color: val > 0 ? color : undefined }}
+                    >
+                      {val}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
           </div>
         )}
 

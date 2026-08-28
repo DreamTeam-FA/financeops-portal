@@ -6,6 +6,7 @@
  */
 import React, { useState, useRef, useCallback } from "react";
 import { ScanLine, Loader2, AlertCircle, X } from "lucide-react";
+import { bumpGeminiCounter } from "../utils/geminiCounter";
 
 type ScanType = "invoice" | "timesheet";
 
@@ -57,6 +58,7 @@ export const ScanToFill: React.FC<Props> = ({ type, isLight, onFill, resetKey })
           setError(json.error || "Scan failed — try again");
         } else {
           const data = type === "invoice" ? json.invoice : json.timesheet;
+          bumpGeminiCounter(type === "invoice" ? "invoice" : "timesheet");
           onFill(data, file); // ← pass the original file too
           setDone(true);
           setState("idle");

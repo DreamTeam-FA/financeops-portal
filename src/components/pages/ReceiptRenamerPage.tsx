@@ -13,6 +13,7 @@ import {
   type CustomVendorEntry,
 } from "../../utils/receiptParser";
 import { getAccessToken } from "../../services/googleAuth";
+import { bumpGeminiCounter } from "../../utils/geminiCounter";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.mjs",
@@ -173,6 +174,7 @@ async function tryGeminiScan(file: File): Promise<GeminiResult | null> {
     if (!resp.ok) return null;
     const json = await resp.json();
     if (!json.ok || !json.invoice) return null;
+    bumpGeminiCounter("invoice");
     const inv    = json.invoice as Record<string, any>;
     const vendor = (typeof inv.vendor === "string" && inv.vendor.trim()) ? inv.vendor.trim() : null;
     let date: Date | null = null;

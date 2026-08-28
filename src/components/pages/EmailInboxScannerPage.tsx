@@ -1,5 +1,6 @@
 ﻿import React, { useState, useCallback, useEffect } from "react";
 import { useFinance } from "../../context/FinanceContext";
+import { bumpGeminiCounter } from "../../utils/geminiCounter";
 import firebaseConfig from "../../../firebase-applet-config.json";
 import {
   Mail, Search, Loader2, AlertTriangle, CheckCircle2,
@@ -665,7 +666,7 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
       });
       const scanJson = await scanResp.json();
       if (!scanResp.ok) throw new Error(scanJson.error || "Scan failed");
-
+      bumpGeminiCounter("email");
       // Server returns { ok: true, invoice: { vendor, invoiceNo, ... } }
       const inv = scanJson.invoice || scanJson;
 

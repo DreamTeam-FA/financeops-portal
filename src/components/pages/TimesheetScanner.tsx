@@ -5,6 +5,7 @@
  */
 import React, { useState, useRef, useCallback } from "react";
 import { Upload, ScanLine, Loader2, CheckCircle2, AlertCircle, X, RefreshCw, Save, FileStack } from "lucide-react";
+import { bumpGeminiCounter } from "../../utils/geminiCounter";
 
 interface TimesheetDay {
   dayOfWeek: string;
@@ -74,6 +75,7 @@ export const TimesheetScanner: React.FC<Props> = ({ isLight }) => {
           if (!resp.ok || !json.ok) {
             resolve({ result: null, error: json.error || "Scan failed" });
           } else {
+            bumpGeminiCounter("timesheet");
             resolve({ result: json.timesheet, error: null });
           }
         } catch (err: any) {

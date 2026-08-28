@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef } from "react";
 import { useFinance } from "../../context/FinanceContext";
+import { bumpGeminiCounter } from "../../utils/geminiCounter";
 import {
   ChevronLeft, Upload, FileText, Download, CheckCircle2,
   AlertTriangle, Loader2, Trash2, Table2, X, Search,
@@ -58,7 +59,7 @@ async function extractFromServer(file: File, mode: ExtractMode): Promise<DataSec
   });
   const json = await resp.json();
   if (!resp.ok || !json.ok) throw new Error(json.error || "Extraction failed");
-
+  bumpGeminiCounter("pdf");
   return (json.sections as any[]).map((s: any): DataSection => {
     const headers: string[] = Array.isArray(s.headers) ? s.headers.map(String) : ["Content"];
     const rows: Record<string, string>[] = Array.isArray(s.rows)
