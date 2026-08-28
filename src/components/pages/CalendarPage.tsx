@@ -508,7 +508,7 @@ export const CalendarPage: React.FC = () => {
   } = {};
 
   // Local Events & Schedules from Calendar Dashboard sheet
-  if (showNotesFilter && calendarLocalEvents) {
+  if (showTasksFilter && calendarLocalEvents) {
     calendarLocalEvents.forEach((ev) => {
       if (ev.id && deletedEventIds.has(ev.id)) return; // suppressed this session
       const key = normalizeDateToYYYYMMDD(ev.date);
