@@ -2908,6 +2908,73 @@ app.get("/api/workflows", async (req, res) => {
   }
 });
 
+// ── Integration self-test endpoint ───────────────────────────────────────────
+// Called by the portal UI button and by tests/integration/portal.test.ts.
+// Runs a quick series of checks against the server's own stored data.
+// No auth required — it only reads in-memory state.
+app.get("/api/integration-test", (_req, res) => {
+  const data = getStoredData();
+  const ap: any[]    = data.ap    || [];
+  const banks: any[] = data.banks || [];
+  const loans: any[] = data.loans || [];
+  const ar: any[]    = data.ar    || [];
+
+  const checks = [
+    {
+      name:   "Server data loaded",
+      ok:     typeof data === "object" && data !== null,
+      detail: "Server JSON is accessible",
+    },
+    {
+      name:   "AP Bills — at least 1 bill",
+      ok:     ap.length >= 1,
+      detail: `${ap.length} bills found`,
+    },
+    {
+      name:   "AP Bills — multiple entities",
+      ok:     new Set(ap.map((b: any) => b.entity).filter(Boolean)).size >= 2,
+      detail: `Entities: ${[...new Set(ap.map((b: any) => b.entity).filter(Boolean))].join(", ") || "none"}`,
+    },
+    {
+      name:   "AP Bills — required fields (vendor, amount)",
+      ok:     ap.length === 0 || ap.slice(0, 5).every((b: any) => (b.vendor || b.id) && (b.amount !== undefined || b.total !== undefined)),
+      detail: ap.length > 0 ? `Checked first ${Math.min(5, ap.length)} bills` : "No bills to check",
+    },
+    {
+      name:   "Bank accounts loaded",
+      ok:     banks.length >= 1,
+      detail: `${banks.length} accounts`,
+    },
+    {
+      name:   "Loans loaded",
+      ok:     loans.length >= 1,
+      detail: `${loans.length} loans`,
+    },
+    {
+      name:   "AR items loaded",
+      ok:     ar.length >= 1,
+      detail: `${ar.length} AR items`,
+    },
+    {
+      name:   "Last sync timestamp present",
+      ok:     !!data.lastSyncedAt,
+      detail: data.lastSyncedAt ? `Last sync: ${data.lastSyncedAt}` : "Never synced",
+    },
+  ];
+
+  const passed = checks.filter(c => c.ok).length;
+  const failed = checks.filter(c => !c.ok).length;
+
+  res.json({
+    ok:         failed === 0,
+    passed,
+    failed,
+    total:      checks.length,
+    checks,
+    runAt:      new Date().toISOString(),
+  });
+});
+
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

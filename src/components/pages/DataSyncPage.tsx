@@ -29,6 +29,9 @@ import {
   Eye,
   EyeOff,
   FolderSearch,
+  FlaskConical,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 import { SheetMappingConfig } from "../../types";
 import { emailPasswordSignIn } from "../../services/googleAuth";
@@ -109,6 +112,29 @@ export const DataSyncPage: React.FC = () => {
   const [confirmShowPw, setConfirmShowPw] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [confirmVerifying, setConfirmVerifying] = useState(false);
+
+  // ── Integration Test state ───────────────────────────────────────────────────
+  type TestCheck = { name: string; ok: boolean; detail: string };
+  type TestResult = { ok: boolean; passed: number; failed: number; total: number; checks: TestCheck[]; runAt: string } | null;
+  const [testRunning, setTestRunning]   = useState(false);
+  const [testResult, setTestResult]     = useState<TestResult>(null);
+  const [testError, setTestError]       = useState<string | null>(null);
+
+  const runIntegrationTest = useCallback(async () => {
+    setTestRunning(true);
+    setTestResult(null);
+    setTestError(null);
+    try {
+      const res = await fetch("/api/integration-test");
+      if (!res.ok) throw new Error(`Server returned HTTP ${res.status}`);
+      const data: TestResult = await res.json();
+      setTestResult(data);
+    } catch (e: any) {
+      setTestError(e?.message || "Unknown error");
+    } finally {
+      setTestRunning(false);
+    }
+  }, []);
 
   // ── Bill Copy Recovery state ─────────────────────────────────────────────────
   const [recoveringBills, setRecoveringBills] = useState(false);
@@ -1041,6 +1067,76 @@ export const DataSyncPage: React.FC = () => {
               <RefreshCw className="w-4 h-4" /> Apply & Update Portal
             </button>
           </div>
+        </div>
+
+        {/* ── Integration Test ─────────────────────────────────────────────── */}
+        <div className={`rounded-xl border p-5 space-y-4 ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"}`}>
+          <div className="flex items-center gap-2">
+            <FlaskConical className={`w-4 h-4 ${isLight ? "text-violet-600" : "text-violet-400"}`} />
+            <h3 className={`text-sm font-bold ${isLight ? "text-slate-900" : "text-white"}`}>Portal Integration Test</h3>
+            {testResult && (
+              <span className={`ml-auto text-[11px] font-semibold px-2 py-0.5 rounded-full ${testResult.ok ? (isLight ? "bg-emerald-100 text-emerald-700" : "bg-emerald-900/40 text-emerald-400") : (isLight ? "bg-red-100 text-red-700" : "bg-red-900/40 text-red-400")}`}>
+                {testResult.ok ? `All ${testResult.total} checks passed` : `${testResult.failed} of ${testResult.total} failed`}
+              </span>
+            )}
+          </div>
+          <p className={`text-[12px] ${isLight ? "text-slate-500" : "text-[#888]"}`}>
+            Runs a quick health check against the live server: data loaded, AP bills present, banks, loans, AR items, and sync timestamp.
+            No OAuth required — uses the server's cached token.
+          </p>
+
+          <button
+            onClick={runIntegrationTest}
+            disabled={testRunning}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-semibold transition-colors disabled:opacity-50 ${
+              isLight
+                ? "bg-violet-600 hover:bg-violet-700 text-white"
+                : "bg-violet-700 hover:bg-violet-600 text-white"
+            }`}
+          >
+            {testRunning
+              ? <><Loader2 className="w-4 h-4 animate-spin" /> Running tests…</>
+              : <><FlaskConical className="w-4 h-4" /> Run Integration Test</>
+            }
+          </button>
+
+          {testError && (
+            <div className={`rounded-lg px-4 py-3 text-xs flex items-start gap-2 ${isLight ? "bg-red-50 border border-red-200 text-red-700" : "bg-red-900/20 border border-red-700/30 text-red-300"}`}>
+              <XCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>Test runner failed: {testError}</span>
+            </div>
+          )}
+
+          {testResult && (
+            <div className="space-y-2">
+              {testResult.checks.map((check, i) => (
+                <div
+                  key={i}
+                  className={`flex items-start gap-2.5 rounded-lg px-3 py-2.5 text-[12px] ${
+                    check.ok
+                      ? (isLight ? "bg-emerald-50 border border-emerald-200" : "bg-emerald-900/10 border border-emerald-700/20")
+                      : (isLight ? "bg-red-50 border border-red-200" : "bg-red-900/15 border border-red-700/30")
+                  }`}
+                >
+                  {check.ok
+                    ? <CheckCircle className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${isLight ? "text-emerald-600" : "text-emerald-400"}`} />
+                    : <XCircle    className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${isLight ? "text-red-500" : "text-red-400"}`} />
+                  }
+                  <div className="flex-1 min-w-0">
+                    <span className={`font-semibold ${check.ok ? (isLight ? "text-slate-800" : "text-slate-200") : (isLight ? "text-red-700" : "text-red-300")}`}>
+                      {check.name}
+                    </span>
+                    {check.detail && (
+                      <span className={`ml-2 ${isLight ? "text-slate-500" : "text-[#888]"}`}>{check.detail}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+              <p className={`text-[11px] pt-1 ${isLight ? "text-slate-400" : "text-[#555]"}`}>
+                Run at {new Date(testResult.runAt).toLocaleString()}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* ── Sheet Continuity ─────────────────────────────────────────────── */}
