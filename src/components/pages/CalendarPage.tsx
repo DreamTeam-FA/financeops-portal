@@ -1519,22 +1519,30 @@ export const CalendarPage: React.FC = () => {
           : selectedEvent.type === "google" ? "Calendar Event"
           : selectedEvent.type === "loan" ? "Loan" : selectedEvent.type === "ar" ? "AR" : selectedEvent.type === "payroll" ? "Payroll" : "";
         const typeIcon = selectedEvent.category === "meeting" ? "🤝" : selectedEvent.category === "task" || selectedEvent.type === "task" ? "✅" : selectedEvent.category === "event" ? "📅" : selectedEvent.type === "google" ? "🗓️" : "";
-        const evColor = getEventHexColor(selectedEvent.type, selectedEvent.category, selectedEvent.urgency);
+        // Use urgency-level accent color for theming the modal (when event has urgency)
+        const urgencyKey = (selectedEvent.urgency || "normal") as "critical"|"high"|"normal"|"low";
+        const evColor = (selectedEvent.urgency && URGENCY_ACCENT[urgencyKey])
+          ? URGENCY_ACCENT[urgencyKey].hex
+          : getEventHexColor(selectedEvent.type, selectedEvent.category, selectedEvent.urgency);
         return (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className={`${isLight ? "bg-white text-slate-900" : "bg-[#20242E] text-white"} rounded-xl w-full shadow-[0_20px_60px_rgba(0,0,0,0.22)] overflow-hidden max-w-[440px] mx-auto my-auto`}>
+          <div
+            className={`${isLight ? "bg-white text-slate-900" : "bg-[#20242E] text-white"} rounded-2xl w-full overflow-hidden max-w-[440px] mx-auto my-auto transition-all duration-300`}
+            style={{ border: `1px solid ${evColor}40`, boxShadow: `0 0 0 1px ${evColor}18, 0 24px 64px rgba(0,0,0,.35)` }}
+          >
+            {/* Top accent bar — urgency color */}
+            <div className="h-1.5 w-full transition-colors duration-300" style={{ background: evColor }} />
 
             {/* Header */}
-            <div className="px-5 pt-[18px] pr-5 pb-[14px] border-b-4 relative"
-              style={{ borderBottomColor: evColor }}>
+            <div className="px-5 pt-4 pb-3 relative">
               {/* Close */}
               <button
                 onClick={() => { setSelectedEvent(null); setIsEditingEvent(false); setShowUrgencyPicker(false); }}
-                className={`absolute top-3 right-3.5 text-xl leading-none rounded p-1 transition-colors ${isLight ? "text-slate-400 hover:bg-slate-100" : "text-slate-500 hover:bg-white/10"}`}>
+                className={`absolute top-3.5 right-4 w-7 h-7 flex items-center justify-center rounded-lg text-base transition-colors ${isLight ? "text-slate-400 hover:bg-slate-100 hover:text-slate-600" : "text-slate-500 hover:bg-white/10 hover:text-slate-300"}`}>
                 ×
               </button>
-              {/* Cal tag */}
-              <div className="text-[10px] font-extrabold uppercase tracking-widest mb-1.5" style={{ color: evColor }}>
+              {/* Source label */}
+              <div className="text-[10px] font-bold uppercase tracking-widest mb-1.5 opacity-70" style={{ color: evColor }}>
                 {sourceLabel}
               </div>
               {/* Title */}
@@ -1551,62 +1559,61 @@ export const CalendarPage: React.FC = () => {
                   />
                 </div>
               ) : (
-                <h3 className={`text-[18px] font-extrabold leading-snug pr-6 ${selectedEvent.done ? "line-through opacity-60" : ""}`}>
+                <h3 className={`text-[17px] font-bold leading-snug pr-7 ${selectedEvent.done ? "line-through opacity-50" : ""}`}>
                   {displayTitle}
                 </h3>
               )}
             </div>
 
+            {/* Divider */}
+            <div className={`mx-5 border-t ${isLight ? "border-slate-100" : "border-white/8"}`} />
+
             {/* Body rows */}
-            <div className="px-5 pt-4 pb-5 flex flex-col gap-3">
+            <div className="px-5 pt-4 pb-4 flex flex-col gap-3">
               {!isEditingEvent ? (
-                <div className={`flex flex-col gap-3 text-[13px] ${isLight ? "text-slate-600" : "text-slate-300"}`}>
+                <div className={`flex flex-col gap-2.5 text-[13px] ${isLight ? "text-slate-600" : "text-slate-300"}`}>
                   {/* Date / time */}
-                  <div className="flex gap-2.5 items-start">
-                    <span className="w-[18px] text-center shrink-0 opacity-55 mt-px">🕐</span>
+                  <div className="flex gap-2.5 items-center">
+                    <span className="w-[18px] text-center shrink-0 opacity-50">🕐</span>
                     <span>
                       {new Date(selectedEvent.date + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "long", day: "numeric" })}
                       {selectedEvent.time && (
-                        <span className="ml-1 font-mono font-semibold">
+                        <span className="ml-1.5 font-mono font-semibold text-[12px]">
                           {to12h(selectedEvent.time)}
                           {selectedEvent.endTime && ` – ${to12h(selectedEvent.endTime)}`}
                         </span>
                       )}
                     </span>
                   </div>
-                  {/* Entity / source */}
-                  {selectedEvent.entity && (
-                    <div className="flex gap-2.5 items-start">
-                      <span className="w-[18px] text-center shrink-0 opacity-55 mt-px">📁</span>
-                      <span>{selectedEvent.entity}</span>
-                    </div>
-                  )}
                   {/* Type */}
                   {typeLabel && (
-                    <div className="flex gap-2.5 items-start">
-                      <span className="w-[18px] text-center shrink-0 opacity-55 mt-px">{typeIcon || "📅"}</span>
+                    <div className="flex gap-2.5 items-center">
+                      <span className="w-[18px] text-center shrink-0 opacity-50">{typeIcon || "📅"}</span>
                       <span>{typeLabel}</span>
                     </div>
                   )}
-                  {/* Urgency */}
-                  {selectedEvent.urgency && urgencyDisplay(selectedEvent.urgency) && (
-                    <div className="flex gap-2.5 items-start">
-                      <span className="w-[18px] text-center shrink-0 opacity-55 mt-px">⚡</span>
-                      <span className="font-semibold">{urgencyDisplay(selectedEvent.urgency)}</span>
+                  {/* Urgency — colored pill */}
+                  {selectedEvent.urgency && (
+                    <div className="flex gap-2.5 items-center">
+                      <span className="w-[18px] text-center shrink-0 opacity-50">⚡</span>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-extrabold capitalize border ${URGENCY_PILL[urgencyKey].inactive}`}>
+                        <span className={`text-[8px] mr-1 ${URGENCY_PILL[urgencyKey].dot}`}>●</span>
+                        {urgencyKey.charAt(0).toUpperCase() + urgencyKey.slice(1)}
+                      </span>
                     </div>
                   )}
                   {/* Assignee */}
                   {selectedEvent.assignee && (
-                    <div className="flex gap-2.5 items-start">
-                      <span className="w-[18px] text-center shrink-0 opacity-55 mt-px">👤</span>
+                    <div className="flex gap-2.5 items-center">
+                      <span className="w-[18px] text-center shrink-0 opacity-50">👤</span>
                       <span>{selectedEvent.assignee}</span>
                     </div>
                   )}
                   {/* Description */}
                   {selectedEvent.description && (
-                    <div className="flex gap-2.5 items-start min-w-0">
-                      <span className="w-[18px] text-center shrink-0 opacity-55 mt-px">📝</span>
-                      <span className={`text-[13px] leading-relaxed whitespace-pre-wrap break-all overflow-hidden min-w-0 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                    <div className="flex gap-2.5 items-start min-w-0 mt-0.5">
+                      <span className="w-[18px] text-center shrink-0 opacity-50 mt-px">📝</span>
+                      <span className={`text-[12.5px] leading-relaxed whitespace-pre-wrap break-all overflow-hidden min-w-0 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
                         {selectedEvent.description}
                       </span>
                     </div>
