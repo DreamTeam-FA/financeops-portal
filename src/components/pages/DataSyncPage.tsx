@@ -270,7 +270,7 @@ export const DataSyncPage: React.FC = () => {
   const [newMappingModule, setNewMappingModule] = useState<SheetMappingConfig["module"]>("ap");
   const [newMappingUrl, setNewMappingUrl] = useState("");
   const [newMappingTab, setNewMappingTab] = useState("");
-  const [newMappingRange, setNewMappingRange] = useState("A:Z");
+  const [newMappingRange, setNewMappingRange] = useState("");
 
   // New External Link modal state
   const [showAddLinkModal, setShowAddLinkModal] = useState(false);
