@@ -136,6 +136,7 @@ export function FourYrPayrollPage() {
   const [loading,       setLoading]       = useState(false);
   const [dataLoaded,    setDataLoaded]    = useState(false);
   const [ssMenuOpen,    setSsMenuOpen]    = useState(false);
+  const [moreMenuOpen,  setMoreMenuOpen]  = useState(false);
   const [ssCapturing,   setSsCapturing]   = useState(false);
   const [weekDropOpen,  setWeekDropOpen]  = useState(false);
   const [collapsed,     setCollapsed]     = useState<Record<string, boolean>>({});
@@ -1318,27 +1319,44 @@ export function FourYrPayrollPage() {
         )}
         {loading && <span className="text-[11px] text-green-200 animate-pulse ml-1">Refreshing…</span>}
 
-        {/* Right side: theme toggle + Open Dashboard link + trademark */}
-        <div className="ml-auto flex items-center gap-2">
-          {/* Light / Dark toggle */}
+        {/* Right side: ··· more menu */}
+        <div className="ml-auto flex items-center gap-2 relative flex-shrink-0">
+          <span className="text-[9px] font-light opacity-40 tracking-wide text-white">® Made by Finance Team</span>
           <button
-            onClick={toggleTheme}
-            title={isLight ? "Switch to dark mode" : "Switch to light mode"}
-            className="flex items-center justify-center w-8 h-8 rounded-full transition-all"
+            onClick={() => setMoreMenuOpen(o => !o)}
+            className="flex items-center gap-1 px-2.5 h-8 rounded font-bold text-white text-xs transition-all"
             style={{ background:"rgba(255,255,255,.15)", border:"1px solid rgba(255,255,255,.3)" }}>
-            {isLight
-              ? <Moon className="w-3.5 h-3.5 text-white" />
-              : <Sun  className="w-3.5 h-3.5 text-amber-300" />}
+            <span className="tracking-widest">···</span>
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" className="opacity-70">
+              <path d={moreMenuOpen ? "M1 7l4-4 4 4" : "M1 3l4 4 4-4"} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+            </svg>
           </button>
-          <div className="flex flex-col items-end gap-0.5">
-            <a href="https://docs.google.com/spreadsheets/d/1SITtQDT3iFo5yIOBgjbERbqJjYJ8rk6drXwkLm3sAGE/edit#gid=1484569924"
-              target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1 rounded text-[11px] font-semibold text-white no-underline transition-all"
-              style={{ background:"rgba(255,255,255,.18)", border:"1px solid rgba(255,255,255,.3)", height:28 }}>
-              Open Source Sheet ↗
-            </a>
-            <span className="text-[9px] font-light opacity-50 tracking-wide text-white pr-0.5">® Made by Finance Team</span>
-          </div>
+          {moreMenuOpen && (
+            <>
+              <div className="fixed inset-0 z-[590]" onClick={() => setMoreMenuOpen(false)} />
+              <div className="absolute top-full right-0 mt-1 z-[600] rounded-xl overflow-hidden"
+                style={{ background:"#fff", border:"1px solid #e4e8f0", boxShadow:"0 4px 20px rgba(0,0,0,.15)", minWidth:190 }}>
+                <button
+                  onClick={() => { toggleTheme(); setMoreMenuOpen(false); }}
+                  className="flex items-center gap-2.5 w-full px-4 py-2.5 text-xs text-left transition-colors hover:bg-slate-50">
+                  {isLight
+                    ? <Moon className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                    : <Sun  className="w-3.5 h-3.5 text-amber-500 shrink-0" />}
+                  <span className="text-slate-700 font-medium">{isLight ? "Switch to Dark Mode" : "Switch to Light Mode"}</span>
+                </button>
+                <div style={{ borderTop:"1px solid #f0f2f5" }} />
+                <a href="https://docs.google.com/spreadsheets/d/1SITtQDT3iFo5yIOBgjbERbqJjYJ8rk6drXwkLm3sAGE/edit#gid=1484569924"
+                  target="_blank" rel="noopener noreferrer"
+                  onClick={() => setMoreMenuOpen(false)}
+                  className="flex items-center gap-2.5 w-full px-4 py-2.5 text-xs no-underline transition-colors hover:bg-slate-50">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+                  </svg>
+                  <span className="text-slate-700 font-medium">Open Source Sheet</span>
+                </a>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
