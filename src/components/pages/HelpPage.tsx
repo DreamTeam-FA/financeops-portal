@@ -121,6 +121,10 @@ const FAQ = [
     q: "Are GAS dashboard URLs (CurcuminPRO, Ziglar, 4YR, MSDx) shared across all users?",
     a: "Yes, as of the latest update. GAS dashboard URL changes are written to the shared '_config' tab in the portal logs sheet, so all users on all devices see the same URLs immediately. Previously, URL changes were stored only on the Render server (lost on deploy) and in browser localStorage (device-specific).",
   },
+  {
+    q: "What does the Integration Test check?",
+    a: "The Portal Integration Test (⚙️ → Settings & Data Sync → 'Run Integration Test') runs 8 server-side checks in real time: (1) server data is loaded, (2) AP bills exist, (3) AP bills span multiple entities, (4) bills have required fields, (5) bank accounts loaded, (6) loans loaded, (7) AR items loaded, (8) last sync timestamp present. Each check shows a green ✅ or red ✗ with a detail note. No OAuth token required — the server checks its own cached data. Use this after a deploy or after making config changes to confirm everything loaded correctly.",
+  },
 ];
 
 /* ── How-To data ──────────────────────────────────────────────────────── */
@@ -248,6 +252,18 @@ const HOWTOS = [
       "Click the action button on any finding to navigate directly to the affected page.",
       "Click 'Dismiss for 2 days' to close the modal — the next audit will run 48 hours later.",
       "The audit checks: AP overdue >60 days, negative bank balances, past-due loans, AR overdue >90 days, recent sync errors, data freshness, and large AP backlogs.",
+    ],
+  },
+  {
+    title: "Run the Integration Test",
+    steps: [
+      "Go to ⚙️ → Settings & Data Sync.",
+      "Scroll to the 'Portal Integration Test' section (violet, above Sheet Continuity).",
+      "Click 'Run Integration Test' — the server checks its live data and returns results in a few seconds.",
+      "Each check shows green ✅ (pass) or red ✗ (fail) with a detail note (e.g. '375 bills found').",
+      "A summary pill in the section header shows 'All 8 checks passed' or how many failed.",
+      "Run this after every deploy, after switching Google Sheets, or any time you suspect data didn't load.",
+      "You can also double-click run-tests.bat (in the project root) from Windows Explorer to run the full Vitest suite against the Render URL from your machine.",
     ],
   },
   {
