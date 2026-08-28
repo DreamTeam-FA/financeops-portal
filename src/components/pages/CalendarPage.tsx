@@ -59,6 +59,81 @@ function readCalendarOverrides(): { done: Record<string, boolean>; deleted: stri
   }
 }
 
+// Extracted edit-form body so we avoid an IIFE inside JSX ternary (invalid in esbuild/vite)
+const EditFormBody: React.FC<{
+  editDate: string; setEditDate: (v: string) => void;
+  editTime: string; setEditTime: (v: string) => void;
+  editCategory: "event"|"task"|"meeting"; setEditCategory: (v: "event"|"task"|"meeting") => void;
+  editUrgency: "critical"|"high"|"normal"|"low"; setEditUrgency: (v: "critical"|"high"|"normal"|"low") => void;
+  editAssignee: string; setEditAssignee: (v: string) => void;
+  editDesc: string; setEditDesc: (v: string) => void;
+  assignees: { id: string; name: string; color: string }[];
+  isLight: boolean;
+  accentHex: string;
+  urgencyPill: Record<"critical"|"high"|"normal"|"low", { dot: string; active: string; inactive: string }>;
+}> = ({ editDate, setEditDate, editTime, setEditTime, editCategory, setEditCategory, editUrgency, setEditUrgency, editAssignee, setEditAssignee, editDesc, setEditDesc, assignees, isLight, accentHex, urgencyPill }) => {
+  const inputCls = `w-full rounded-lg px-2.5 py-2 border-[1.5px] text-[13px] transition-colors focus:outline-none ${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#2a2f3e] border-[#3a3f50] text-white"}`;
+  const onFocus = (e: React.FocusEvent<HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement>) => { e.target.style.borderColor = accentHex; };
+  const onBlur  = (e: React.FocusEvent<HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement>) => { e.target.style.borderColor = ""; };
+  const lbl = `block text-[11px] font-bold mb-1 ${isLight ? "text-slate-500" : "text-slate-400"}`;
+  return (
+    <div className="flex flex-col gap-3 text-xs">
+      {/* Date + Time */}
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className={lbl}>Date</label>
+          <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)} className={inputCls} onFocus={onFocus} onBlur={onBlur} />
+        </div>
+        <div>
+          <label className={lbl}>Time</label>
+          <input type="time" value={editTime} onChange={e => setEditTime(e.target.value)} className={inputCls} onFocus={onFocus} onBlur={onBlur} />
+        </div>
+      </div>
+      {/* Category — full width */}
+      <div>
+        <label className={lbl}>Category</label>
+        <select value={editCategory} onChange={e => setEditCategory(e.target.value as any)} className={inputCls} onFocus={onFocus} onBlur={onBlur}>
+          <option value="task">✅ Task</option>
+          <option value="event">📅 Event</option>
+          <option value="meeting">🤝 Meeting</option>
+        </select>
+      </div>
+      {/* Urgency — full-width 4-pill row */}
+      <div>
+        <label className={lbl}>Urgency Level</label>
+        <div className="grid grid-cols-4 gap-1.5">
+          {(["critical", "high", "normal", "low"] as const).map((urg) => {
+            const p = urgencyPill[urg];
+            const isSel = editUrgency === urg;
+            return (
+              <button key={urg} type="button" onClick={() => setEditUrgency(urg)}
+                className={`py-1.5 rounded-full border text-[11px] font-extrabold capitalize transition-all flex items-center justify-center gap-1 ${isSel ? p.active : p.inactive}`}>
+                <span className={`text-[8px] leading-none ${isSel ? "text-white" : p.dot}`}>●</span>
+                {urg.charAt(0).toUpperCase() + urg.slice(1)}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {/* Assignee */}
+      <div>
+        <label className={lbl}>Assignee</label>
+        <select value={editAssignee} onChange={e => setEditAssignee(e.target.value)} className={inputCls} onFocus={onFocus} onBlur={onBlur}>
+          <option value="">— Unassigned —</option>
+          {assignees.map(a => <option key={a.id} value={a.name}>{a.name}</option>)}
+        </select>
+      </div>
+      {/* Notes */}
+      <div>
+        <label className={lbl}>Notes / Description</label>
+        <textarea value={editDesc} onChange={e => setEditDesc(e.target.value)} rows={3}
+          className={`${inputCls} resize-vertical`} placeholder="Add notes..."
+          onFocus={onFocus as any} onBlur={onBlur as any} />
+      </div>
+    </div>
+  );
+};
+
 export const CalendarPage: React.FC = () => {
   const {
     apBills,
@@ -1533,74 +1608,18 @@ export const CalendarPage: React.FC = () => {
                 </div>
               ) : (
                 /* Edit form */
-                {(() => {
-                  const ea = URGENCY_ACCENT[editUrgency];
-                  const inputCls = `w-full rounded-lg px-2.5 py-2 border-[1.5px] text-[13px] transition-colors focus:outline-none ${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#2a2f3e] border-[#3a3f50] text-white"}`;
-                  const onFocus = (e: React.FocusEvent<HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement>) => { e.target.style.borderColor = ea.hex; };
-                  const onBlur  = (e: React.FocusEvent<HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement>) => { e.target.style.borderColor = ""; };
-                  const lbl = `block text-[11px] font-bold mb-1 ${isLight ? "text-slate-500" : "text-slate-400"}`;
-                  return (
-                <div className="flex flex-col gap-3 text-xs">
-                  {/* Date + Time */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className={lbl}>Date</label>
-                      <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)}
-                        className={inputCls} onFocus={onFocus} onBlur={onBlur} />
-                    </div>
-                    <div>
-                      <label className={lbl}>Time</label>
-                      <input type="time" value={editTime} onChange={e => setEditTime(e.target.value)}
-                        className={inputCls} onFocus={onFocus} onBlur={onBlur} />
-                    </div>
-                  </div>
-                  {/* Category — full width */}
-                  <div>
-                    <label className={lbl}>Category</label>
-                    <select value={editCategory} onChange={e => setEditCategory(e.target.value as any)}
-                      className={inputCls} onFocus={onFocus} onBlur={onBlur}>
-                      <option value="task">✅ Task</option>
-                      <option value="event">📅 Event</option>
-                      <option value="meeting">🤝 Meeting</option>
-                    </select>
-                  </div>
-                  {/* Urgency — full-width 4-pill row */}
-                  <div>
-                    <label className={lbl}>Urgency Level</label>
-                    <div className="grid grid-cols-4 gap-1.5">
-                      {(["critical", "high", "normal", "low"] as const).map((urg) => {
-                        const p = URGENCY_PILL[urg];
-                        const isSel = editUrgency === urg;
-                        return (
-                          <button key={urg} type="button" onClick={() => setEditUrgency(urg)}
-                            className={`py-1.5 rounded-full border text-[11px] font-extrabold capitalize transition-all flex items-center justify-center gap-1 ${isSel ? p.active : p.inactive}`}>
-                            <span className={`text-[8px] leading-none ${isSel ? "text-white" : p.dot}`}>●</span>
-                            {urg.charAt(0).toUpperCase() + urg.slice(1)}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  {/* Assignee */}
-                  <div>
-                    <label className={lbl}>Assignee</label>
-                    <select value={editAssignee} onChange={e => setEditAssignee(e.target.value)}
-                      className={inputCls} onFocus={onFocus} onBlur={onBlur}>
-                      <option value="">— Unassigned —</option>
-                      {assignees.map(a => <option key={a.id} value={a.name}>{a.name}</option>)}
-                    </select>
-                  </div>
-                  {/* Notes */}
-                  <div>
-                    <label className={lbl}>Notes / Description</label>
-                    <textarea value={editDesc} onChange={e => setEditDesc(e.target.value)} rows={3}
-                      className={`${inputCls} resize-vertical`}
-                      placeholder="Add notes..."
-                      onFocus={onFocus as any} onBlur={onBlur as any} />
-                  </div>
-                </div>
-                  );
-                })()}
+                <EditFormBody
+                  editDate={editDate} setEditDate={setEditDate}
+                  editTime={editTime} setEditTime={setEditTime}
+                  editCategory={editCategory} setEditCategory={setEditCategory}
+                  editUrgency={editUrgency} setEditUrgency={setEditUrgency}
+                  editAssignee={editAssignee} setEditAssignee={setEditAssignee}
+                  editDesc={editDesc} setEditDesc={setEditDesc}
+                  assignees={assignees}
+                  isLight={isLight}
+                  accentHex={URGENCY_ACCENT[editUrgency].hex}
+                  urgencyPill={URGENCY_PILL}
+                />
               )}
             </div>
 
