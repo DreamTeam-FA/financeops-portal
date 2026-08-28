@@ -1319,8 +1319,36 @@ export function FourYrPayrollPage() {
         )}
         {loading && <span className="text-[11px] text-green-200 animate-pulse ml-1">Refreshing…</span>}
 
-        {/* Right side: ··· more menu */}
+        {/* Right side: Refresh + Screenshot + ··· more menu */}
         <div className="ml-auto flex items-center gap-2 relative flex-shrink-0">
+          {/* Refresh */}
+          <button onClick={() => { lastKeyRef.current = ""; doLoad(); }} disabled={loading}
+            className="flex items-center justify-center w-8 h-8 rounded transition-all"
+            style={{ background:"rgba(255,255,255,.15)", border:"1px solid rgba(255,255,255,.3)", fontSize:16, opacity: loading ? 0.6 : 1 }}
+            title="Refresh data from Google Sheets">
+            {loading ? "⏳" : "🔄"}
+          </button>
+          {/* Screenshot — with dropdown */}
+          <div className="relative flex-shrink-0">
+            <button onClick={() => setSsMenuOpen(o=>!o)}
+              className="flex items-center justify-center w-8 h-8 rounded transition-all"
+              style={{ background:"rgba(255,255,255,.15)", border:"1px solid rgba(255,255,255,.3)", fontSize:16 }}
+              title="Take screenshot">
+              {ssCapturing ? "⏳" : "📷"}
+            </button>
+            {ssMenuOpen && (
+              <div className="absolute top-full right-0 mt-1 rounded-xl overflow-hidden z-[600]"
+                style={{ background:"#fff", border:"1px solid #e4e8f0", boxShadow:"0 4px 18px rgba(0,0,0,.15)", minWidth:170 }}>
+                <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide" style={{ color:"#b0b8c9" }}>Screenshot</div>
+                {[["visible","🖥 Visible Area"],["full","📄 Full Content"]].map(([m,l]) => (
+                  <div key={m} className="flex items-center gap-2.5 px-3 py-2 text-xs cursor-pointer transition-all hover:bg-slate-50"
+                    style={{ color:"#333" }} onClick={() => takeScreenshot(m as any)}>
+                    {l}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           <span className="text-[9px] font-light opacity-40 tracking-wide text-white">® Made by Finance Team</span>
           <button
             onClick={() => setMoreMenuOpen(o => !o)}
@@ -1484,37 +1512,8 @@ export function FourYrPayrollPage() {
           </div>
         </div>
 
-        {/* Right-side action cluster: Refresh + Screenshot + Add + Delete */}
+        {/* Right-side action cluster: Add + Delete */}
         <div className="flex items-center gap-2 ml-auto flex-shrink-0">
-          {/* Refresh — icon only */}
-          <button onClick={() => { lastKeyRef.current = ""; doLoad(); }}
-            disabled={loading}
-            className="flex items-center justify-center w-8 h-8 rounded"
-            style={{ background:isLight?"#e3f2fd":"#1a2433", border:`1px solid ${isLight?"#90caf9":"#2e5c8a"}`, color:isLight?"#1565c0":"#90caf9", opacity: loading ? 0.6 : 1, fontSize:16 }}
-            title="Refresh data from Google Sheets">
-            {loading ? "⏳" : "🔄"}
-          </button>
-          {/* Screenshot — icon only, with dropdown */}
-          <div className="relative flex-shrink-0">
-            <button onClick={() => setSsMenuOpen(o=>!o)}
-              className="flex items-center justify-center w-8 h-8 rounded"
-              style={{ background:isLight?"#e8f5e9":"#1a2a1f", border:`1px solid ${isLight?"#8cb89a":"#2e6a3f"}`, color:isLight?"#1a6b36":"#7fd99a", fontSize:16 }}
-              title="Take screenshot">
-              {ssCapturing ? "⏳" : "📷"}
-            </button>
-            {ssMenuOpen && (
-              <div className="absolute top-full right-0 mt-1 rounded-xl overflow-hidden z-[600]"
-                style={{ background:"#fff", border:"1px solid #e4e8f0", boxShadow:"0 4px 18px rgba(26,73,140,.13)", minWidth:170 }}>
-                <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide" style={{ color:"#b0b8c9" }}>Screenshot</div>
-                {[["visible","🖥 Visible Area"],["full","📄 Full Content"]].map(([m,l]) => (
-                  <div key={m} className="flex items-center gap-2.5 px-3 py-2 text-xs cursor-pointer transition-all hover:bg-[#f0f5ff]"
-                    style={{ color:"#333" }} onClick={() => takeScreenshot(m as any)}>
-                    {l}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
           {/* Add Record — with text */}
           <button onClick={openAddModal}
             className="flex items-center gap-1.5 px-4 py-1.5 rounded text-xs font-bold text-white whitespace-nowrap"
