@@ -43,7 +43,7 @@ const FAQ = [
   },
   {
     q: "Can multiple people use the portal at the same time?",
-    a: "Yes, but writes are not real-time collaborative. If two people edit the same bill simultaneously, the last write wins in the sheet. For coordinated edits, use the Activity Log (⚙️ → Portal Logs) to see what was changed and when.",
+    a: "Yes. The portal uses BroadcastChannel to keep browser tabs in sync — when one tab completes a live data pull, all other open tabs on the same machine automatically refresh from the updated cache within seconds. Across different machines, the source of truth is always Google Sheets, so a manual Sync on any machine picks up the latest data. If two people edit the same bill simultaneously, the last write wins in the sheet. Use the Activity Log (⚙️ → Portal Logs) to see what was changed and when.",
   },
   {
     q: "How do I clear the portal cache if something looks wrong?",
@@ -92,6 +92,34 @@ const FAQ = [
   {
     q: "What is the Workspace / Member Workspace?",
     a: "The Workspace is a shared area where team members can upload files directly to Google Drive from inside the portal. Files are organized automatically by category and entity. Members see only their own uploads, while admins can see all uploads across all members. Access it from the Workspace section in the sidebar.",
+  },
+  {
+    q: "Why does the portal paint data instantly before the Google sync finishes?",
+    a: "The portal uses a localStorage cache ('financeops_data_cache_v2') with a 20-minute TTL. On every load it paints your last session's data immediately while the live Google Sheets pull runs in the background. Once the live pull finishes, the display updates automatically. If the live pull fails, a red toast appears with a 'Sync' prompt — your cached data is still shown.",
+  },
+  {
+    q: "What happens if the live data pull fails on startup?",
+    a: "The portal retries once after 3 seconds. If both attempts fail, a red error toast appears at the bottom: 'Live data refresh failed — showing cached data. Click Sync to retry.' Your data from the last successful session is still displayed. Click the Sync button in the Data Sync page or any page header to retry manually.",
+  },
+  {
+    q: "Are my sheet mapping customizations saved if the server restarts?",
+    a: "Yes. Sheet mapping changes are now written to a '_config' tab in the shared FinanceOps Portal Logs Google Sheet (ID: 19ColN3UOnuGbk1CkHtZswxPZf7oj7Zs2pKaqmGlN4m8) in addition to the server. On every startup, the portal reads this config tab so all users — across all devices — see the latest mappings. Render server restarts no longer lose your customizations.",
+  },
+  {
+    q: "What is the Portal Health Audit?",
+    a: "Every 48 hours, the portal automatically runs a background health check after your data loads. It scans for: unpaid bills overdue >60 days, bank accounts with negative balances, loan payments past due, AR overdue >90 days, sync errors, data freshness, and improvement opportunities. Findings appear in a modal sorted by severity (Critical → Warning → Improvement) with a one-click link to the affected page. Dismiss closes it for 48 hours. The next audit timestamp is stored in localStorage.",
+  },
+  {
+    q: "What happens to activity log entries when I'm not connected to Google?",
+    a: "If no OAuth token is available when you take an action, the log entry is queued in localStorage ('financeops_pending_logs', max 50 entries). A subtle amber toast notifies you once every 2 minutes while entries are pending. When you reconnect Google Sheets, the queue is automatically flushed to the shared Activity Log tab in the portal logs sheet — no manual action needed. You can also view the queue size on the Service Limits & Usage page (Pending Log Queue card).",
+  },
+  {
+    q: "How do I monitor browser storage usage?",
+    a: "Go to ⚙️ → Service Limits & Usage. The live metrics cards show: total localStorage used (vs 5MB limit), Drive link cache (count and size of cached bill Drive URLs with a Clear button), and Pending Log Queue (entries waiting to sync). Snapshots are taken every 2 hours when the page is open — compare up to 12 checkpoints to track growth over time.",
+  },
+  {
+    q: "Are GAS dashboard URLs (CurcuminPRO, Ziglar, 4YR, MSDx) shared across all users?",
+    a: "Yes, as of the latest update. GAS dashboard URL changes are written to the shared '_config' tab in the portal logs sheet, so all users on all devices see the same URLs immediately. Previously, URL changes were stored only on the Render server (lost on deploy) and in browser localStorage (device-specific).",
   },
 ];
 
@@ -212,6 +240,36 @@ const HOWTOS = [
       "Use the month and bank filters at the top to search for specific entries.",
     ],
   },
+  {
+    title: "Review the Portal Health Audit",
+    steps: [
+      "The audit modal appears automatically 2.5 seconds after data loads, if 48 hours have passed since the last audit.",
+      "Findings are grouped by severity: 🔴 Critical (needs immediate attention), 🟡 Warning (review soon), 🔵 Improvement (optional optimization).",
+      "Click the action button on any finding to navigate directly to the affected page.",
+      "Click 'Dismiss for 2 days' to close the modal — the next audit will run 48 hours later.",
+      "The audit checks: AP overdue >60 days, negative bank balances, past-due loans, AR overdue >90 days, recent sync errors, data freshness, and large AP backlogs.",
+    ],
+  },
+  {
+    title: "Monitor Storage Usage & Clear Drive Link Cache",
+    steps: [
+      "Go to ⚙️ → Service Limits & Usage.",
+      "Click 'Check Now' to take an immediate snapshot of all usage metrics.",
+      "Find the 'Drive Link Cache' card — it shows how many bill Drive URLs are cached and their total size.",
+      "If the cache is large (hundreds of entries), click 'Clear' on the Drive Link Cache card — a confirmation prompt will appear.",
+      "Drive links will be re-fetched automatically from Google Sheets on the next sync.",
+      "The 'Pending Log Queue' card shows any activity log entries queued while offline — they auto-sync when you reconnect Google.",
+    ],
+  },
+  {
+    title: "Update a GAS Dashboard URL (shared across all users)",
+    steps: [
+      "Click the ⚙️ gear icon and find the GAS Dashboard URL settings.",
+      "Enter the new Google Apps Script web app URL for the dashboard.",
+      "Save — the URL is written to both your browser localStorage AND the shared '_config' tab in the portal logs Google Sheet.",
+      "All other users will see the updated URL the next time they load the portal (it's read from the config sheet on startup after sign-in).",
+    ],
+  },
 ];
 
 /* ── Breakage data ─────────────────────────────────────────────────────── */
@@ -224,6 +282,9 @@ const BREAKAGE = [
   { symptom: "MetaData tool breaks",   cause: "Columns shifted in Metadata tab",             fix: "Update META_READ / META_WRITE in src/components/modals/GearDropdown.tsx" },
   { symptom: "Headley's import fails", cause: "Header row moved or text changed",            fix: 'Parser looks for a row with "charging bu", "debit", "credit" — restore those' },
   { symptom: "Portal takes 30–60 s",   cause: "Render free tier woke from sleep",            fix: "Normal — upgrade to Render Starter ($7/mo) to eliminate" },
+  { symptom: "Sheet mappings reset to defaults after everyone signs in", cause: "'_config' tab deleted from portal logs sheet", fix: "Re-create the '_config' tab in the logs sheet (ID: 19ColN3UOnuGbk1CkHtZswxPZf7oj7Zs2pKaqmGlN4m8) — the portal will auto-recreate it and re-populate on the next mapping save" },
+  { symptom: "Activity log entries missing from logs sheet", cause: "No Google token when actions were taken (offline / before sign-in)", fix: "Entries are queued in localStorage. Sign in to Google — the queue flushes automatically. Check the Pending Log Queue card on Service Limits & Usage." },
+  { symptom: "Other browser tab shows stale data", cause: "BroadcastChannel not supported (very old browser)", fix: "Manually click Sync / Refresh on the stale tab. BroadcastChannel is supported in all modern browsers (Chrome 54+, Firefox 38+, Safari 15.4+)." },
 ];
 
 /* ── Sheet reference data ──────────────────────────────────────────────── */
