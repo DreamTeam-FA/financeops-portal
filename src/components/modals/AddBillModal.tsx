@@ -224,6 +224,11 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
 
   const handleAttachUpload = async () => {
     if (!attachFile || !savedBillId) { onClose(); setAttachPhase(false); return; }
+    // Resolve the saved bill BEFORE upload so we can pass its exact metadata and
+    // row number — this ensures the server writes the URL to the correct sheet row
+    // even when multiple bills share the same vendor/entity/dueDate.
+    const saved = apBills.find(b => b.id === savedBillId);
+    if (!saved) { onClose(); setAttachPhase(false); return; }
     setUploading(true);
     try {
       const reader = new FileReader();
@@ -239,13 +244,17 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
           imageBase64: base64,
           mimeType: attachFile.type || "image/jpeg",
           entity: entityName,
+          vendor:    saved.vendor,
+          invoiceNo: (saved as any).invoiceNo || undefined,
+          dueDate:   saved.dueDate,
+          amount:    saved.amount,
+          billRow:   (saved as any).row || undefined,
           userAccessToken: localStorage.getItem("google_access_token") || "",
         }),
       });
       if (resp.ok) {
         const { viewUrl, fileName } = await resp.json();
-        const saved = apBills.find(b => b.id === savedBillId);
-        if (saved) updateBill({ ...saved, driveViewUrl: viewUrl, driveFileName: fileName });
+        updateBill({ ...saved, driveViewUrl: viewUrl, driveFileName: fileName });
       }
     } catch { /* don't block close */ }
     setUploading(false);

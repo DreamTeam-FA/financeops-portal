@@ -116,10 +116,14 @@ function mergeNotes(liveList: any[], currentList: any[]) {
   // Local-only notes (not in the sheet) are intentionally excluded.
 }
 
-/** Stable composite key for AP bills (their IDs are random on every fetch). */
+/** Stable composite key for AP bills (their IDs are random on every fetch).
+ *  Amount (rounded to 2 dp) is included so two bills from the same vendor on
+ *  the same due date without an invoice number don't share a key and steal
+ *  each other's Drive attachment URL. */
 function apBillStableKey(b: any): string {
   const n = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-  return `${n(b.entity)}_${n(b.vendor)}_${n(b.invoiceNo || "")}_${b.dueDate || ""}`;
+  const amt = b.amount != null ? Number(b.amount).toFixed(2) : "";
+  return `${n(b.entity)}_${n(b.vendor)}_${n(b.invoiceNo || "")}_${b.dueDate || ""}_${amt}`;
 }
 
 function mergeDatasets(liveList: any[], currentList: any[], idKey = "id") {
@@ -817,7 +821,7 @@ const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct"
  *   {Entity}_{Vendor}_{InvoiceNo}_{YYYY-MM-DD}.{ext}
  */
 app.post("/api/drive/upload-bill", async (req, res) => {
-  const { imageBase64, mimeType, entity, vendor, invoiceNo, dueDate, amount, userAccessToken } = req.body || {};
+  const { imageBase64, mimeType, entity, vendor, invoiceNo, dueDate, amount, billRow, userAccessToken } = req.body || {};
   if (!imageBase64) return res.status(400).json({ error: "imageBase64 required" });
   if (!userAccessToken) return res.status(401).json({ error: "userAccessToken required" });
 
@@ -871,21 +875,34 @@ app.post("/api/drive/upload-bill", async (req, res) => {
     // Also update the in-memory JSON so the response is immediately accurate.
     try {
       const stored = getStoredData();
+      const n = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      // Prefer exact row match (billRow passed by client) — unambiguous and fast.
+      // Fall back to metadata match with amount as tiebreaker to avoid attaching
+      // to the wrong bill when multiple bills share vendor + entity + empty invoiceNo.
+      const billRowNum = billRow ? Number(billRow) : 0;
       const targetBill = (stored.ap || []).find((b: any) => {
         if (!b.entity || b.entity !== entity) return false;
-        if (invoiceNo && b.invoiceNo && b.invoiceNo !== invoiceNo) return false;
-        if (dueDate && b.dueDate !== dueDate) return false;
-        const n = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-        return n(b.vendor) === n(vendor || "");
+        // Exact row hit (client always sends billRow now for existing bills)
+        if (billRowNum && b.row === billRowNum) return true;
+        // Metadata match — require vendor; use dueDate, invoiceNo, amount as filters
+        if (n(b.vendor) !== n(vendor || "")) return false;
+        if (dueDate    && b.dueDate !== dueDate) return false;
+        if (invoiceNo  && b.invoiceNo && b.invoiceNo !== invoiceNo) return false;
+        // Amount tiebreaker: if both sides have it, they must be within $0.01
+        if (amount != null && b.amount != null && Math.abs(Number(b.amount) - Number(amount)) > 0.01) return false;
+        return true;
       });
       if (targetBill) {
         targetBill.driveViewUrl  = viewUrl;
         targetBill.driveFileName = fileName;
         saveStoredData(stored);
-        if (targetBill.row && targetBill.driveViewUrl) {
-          writeBillDriveUrl(targetBill.row, targetBill.entity, targetBill.driveViewUrl, AP_SPREADSHEET_ID, userAccessToken)
+        const rowToWrite = billRowNum || targetBill.row;
+        if (rowToWrite && viewUrl) {
+          writeBillDriveUrl(rowToWrite, targetBill.entity, viewUrl, AP_SPREADSHEET_ID, userAccessToken)
             .catch((e: any) => console.warn("[DriveUpload] sheet write failed:", e?.message));
-          console.log(`[DriveUpload] driveViewUrl written to sheet row ${targetBill.row} for ${targetBill.vendor}`);
+          console.log(`[DriveUpload] driveViewUrl written to sheet row ${rowToWrite} for ${targetBill.vendor}`);
+        } else {
+          console.log(`[DriveUpload] ${targetBill.vendor} has no sheet row yet — URL saved to JSON; will flush on next Pull Live`);
         }
       } else {
         console.log("[DriveUpload] bill not found in stored data — driveViewUrl not written to sheet (will appear after next Pull Live)");
