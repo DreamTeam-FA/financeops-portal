@@ -179,6 +179,9 @@ const CC_ACCOUNT_PATTERNS = [
   /x3678/i,            // AAdvantage Aviator MC Barclay
   /x4418/i,            // Citi/AAdvantage
   /x5082/i,            // Chase Visa SW Ann
+  /8782/i,             // 4 Grace (8782)
+  /x4011/i,            // Chase Marriott Bonvoy
+  /x0228/i,            // Citi AAdvantage
 ];
 
 function isCCRow(row: RawRow): boolean {
