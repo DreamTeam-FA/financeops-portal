@@ -237,7 +237,7 @@ async function syncLiveDataFromSheets(accessToken?: string) {
     // Previously, authenticated syncs replaced AP outright with liveData.ap, losing saved bill copies.
     const updated = {
       ...current,
-      ap: applyKnownDriveLinks(mergeDatasets(liveData.ap, current.ap, "id")),
+      ap: mergeDatasets(liveData.ap, current.ap, "id"),
       banks: mergeDatasets(liveData.banks, current.banks, "id"),
       loans: mergeDatasets(liveData.loans, current.loans, "id"),
       ar: mergeDatasets(liveData.ar, current.ar, "id"),
