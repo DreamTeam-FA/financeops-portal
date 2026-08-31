@@ -549,10 +549,20 @@ app.post("/api/pull-live", async (req, res) => {
   const updated = await syncLiveDataFromSheets(accessToken);
   const existing = getStoredData();
 
-  // Sheet is ALWAYS the source of truth — always merge live data.
-  // The old hasSufficientExisting check was bypassing mergeDatasets and preserving stale
-  // JSON driveViewUrls even after manual sheet deletions. Removed entirely.
-  const merged = { ...existing, ...updated, lastSyncedAt: new Date().toISOString() };
+  // Sheet is ALWAYS the source of truth for AP/bank/loans/AR data.
+  // Always merge live sheet data so driveViewUrl deletions in the sheet are respected.
+  // For portal-only data (notes, calendar, payroll), fall back to existing if live returns nothing
+  // so a failed/empty sheet fetch doesn't wipe portal-side data.
+  const merged = {
+    ...existing,
+    ...updated,
+    // Preserve existing portal-only data if live pull returned nothing
+    quickNotes: (updated.quickNotes && updated.quickNotes.length > 0) ? updated.quickNotes : existing.quickNotes,
+    calendarLocalEvents: (updated.calendarLocalEvents && updated.calendarLocalEvents.length > 0) ? updated.calendarLocalEvents : existing.calendarLocalEvents,
+    payrollPivot: (updated.payrollPivot && Object.keys(updated.payrollPivot || {}).length > 0) ? updated.payrollPivot : existing.payrollPivot,
+    payrollWeeks: (updated.payrollWeeks && updated.payrollWeeks.length > 0) ? updated.payrollWeeks : existing.payrollWeeks,
+    lastSyncedAt: new Date().toISOString()
+  };
 
   saveStoredData(merged);
 
