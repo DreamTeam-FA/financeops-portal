@@ -184,9 +184,21 @@ const CC_ACCOUNT_PATTERNS = [
   /x0228/i,            // Citi AAdvantage
 ];
 
+// User-approved accounts stored in localStorage (exact account strings)
+function loadApprovedAccounts(): Set<string> {
+  try { return new Set(JSON.parse(localStorage.getItem("cc_approved_accounts") || "[]")); }
+  catch { return new Set(); }
+}
+function saveApprovedAccounts(s: Set<string>) {
+  localStorage.setItem("cc_approved_accounts", JSON.stringify([...s]));
+}
+
+// Module-level mutable set so isCCRow can access it without prop-drilling
+let _approvedAccounts: Set<string> = loadApprovedAccounts();
+
 function isCCRow(row: RawRow): boolean {
-  // Must match one of the approved card accounts
-  return CC_ACCOUNT_PATTERNS.some(p => p.test(row.account));
+  return CC_ACCOUNT_PATTERNS.some(p => p.test(row.account))
+    || _approvedAccounts.has(row.account);
 }
 
 function buildWeekTable(rows: RawRow[], vendorMap: Record<string, string>): VendorWeekRow[] {
@@ -263,6 +275,24 @@ export const CCExpensePage: React.FC = () => {
     const updated = { ...remarks, [key]: text };
     setRemarks(updated);
     localStorage.setItem("cc_expense_remarks", JSON.stringify(updated));
+  };
+
+  // User-approved extra card accounts (persisted in localStorage)
+  const [approvedAccounts, setApprovedAccounts] = useState<Set<string>>(loadApprovedAccounts);
+
+  const approveAccount = (account: string) => {
+    _approvedAccounts.add(account);
+    const next = new Set(_approvedAccounts);
+    saveApprovedAccounts(next);
+    setApprovedAccounts(next);
+    // Re-group now that this account is approved
+    setRawRows(prev => {
+      const grouped = groupIntoWeeks(prev);
+      setWeeks(grouped);
+      if (grouped.length > 0) setSelectedWeek(w => grouped.some(g => g.weekStart === w) ? w : grouped[0].weekStart);
+      return prev;
+    });
+    showToast(`Approved: ${account}`, "success", 2000);
   };
 
   // UI state
@@ -571,7 +601,7 @@ export const CCExpensePage: React.FC = () => {
       );
 
   // Accounts present in raw data that don't match any CC pattern — shown as a warning
-  // so the user knows which new card numbers need to be added to CC_ACCOUNT_PATTERNS.
+  // so the user can approve them directly from the banner.
   const unrecognizedAccounts = Array.from(
     new Set(rawRows.filter(r => r.account && !isCCRow(r)).map(r => r.account))
   ).sort();
@@ -791,17 +821,27 @@ export const CCExpensePage: React.FC = () => {
       {/* ── Unrecognized account warning ── */}
       {unrecognizedAccounts.length > 0 && (
         <div className={`shrink-0 px-5 py-2 border-b flex flex-wrap items-center gap-2 ${isLight ? "bg-amber-50 border-amber-200" : "bg-amber-900/10 border-amber-700/20"}`}>
-          <span className={`text-[11px] font-semibold ${isLight ? "text-amber-700" : "text-amber-400"}`}>
-            ⚠ Unrecognized card accounts (rows hidden from weekly/YTD view):
+          <span className={`text-[11px] font-semibold shrink-0 ${isLight ? "text-amber-700" : "text-amber-400"}`}>
+            ⚠ Unrecognized card accounts (hidden from weekly/YTD):
           </span>
           {unrecognizedAccounts.map(acct => (
-            <code key={acct} className={`text-[11px] px-2 py-0.5 rounded font-mono ${isLight ? "bg-amber-100 text-amber-800" : "bg-amber-900/30 text-amber-300"}`}>
-              {acct}
-            </code>
+            <span key={acct} className="flex items-center gap-1">
+              <code className={`text-[11px] px-2 py-0.5 rounded font-mono ${isLight ? "bg-amber-100 text-amber-800" : "bg-amber-900/30 text-amber-300"}`}>
+                {acct}
+              </code>
+              <button
+                onClick={() => approveAccount(acct)}
+                className={`text-[10px] px-1.5 py-0.5 rounded font-medium transition-colors ${
+                  isLight
+                    ? "bg-green-100 text-green-700 hover:bg-green-200 border border-green-300"
+                    : "bg-green-900/30 text-green-400 hover:bg-green-900/50 border border-green-700/40"
+                }`}
+                title="Approve this card — its transactions will appear in Weekly/YTD views"
+              >
+                ✓ Approve
+              </button>
+            </span>
           ))}
-          <span className={`text-[10px] ${isLight ? "text-amber-600" : "text-amber-500"}`}>
-            — Switch to Raw tab to see transactions, then ask to add these cards.
-          </span>
         </div>
       )}
 
