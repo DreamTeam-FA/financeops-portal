@@ -400,7 +400,7 @@ export const DataSyncPage: React.FC = () => {
         body: JSON.stringify({ userAccessToken: token }),
       });
       const data = await resp.json();
-      if (!data.ok) throw new Error(data.error || "Remap failed");
+      if (!data.ok) throw new Error(data.details || data.error || "Remap failed");
       setRemapResult(data);
     } catch (e: any) {
       setRemapError(e?.message || "Unknown error");
@@ -887,7 +887,7 @@ export const DataSyncPage: React.FC = () => {
                 <span className={`flex items-center gap-1.5 ${sub}`}><FolderSearch className="w-3.5 h-3.5 text-orange-400" /><span className={`font-bold ${heading}`}>{remapResult.driveFilesFound}</span> files in Drive</span>
                 <span className={`flex items-center gap-1.5 ${sub}`}><CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /><span className={`font-bold ${heading}`}>{remapResult.corrected ?? 0}</span> corrected</span>
                 <span className={`flex items-center gap-1.5 ${sub}`}><LinkIcon className="w-3.5 h-3.5 text-blue-400" /><span className={`font-bold ${heading}`}>{remapResult.linked ?? 0}</span> newly linked</span>
-                <span className={`flex items-center gap-1.5 ${sub}`}><span className={`font-bold ${heading}`}>{remapResult.skipped ?? 0}</span> skipped</span>
+                <span className={`flex items-center gap-1.5 ${sub}`}><span className={`font-bold ${heading}`}>{remapResult.skippedCount ?? 0}</span> skipped</span>
                 <span className={`text-[11px] w-full ${muted}`}>{remapResult.message}</span>
               </div>
               {remapResult.results?.filter((r: any) => r.action !== "unchanged").length > 0 && (

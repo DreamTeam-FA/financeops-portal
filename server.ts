@@ -1174,12 +1174,12 @@ app.post("/api/drive/remap-all-bill-links", async (req, res) => {
       ok: true,
       driveFilesFound: allFiles.length,
       matched:   results.length,
-      corrected: results.filter(r => r.action === "corrected").length,
-      linked:    results.filter(r => r.action === "linked").length,
-      unchanged: results.filter(r => r.action === "unchanged").length,
-      skipped:   skipped.length,
+      corrected:    results.filter(r => r.action === "corrected").length,
+      linked:       results.filter(r => r.action === "linked").length,
+      unchanged:    results.filter(r => r.action === "unchanged").length,
+      skippedCount: skipped.length,
       results,
-      skipped: skipped.slice(0, 50), // cap log size
+      skippedList:  skipped.slice(0, 50),
       message: results.length > 0
         ? `Remapped ${results.filter(r => r.action !== "unchanged").length} bill link(s) to the correct sheet rows.`
         : "No files could be matched to bills.",
