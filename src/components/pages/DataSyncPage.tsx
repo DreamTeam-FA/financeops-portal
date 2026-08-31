@@ -212,8 +212,8 @@ export const DataSyncPage: React.FC = () => {
       if (!token) throw new Error("Not signed in to Google.");
       const AP_SHEET_ID = "15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs";
 
-      // Single-batch: clear all existing + write correct ones in 2 API calls total
-      const clearItems = (apBills as any[]).filter(b => b.row && b.entity).map(b => ({ row: b.row, entity: b.entity }));
+      // Single-batch: clear only bills that HAVE an existing link (not all 977 bills)
+      const clearItems = (apBills as any[]).filter(b => b.row && b.entity && b.driveViewUrl).map(b => ({ row: b.row, entity: b.entity }));
       const writeItems = billMatchPreview.filter(p => p.matchedBill?.row && p.matchedBill?.entity).map(p => ({
         row: p.matchedBill.row, entity: p.matchedBill.entity, driveViewUrl: p.url,
       }));
@@ -919,7 +919,7 @@ export const DataSyncPage: React.FC = () => {
               <div className={`flex flex-wrap gap-4 text-xs px-1 ${sub}`}>
                 <span><span className="font-bold text-emerald-500">{billMatchPreview.filter(r => r.matchedBill).length}</span> matched</span>
                 <span><span className="font-bold text-amber-500">{billMatchPreview.filter(r => !r.matchedBill).length}</span> unmatched</span>
-                <span className={`text-[11px] ${muted}`}>Applying will clear ALL existing bill links then write these {billMatchPreview.filter(r => r.matchedBill).length} correct ones.</span>
+                <span className={`text-[11px] ${muted}`}>Applying will clear {(apBills as any[]).filter(b => b.row && b.entity && b.driveViewUrl).length} existing link(s) then write these {billMatchPreview.filter(r => r.matchedBill).length} correct ones.</span>
               </div>
 
               {billApplyError && (
