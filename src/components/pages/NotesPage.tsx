@@ -299,7 +299,10 @@ export const NotesPage: React.FC = () => {
     if (idxA !== -1 && idxB !== -1) return idxA - idxB;
     if (idxA !== -1) return -1;
     if (idxB !== -1) return 1;
-    return b.localeCompare(a);
+    // Month labels like "Jun 2026", "Aug 2026" — parse as dates, newest first
+    const dateA = new Date(a + " 1").getTime();
+    const dateB = new Date(b + " 1").getTime();
+    return dateB - dateA;
   });
 
   const sel = `border rounded-lg px-2.5 py-1.5 text-xs font-medium ${
