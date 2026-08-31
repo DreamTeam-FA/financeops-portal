@@ -180,6 +180,8 @@ export const EditBillModal: React.FC<EditBillModalProps> = ({ bill, isOpen, onCl
             invoiceNo: invoiceNo || undefined,
             dueDate,
             amount: parseFloat(amount) || 0,
+            billRow: bill?.row || undefined,
+            subCompany: bill?.company || undefined,
             userAccessToken: localStorage.getItem("google_access_token") || "",
           }),
         });

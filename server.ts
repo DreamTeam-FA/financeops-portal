@@ -804,7 +804,7 @@ const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct"
  *   {Entity}_{Vendor}_{InvoiceNo}_{YYYY-MM-DD}.{ext}
  */
 app.post("/api/drive/upload-bill", async (req, res) => {
-  const { imageBase64, mimeType, entity, vendor, invoiceNo, dueDate, amount, billRow, userAccessToken } = req.body || {};
+  const { imageBase64, mimeType, entity, vendor, invoiceNo, dueDate, amount, billRow, subCompany, userAccessToken } = req.body || {};
   if (!imageBase64) return res.status(400).json({ error: "imageBase64 required" });
   if (!userAccessToken) return res.status(401).json({ error: "userAccessToken required" });
 
@@ -813,19 +813,20 @@ app.post("/api/drive/upload-bill", async (req, res) => {
   catch (e: any) { return res.status(500).json({ error: e.message }); }
 
   try {
-    // Determine folder path
+    // Determine folder path: FinanceOps Portal / {year} / {entity} / [{subCompany}] / {month}
     const now = new Date();
     const dateRef = dueDate ? new Date(dueDate) : now;
     const year = String(dateRef.getFullYear());
-    const monthIdx = dateRef.getMonth();
-    const month = `${String(monthIdx + 1).padStart(2, "0")} - ${MONTH_NAMES[monthIdx]}`;
+    const FULL_MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    const month = FULL_MONTHS[dateRef.getMonth()];
     const entityFolder = (entity || "Other").replace(/[/\\:*?"<>|]/g, "-");
 
-    const folderId = await ensurePath(drive, [
-      entityFolder,
-      year,
-      month,
-    ]);
+    // Build path segments — insert subCompany between entity and month when present (TI)
+    const pathSegments = subCompany
+      ? [year, entityFolder, subCompany, month]
+      : [year, entityFolder, month];
+
+    const folderId = await ensurePath(drive, pathSegments);
 
     // Build file name
     const safeVendor  = (vendor   || "Unknown").replace(/[/\\:*?"<>|]/g, "-").trim().replace(/\s+/g, "_");
