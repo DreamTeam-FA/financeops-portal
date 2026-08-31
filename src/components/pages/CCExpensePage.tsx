@@ -305,6 +305,31 @@ export const CCExpensePage: React.FC = () => {
   const [editingCell, setEditingCell] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState<string>("");
 
+  // Modal row inline editing: {rowRef, field}
+  const [modalEditKey, setModalEditKey] = useState<string | null>(null); // `${rowIdx}||${field}`
+  const [modalEditValue, setModalEditValue] = useState<string>("");
+
+  const commitModalEdit = (row: RawRow, field: "classCompany" | "description" | "amount" | "transactionDate") => {
+    const idx = rawRows.indexOf(row);
+    if (idx === -1) { setModalEditKey(null); return; }
+    let newVal: any = modalEditValue;
+    if (field === "amount") newVal = parseMoney(modalEditValue);
+    const updated = rawRows.map((r, i) => i === idx ? { ...r, [field]: newVal } : r);
+    setRawRows(updated);
+    // Refresh vendorModal rows to reflect the edit
+    if (vendorModal) {
+      const refreshed = updated.filter(r => (vendorMap[r.name] || r.name) === vendorModal.vendor
+        && (() => { const d = parseDate(r.transactionDate); if (!d) return false; return getSunday(d).toISOString().slice(0,10) === selectedWeek; })()
+      );
+      setVendorModal({ ...vendorModal, rows: refreshed });
+    }
+    // Re-group weeks
+    const grouped = groupIntoWeeks(updated);
+    setWeeks(grouped);
+    setModalEditKey(null);
+    setModalEditValue("");
+  };
+
   // Drag state
   const [dragSource, setDragSource] = useState<{ vendor: string; company: string; amount: number } | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null); // "vendor||company"
@@ -936,9 +961,17 @@ export const CCExpensePage: React.FC = () => {
               <table className="w-full text-[12px] border-collapse">
                 <thead className={`sticky top-0 ${isLight ? "bg-slate-50 border-b border-slate-200" : "bg-[#0d1117] border-b border-[#1e2535]"}`}>
                   <tr>
-                    {["Date", "Name", "Description", "Account / Card", "Company", "Amount"].map(h => (
-                      <th key={h} className={`px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap ${isLight ? "text-slate-500" : "text-slate-400"} ${h === "Amount" ? "text-right" : ""}`}>
-                        {h}
+                    {[
+                      { label: "Date", editable: true },
+                      { label: "Name", editable: false },
+                      { label: "Description", editable: true },
+                      { label: "Account / Card", editable: false },
+                      { label: "Company", editable: true },
+                      { label: "Amount", editable: true },
+                    ].map(({ label, editable }) => (
+                      <th key={label} className={`px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap ${isLight ? "text-slate-500" : "text-slate-400"} ${label === "Amount" ? "text-right" : ""}`}>
+                        {label}
+                        {editable && <span className={`ml-1 text-[9px] normal-case font-normal ${isLight ? "text-slate-400" : "text-slate-600"}`}>✎</span>}
                       </th>
                     ))}
                   </tr>
@@ -951,18 +984,65 @@ export const CCExpensePage: React.FC = () => {
                       const db = parseDate(b.transactionDate)?.getTime() || 0;
                       return da - db;
                     })
-                    .map((r, i) => (
-                      <tr key={i} className={`border-t ${isLight ? "border-slate-100 hover:bg-slate-50" : "border-[#1a2030] hover:bg-white/[0.03]"}`}>
-                        <td className="px-3 py-2 whitespace-nowrap">{r.transactionDate}</td>
-                        <td className="px-3 py-2 whitespace-nowrap font-medium">{r.name}</td>
-                        <td className={`px-3 py-2 max-w-[320px] truncate ${isLight ? "text-slate-600" : "text-slate-400"}`} title={r.description}>{r.description || "—"}</td>
-                        <td className={`px-3 py-2 whitespace-nowrap ${isLight ? "text-slate-600" : "text-slate-400"}`}>{r.account || "—"}</td>
-                        <td className={`px-3 py-2 whitespace-nowrap ${isLight ? "text-slate-600" : "text-slate-400"}`}>{r.classCompany || "—"}</td>
-                        <td className={`px-3 py-2 text-right tabular-nums font-semibold whitespace-nowrap ${r.amount < 0 ? "text-red-500" : isLight ? "text-slate-800" : "text-white"}`}>
-                          {fmtMoneyRaw(r.amount)}
-                        </td>
-                      </tr>
-                    ))
+                    .map((r, i) => {
+                      const rowIdx = rawRows.indexOf(r);
+                      const mk = (field: string) => `${rowIdx}||${field}`;
+                      const editCls = `w-full rounded px-1.5 py-0.5 text-[12px] outline-none border ${
+                        isLight ? "bg-blue-50 border-blue-400 text-slate-800" : "bg-[#1a2540] border-[#4f9cf9] text-white"
+                      }`;
+                      const cellHint = `cursor-pointer hover:ring-1 rounded ${isLight ? "hover:ring-blue-300" : "hover:ring-[#4f9cf9]/40"}`;
+                      return (
+                        <tr key={i} className={`border-t ${isLight ? "border-slate-100 hover:bg-slate-50/60" : "border-[#1a2030] hover:bg-white/[0.02]"}`}>
+                          {/* Date — editable */}
+                          <td className={`px-3 py-1.5 whitespace-nowrap ${cellHint}`}
+                            onClick={() => { if (modalEditKey !== mk("transactionDate")) { setModalEditKey(mk("transactionDate")); setModalEditValue(r.transactionDate); } }}>
+                            {modalEditKey === mk("transactionDate") ? (
+                              <input autoFocus type="text" value={modalEditValue} onChange={e => setModalEditValue(e.target.value)}
+                                onBlur={() => commitModalEdit(r, "transactionDate")}
+                                onKeyDown={e => { if (e.key === "Enter") commitModalEdit(r, "transactionDate"); if (e.key === "Escape") setModalEditKey(null); }}
+                                className={editCls} style={{width: 110}} />
+                            ) : r.transactionDate}
+                          </td>
+                          {/* Name — read-only (from bank feed) */}
+                          <td className="px-3 py-1.5 whitespace-nowrap font-medium">{r.name}</td>
+                          {/* Description — editable */}
+                          <td className={`px-3 py-1.5 max-w-[320px] ${isLight ? "text-slate-600" : "text-slate-400"} ${cellHint}`} title={r.description}
+                            onClick={() => { if (modalEditKey !== mk("description")) { setModalEditKey(mk("description")); setModalEditValue(r.description); } }}>
+                            {modalEditKey === mk("description") ? (
+                              <input autoFocus type="text" value={modalEditValue} onChange={e => setModalEditValue(e.target.value)}
+                                onBlur={() => commitModalEdit(r, "description")}
+                                onKeyDown={e => { if (e.key === "Enter") commitModalEdit(r, "description"); if (e.key === "Escape") setModalEditKey(null); }}
+                                className={editCls} style={{width: 280}} />
+                            ) : <span className="truncate block">{r.description || <span className="opacity-40 italic">click to add</span>}</span>}
+                          </td>
+                          {/* Account — read-only */}
+                          <td className={`px-3 py-1.5 whitespace-nowrap ${isLight ? "text-slate-600" : "text-slate-400"}`}>{r.account || "—"}</td>
+                          {/* Company — editable dropdown */}
+                          <td className={`px-3 py-1.5 whitespace-nowrap ${isLight ? "text-slate-600" : "text-slate-400"} ${cellHint}`}
+                            onClick={() => { if (modalEditKey !== mk("classCompany")) { setModalEditKey(mk("classCompany")); setModalEditValue(r.classCompany); } }}>
+                            {modalEditKey === mk("classCompany") ? (
+                              <select autoFocus value={modalEditValue} onChange={e => setModalEditValue(e.target.value)}
+                                onBlur={() => commitModalEdit(r, "classCompany")}
+                                onKeyDown={e => { if (e.key === "Enter") commitModalEdit(r, "classCompany"); if (e.key === "Escape") setModalEditKey(null); }}
+                                className={editCls}>
+                                <option value="">(unassigned)</option>
+                                {COMPANIES.map(co => <option key={co} value={co}>{co}</option>)}
+                              </select>
+                            ) : r.classCompany || <span className="opacity-40 italic">unassigned</span>}
+                          </td>
+                          {/* Amount — editable */}
+                          <td className={`px-3 py-1.5 text-right tabular-nums font-semibold whitespace-nowrap ${cellHint} ${r.amount < 0 ? "text-red-500" : isLight ? "text-slate-800" : "text-white"}`}
+                            onClick={() => { if (modalEditKey !== mk("amount")) { setModalEditKey(mk("amount")); setModalEditValue(String(r.amount)); } }}>
+                            {modalEditKey === mk("amount") ? (
+                              <input autoFocus type="text" value={modalEditValue} onChange={e => setModalEditValue(e.target.value)}
+                                onBlur={() => commitModalEdit(r, "amount")}
+                                onKeyDown={e => { if (e.key === "Enter") commitModalEdit(r, "amount"); if (e.key === "Escape") setModalEditKey(null); }}
+                                className={editCls + " text-right"} style={{width: 90}} />
+                            ) : fmtMoneyRaw(r.amount)}
+                          </td>
+                        </tr>
+                      );
+                    })
                   }
                 </tbody>
                 {/* Footer total */}
