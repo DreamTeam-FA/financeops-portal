@@ -19,79 +19,205 @@
     <script src="https://accounts.google.com/gsi/client" async></script>
     <style>
       /* ── Fallback screen — replaced by React on mount ── */
+      * { box-sizing: border-box; }
+
       #fo-fallback {
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         min-height: 100vh;
-        background: #070b12;
-        color: #e8e8e8;
+        background: #0c1a2e;
+        color: #e2eaf5;
         font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-        padding: 2rem 1rem;
-        box-sizing: border-box;
+        padding: 2rem 1rem 3rem;
+        position: relative;
+        overflow: hidden;
       }
-      #fo-fallback .logo-ring {
-        width: 64px; height: 64px;
-        border-radius: 16px;
-        background: linear-gradient(135deg,#1a3a6b 0%,#0d1f40 100%);
+
+      /* Layered background — deep navy with subtle gradient */
+      #fo-fallback::before {
+        content: '';
+        position: absolute; inset: 0;
+        background:
+          radial-gradient(ellipse 60% 55% at 50% 42%, rgba(26,115,232,.13) 0%, transparent 70%),
+          radial-gradient(ellipse 40% 40% at 50% 42%, rgba(34,197,94,.08) 0%, transparent 60%),
+          linear-gradient(180deg, #0e2040 0%, #0c1a2e 45%, #091626 100%);
+        pointer-events: none;
+      }
+
+      /* Subtle grid overlay */
+      #fo-fallback::after {
+        content: '';
+        position: absolute; inset: 0;
+        background-image:
+          linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+        background-size: 48px 48px;
+        mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 75%);
+        pointer-events: none;
+      }
+
+      /* ── Orbit stage ── */
+      #fo-orbit-stage {
+        position: relative;
+        width: 240px; height: 240px;
+        margin-bottom: 2rem;
+        flex-shrink: 0;
+        z-index: 1;
+      }
+
+      /* Orbit track ring */
+      .orbit-track {
+        position: absolute;
+        inset: 20px;
+        border-radius: 50%;
+        border: 1px dashed rgba(100,160,255,.18);
+        animation: fo-track-pulse 4s ease-in-out infinite;
+      }
+      @keyframes fo-track-pulse {
+        0%,100% { border-color: rgba(100,160,255,.18); }
+        50%      { border-color: rgba(100,160,255,.32); }
+      }
+
+      /* Central logo */
+      .fo-logo-center {
+        position: absolute;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        width: 72px; height: 72px;
+        border-radius: 20px;
+        background: linear-gradient(135deg, #1557c0 0%, #1a3f8f 100%);
         display: flex; align-items: center; justify-content: center;
-        font-size: 28px;
-        box-shadow: 0 0 0 1px rgba(255,255,255,.08), 0 8px 32px rgba(0,0,0,.6);
-        margin-bottom: 1.25rem;
+        box-shadow:
+          0 0 0 1px rgba(255,255,255,.12),
+          0 0 32px rgba(26,115,232,.55),
+          0 0 64px rgba(26,115,232,.25),
+          0 12px 40px rgba(0,0,0,.5);
+        animation: fo-logo-pulse 3s ease-in-out infinite;
+        z-index: 2;
       }
-      #fo-fallback h1 {
-        font-size: 1.25rem; font-weight: 800; letter-spacing: -.02em;
-        margin: 0 0 .35rem;
-        background: linear-gradient(90deg,#4da3ff,#a78bfa);
+      .fo-logo-center svg { width: 44px; height: 44px; }
+      @keyframes fo-logo-pulse {
+        0%,100% { box-shadow: 0 0 0 1px rgba(255,255,255,.12), 0 0 32px rgba(26,115,232,.55), 0 0 64px rgba(26,115,232,.25), 0 12px 40px rgba(0,0,0,.5); }
+        50%      { box-shadow: 0 0 0 1px rgba(255,255,255,.18), 0 0 48px rgba(26,115,232,.75), 0 0 96px rgba(26,115,232,.35), 0 12px 40px rgba(0,0,0,.5); }
+      }
+
+      /* Outer glow ring */
+      .fo-logo-ring {
+        position: absolute;
+        top: 50%; left: 50%;
+        width: 96px; height: 96px;
+        transform: translate(-50%, -50%);
+        border-radius: 50%;
+        border: 1.5px solid rgba(26,115,232,.4);
+        animation: fo-ring-expand 3s ease-in-out infinite;
+      }
+      @keyframes fo-ring-expand {
+        0%,100% { width:96px; height:96px; opacity:.6; }
+        50%      { width:108px; height:108px; opacity:.25; }
+      }
+
+      /* ── Orbiting icon wrappers ── */
+      /* Technique: pivot at center (0 size), child translates outward, then counter-rotates to stay upright */
+      .fo-orb {
+        position: absolute;
+        top: 50%; left: 50%;
+        width: 0; height: 0;
+        animation: fo-orbit-spin 11s linear infinite;
+      }
+      .fo-orb:nth-child(2) { animation-delay: -3.667s; }
+      .fo-orb:nth-child(3) { animation-delay: -7.333s; }
+
+      .fo-orb-badge {
+        position: absolute;
+        top: -22px; left: -22px;
+        width: 44px; height: 44px;
+        border-radius: 14px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 18px;
+        transform: translateX(100px);
+        animation: fo-orbit-counter 11s linear infinite;
+        box-shadow: 0 4px 16px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.1);
+        cursor: pointer;
+        text-decoration: none;
+        transition: transform .2s;
+      }
+      .fo-orb:nth-child(2) .fo-orb-badge { animation-delay: -3.667s; }
+      .fo-orb:nth-child(3) .fo-orb-badge { animation-delay: -7.333s; }
+
+      @keyframes fo-orbit-spin    { from { transform: rotate(0deg); }   to { transform: rotate(360deg); } }
+      @keyframes fo-orbit-counter { from { transform: translateX(100px) rotate(0deg);   } to { transform: translateX(100px) rotate(-360deg); } }
+
+      /* ── Text block ── */
+      #fo-text { position: relative; z-index: 1; text-align: center; margin-bottom: 2rem; }
+      #fo-text h1 {
+        font-size: 1.55rem; font-weight: 800; letter-spacing: -.03em;
+        margin: 0 0 .3rem;
+        background: linear-gradient(100deg, #60a5fa 0%, #818cf8 50%, #a78bfa 100%);
         -webkit-background-clip: text; -webkit-text-fill-color: transparent;
       }
-      #fo-fallback .subtitle {
-        font-size: .8rem; color: #7a90b0; margin: 0 0 2.5rem; text-align: center;
+      #fo-text .subtitle { font-size: .8rem; color: #6b87a8; margin: 0; letter-spacing: .02em; }
+
+      /* ── Status row ── */
+      #fo-status {
+        position: relative; z-index: 1;
+        display: flex; flex-direction: column; align-items: center; gap: .5rem;
+        margin-bottom: 2.5rem;
       }
-      /* Spinner */
-      #fo-fallback .spinner-wrap { display: flex; flex-direction: column; align-items: center; gap: .75rem; margin-bottom: 2.5rem; }
-      #fo-fallback .spinner {
-        width: 36px; height: 36px;
-        border: 3px solid rgba(26,115,232,.15);
-        border-top-color: #1a73e8;
-        border-radius: 50%;
-        animation: fo-spin 1s linear infinite;
+      .fo-status-dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: #22c55e;
+        box-shadow: 0 0 10px rgba(34,197,94,.7);
+        animation: fo-dot-blink 1.4s ease-in-out infinite;
+        display: inline-block; margin-right: .5rem;
       }
-      @keyframes fo-spin { to { transform: rotate(360deg); } }
-      #fo-fallback .spin-label { font-size: .75rem; color: #5a6a80; }
-      /* Timer */
-      #fo-fallback .timer { font-size: .7rem; color: #3a4a5e; margin-top: .25rem; }
-      /* Sheet cards */
-      #fo-fallback .sheets-section { width: 100%; max-width: 520px; }
-      #fo-fallback .sheets-label {
-        font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em;
-        color: #3a4a5e; margin-bottom: 1rem; text-align: center;
+      @keyframes fo-dot-blink { 0%,100% { opacity:1; } 50% { opacity:.35; } }
+      .fo-status-label { font-size: .78rem; color: #8fafc9; display: flex; align-items: center; }
+      .fo-timer { font-size: .69rem; color: #3d5a78; }
+
+      /* ── Sheet cards ── */
+      #fo-sheets { position: relative; z-index: 1; width: 100%; max-width: 500px; }
+      .fo-sheets-label {
+        font-size: .63rem; font-weight: 700; text-transform: uppercase; letter-spacing: .12em;
+        color: #2d4a6a; margin-bottom: .9rem; text-align: center;
       }
-      #fo-fallback .sheet-card {
-        display: flex; align-items: center; gap: .9rem;
-        padding: .875rem 1rem;
-        border-radius: 12px;
-        border: 1px solid rgba(255,255,255,.06);
-        background: rgba(255,255,255,.025);
-        text-decoration: none;
-        color: inherit;
-        margin-bottom: .625rem;
-        transition: background .15s, border-color .15s;
+      .fo-sheet-card {
+        display: flex; align-items: center; gap: .85rem;
+        padding: .8rem 1rem;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,.07);
+        background: rgba(255,255,255,.04);
+        backdrop-filter: blur(12px);
+        text-decoration: none; color: inherit;
+        margin-bottom: .55rem;
+        transition: background .18s, border-color .18s, transform .18s, box-shadow .18s;
       }
-      #fo-fallback .sheet-card:hover { background: rgba(26,115,232,.08); border-color: rgba(26,115,232,.3); }
-      #fo-fallback .sheet-icon {
-        width: 36px; height: 36px; border-radius: 8px;
+      .fo-sheet-card:hover {
+        background: rgba(255,255,255,.08);
+        border-color: rgba(100,160,255,.25);
+        transform: translateY(-1px);
+        box-shadow: 0 8px 32px rgba(0,0,0,.3), 0 0 0 1px rgba(100,160,255,.15);
+      }
+      .fo-sheet-icon {
+        width: 38px; height: 38px; border-radius: 10px;
         display: flex; align-items: center; justify-content: center;
-        font-size: 16px; flex-shrink: 0;
+        font-size: 17px; flex-shrink: 0;
       }
-      #fo-fallback .sheet-info { flex: 1; min-width: 0; }
-      #fo-fallback .sheet-name { font-size: .8rem; font-weight: 700; margin: 0 0 .15rem; color: #d0dced; }
-      #fo-fallback .sheet-desc { font-size: .68rem; color: #5a6a80; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      #fo-fallback .sheet-arrow { font-size: .75rem; color: #3a4a5e; }
-      #fo-fallback .apology {
-        margin-top: 2rem; max-width: 400px; text-align: center;
-        font-size: .72rem; color: #3a4a5e; line-height: 1.7;
+      .fo-sheet-info { flex: 1; min-width: 0; }
+      .fo-sheet-name { font-size: .8rem; font-weight: 700; margin: 0 0 .12rem; color: #c8d8ee; }
+      .fo-sheet-desc { font-size: .67rem; color: #4a6480; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .fo-sheet-arrow {
+        font-size: .8rem; color: #2d4a6a;
+        transition: color .18s, transform .18s;
+      }
+      .fo-sheet-card:hover .fo-sheet-arrow { color: #60a5fa; transform: translateX(2px) translateY(-2px); }
+
+      /* ── Apology note ── */
+      #fo-apology {
+        position: relative; z-index: 1;
+        margin-top: 1.75rem; max-width: 400px; text-align: center;
+        font-size: .7rem; color: #2a3e54; line-height: 1.75;
       }
     </style>
   </head>
@@ -99,48 +225,88 @@
     <div id="root">
       <!-- Static fallback — React replaces this on mount -->
       <div id="fo-fallback">
-        <div class="logo-ring">📊</div>
-        <h1>FinanceOps Portal</h1>
-        <p class="subtitle">Finance &amp; Operations Hub</p>
 
-        <div class="spinner-wrap">
-          <div class="spinner"></div>
-          <span class="spin-label">Starting up the portal…</span>
-          <span class="timer" id="fo-timer">This may take up to 60 seconds on first load.</span>
+        <!-- Orbiting icons stage -->
+        <div id="fo-orbit-stage">
+          <div class="orbit-track"></div>
+          <div class="fo-logo-ring"></div>
+
+          <!-- Central logo -->
+          <div class="fo-logo-center">
+            <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+              <text x="16" y="22.5" text-anchor="middle"
+                font-family="'Arial Black',Arial,sans-serif"
+                font-weight="900" font-size="15" fill="white" letter-spacing="-0.5">MT</text>
+            </svg>
+          </div>
+
+          <!-- Orbiting badge 1 — Main F&A -->
+          <div class="fo-orb">
+            <a class="fo-orb-badge" href="https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit" target="_blank" rel="noopener"
+               title="Main F&A Sheet"
+               style="background:linear-gradient(135deg,#1a4a8a,#1557c0);box-shadow:0 4px 20px rgba(26,115,232,.5),0 0 0 1px rgba(255,255,255,.12);">📋</a>
+          </div>
+
+          <!-- Orbiting badge 2 — 4YR Payroll -->
+          <div class="fo-orb">
+            <a class="fo-orb-badge" href="https://docs.google.com/spreadsheets/d/1SITtQDT3iFo5yIOBgjbERbqJjYJ8rk6drXwkLm3sAGE/edit" target="_blank" rel="noopener"
+               title="4YR Payroll Sheet"
+               style="background:linear-gradient(135deg,#0e5c3a,#16a34a);box-shadow:0 4px 20px rgba(22,163,74,.5),0 0 0 1px rgba(255,255,255,.12);">💼</a>
+          </div>
+
+          <!-- Orbiting badge 3 — Calendar -->
+          <div class="fo-orb">
+            <a class="fo-orb-badge" href="https://docs.google.com/spreadsheets/d/1ChoHr7dsfai0Unl-Gk-HyPmgrpWOYu07gllY9PA8epo/edit" target="_blank" rel="noopener"
+               title="Calendar Sheet"
+               style="background:linear-gradient(135deg,#4c1d95,#7c3aed);box-shadow:0 4px 20px rgba(124,58,237,.5),0 0 0 1px rgba(255,255,255,.12);">📅</a>
+          </div>
         </div>
 
-        <div class="sheets-section">
-          <p class="sheets-label">Access your sheets directly while you wait</p>
+        <!-- Title -->
+        <div id="fo-text">
+          <h1>FinanceOps Portal</h1>
+          <p class="subtitle">Finance &amp; Operations Hub</p>
+        </div>
 
-          <a class="sheet-card" href="https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit" target="_blank" rel="noopener">
-            <div class="sheet-icon" style="background:rgba(26,115,232,.12);color:#4da3ff;">📋</div>
-            <div class="sheet-info">
-              <p class="sheet-name">Main F&amp;A Sheet</p>
-              <p class="sheet-desc">AP Bills · AR · Bank Balances · Loans · Meeting Notes · Statements</p>
+        <!-- Status -->
+        <div id="fo-status">
+          <span class="fo-status-label"><span class="fo-status-dot"></span>Starting up the portal…</span>
+          <span class="fo-timer" id="fo-timer">This may take up to 60 seconds on first load.</span>
+        </div>
+
+        <!-- Sheet cards -->
+        <div id="fo-sheets">
+          <p class="fo-sheets-label">Access your sheets directly while you wait</p>
+
+          <a class="fo-sheet-card" href="https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit" target="_blank" rel="noopener">
+            <div class="fo-sheet-icon" style="background:rgba(26,115,232,.15);color:#60a5fa;">📋</div>
+            <div class="fo-sheet-info">
+              <p class="fo-sheet-name">Main F&amp;A Sheet</p>
+              <p class="fo-sheet-desc">AP Bills · AR · Bank Balances · Loans · Meeting Notes · Statements</p>
             </div>
-            <span class="sheet-arrow">↗</span>
+            <span class="fo-sheet-arrow">↗</span>
           </a>
 
-          <a class="sheet-card" href="https://docs.google.com/spreadsheets/d/1SITtQDT3iFo5yIOBgjbERbqJjYJ8rk6drXwkLm3sAGE/edit" target="_blank" rel="noopener">
-            <div class="sheet-icon" style="background:rgba(16,185,129,.12);color:#34d399;">💼</div>
-            <div class="sheet-info">
-              <p class="sheet-name">4YR Payroll Sheet</p>
-              <p class="sheet-desc">4You Pros payroll raw data &amp; weekly summaries</p>
+          <a class="fo-sheet-card" href="https://docs.google.com/spreadsheets/d/1SITtQDT3iFo5yIOBgjbERbqJjYJ8rk6drXwkLm3sAGE/edit" target="_blank" rel="noopener">
+            <div class="fo-sheet-icon" style="background:rgba(22,163,74,.15);color:#4ade80;">💼</div>
+            <div class="fo-sheet-info">
+              <p class="fo-sheet-name">4YR Payroll Sheet</p>
+              <p class="fo-sheet-desc">4You Pros payroll raw data &amp; weekly summaries</p>
             </div>
-            <span class="sheet-arrow">↗</span>
+            <span class="fo-sheet-arrow">↗</span>
           </a>
 
-          <a class="sheet-card" href="https://docs.google.com/spreadsheets/d/1ChoHr7dsfai0Unl-Gk-HyPmgrpWOYu07gllY9PA8epo/edit" target="_blank" rel="noopener">
-            <div class="sheet-icon" style="background:rgba(139,92,246,.12);color:#a78bfa;">📅</div>
-            <div class="sheet-info">
-              <p class="sheet-name">Calendar Sheet</p>
-              <p class="sheet-desc">Finance &amp; schedule events · Calendar notes</p>
+          <a class="fo-sheet-card" href="https://docs.google.com/spreadsheets/d/1ChoHr7dsfai0Unl-Gk-HyPmgrpWOYu07gllY9PA8epo/edit" target="_blank" rel="noopener">
+            <div class="fo-sheet-icon" style="background:rgba(124,58,237,.15);color:#c084fc;">📅</div>
+            <div class="fo-sheet-info">
+              <p class="fo-sheet-name">Calendar Sheet</p>
+              <p class="fo-sheet-desc">Finance &amp; schedule events · Calendar notes</p>
             </div>
-            <span class="sheet-arrow">↗</span>
+            <span class="fo-sheet-arrow">↗</span>
           </a>
         </div>
 
-        <p class="apology">
+        <p id="fo-apology">
           We apologize for the delay. The portal is hosted on Render's free tier,
           which sleeps after 15 minutes of inactivity.
           Your data in Google Sheets is always safe and accessible above.
