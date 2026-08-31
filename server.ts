@@ -1044,6 +1044,33 @@ app.get("/api/drive/recover-bill-links", async (req, res) => {
 });
 
 /**
+ * POST /api/drive/batch-write-drive-urls
+ * Thin server-side endpoint: receives pre-matched {row, entity, driveViewUrl} pairs
+ * from the client-side remap logic and writes each Drive URL cell to the sheet.
+ * The actual Drive scanning and matching is done client-side to avoid OAuth issues.
+ */
+app.post("/api/drive/batch-write-drive-urls", async (req, res) => {
+  const { userAccessToken, spreadsheetId, items } = req.body || {};
+  if (!userAccessToken) return res.status(401).json({ ok: false, error: "userAccessToken required" });
+  if (!Array.isArray(items) || items.length === 0) return res.json({ ok: true, written: 0 });
+
+  let written = 0, failed = 0;
+  for (const item of items) {
+    const { row, entity, driveViewUrl } = item;
+    if (!row || !entity || !driveViewUrl) continue;
+    try {
+      await writeBillDriveUrl(Number(row), entity, driveViewUrl, spreadsheetId || AP_SPREADSHEET_ID, userAccessToken);
+      written++;
+      console.log(`[BatchWriteDriveUrls] wrote ${entity} row ${row} → ${driveViewUrl.slice(0, 60)}`);
+    } catch (e: any) {
+      console.warn(`[BatchWriteDriveUrls] failed ${entity} row ${row}:`, e?.message);
+      failed++;
+    }
+  }
+  return res.json({ ok: true, written, failed });
+});
+
+/**
  * POST /api/drive/remap-all-bill-links
  * Force re-maps EVERY Drive bill file to its correct bill row, overwriting any
  * wrong links already in the sheet.  Unlike recover-bill-links this does NOT

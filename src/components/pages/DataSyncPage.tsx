@@ -371,16 +371,84 @@ export const DataSyncPage: React.FC = () => {
       const { getAccessToken } = await import("../../services/googleAuth");
       const token = await getAccessToken();
       if (!token) throw new Error("Not signed in to Google. Please connect your Google account first.");
-      const resp = await fetch(`/api/drive/recover-bill-links?token=${encodeURIComponent(token)}`);
-      const data = await resp.json();
-      if (!data.ok) throw new Error(data.error || "Recovery failed");
-      setRecoveryResult(data);
+
+      // List Drive files directly from the browser
+      const BILLS_ROOT = "1AzwpWEMdyp1SEeNtXrie5171cSk5L7Za";
+      const AP_SHEET_ID = "15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs";
+      const driveFiles: { id: string; name: string; webViewLink: string }[] = [];
+      let pageToken: string | undefined;
+      const q = encodeURIComponent(`'${BILLS_ROOT}' in ancestors and mimeType != 'application/vnd.google-apps.folder' and trashed=false`);
+      const fields = encodeURIComponent("nextPageToken,files(id,name,webViewLink)");
+      const driveBase = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=100&includeItemsFromAllDrives=true&supportsAllDrives=true`;
+      do {
+        const pg = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "";
+        const dr = await fetch(driveBase + pg, { headers: { Authorization: `Bearer ${token}` } });
+        if (!dr.ok) { const e = await dr.json().catch(() => ({})); throw new Error(e?.error?.message || `Drive API ${dr.status}`); }
+        const dd: any = await dr.json();
+        driveFiles.push(...(dd.files || []));
+        pageToken = dd.nextPageToken;
+      } while (pageToken);
+
+      // Match files to unlinked bills only
+      const n = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const matches: { vendor: string; date: string; file: string }[] = [];
+      const toWrite: { row: number; entity: string; driveViewUrl: string; file: string; action: string }[] = [];
+
+      for (const file of driveFiles) {
+        const bare = file.name.replace(/\.[^.]+$/, "");
+        const parts = bare.split("_");
+        if (parts.length < 3) continue;
+        const datePart = parts[parts.length - 1];
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(datePart)) continue;
+        const fvN = n(parts[1]);
+        const fiN = n(parts.length > 3 ? parts.slice(2, -1).join("_") : "");
+        const feN = n(parts[0]);
+
+        const bill = (apBills as any[]).find(b => {
+          if ((b as any).driveViewUrl) return false; // skip already linked
+          if (n(b.entity) !== feN) return false;
+          if (b.dueDate !== datePart && b.invoiceDate !== datePart) return false;
+          const bvN = n(b.vendor);
+          if (bvN.includes(fvN) || fvN.includes(bvN)) return true;
+          if (fiN) { const biN = n(b.invoiceNo || ""); return biN.includes(fiN) || fiN.includes(biN); }
+          return false;
+        });
+
+        if (bill) {
+          matches.push({ vendor: bill.vendor, date: bill.dueDate, file: file.name });
+          toWrite.push({ row: (bill as any).row, entity: bill.entity, driveViewUrl: file.webViewLink, file: file.name, action: "linked" });
+        }
+      }
+
+      let sheetWrites = 0;
+      if (toWrite.length > 0) {
+        const wr = await fetch("/api/drive/batch-write-drive-urls", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userAccessToken: token, spreadsheetId: AP_SHEET_ID, items: toWrite }),
+        });
+        const wd = await wr.json();
+        sheetWrites = wd.written || 0;
+      }
+
+      setRecoveryResult({
+        ok: true,
+        driveFilesFound: driveFiles.length,
+        restored: matches.length,
+        matches,
+        sheetWrites,
+        message: matches.length > 0
+          ? `Restored ${matches.length} bill link(s), wrote ${sheetWrites} to sheet.`
+          : driveFiles.length === 0
+            ? "No files found in Drive Bills folder."
+            : "Files found but none matched unlinked bills.",
+      });
     } catch (e: any) {
       setRecoveryError(e?.message || "Unknown error");
     } finally {
       setRecoveringBills(false);
     }
-  }, []);
+  }, [apBills]);
 
   const [remapping, setRemapping] = useState(false);
   const [remapResult, setRemapResult] = useState<any>(null);
@@ -394,14 +462,99 @@ export const DataSyncPage: React.FC = () => {
       const { getAccessToken } = await import("../../services/googleAuth");
       const token = await getAccessToken();
       if (!token) throw new Error("Not signed in to Google. Please connect your Google account first.");
-      const resp = await fetch("/api/drive/remap-all-bill-links", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userAccessToken: token }),
+
+      // ── Step 1: list all Drive bill files directly from the browser ──────────
+      const BILLS_ROOT = "1AzwpWEMdyp1SEeNtXrie5171cSk5L7Za";
+      const AP_SHEET_ID = "15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs";
+      const driveFiles: { id: string; name: string; webViewLink: string }[] = [];
+      let pageToken: string | undefined;
+      const q = encodeURIComponent(`'${BILLS_ROOT}' in ancestors and mimeType != 'application/vnd.google-apps.folder' and trashed=false`);
+      const fields = encodeURIComponent("nextPageToken,files(id,name,webViewLink)");
+      const driveBase = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=100&includeItemsFromAllDrives=true&supportsAllDrives=true`;
+      do {
+        const pg = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "";
+        const dr = await fetch(driveBase + pg, { headers: { Authorization: `Bearer ${token}` } });
+        if (!dr.ok) {
+          const e = await dr.json().catch(() => ({}));
+          throw new Error(e?.error?.message || `Drive API ${dr.status}`);
+        }
+        const dd: any = await dr.json();
+        driveFiles.push(...(dd.files || []));
+        pageToken = dd.nextPageToken;
+      } while (pageToken);
+
+      // ── Step 2: match Drive files → AP bills using entity + date + vendor ────
+      const n = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const matched: { row: number; entity: string; driveViewUrl: string; file: string; action: string }[] = [];
+      const skipped: { file: string; reason: string }[] = [];
+
+      for (const file of driveFiles) {
+        const bare = file.name.replace(/\.[^.]+$/, "");
+        const parts = bare.split("_");
+        if (parts.length < 3) { skipped.push({ file: file.name, reason: "too few parts" }); continue; }
+        const datePart = parts[parts.length - 1];
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(datePart)) { skipped.push({ file: file.name, reason: "no date suffix" }); continue; }
+        const fileEntity = parts[0];
+        const fileVendor = parts[1];
+        const fileInvNo = parts.length > 3 ? parts.slice(2, -1).join("_") : "";
+        const feN = n(fileEntity), fvN = n(fileVendor), fiN = n(fileInvNo);
+
+        let bestScore = 0, bestBill: any = null;
+        for (const bill of apBills as any[]) {
+          if (n(bill.entity) !== feN) continue;
+          const dateMatch = bill.dueDate === datePart || bill.invoiceDate === datePart;
+          if (!dateMatch) continue;
+          let score = 40;
+          const bvN = n(bill.vendor);
+          if (bvN === fvN) score += 40;
+          else if (bvN.includes(fvN) || fvN.includes(bvN)) score += 25;
+          else continue;
+          if (fiN && bill.invoiceNo) {
+            const biN = n(bill.invoiceNo);
+            if (biN === fiN) score += 20;
+            else if (biN.includes(fiN) || fiN.includes(biN)) score += 10;
+          }
+          if (score > bestScore) { bestScore = score; bestBill = bill; }
+        }
+
+        if (!bestBill || bestScore < 65) { skipped.push({ file: file.name, reason: `no match (score ${bestScore})` }); continue; }
+
+        const prev = (bestBill as any).driveViewUrl;
+        matched.push({
+          row: (bestBill as any).row,
+          entity: bestBill.entity,
+          driveViewUrl: file.webViewLink,
+          file: file.name,
+          action: prev ? (prev === file.webViewLink ? "unchanged" : "corrected") : "linked",
+        });
+      }
+
+      // ── Step 3: write changed Drive URLs to sheet via thin server endpoint ───
+      const toWrite = matched.filter(m => m.action !== "unchanged");
+      let sheetWrites = 0;
+      if (toWrite.length > 0) {
+        const wr = await fetch("/api/drive/batch-write-drive-urls", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userAccessToken: token, spreadsheetId: AP_SHEET_ID, items: toWrite }),
+        });
+        const wd = await wr.json();
+        sheetWrites = wd.written || 0;
+      }
+
+      setRemapResult({
+        driveFilesFound: driveFiles.length,
+        matched: matched.length,
+        corrected: matched.filter(m => m.action === "corrected").length,
+        linked: matched.filter(m => m.action === "linked").length,
+        unchanged: matched.filter(m => m.action === "unchanged").length,
+        skippedCount: skipped.length,
+        skippedList: skipped.slice(0, 20),
+        sheetWrites,
+        message: toWrite.length > 0
+          ? `Re-mapped ${toWrite.length} bill link(s) and wrote ${sheetWrites} to sheet.`
+          : "No changes needed — all links already correct.",
       });
-      const data = await resp.json();
-      if (!data.ok) throw new Error(data.details || data.error || "Remap failed");
-      setRemapResult(data);
     } catch (e: any) {
       setRemapError(e?.message || "Unknown error");
     } finally {
