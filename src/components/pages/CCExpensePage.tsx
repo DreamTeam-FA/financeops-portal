@@ -412,7 +412,13 @@ export const CCExpensePage: React.FC = () => {
     setUploadPreviewOpen(false);
     try {
       const buf = await file.arrayBuffer();
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+      // Chunked encoding — avoids "Maximum call stack size exceeded" on large files
+      const bytes = new Uint8Array(buf);
+      let binary = "";
+      const chunk = 8192;
+      for (let i = 0; i < bytes.length; i += chunk)
+        binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+      const base64 = btoa(binary);
       const resp = await fetch("/api/cc-expense/parse", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

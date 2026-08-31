@@ -1032,6 +1032,164 @@ app.get("/api/drive/recover-bill-links", async (req, res) => {
   }
 });
 
+/**
+ * POST /api/drive/remap-all-bill-links
+ * Force re-maps EVERY Drive bill file to its correct bill row, overwriting any
+ * wrong links already in the sheet.  Unlike recover-bill-links this does NOT
+ * skip bills that already have a driveViewUrl — it re-derives the correct URL
+ * from the file name and writes it straight to the sheet row.
+ *
+ * Filename format (enforced by the upload route):
+ *   {Entity}_{Vendor}_{InvoiceNo}_{YYYY-MM-DD}.{ext}
+ *
+ * Body: { userAccessToken: string }
+ */
+app.post("/api/drive/remap-all-bill-links", async (req, res) => {
+  const { userAccessToken } = req.body || {};
+  if (!userAccessToken) return res.status(401).json({ ok: false, error: "userAccessToken required" });
+
+  let drive: any;
+  try { drive = getDriveClient(userAccessToken); }
+  catch (e: any) { return res.status(500).json({ ok: false, error: e.message }); }
+
+  try {
+    // 1. List every non-folder file under BILLS_ROOT_FOLDER_ID (all pages)
+    const allFiles: { id: string; name: string; webViewLink: string }[] = [];
+    let pageToken: string | undefined;
+    do {
+      const resp: any = await drive.files.list({
+        q: `'${BILLS_ROOT_FOLDER_ID}' in ancestors and mimeType != 'application/vnd.google-apps.folder' and trashed=false`,
+        fields: "nextPageToken, files(id,name,webViewLink)",
+        spaces: "drive",
+        pageSize: 1000,
+        pageToken,
+      });
+      allFiles.push(...(resp.data.files || []));
+      pageToken = resp.data.nextPageToken;
+    } while (pageToken);
+
+    const normalise = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
+    const current  = getStoredData();
+    const apBills: any[] = (current.ap || []).map((b: any) => ({ ...b }));
+
+    const results: { file: string; vendor: string; entity: string; date: string; row: number; action: string }[] = [];
+    const skipped: { file: string; reason: string }[] = [];
+
+    for (const file of allFiles) {
+      // Strip extension, split on underscore
+      const bare  = file.name.replace(/\.[^.]+$/, "");
+      const parts = bare.split("_");
+
+      // Need at least: Entity _ Vendor _ YYYY-MM-DD  (3 parts minimum)
+      if (parts.length < 3) { skipped.push({ file: file.name, reason: "too few parts" }); continue; }
+
+      // Last part must be a date
+      const datePart = parts[parts.length - 1];
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(datePart)) { skipped.push({ file: file.name, reason: "no date suffix" }); continue; }
+
+      const fileEntity  = parts[0];                                           // e.g. "Rubys"
+      const fileVendor  = parts[1];                                           // e.g. "Amazon"
+      const fileInvNo   = parts.length > 3 ? parts.slice(2, -1).join("_") : ""; // middle parts
+      const fileDate    = datePart;
+
+      const feN = normalise(fileEntity);
+      const fvN = normalise(fileVendor);
+      const fiN = normalise(fileInvNo);
+
+      // Score every bill and pick the best match (must exceed threshold)
+      let bestScore = 0;
+      let bestBill: any = null;
+
+      for (const bill of apBills) {
+        // Entity must match (normalised — "Rubys" matches "Ruby's")
+        if (normalise(bill.entity) !== feN) continue;
+
+        let score = 0;
+
+        // Date match (dueDate or invoiceDate)
+        const dateMatch = bill.dueDate === fileDate || (bill as any).invoiceDate === fileDate;
+        if (!dateMatch) continue;
+        score += 40;
+
+        // Vendor match (fuzzy containment)
+        const bvN = normalise(bill.vendor);
+        if (bvN === fvN)                        score += 40;
+        else if (bvN.includes(fvN) || fvN.includes(bvN)) score += 25;
+        else continue; // vendor mismatch — skip
+
+        // Invoice number bonus
+        if (fiN && bill.invoiceNo) {
+          const biN = normalise(bill.invoiceNo);
+          if (biN === fiN)                        score += 20;
+          else if (biN.includes(fiN) || fiN.includes(biN)) score += 10;
+        }
+
+        if (score > bestScore) { bestScore = score; bestBill = bill; }
+      }
+
+      const THRESHOLD = 65; // entity(implicit) + date(40) + vendor_contains(25) = 65 minimum
+      if (!bestBill || bestScore < THRESHOLD) {
+        skipped.push({ file: file.name, reason: `no bill match (best score ${bestScore})` });
+        continue;
+      }
+
+      const prev = bestBill.driveViewUrl;
+      bestBill.driveViewUrl  = file.webViewLink;
+      bestBill.driveFileName = file.name;
+
+      results.push({
+        file:   file.name,
+        vendor: bestBill.vendor,
+        entity: bestBill.entity,
+        date:   fileDate,
+        row:    bestBill.row,
+        action: prev ? (prev === file.webViewLink ? "unchanged" : "corrected") : "linked",
+      });
+    }
+
+    // 2. Persist corrected bills to server JSON
+    if (results.length > 0) {
+      current.ap = apBills;
+      saveStoredData(current);
+
+      // 3. Write ONLY the Drive URL cell to each affected sheet row — never touches other columns
+      let sheetWrites = 0;
+      for (const r of results) {
+        if (r.action === "unchanged") continue;
+        const bill = apBills.find((b: any) => b.vendor === r.vendor && b.entity === r.entity && b.dueDate === r.date && b.row === r.row);
+        if (!bill?.row || !bill?.entity || !bill?.driveViewUrl) continue;
+        try {
+          await writeBillDriveUrl(bill.row, bill.entity, bill.driveViewUrl, AP_SPREADSHEET_ID, userAccessToken);
+          sheetWrites++;
+          console.log(`[RemapLinks] ${r.action}: ${bill.entity} / ${bill.vendor} row ${bill.row} → ${bill.driveFileName}`);
+        } catch (e: any) {
+          console.warn(`[RemapLinks] sheet write failed for ${bill.vendor}:`, e?.message);
+        }
+      }
+      console.log(`[RemapLinks] ${sheetWrites} sheet cell(s) written`);
+    }
+
+    return res.json({
+      ok: true,
+      driveFilesFound: allFiles.length,
+      matched:   results.length,
+      corrected: results.filter(r => r.action === "corrected").length,
+      linked:    results.filter(r => r.action === "linked").length,
+      unchanged: results.filter(r => r.action === "unchanged").length,
+      skipped:   skipped.length,
+      results,
+      skipped: skipped.slice(0, 50), // cap log size
+      message: results.length > 0
+        ? `Remapped ${results.filter(r => r.action !== "unchanged").length} bill link(s) to the correct sheet rows.`
+        : "No files could be matched to bills.",
+    });
+  } catch (e: any) {
+    console.error("[RemapLinks]", e?.message || e);
+    return res.status(502).json({ ok: false, error: "Remap failed", details: e?.message });
+  }
+});
+
 // =============================================================================
 // Vision LLM helper — tries OpenAI first, falls back to Gemini
 // =============================================================================

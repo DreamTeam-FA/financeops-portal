@@ -23,6 +23,7 @@ import {
   Archive,
   BarChart3,
   AlertTriangle,
+  AlertCircle,
   Loader2,
   Lock,
   Eye,
@@ -378,6 +379,33 @@ export const DataSyncPage: React.FC = () => {
       setRecoveryError(e?.message || "Unknown error");
     } finally {
       setRecoveringBills(false);
+    }
+  }, []);
+
+  const [remapping, setRemapping] = useState(false);
+  const [remapResult, setRemapResult] = useState<any>(null);
+  const [remapError, setRemapError] = useState<string | null>(null);
+
+  const remapAllBillLinks = useCallback(async () => {
+    setRemapping(true);
+    setRemapResult(null);
+    setRemapError(null);
+    try {
+      const { getAccessToken } = await import("../../services/googleAuth");
+      const token = await getAccessToken();
+      if (!token) throw new Error("Not signed in to Google. Please connect your Google account first.");
+      const resp = await fetch("/api/drive/remap-all-bill-links", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userAccessToken: token }),
+      });
+      const data = await resp.json();
+      if (!data.ok) throw new Error(data.error || "Remap failed");
+      setRemapResult(data);
+    } catch (e: any) {
+      setRemapError(e?.message || "Unknown error");
+    } finally {
+      setRemapping(false);
     }
   }, []);
 
@@ -824,6 +852,51 @@ export const DataSyncPage: React.FC = () => {
                       <span className={`truncate ${sub}`}>{m.file}</span>
                       <span className={`shrink-0 ${muted}`}>→</span>
                       <span className={`truncate ${isLight ? "text-slate-600" : "text-slate-300"}`}>{m.bill}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ── 7b. Force Re-map All Bill Links ─────────────────────────────── */}
+        <div className={`border rounded-2xl p-6 space-y-4 ${card}`}>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <RefreshCw className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+              <div>
+                <h3 className={`text-sm font-bold ${heading}`}>Force Re-map Bill Links</h3>
+                <p className={`text-xs ${sub}`}>Reads every invoice file name from Drive, matches it to the correct bill by entity + vendor + date, and overwrites any wrong links in the sheet. Use this to correct mis-routed attachments.</p>
+              </div>
+            </div>
+            <button onClick={remapAllBillLinks} disabled={remapping || !googleUser}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-red-600 hover:bg-red-500 text-white transition-colors disabled:opacity-40">
+              {remapping ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Re-mapping…</> : <><RefreshCw className="w-3.5 h-3.5" /> Re-map All Now</>}
+            </button>
+          </div>
+          {remapError && (
+            <div className="flex items-center gap-2 text-xs text-red-500 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              {remapError}
+            </div>
+          )}
+          {remapResult && (
+            <div className="space-y-3">
+              <div className={`rounded-xl border px-4 py-3 flex flex-wrap gap-4 text-xs ${remapResult.corrected > 0 || remapResult.linked > 0 ? (isLight ? "bg-emerald-50 border-emerald-200" : "bg-emerald-900/10 border-emerald-700/20") : `${inner}`}`}>
+                <span className={`flex items-center gap-1.5 ${sub}`}><FolderSearch className="w-3.5 h-3.5 text-orange-400" /><span className={`font-bold ${heading}`}>{remapResult.driveFilesFound}</span> files in Drive</span>
+                <span className={`flex items-center gap-1.5 ${sub}`}><CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /><span className={`font-bold ${heading}`}>{remapResult.corrected ?? 0}</span> corrected</span>
+                <span className={`flex items-center gap-1.5 ${sub}`}><LinkIcon className="w-3.5 h-3.5 text-blue-400" /><span className={`font-bold ${heading}`}>{remapResult.linked ?? 0}</span> newly linked</span>
+                <span className={`flex items-center gap-1.5 ${sub}`}><span className={`font-bold ${heading}`}>{remapResult.skipped ?? 0}</span> skipped</span>
+                <span className={`text-[11px] w-full ${muted}`}>{remapResult.message}</span>
+              </div>
+              {remapResult.results?.filter((r: any) => r.action !== "unchanged").length > 0 && (
+                <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
+                  {remapResult.results.filter((r: any) => r.action !== "unchanged").map((r: any, i: number) => (
+                    <div key={i} className={`flex items-center gap-2 text-[11px] rounded-lg px-3 py-1.5 ${isLight ? "bg-slate-50" : "bg-white/[.03]"}`}>
+                      <span className={`shrink-0 font-bold text-[10px] px-1.5 py-0.5 rounded ${r.action === "corrected" ? "bg-amber-500/20 text-amber-400" : "bg-emerald-500/20 text-emerald-400"}`}>{r.action}</span>
+                      <span className={`truncate flex-1 ${sub}`}>{r.entity} / {r.vendor}</span>
+                      <span className={`shrink-0 ${muted}`}>row {r.row}</span>
                     </div>
                   ))}
                 </div>
