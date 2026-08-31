@@ -126,25 +126,25 @@
         width: 0; height: 0;
         animation: fo-orbit-spin 11s linear infinite;
       }
-      .fo-orb:nth-child(2) { animation-delay: -3.667s; }
-      .fo-orb:nth-child(3) { animation-delay: -7.333s; }
+      .fo-orb:nth-child(2) { animation-delay: -2.75s; }
+      .fo-orb:nth-child(3) { animation-delay: -5.5s; }
+      .fo-orb:nth-child(4) { animation-delay: -8.25s; }
 
       .fo-orb-badge {
         position: absolute;
         top: -22px; left: -22px;
         width: 44px; height: 44px;
-        border-radius: 14px;
+        border-radius: 12px;
         display: flex; align-items: center; justify-content: center;
-        font-size: 18px;
+        overflow: hidden;
         transform: translateX(100px);
         animation: fo-orbit-counter 11s linear infinite;
-        box-shadow: 0 4px 16px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.1);
-        cursor: pointer;
-        text-decoration: none;
-        transition: transform .2s;
+        box-shadow: 0 4px 20px rgba(0,0,0,.5), 0 0 0 2px rgba(255,255,255,.18), 0 0 12px rgba(255,255,255,.08);
+        cursor: default;
       }
-      .fo-orb:nth-child(2) .fo-orb-badge { animation-delay: -3.667s; }
-      .fo-orb:nth-child(3) .fo-orb-badge { animation-delay: -7.333s; }
+      .fo-orb:nth-child(2) .fo-orb-badge { animation-delay: -2.75s; }
+      .fo-orb:nth-child(3) .fo-orb-badge { animation-delay: -5.5s; }
+      .fo-orb:nth-child(4) .fo-orb-badge { animation-delay: -8.25s; }
 
       @keyframes fo-orbit-spin    { from { transform: rotate(0deg); }   to { transform: rotate(360deg); } }
       @keyframes fo-orbit-counter { from { transform: translateX(100px) rotate(0deg);   } to { transform: translateX(100px) rotate(-360deg); } }
@@ -240,25 +240,32 @@
             </svg>
           </div>
 
-          <!-- Orbiting badge 1 — Main F&A -->
+          <!-- Orbiting badge 1 — Ruby's -->
           <div class="fo-orb">
-            <a class="fo-orb-badge" href="https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit" target="_blank" rel="noopener"
-               title="Main F&A Sheet"
-               style="background:linear-gradient(135deg,#1a4a8a,#1557c0);box-shadow:0 4px 20px rgba(26,115,232,.5),0 0 0 1px rgba(255,255,255,.12);">📋</a>
+            <div class="fo-orb-badge" title="Ruby's" style="background:#fff;padding:4px;">
+              <img src="/logos/rubys.png" alt="Ruby's" style="width:100%;height:100%;object-fit:contain;border-radius:8px;" />
+            </div>
           </div>
 
-          <!-- Orbiting badge 2 — 4YR Payroll -->
+          <!-- Orbiting badge 2 — MSDx -->
           <div class="fo-orb">
-            <a class="fo-orb-badge" href="https://docs.google.com/spreadsheets/d/1SITtQDT3iFo5yIOBgjbERbqJjYJ8rk6drXwkLm3sAGE/edit" target="_blank" rel="noopener"
-               title="4YR Payroll Sheet"
-               style="background:linear-gradient(135deg,#0e5c3a,#16a34a);box-shadow:0 4px 20px rgba(22,163,74,.5),0 0 0 1px rgba(255,255,255,.12);">💼</a>
+            <div class="fo-orb-badge" title="MSDx" style="background:#fff;padding:4px;">
+              <img src="/logos/msdx.png" alt="MSDx" style="width:100%;height:100%;object-fit:contain;border-radius:8px;" />
+            </div>
           </div>
 
-          <!-- Orbiting badge 3 — Calendar -->
+          <!-- Orbiting badge 3 — TI -->
           <div class="fo-orb">
-            <a class="fo-orb-badge" href="https://docs.google.com/spreadsheets/d/1ChoHr7dsfai0Unl-Gk-HyPmgrpWOYu07gllY9PA8epo/edit" target="_blank" rel="noopener"
-               title="Calendar Sheet"
-               style="background:linear-gradient(135deg,#4c1d95,#7c3aed);box-shadow:0 4px 20px rgba(124,58,237,.5),0 0 0 1px rgba(255,255,255,.12);">📅</a>
+            <div class="fo-orb-badge" title="TI" style="background:#fff;padding:4px;">
+              <img src="/logos/ti.png" alt="TI" style="width:100%;height:100%;object-fit:contain;border-radius:8px;" />
+            </div>
+          </div>
+
+          <!-- Orbiting badge 4 — 4YR -->
+          <div class="fo-orb">
+            <div class="fo-orb-badge" title="4You Pros" style="background:#fff;padding:4px;">
+              <img src="/logos/4yr.png" alt="4You Pros" style="width:100%;height:100%;object-fit:contain;border-radius:8px;" />
+            </div>
           </div>
         </div>
 
