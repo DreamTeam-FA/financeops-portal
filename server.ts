@@ -166,10 +166,17 @@ function mergeDatasets(liveList: any[], currentList: any[], idKey = "id") {
       }
       // Fresh live sheet data overrides stored item; currentItem fills in any missing fields
       const result: any = { ...currentItem, ...liveItemDefined, ...(invoiceNo ? { invoiceNo } : {}) };
-      // driveViewUrl: prefer live sheet value (now stored in col T/X) over cached JSON value.
-      // Fall back to currentItem value for bills not yet written to sheet.
-      if (!result.driveViewUrl && currentItem.driveViewUrl) result.driveViewUrl = currentItem.driveViewUrl;
-      if (!result.driveFileName && currentItem.driveFileName) result.driveFileName = currentItem.driveFileName;
+      // driveViewUrl: sheet is authoritative. Only use cached JSON value when the sheet
+      // has a real URL — never fall back to stale JSON when sheet is empty/cleared.
+      // This prevents manually-cleared sheet links from being re-applied from JSON cache.
+      if (result.driveViewUrl) {
+        // sheet has a URL — keep it; driveFileName follows from JSON cache if missing
+        if (!result.driveFileName && currentItem.driveFileName) result.driveFileName = currentItem.driveFileName;
+      } else {
+        // sheet is empty — respect that; do NOT restore from JSON cache
+        result.driveViewUrl = undefined;
+        result.driveFileName = undefined;
+      }
       // NOTE: URL filtering is handled in the parser (googleSheetsService.ts) per entity/field.
       // Do NOT strip URLs here — Ruby's/MSDx col K legitimately contains Gmail/Drive links.
       return result;
