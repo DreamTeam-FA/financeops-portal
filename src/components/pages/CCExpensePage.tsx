@@ -405,30 +405,65 @@ export const CCExpensePage: React.FC = () => {
   useEffect(() => { pullFromSheet(); }, []);
 
   // ── File selection ──────────────────────────────────────────────────────────
+  /** Minimal RFC-4180 CSV parser — handles quoted fields with embedded commas/newlines. */
+  const parseCSVText = (text: string): string[][] => {
+    const rows: string[][] = [];
+    let row: string[] = [];
+    let field = "";
+    let inQuote = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      const next = text[i + 1];
+      if (inQuote) {
+        if (ch === '"' && next === '"') { field += '"'; i++; }        // escaped quote
+        else if (ch === '"')            { inQuote = false; }          // close quote
+        else                            { field += ch; }
+      } else {
+        if      (ch === '"')                        { inQuote = true; }
+        else if (ch === ',')                        { row.push(field); field = ""; }
+        else if (ch === '\r' && next === '\n')      { row.push(field); field = ""; rows.push(row); row = []; i++; }
+        else if (ch === '\n' || ch === '\r')        { row.push(field); field = ""; rows.push(row); row = []; }
+        else                                        { field += ch; }
+      }
+    }
+    if (field || row.length) { row.push(field); rows.push(row); }
+    return rows.filter(r => r.some(c => c.trim() !== ""));
+  };
+
   const handleFileSelect = useCallback(async (file: File) => {
     setUploadFile(file);
     setParseError(null);
     setParsedUploadRows(null);
     setUploadPreviewOpen(false);
     try {
-      const buf = await file.arrayBuffer();
-      // Chunked encoding — avoids "Maximum call stack size exceeded" on large files
-      const bytes = new Uint8Array(buf);
-      let binary = "";
-      const chunk = 8192;
-      for (let i = 0; i < bytes.length; i += chunk)
-        binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-      const base64 = btoa(binary);
-      const resp = await fetch("/api/cc-expense/parse", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileBase64: base64, fileName: file.name }),
-      });
-      const data = await resp.json();
-      if (!data.ok) throw new Error(data.error || "Parse failed");
-      setParsedUploadRows(data.rows || []);
+      let rows: any[][];
+
+      const isCSV = /\.csv$/i.test(file.name);
+      if (isCSV) {
+        // Parse CSV entirely in the browser — no server round-trip, no base64 encoding
+        const text = await file.text();
+        rows = parseCSVText(text);
+      } else {
+        // XLSX / XLS — send to server for parsing (requires XLSX library)
+        const buf = await file.arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        let binary = "";
+        const chunk = 8192;
+        for (let i = 0; i < bytes.length; i += chunk)
+          binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+        const base64 = btoa(binary);
+        const resp = await fetch("/api/cc-expense/parse", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fileBase64: base64, fileName: file.name }),
+        });
+        const data = await resp.json();
+        if (!data.ok) throw new Error(data.error || "Parse failed");
+        rows = data.rows || [];
+      }
+
+      setParsedUploadRows(rows);
       // Find header row (row that contains "Transaction Date" or "Name")
-      const rows: any[][] = data.rows || [];
       let hdr = 0;
       for (let i = 0; i < Math.min(rows.length, 5); i++) {
         const row = rows[i];
