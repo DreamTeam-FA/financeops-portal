@@ -921,6 +921,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           }).then(r => r.json());
 
           if (resp?.data) {
+            // Sheet is source of truth — clear stale localStorage drive cache before applying
+            // so deleted sheet links don't get re-injected from browser storage
+            try { localStorage.removeItem("billDriveLinks_v2"); } catch {}
             applyData(resp.data);
             saveCache(resp.data); // refresh localStorage cache with authoritative live data
             // Notify other open tabs so they re-read the cache without a full pull-live
@@ -1756,27 +1759,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     // Persist any driveViewUrls we just received (from server recovery) into cache
     saveDriveCache(withLinks);
 
-    // Push any links that came from localStorage (not in the server response) back to the
-    // server so ALL users see them — the Drive folder is shared/centralised.
-    const restoredFromCache = withLinks.filter((b, i) =>
-      b.driveViewUrl && !(bills[i] as any)?.driveViewUrl
-    );
-    if (restoredFromCache.length > 0) {
-      fetch("/api/drive/restore-links", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          links: restoredFromCache.map(b => ({
-            entity: b.entity,
-            vendor: b.vendor,
-            invoiceNo: (b as any).invoiceNo,
-            dueDate: b.dueDate,
-            driveViewUrl: (b as any).driveViewUrl,
-            driveFileName: (b as any).driveFileName || "",
-          }))
-        })
-      }).catch(() => {/* non-fatal */});
-    }
+    // NOTE: removed automatic restore-links push — sheet is source of truth.
+    // localStorage cache is display-only; it must never write back to the server or sheet.
+    // Pull All clears the cache so deleted sheet links cannot be re-injected from localStorage.
 
     return (withLinks || []).map((b) => ({
       ...b,
