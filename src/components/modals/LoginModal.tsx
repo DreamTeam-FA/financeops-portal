@@ -51,15 +51,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen }) => {
   const isLight = theme === "light";
 
   const LOGOS = [
-    { src: "/logos/rubys.png",      alt: "Ruby's"      },
-    { src: "/logos/msdx.png",       alt: "MSDx"        },
-    { src: "/logos/ti.png",         alt: "TI"          },
-    { src: "/logos/4yr.png",        alt: "4You Pros"   },
-    { src: "/logos/curcuminpro.jpg",alt: "CurcuminPro" },
-    { src: "/logos/ziglar.jpg",     alt: "Ziglar"      },
+    { src: "/logos/rubys.png",       alt: "Ruby's",      bg: "#eef1f8" },
+    { src: "/logos/msdx.png",        alt: "MSDx",        bg: "#0d1f3c" }, // dark bg — MSDx logo is white
+    { src: "/logos/ti.png",          alt: "TI",          bg: "#eef1f8" },
+    { src: "/logos/4yr.png",         alt: "4You Pros",   bg: "#eef1f8" },
+    { src: "/logos/curcuminpro.jpg", alt: "CurcuminPro", bg: "#eef1f8" },
+    { src: "/logos/ziglar.jpg",      alt: "Ziglar",      bg: "#eef1f8" },
   ];
   const ORBIT_DUR = 14; // seconds per full revolution
-  const ORBIT_R   = 230; // px — modal is ~384px wide, radius must exceed half (~192px)
+  const ORBIT_R   = 290; // px — card corners are ~240px from center; 290 gives clear clearance
 
   return (
     <div className="fixed inset-0 z-100 flex items-center justify-center p-4 animate-fadeIn overflow-hidden"
@@ -109,7 +109,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen }) => {
               top: -24, left: -24,
               width: 48, height: 48,
               borderRadius: 13,
-              background: "#eef1f8",
+              background: logo.bg,
               padding: 5,
               overflow: "hidden",
               boxShadow: "0 4px 20px rgba(0,0,0,.5),0 0 0 2px rgba(255,255,255,.2)",
