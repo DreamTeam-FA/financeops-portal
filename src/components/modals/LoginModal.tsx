@@ -59,7 +59,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen }) => {
     { src: "/logos/ziglar.jpg",     alt: "Ziglar"      },
   ];
   const ORBIT_DUR = 14; // seconds per full revolution
-  const ORBIT_R   = 160; // px, large enough to encircle the modal
+  const ORBIT_R   = 230; // px — modal is ~384px wide, radius must exceed half (~192px)
 
   return (
     <div className="fixed inset-0 z-100 flex items-center justify-center p-4 animate-fadeIn overflow-hidden"
