@@ -354,13 +354,19 @@ export const CCExpensePage: React.FC = () => {
   // ── Pull live data ──────────────────────────────────────────────────────────
   const pullFromSheet = useCallback(async () => {
     setLoading(true);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000); // 20s hard timeout
     try {
       const accessToken = await getAccessToken();
-      if (!accessToken) { showToast("Not signed in to Google", "error"); return; }
+      if (!accessToken) {
+        showToast("Not signed in to Google — upload a CSV to view data", "error");
+        return;
+      }
       const resp = await fetch("/api/cc-expense/pull", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ accessToken }),
+        signal: controller.signal,
       });
       const data = await resp.json();
       if (!data.ok) throw new Error(data.error || "Unknown error");
@@ -395,14 +401,21 @@ export const CCExpensePage: React.FC = () => {
 
       showToast(`Loaded ${rows.length} transactions from sheet`, "success");
     } catch (e: any) {
-      showToast(`Pull failed: ${e?.message || String(e)}`, "error");
+      const msg = e?.name === "AbortError"
+        ? "Sheet load timed out — upload a CSV to view data"
+        : `Pull failed: ${e?.message || String(e)}`;
+      showToast(msg, "error");
     } finally {
+      clearTimeout(timeout);
       setLoading(false);
     }
   }, [showToast]);
 
-  // Load on mount
-  useEffect(() => { pullFromSheet(); }, []);
+  // Load on mount — only if Google auth is already cached (don't block with a slow sheet pull)
+  useEffect(() => {
+    const token = localStorage.getItem("google_access_token");
+    if (token) pullFromSheet();
+  }, []);
 
   // ── File selection ──────────────────────────────────────────────────────────
   /** Minimal RFC-4180 CSV parser — handles quoted fields with embedded commas/newlines. */
