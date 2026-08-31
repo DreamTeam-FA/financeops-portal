@@ -1072,6 +1072,76 @@ app.post("/api/drive/batch-write-drive-urls", async (req, res) => {
 });
 
 /**
+ * POST /api/drive/batch-clear-and-write-links
+ * Clears all drive link cells for every AP bill, then writes the correct URLs.
+ * Uses a SINGLE Sheets batchUpdate call for the clear and one for the writes
+ * instead of individual per-cell calls — avoids rate limits and surfaces errors cleanly.
+ */
+app.post("/api/drive/batch-clear-and-write-links", async (req, res) => {
+  const { userAccessToken, spreadsheetId, clearItems, writeItems } = req.body || {};
+  if (!userAccessToken) return res.status(401).json({ ok: false, error: "userAccessToken required" });
+
+  const sid = (spreadsheetId || AP_SPREADSHEET_ID).replace(/.*\/d\/([^/]+).*/, "$1").replace(/\?.*/, "");
+
+  // Build range list for a batch of items (clear or write)
+  const buildRanges = (items: { row: number; entity: string; driveViewUrl: string }[]) => {
+    const { getAPColMap, colNumToLetter } = require("./src/services/googleSheetsService");
+    return items
+      .filter(it => it.row && it.entity)
+      .map(it => {
+        try {
+          const map = getAPColMap(it.entity);
+          if (map.driveViewUrlCol === null || map.driveViewUrlCol === undefined) return null;
+          const tabPart = map.dataRange.split("!")[0];
+          const rangeBody = map.dataRange.split("!")[1];
+          const dataStart = parseInt(rangeBody.split(":")[0].replace(/\D/g, ""));
+          const sheetRow = dataStart + Number(it.row) - 1;
+          const colLetter = colNumToLetter(map.driveViewUrlCol + 1);
+          return { range: `${tabPart}!${colLetter}${sheetRow}`, values: [[it.driveViewUrl]] };
+        } catch { return null; }
+      })
+      .filter(Boolean);
+  };
+
+  const batchUpdate = async (data: any[]) => {
+    if (!data.length) return { updatedCells: 0 };
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${sid}/values:batchUpdate`;
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${userAccessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ valueInputOption: "USER_ENTERED", data }),
+    });
+    if (!resp.ok) {
+      const e: any = await resp.json().catch(() => ({}));
+      throw new Error(e?.error?.message || `Sheets API ${resp.status}`);
+    }
+    const d: any = await resp.json();
+    return { updatedCells: d.totalUpdatedCells || data.length };
+  };
+
+  try {
+    const clearData = buildRanges((clearItems || []).map((it: any) => ({ ...it, driveViewUrl: "" })));
+    const writeData = buildRanges(writeItems || []);
+
+    let cleared = 0, written = 0;
+    if (clearData.length) {
+      const r = await batchUpdate(clearData);
+      cleared = r.updatedCells;
+      console.log(`[BatchClearWrite] cleared ${cleared} cells`);
+    }
+    if (writeData.length) {
+      const r = await batchUpdate(writeData);
+      written = r.updatedCells;
+      console.log(`[BatchClearWrite] wrote ${written} cells`);
+    }
+    return res.json({ ok: true, cleared, written });
+  } catch (e: any) {
+    console.error("[BatchClearWrite] error:", e?.message);
+    return res.status(500).json({ ok: false, error: e?.message || "Unknown error" });
+  }
+});
+
+/**
  * POST /api/drive/resolve-file-ids
  * Look up Drive file metadata (name + webViewLink) for a list of specific file IDs.
  * Uses files.get per-file — NOT files.list — so it works even when folder-level

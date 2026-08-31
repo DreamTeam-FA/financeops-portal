@@ -212,23 +212,18 @@ export const DataSyncPage: React.FC = () => {
       if (!token) throw new Error("Not signed in to Google.");
       const AP_SHEET_ID = "15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs";
 
-      // Step 1: clear ALL existing drive link cells
-      const clearItems = (apBills as any[]).filter(b => b.row && b.entity).map(b => ({ row: b.row, entity: b.entity, driveViewUrl: "" }));
-      await fetch("/api/drive/batch-write-drive-urls", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userAccessToken: token, spreadsheetId: AP_SHEET_ID, items: clearItems }),
-      });
-
-      // Step 2: write correct matched links
+      // Single-batch: clear all existing + write correct ones in 2 API calls total
+      const clearItems = (apBills as any[]).filter(b => b.row && b.entity).map(b => ({ row: b.row, entity: b.entity }));
       const writeItems = billMatchPreview.filter(p => p.matchedBill?.row && p.matchedBill?.entity).map(p => ({
         row: p.matchedBill.row, entity: p.matchedBill.entity, driveViewUrl: p.url,
       }));
-      const wr = await fetch("/api/drive/batch-write-drive-urls", {
+      const resp = await fetch("/api/drive/batch-clear-and-write-links", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userAccessToken: token, spreadsheetId: AP_SHEET_ID, items: writeItems }),
+        body: JSON.stringify({ userAccessToken: token, spreadsheetId: AP_SHEET_ID, clearItems, writeItems }),
       });
-      const wd = await wr.json();
-      setBillApplyResult({ cleared: clearItems.length, written: wd.written || 0 });
+      const data = await resp.json();
+      if (!data.ok) throw new Error(data.error || "Server error");
+      setBillApplyResult({ cleared: data.cleared || 0, written: data.written || 0 });
     } catch (e: any) {
       setBillApplyError(e?.message || "Unknown error");
     } finally {
