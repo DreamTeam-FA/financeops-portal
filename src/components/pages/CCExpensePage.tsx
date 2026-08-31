@@ -469,11 +469,18 @@ export const CCExpensePage: React.FC = () => {
       const data = await resp.json();
       if (!data.ok) throw new Error(data.error || "Upload failed");
       showToast(`Saved ${data.updated} rows to Raw Data tab`, "success");
+
+      // Load directly from the parsed CSV rows — no sheet round-trip needed.
+      // This avoids any sheet row-limit issues and makes the view update instantly.
+      const csvRows = rawRowsFromUploadedRows(parsedUploadRows, uploadHeaderRow);
+      setRawRows(csvRows);
+      const grouped = groupIntoWeeks(csvRows);
+      setWeeks(grouped);
+      if (grouped.length > 0) setSelectedWeek(grouped[0].weekStart);
+
       setUploadFile(null);
       setParsedUploadRows(null);
       setUploadPreviewOpen(false);
-      // Re-pull to refresh local state
-      await pullFromSheet();
     } catch (e: any) {
       showToast(`Upload failed: ${e?.message || String(e)}`, "error");
     } finally {
