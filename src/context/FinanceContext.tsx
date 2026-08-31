@@ -1066,6 +1066,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
               body: JSON.stringify({ accessToken: tok }),
             }).then(r => r.json());
             if (pullResp?.data?.ap && pullResp.data.ap.length > 0) {
+              // Clear stale localStorage drive cache before applying — sheet is source of truth
+              try { localStorage.removeItem("billDriveLinks_v2"); } catch {}
               setApBills(recomputeBills(pullResp.data.ap));
             }
           } catch { /* non-fatal */ }
@@ -1598,6 +1600,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const resp = await res.json();
       if (resp && resp.data) {
         const live = resp.data;
+        // Sheet is source of truth — clear stale localStorage drive cache before applying
+        try { localStorage.removeItem("billDriveLinks_v2"); } catch {}
         if (live.ap && live.ap.length > 0) setApBills(recomputeBills(live.ap));
         if (live.banks && live.banks.length > 0) setBankAccounts(live.banks);
         if (live.loans && live.loans.length > 0) setLoans(live.loans);
