@@ -1057,7 +1057,8 @@ app.post("/api/drive/batch-write-drive-urls", async (req, res) => {
   let written = 0, failed = 0;
   for (const item of items) {
     const { row, entity, driveViewUrl } = item;
-    if (!row || !entity || !driveViewUrl) continue;
+    // driveViewUrl may be "" to clear the cell — only skip if row or entity is missing
+    if (!row || !entity || driveViewUrl === undefined || driveViewUrl === null) continue;
     try {
       await writeBillDriveUrl(Number(row), entity, driveViewUrl, spreadsheetId || AP_SPREADSHEET_ID, userAccessToken);
       written++;
@@ -1068,6 +1069,40 @@ app.post("/api/drive/batch-write-drive-urls", async (req, res) => {
     }
   }
   return res.json({ ok: true, written, failed });
+});
+
+/**
+ * POST /api/drive/resolve-file-ids
+ * Look up Drive file metadata (name + webViewLink) for a list of specific file IDs.
+ * Uses files.get per-file — NOT files.list — so it works even when folder-level
+ * listing fails due to Shared Drive / cross-account issues.
+ */
+app.post("/api/drive/resolve-file-ids", async (req, res) => {
+  const { fileIds, userAccessToken } = req.body || {};
+  if (!userAccessToken) return res.status(401).json({ ok: false, error: "userAccessToken required" });
+  if (!Array.isArray(fileIds) || fileIds.length === 0) return res.json({ ok: true, files: [] });
+
+  const files: { id: string; name: string; webViewLink: string }[] = [];
+  const errors: { id: string; error: string }[] = [];
+
+  for (const fileId of fileIds) {
+    try {
+      const url = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=id%2Cname%2CwebViewLink&supportsAllDrives=true`;
+      const resp = await fetch(url, { headers: { Authorization: `Bearer ${userAccessToken}` } });
+      if (!resp.ok) {
+        const errBody = await resp.json().catch(() => ({}));
+        errors.push({ id: fileId, error: (errBody as any)?.error?.message || `HTTP ${resp.status}` });
+        continue;
+      }
+      const data: any = await resp.json();
+      files.push({ id: data.id, name: data.name, webViewLink: data.webViewLink });
+    } catch (e: any) {
+      errors.push({ id: fileId, error: e?.message || "fetch failed" });
+    }
+  }
+
+  console.log(`[ResolveFileIds] resolved ${files.length}/${fileIds.length} files, ${errors.length} errors`);
+  return res.json({ ok: true, files, errors });
 });
 
 /**

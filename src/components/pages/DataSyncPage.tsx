@@ -30,6 +30,7 @@ import {
   EyeOff,
   FolderSearch,
   FlaskConical,
+
   CheckCircle,
   XCircle,
   ShieldAlert,
@@ -137,11 +138,103 @@ export const DataSyncPage: React.FC = () => {
     }
   }, []);
 
-  // ── Bill Copy Recovery state ─────────────────────────────────────────────────
-  const [recoveringBills, setRecoveringBills] = useState(false);
-  type RecoveryResult = { driveFilesFound: number; restored: number; matches: Array<{ file: string; bill: string }>; message: string } | null;
-  const [recoveryResult, setRecoveryResult] = useState<RecoveryResult>(null);
-  const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  // ── Bill Link Manager state ──────────────────────────────────────────────────
+  const [billPasteLinks, setBillPasteLinks] = useState("");
+  const [billResolveLoading, setBillResolveLoading] = useState(false);
+  const [billResolveError, setBillResolveError] = useState<string | null>(null);
+  type BillMatchRow = { fileId: string; fileName: string; url: string; matchedBill: any | null; reason: string };
+  const [billMatchPreview, setBillMatchPreview] = useState<BillMatchRow[]>([]);
+  const [billApplying, setBillApplying] = useState(false);
+  const [billApplyResult, setBillApplyResult] = useState<{ cleared: number; written: number } | null>(null);
+  const [billApplyError, setBillApplyError] = useState<string | null>(null);
+
+  const extractFileIds = (text: string): string[] => {
+    const pattern = /\/file\/d\/([A-Za-z0-9_\-]+)\//g;
+    const ids = new Set<string>();
+    let m;
+    while ((m = pattern.exec(text)) !== null) ids.add(m[1]);
+    return [...ids];
+  };
+
+  const resolveAndMatch = useCallback(async () => {
+    const fileIds = extractFileIds(billPasteLinks);
+    if (!fileIds.length) { setBillResolveError("No valid Drive file links found. Paste links like https://drive.google.com/file/d/.../view"); return; }
+    setBillResolveLoading(true);
+    setBillResolveError(null);
+    setBillMatchPreview([]);
+    setBillApplyResult(null);
+    try {
+      const { getAccessToken } = await import("../../services/googleAuth");
+      const token = await getAccessToken();
+      if (!token) throw new Error("Not signed in to Google. Connect your account first.");
+      const resp = await fetch("/api/drive/resolve-file-ids", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileIds, userAccessToken: token }),
+      });
+      const data = await resp.json();
+      if (!data.ok) throw new Error(data.error);
+      const files: { id: string; name: string; webViewLink: string }[] = data.files;
+
+      const n = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const preview: BillMatchRow[] = files.map(f => {
+        const bare = f.name.replace(/\.[^.]+$/, "");
+        const parts = bare.split("_");
+        if (parts.length < 3) return { fileId: f.id, fileName: f.name, url: f.webViewLink, matchedBill: null, reason: "filename format unrecognized" };
+        const datePart = parts[parts.length - 1];
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return { fileId: f.id, fileName: f.name, url: f.webViewLink, matchedBill: null, reason: "no date suffix in filename" };
+        const feN = n(parts[0]), fvN = n(parts[1]);
+        let best = 0, match: any = null;
+        for (const b of apBills as any[]) {
+          if (n(b.entity) !== feN) continue;
+          if (b.dueDate !== datePart && b.invoiceDate !== datePart) continue;
+          const bvN = n(b.vendor);
+          const score = bvN === fvN ? 100 : (bvN.includes(fvN) || fvN.includes(bvN)) ? 70 : 0;
+          if (score > best) { best = score; match = b; }
+        }
+        return { fileId: f.id, fileName: f.name, url: f.webViewLink, matchedBill: match, reason: match ? `matched (score ${best})` : "no matching bill found" };
+      });
+      setBillMatchPreview(preview);
+    } catch (e: any) {
+      setBillResolveError(e?.message || "Unknown error");
+    } finally {
+      setBillResolveLoading(false);
+    }
+  }, [billPasteLinks, apBills]);
+
+  const applyBillLinks = useCallback(async () => {
+    setBillApplying(true);
+    setBillApplyResult(null);
+    setBillApplyError(null);
+    try {
+      const { getAccessToken } = await import("../../services/googleAuth");
+      const token = await getAccessToken();
+      if (!token) throw new Error("Not signed in to Google.");
+      const AP_SHEET_ID = "15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs";
+
+      // Step 1: clear ALL existing drive link cells
+      const clearItems = (apBills as any[]).filter(b => b.row && b.entity).map(b => ({ row: b.row, entity: b.entity, driveViewUrl: "" }));
+      await fetch("/api/drive/batch-write-drive-urls", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userAccessToken: token, spreadsheetId: AP_SHEET_ID, items: clearItems }),
+      });
+
+      // Step 2: write correct matched links
+      const writeItems = billMatchPreview.filter(p => p.matchedBill?.row && p.matchedBill?.entity).map(p => ({
+        row: p.matchedBill.row, entity: p.matchedBill.entity, driveViewUrl: p.url,
+      }));
+      const wr = await fetch("/api/drive/batch-write-drive-urls", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userAccessToken: token, spreadsheetId: AP_SHEET_ID, items: writeItems }),
+      });
+      const wd = await wr.json();
+      setBillApplyResult({ cleared: clearItems.length, written: wd.written || 0 });
+    } catch (e: any) {
+      setBillApplyError(e?.message || "Unknown error");
+    } finally {
+      setBillApplying(false);
+    }
+  }, [billMatchPreview, apBills]);
 
   const openConfirm = useCallback((target: ConfirmTarget) => {
     setConfirmTarget(target);
@@ -363,204 +456,6 @@ export const DataSyncPage: React.FC = () => {
     }
   };
 
-  const recoverBillCopyLinks = useCallback(async () => {
-    setRecoveringBills(true);
-    setRecoveryResult(null);
-    setRecoveryError(null);
-    try {
-      const { getAccessToken } = await import("../../services/googleAuth");
-      const token = await getAccessToken();
-      if (!token) throw new Error("Not signed in to Google. Please connect your Google account first.");
-
-      // List Drive files directly from the browser
-      const BILLS_ROOT = "1AzwpWEMdyp1SEeNtXrie5171cSk5L7Za";
-      const AP_SHEET_ID = "15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs";
-      const driveFiles: { id: string; name: string; webViewLink: string }[] = [];
-      let pageToken: string | undefined;
-      const q = encodeURIComponent(`'${BILLS_ROOT}' in ancestors and mimeType != 'application/vnd.google-apps.folder' and trashed=false`);
-      const fields = encodeURIComponent("nextPageToken,files(id,name,webViewLink)");
-      const driveBase = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=100&includeItemsFromAllDrives=true&supportsAllDrives=true`;
-      do {
-        const pg = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "";
-        const dr = await fetch(driveBase + pg, { headers: { Authorization: `Bearer ${token}` } });
-        if (!dr.ok) { const e = await dr.json().catch(() => ({})); throw new Error(e?.error?.message || `Drive API ${dr.status}`); }
-        const dd: any = await dr.json();
-        driveFiles.push(...(dd.files || []));
-        pageToken = dd.nextPageToken;
-      } while (pageToken);
-
-      // Match files to unlinked bills only
-      const n = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-      const matches: { vendor: string; date: string; file: string }[] = [];
-      const toWrite: { row: number; entity: string; driveViewUrl: string; file: string; action: string }[] = [];
-
-      for (const file of driveFiles) {
-        const bare = file.name.replace(/\.[^.]+$/, "");
-        const parts = bare.split("_");
-        if (parts.length < 3) continue;
-        const datePart = parts[parts.length - 1];
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(datePart)) continue;
-        const fvN = n(parts[1]);
-        const fiN = n(parts.length > 3 ? parts.slice(2, -1).join("_") : "");
-        const feN = n(parts[0]);
-
-        const bill = (apBills as any[]).find(b => {
-          if ((b as any).driveViewUrl) return false; // skip already linked
-          if (n(b.entity) !== feN) return false;
-          if (b.dueDate !== datePart && b.invoiceDate !== datePart) return false;
-          const bvN = n(b.vendor);
-          if (bvN.includes(fvN) || fvN.includes(bvN)) return true;
-          if (fiN) { const biN = n(b.invoiceNo || ""); return biN.includes(fiN) || fiN.includes(biN); }
-          return false;
-        });
-
-        if (bill) {
-          matches.push({ vendor: bill.vendor, date: bill.dueDate, file: file.name });
-          toWrite.push({ row: (bill as any).row, entity: bill.entity, driveViewUrl: file.webViewLink, file: file.name, action: "linked" });
-        }
-      }
-
-      let sheetWrites = 0;
-      if (toWrite.length > 0) {
-        const wr = await fetch("/api/drive/batch-write-drive-urls", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userAccessToken: token, spreadsheetId: AP_SHEET_ID, items: toWrite }),
-        });
-        const wd = await wr.json();
-        sheetWrites = wd.written || 0;
-      }
-
-      setRecoveryResult({
-        ok: true,
-        driveFilesFound: driveFiles.length,
-        restored: matches.length,
-        matches,
-        sheetWrites,
-        message: matches.length > 0
-          ? `Restored ${matches.length} bill link(s), wrote ${sheetWrites} to sheet.`
-          : driveFiles.length === 0
-            ? "No files found in Drive Bills folder."
-            : "Files found but none matched unlinked bills.",
-      });
-    } catch (e: any) {
-      setRecoveryError(e?.message || "Unknown error");
-    } finally {
-      setRecoveringBills(false);
-    }
-  }, [apBills]);
-
-  const [remapping, setRemapping] = useState(false);
-  const [remapResult, setRemapResult] = useState<any>(null);
-  const [remapError, setRemapError] = useState<string | null>(null);
-
-  const remapAllBillLinks = useCallback(async () => {
-    setRemapping(true);
-    setRemapResult(null);
-    setRemapError(null);
-    try {
-      const { getAccessToken } = await import("../../services/googleAuth");
-      const token = await getAccessToken();
-      if (!token) throw new Error("Not signed in to Google. Please connect your Google account first.");
-
-      // ── Step 1: list all Drive bill files directly from the browser ──────────
-      const BILLS_ROOT = "1AzwpWEMdyp1SEeNtXrie5171cSk5L7Za";
-      const AP_SHEET_ID = "15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs";
-      const driveFiles: { id: string; name: string; webViewLink: string }[] = [];
-      let pageToken: string | undefined;
-      const q = encodeURIComponent(`'${BILLS_ROOT}' in ancestors and mimeType != 'application/vnd.google-apps.folder' and trashed=false`);
-      const fields = encodeURIComponent("nextPageToken,files(id,name,webViewLink)");
-      const driveBase = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=100&includeItemsFromAllDrives=true&supportsAllDrives=true`;
-      do {
-        const pg = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "";
-        const dr = await fetch(driveBase + pg, { headers: { Authorization: `Bearer ${token}` } });
-        if (!dr.ok) {
-          const e = await dr.json().catch(() => ({}));
-          throw new Error(e?.error?.message || `Drive API ${dr.status}`);
-        }
-        const dd: any = await dr.json();
-        driveFiles.push(...(dd.files || []));
-        pageToken = dd.nextPageToken;
-      } while (pageToken);
-
-      // ── Step 2: match Drive files → AP bills using entity + date + vendor ────
-      const n = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-      const matched: { row: number; entity: string; driveViewUrl: string; file: string; action: string }[] = [];
-      const skipped: { file: string; reason: string }[] = [];
-
-      for (const file of driveFiles) {
-        const bare = file.name.replace(/\.[^.]+$/, "");
-        const parts = bare.split("_");
-        if (parts.length < 3) { skipped.push({ file: file.name, reason: "too few parts" }); continue; }
-        const datePart = parts[parts.length - 1];
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(datePart)) { skipped.push({ file: file.name, reason: "no date suffix" }); continue; }
-        const fileEntity = parts[0];
-        const fileVendor = parts[1];
-        const fileInvNo = parts.length > 3 ? parts.slice(2, -1).join("_") : "";
-        const feN = n(fileEntity), fvN = n(fileVendor), fiN = n(fileInvNo);
-
-        let bestScore = 0, bestBill: any = null;
-        for (const bill of apBills as any[]) {
-          if (n(bill.entity) !== feN) continue;
-          const dateMatch = bill.dueDate === datePart || bill.invoiceDate === datePart;
-          if (!dateMatch) continue;
-          let score = 40;
-          const bvN = n(bill.vendor);
-          if (bvN === fvN) score += 40;
-          else if (bvN.includes(fvN) || fvN.includes(bvN)) score += 25;
-          else continue;
-          if (fiN && bill.invoiceNo) {
-            const biN = n(bill.invoiceNo);
-            if (biN === fiN) score += 20;
-            else if (biN.includes(fiN) || fiN.includes(biN)) score += 10;
-          }
-          if (score > bestScore) { bestScore = score; bestBill = bill; }
-        }
-
-        if (!bestBill || bestScore < 65) { skipped.push({ file: file.name, reason: `no match (score ${bestScore})` }); continue; }
-
-        const prev = (bestBill as any).driveViewUrl;
-        matched.push({
-          row: (bestBill as any).row,
-          entity: bestBill.entity,
-          driveViewUrl: file.webViewLink,
-          file: file.name,
-          action: prev ? (prev === file.webViewLink ? "unchanged" : "corrected") : "linked",
-        });
-      }
-
-      // ── Step 3: write changed Drive URLs to sheet via thin server endpoint ───
-      const toWrite = matched.filter(m => m.action !== "unchanged");
-      let sheetWrites = 0;
-      if (toWrite.length > 0) {
-        const wr = await fetch("/api/drive/batch-write-drive-urls", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userAccessToken: token, spreadsheetId: AP_SHEET_ID, items: toWrite }),
-        });
-        const wd = await wr.json();
-        sheetWrites = wd.written || 0;
-      }
-
-      setRemapResult({
-        driveFilesFound: driveFiles.length,
-        matched: matched.length,
-        corrected: matched.filter(m => m.action === "corrected").length,
-        linked: matched.filter(m => m.action === "linked").length,
-        unchanged: matched.filter(m => m.action === "unchanged").length,
-        skippedCount: skipped.length,
-        skippedList: skipped.slice(0, 20),
-        sheetWrites,
-        message: toWrite.length > 0
-          ? `Re-mapped ${toWrite.length} bill link(s) and wrote ${sheetWrites} to sheet.`
-          : "No changes needed — all links already correct.",
-      });
-    } catch (e: any) {
-      setRemapError(e?.message || "Unknown error");
-    } finally {
-      setRemapping(false);
-    }
-  }, []);
 
   // ── Shared style tokens ──────────────────────────────────────────────────────
   const card  = isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]";
@@ -956,20 +851,14 @@ export const DataSyncPage: React.FC = () => {
           </div>
         </div>
 
-        {/* ── 7. Bill Copy Recovery ────────────────────────────────────────── */}
+        {/* ── 7. Bill Link Manager ─────────────────────────────────────────── */}
         <div className={`border rounded-2xl p-6 space-y-4 ${card}`}>
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <FolderSearch className="w-4 h-4 text-orange-400 mt-0.5 shrink-0" />
-              <div>
-                <h3 className={`text-sm font-bold ${heading}`}>Bill Copy Recovery</h3>
-                <p className={`text-xs ${sub}`}>Scans Google Drive and re-links saved bill copies to AP records. Requires Google sign-in.</p>
-              </div>
+          <div className="flex items-start gap-3">
+            <LinkIcon className="w-4 h-4 text-orange-400 mt-0.5 shrink-0" />
+            <div>
+              <h3 className={`text-sm font-bold ${heading}`}>Bill Link Manager</h3>
+              <p className={`text-xs ${sub}`}>Paste Drive file links below. They'll be resolved to filenames, matched to the right AP bills, and written to the sheet — clearing any wrong links first.</p>
             </div>
-            <button onClick={recoverBillCopyLinks} disabled={recoveringBills || !googleUser}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-orange-500 hover:bg-orange-400 text-white transition-colors disabled:opacity-40">
-              {recoveringBills ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Scanning…</> : <><FolderSearch className="w-3.5 h-3.5" /> Recover Links</>}
-            </button>
           </div>
 
           {!googleUser && (
@@ -978,81 +867,85 @@ export const DataSyncPage: React.FC = () => {
             </p>
           )}
 
-          {recoveryError && (
+          {/* Paste area */}
+          <div className="space-y-2">
+            <label className={`block text-[10px] font-semibold uppercase tracking-wide ${label}`}>Paste Drive links (one per line)</label>
+            <textarea
+              rows={6}
+              value={billPasteLinks}
+              onChange={e => { setBillPasteLinks(e.target.value); setBillMatchPreview([]); setBillApplyResult(null); }}
+              placeholder={"https://drive.google.com/file/d/1abc.../view\nhttps://drive.google.com/file/d/1xyz.../view\n…"}
+              className={`${inp} font-mono resize-none text-[11px]`}
+            />
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <span className={`text-[11px] ${muted}`}>
+                {billPasteLinks.trim() ? `${extractFileIds(billPasteLinks).length} unique file IDs detected from ${billPasteLinks.trim().split("\n").filter(l => l.trim()).length} lines` : "Paste links above"}
+              </span>
+              <button
+                onClick={resolveAndMatch}
+                disabled={billResolveLoading || !googleUser || !billPasteLinks.trim()}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-orange-500 hover:bg-orange-400 text-white transition-colors disabled:opacity-40">
+                {billResolveLoading ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Resolving…</> : <><FolderSearch className="w-3.5 h-3.5" /> Resolve &amp; Match</>}
+              </button>
+            </div>
+          </div>
+
+          {billResolveError && (
             <div className={`rounded-xl px-4 py-3 text-xs flex items-start gap-2 border ${isLight ? "bg-red-50 border-red-200 text-red-700" : "bg-red-900/15 border-red-700/25 text-red-300"}`}>
-              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /><span>{recoveryError}</span>
+              <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" /><span>{billResolveError}</span>
             </div>
           )}
 
-          {recoveryResult && (
+          {/* Match preview table */}
+          {billMatchPreview.length > 0 && (
             <div className="space-y-3">
-              <div className={`rounded-xl border px-4 py-3 flex flex-wrap gap-4 text-xs ${recoveryResult.restored > 0 ? (isLight ? "bg-emerald-50 border-emerald-200" : "bg-emerald-900/10 border-emerald-700/20") : `${inner}`}`}>
-                <span className={`flex items-center gap-1.5 ${sub}`}>
-                  <FolderSearch className="w-3.5 h-3.5 text-orange-400" />
-                  <span className={`font-bold ${heading}`}>{recoveryResult.driveFilesFound}</span> files in Drive
-                </span>
-                <span className={`flex items-center gap-1.5 ${sub}`}>
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className={`font-bold ${heading}`}>{recoveryResult.restored}</span> links restored
-                </span>
-                <span className={`text-[11px] w-full ${muted}`}>{recoveryResult.message}</span>
-              </div>
-              {recoveryResult.matches?.length > 0 && (
-                <div className="max-h-44 overflow-y-auto space-y-1 pr-1">
-                  {recoveryResult.matches.map((m, i) => (
-                    <div key={i} className={`flex items-center gap-2 text-[11px] rounded-lg px-3 py-1.5 ${isLight ? "bg-slate-50" : "bg-white/[.03]"}`}>
-                      <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
-                      <span className={`truncate ${sub}`}>{m.file}</span>
-                      <span className={`shrink-0 ${muted}`}>→</span>
-                      <span className={`truncate ${isLight ? "text-slate-600" : "text-slate-300"}`}>{m.bill}</span>
+              <div className={`rounded-xl border overflow-hidden ${inner}`}>
+                <div className={`grid grid-cols-[1fr_1fr_auto] text-[10px] font-bold uppercase tracking-wide px-4 py-2 border-b ${isLight ? "bg-slate-100 border-slate-200 text-slate-500" : "bg-[#0f1520] border-[#1a2235] text-[#555]"}`}>
+                  <span>File Name</span>
+                  <span>Matched Bill</span>
+                  <span>Status</span>
+                </div>
+                <div className={`divide-y max-h-64 overflow-y-auto ${isLight ? "divide-slate-100" : "divide-[#0f1520]"}`}>
+                  {billMatchPreview.map((row, i) => (
+                    <div key={i} className={`grid grid-cols-[1fr_1fr_auto] gap-2 items-center px-4 py-2.5 text-[11px] ${isLight ? "hover:bg-slate-50" : "hover:bg-white/[.02]"}`}>
+                      <span className={`truncate font-mono text-[10px] ${sub}`}>{row.fileName}</span>
+                      <span className={`truncate ${row.matchedBill ? (isLight ? "text-slate-700" : "text-slate-200") : muted}`}>
+                        {row.matchedBill ? `${row.matchedBill.entity} / ${row.matchedBill.vendor} (row ${row.matchedBill.row})` : "—"}
+                      </span>
+                      <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${row.matchedBill ? "bg-emerald-500/15 text-emerald-500" : "bg-amber-500/15 text-amber-500"}`}>
+                        {row.matchedBill ? "matched" : "no match"}
+                      </span>
                     </div>
                   ))}
+                </div>
+              </div>
+
+              {/* Summary */}
+              <div className={`flex flex-wrap gap-4 text-xs px-1 ${sub}`}>
+                <span><span className="font-bold text-emerald-500">{billMatchPreview.filter(r => r.matchedBill).length}</span> matched</span>
+                <span><span className="font-bold text-amber-500">{billMatchPreview.filter(r => !r.matchedBill).length}</span> unmatched</span>
+                <span className={`text-[11px] ${muted}`}>Applying will clear ALL existing bill links then write these {billMatchPreview.filter(r => r.matchedBill).length} correct ones.</span>
+              </div>
+
+              {billApplyError && (
+                <div className={`rounded-xl px-4 py-3 text-xs flex items-start gap-2 border ${isLight ? "bg-red-50 border-red-200 text-red-700" : "bg-red-900/15 border-red-700/25 text-red-300"}`}>
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" /><span>{billApplyError}</span>
                 </div>
               )}
-            </div>
-          )}
-        </div>
 
-        {/* ── 7b. Force Re-map All Bill Links ─────────────────────────────── */}
-        <div className={`border rounded-2xl p-6 space-y-4 ${card}`}>
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <RefreshCw className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
-              <div>
-                <h3 className={`text-sm font-bold ${heading}`}>Force Re-map Bill Links</h3>
-                <p className={`text-xs ${sub}`}>Reads every invoice file name from Drive, matches it to the correct bill by entity + vendor + date, and overwrites any wrong links in the sheet. Use this to correct mis-routed attachments.</p>
-              </div>
-            </div>
-            <button onClick={remapAllBillLinks} disabled={remapping || !googleUser}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-red-600 hover:bg-red-500 text-white transition-colors disabled:opacity-40">
-              {remapping ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Re-mapping…</> : <><RefreshCw className="w-3.5 h-3.5" /> Re-map All Now</>}
-            </button>
-          </div>
-          {remapError && (
-            <div className="flex items-center gap-2 text-xs text-red-500 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
-              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-              {remapError}
-            </div>
-          )}
-          {remapResult && (
-            <div className="space-y-3">
-              <div className={`rounded-xl border px-4 py-3 flex flex-wrap gap-4 text-xs ${remapResult.corrected > 0 || remapResult.linked > 0 ? (isLight ? "bg-emerald-50 border-emerald-200" : "bg-emerald-900/10 border-emerald-700/20") : `${inner}`}`}>
-                <span className={`flex items-center gap-1.5 ${sub}`}><FolderSearch className="w-3.5 h-3.5 text-orange-400" /><span className={`font-bold ${heading}`}>{remapResult.driveFilesFound}</span> files in Drive</span>
-                <span className={`flex items-center gap-1.5 ${sub}`}><CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /><span className={`font-bold ${heading}`}>{remapResult.corrected ?? 0}</span> corrected</span>
-                <span className={`flex items-center gap-1.5 ${sub}`}><LinkIcon className="w-3.5 h-3.5 text-blue-400" /><span className={`font-bold ${heading}`}>{remapResult.linked ?? 0}</span> newly linked</span>
-                <span className={`flex items-center gap-1.5 ${sub}`}><span className={`font-bold ${heading}`}>{remapResult.skippedCount ?? 0}</span> skipped</span>
-                <span className={`text-[11px] w-full ${muted}`}>{remapResult.message}</span>
-              </div>
-              {remapResult.results?.filter((r: any) => r.action !== "unchanged").length > 0 && (
-                <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
-                  {remapResult.results.filter((r: any) => r.action !== "unchanged").map((r: any, i: number) => (
-                    <div key={i} className={`flex items-center gap-2 text-[11px] rounded-lg px-3 py-1.5 ${isLight ? "bg-slate-50" : "bg-white/[.03]"}`}>
-                      <span className={`shrink-0 font-bold text-[10px] px-1.5 py-0.5 rounded ${r.action === "corrected" ? "bg-amber-500/20 text-amber-400" : "bg-emerald-500/20 text-emerald-400"}`}>{r.action}</span>
-                      <span className={`truncate flex-1 ${sub}`}>{r.entity} / {r.vendor}</span>
-                      <span className={`shrink-0 ${muted}`}>row {r.row}</span>
-                    </div>
-                  ))}
+              {billApplyResult ? (
+                <div className={`rounded-xl border px-4 py-3 flex flex-wrap gap-4 text-xs ${isLight ? "bg-emerald-50 border-emerald-200" : "bg-emerald-900/10 border-emerald-700/20"}`}>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <span className={`font-bold ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>Done!</span>
+                  <span className={sub}>Cleared {billApplyResult.cleared} bill cells · Wrote {billApplyResult.written} correct links to sheet</span>
                 </div>
+              ) : (
+                <button
+                  onClick={applyBillLinks}
+                  disabled={billApplying || billMatchPreview.filter(r => r.matchedBill).length === 0}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-500 text-white transition-colors disabled:opacity-40">
+                  {billApplying ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Applying…</> : <><RefreshCw className="w-3.5 h-3.5" /> Clear All Existing &amp; Write {billMatchPreview.filter(r => r.matchedBill).length} Correct Links</>}
+                </button>
               )}
             </div>
           )}
