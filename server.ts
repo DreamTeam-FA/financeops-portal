@@ -549,24 +549,10 @@ app.post("/api/pull-live", async (req, res) => {
   const updated = await syncLiveDataFromSheets(accessToken);
   const existing = getStoredData();
 
-  // Don't overwrite AP/bank/loans/AR if portal already has sufficient data and this isn't
-  // a forced pull — prevents the sheet (which may lag behind portal auto-pushes) from
-  // reverting portal-side changes.
-  const existingAp = existing?.ap || [];
-  const hasSufficientExisting = existingAp.length >= 20 &&
-    existingAp.filter((b: any) => b.entity === "TI" || b.sheet === "TI Bills").length >= 5;
-
-  const merged = hasSufficientExisting && !forceOverwrite
-    ? {
-        ...existing,
-        // Still bring in non-AP data from the live pull
-        quickNotes: updated.quickNotes || existing.quickNotes,
-        calendarLocalEvents: updated.calendarLocalEvents || existing.calendarLocalEvents,
-        payrollPivot: updated.payrollPivot || existing.payrollPivot,
-        payrollWeeks: updated.payrollWeeks || existing.payrollWeeks,
-        lastSyncedAt: new Date().toISOString()
-      }
-    : { ...existing, ...updated, lastSyncedAt: new Date().toISOString() };
+  // Sheet is ALWAYS the source of truth — always merge live data.
+  // The old hasSufficientExisting check was bypassing mergeDatasets and preserving stale
+  // JSON driveViewUrls even after manual sheet deletions. Removed entirely.
+  const merged = { ...existing, ...updated, lastSyncedAt: new Date().toISOString() };
 
   saveStoredData(merged);
 
