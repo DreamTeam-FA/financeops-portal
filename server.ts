@@ -268,6 +268,20 @@ function getStoredData() {
     if (fs.existsSync(DATA_FILE)) {
       const content = fs.readFileSync(DATA_FILE, "utf-8");
       const parsed = JSON.parse(content);
+      // One-time migration: strip stale driveViewUrls written by old code.
+      // Sheet is the ONLY source of truth for drive links — they come from Pull All, never from JSON cache.
+      if (!parsed._driveUrlsCleared) {
+        console.log("[startup] Clearing stale driveViewUrls from JSON — sheet is authoritative, do Pull All to restore correct links");
+        if (Array.isArray(parsed.ap)) {
+          parsed.ap = parsed.ap.map((item: any) => {
+            const { driveViewUrl: _dvu, driveFileName: _dfn, ...rest } = item;
+            return rest;
+          });
+        }
+        parsed._driveUrlsCleared = true;
+        fs.writeFileSync(DATA_FILE, JSON.stringify(parsed, null, 2));
+        console.log("[startup] Done — driveViewUrls cleared from JSON. Pull All to repopulate from sheet.");
+      }
       return parsed;
     }
   } catch (e) {
