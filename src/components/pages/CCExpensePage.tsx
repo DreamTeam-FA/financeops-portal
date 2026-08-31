@@ -512,6 +512,12 @@ export const CCExpensePage: React.FC = () => {
           .some(v => v.toLowerCase().includes(sq))
       );
 
+  // Accounts present in raw data that don't match any CC pattern — shown as a warning
+  // so the user knows which new card numbers need to be added to CC_ACCOUNT_PATTERNS.
+  const unrecognizedAccounts = Array.from(
+    new Set(rawRows.filter(r => r.account && !isCCRow(r)).map(r => r.account))
+  ).sort();
+
   const columnTotals: Record<string, number> = {};
   for (const co of displayCompanies) {
     columnTotals[co] = displayTable.reduce((s, r) => s + (r.byCompany[co] || 0), 0);
@@ -723,6 +729,23 @@ export const CCExpensePage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* ── Unrecognized account warning ── */}
+      {unrecognizedAccounts.length > 0 && (
+        <div className={`shrink-0 px-5 py-2 border-b flex flex-wrap items-center gap-2 ${isLight ? "bg-amber-50 border-amber-200" : "bg-amber-900/10 border-amber-700/20"}`}>
+          <span className={`text-[11px] font-semibold ${isLight ? "text-amber-700" : "text-amber-400"}`}>
+            ⚠ Unrecognized card accounts (rows hidden from weekly/YTD view):
+          </span>
+          {unrecognizedAccounts.map(acct => (
+            <code key={acct} className={`text-[11px] px-2 py-0.5 rounded font-mono ${isLight ? "bg-amber-100 text-amber-800" : "bg-amber-900/30 text-amber-300"}`}>
+              {acct}
+            </code>
+          ))}
+          <span className={`text-[10px] ${isLight ? "text-amber-600" : "text-amber-500"}`}>
+            — Switch to Raw tab to see transactions, then ask to add these cards.
+          </span>
+        </div>
+      )}
 
       {/* ── Summary pills ── */}
       {(activeTab === "weekly" || activeTab === "ytd") && (
