@@ -908,7 +908,7 @@ export const CCExpensePage: React.FC = () => {
       {/* ── Vendor Breakdown Modal ── */}
       {vendorModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.65)" }}>
-          <div className={`w-full max-w-3xl max-h-[80vh] flex flex-col rounded-xl shadow-2xl border ${
+          <div className={`w-full max-w-5xl max-h-[85vh] flex flex-col rounded-xl shadow-2xl border ${
             isLight ? "bg-white border-slate-200" : "bg-[#111318] border-[#1e2535]"
           }`}>
             {/* Modal header */}
@@ -955,7 +955,7 @@ export const CCExpensePage: React.FC = () => {
                       <tr key={i} className={`border-t ${isLight ? "border-slate-100 hover:bg-slate-50" : "border-[#1a2030] hover:bg-white/[0.03]"}`}>
                         <td className="px-3 py-2 whitespace-nowrap">{r.transactionDate}</td>
                         <td className="px-3 py-2 whitespace-nowrap font-medium">{r.name}</td>
-                        <td className={`px-3 py-2 max-w-[220px] truncate ${isLight ? "text-slate-600" : "text-slate-400"}`} title={r.description}>{r.description || "—"}</td>
+                        <td className={`px-3 py-2 max-w-[320px] truncate ${isLight ? "text-slate-600" : "text-slate-400"}`} title={r.description}>{r.description || "—"}</td>
                         <td className={`px-3 py-2 whitespace-nowrap ${isLight ? "text-slate-600" : "text-slate-400"}`}>{r.account || "—"}</td>
                         <td className={`px-3 py-2 whitespace-nowrap ${isLight ? "text-slate-600" : "text-slate-400"}`}>{r.classCompany || "—"}</td>
                         <td className={`px-3 py-2 text-right tabular-nums font-semibold whitespace-nowrap ${r.amount < 0 ? "text-red-500" : isLight ? "text-slate-800" : "text-white"}`}>
@@ -1083,23 +1083,33 @@ export const CCExpensePage: React.FC = () => {
                           ? isLight ? "bg-pink-50 text-pink-900" : "bg-pink-950/20 text-pink-200"
                           : isLight ? "bg-white text-slate-800" : "bg-[#0a0c10] text-slate-200"
                       }`}>
-                        {activeTab === "weekly" ? (
-                          <button
-                            onClick={() => {
-                              const vendorRows = (currentWeek?.rows || []).filter(r =>
-                                (vendorMap[r.name] || r.name) === row.vendor
-                              );
-                              setVendorModal({ vendor: row.vendor, rows: vendorRows });
-                            }}
-                            className={`text-left underline decoration-dotted underline-offset-2 hover:no-underline transition-colors ${
-                              isHighlighted
-                                ? isLight ? "text-pink-700 hover:text-pink-900" : "text-pink-300 hover:text-pink-100"
-                                : isLight ? "text-[#1a73e8] hover:text-[#1557b0]" : "text-[#4f9cf9] hover:text-white"
-                            }`}
-                          >
-                            {row.vendor}
-                          </button>
-                        ) : (
+                        {activeTab === "weekly" ? (() => {
+                          const vendorRows = (currentWeek?.rows || []).filter(r =>
+                            (vendorMap[r.name] || r.name) === row.vendor
+                          );
+                          const txCount = vendorRows.length;
+                          return (
+                            <button
+                              onClick={() => setVendorModal({ vendor: row.vendor, rows: vendorRows })}
+                              className={`flex items-center gap-1.5 text-left underline decoration-dotted underline-offset-2 hover:no-underline transition-colors ${
+                                isHighlighted
+                                  ? isLight ? "text-pink-700 hover:text-pink-900" : "text-pink-300 hover:text-pink-100"
+                                  : isLight ? "text-[#1a73e8] hover:text-[#1557b0]" : "text-[#4f9cf9] hover:text-white"
+                              }`}
+                            >
+                              {row.vendor}
+                              {txCount > 1 && (
+                                <span className={`shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full tabular-nums ${
+                                  isHighlighted
+                                    ? isLight ? "bg-pink-200 text-pink-800" : "bg-pink-900/50 text-pink-200"
+                                    : isLight ? "bg-blue-100 text-[#1a73e8]" : "bg-[#1a73e8]/20 text-[#4f9cf9]"
+                                }`}>
+                                  ×{txCount}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })() : (
                           row.vendor
                         )}
                       </td>
