@@ -923,10 +923,11 @@ async function listBillDriveFiles(userAccessToken: string): Promise<{ id: string
   let pageToken: string | undefined;
   const q = encodeURIComponent(`'${BILLS_ROOT_FOLDER_ID}' in ancestors and mimeType != 'application/vnd.google-apps.folder' and trashed=false`);
   const fields = encodeURIComponent("nextPageToken,files(id,name,webViewLink)");
+  // includeItemsFromAllDrives + supportsAllDrives required for Shared Drive folders
+  const base = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=100&includeItemsFromAllDrives=true&supportsAllDrives=true`;
   do {
     const pageParam = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "";
-    const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=1000${pageParam}`;
-    const resp = await fetch(url, { headers: { Authorization: `Bearer ${userAccessToken}` } });
+    const resp = await fetch(base + pageParam, { headers: { Authorization: `Bearer ${userAccessToken}` } });
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
       throw new Error(err?.error?.message || `Drive API error ${resp.status}`);
