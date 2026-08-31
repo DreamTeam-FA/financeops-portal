@@ -116,14 +116,10 @@ function mergeNotes(liveList: any[], currentList: any[]) {
   // Local-only notes (not in the sheet) are intentionally excluded.
 }
 
-/** Stable composite key for AP bills (their IDs are random on every fetch).
- *  Amount (rounded to 2 dp) is included so two bills from the same vendor on
- *  the same due date without an invoice number don't share a key and steal
- *  each other's Drive attachment URL. */
+/** Stable composite key for AP bills (their IDs are random on every fetch). */
 function apBillStableKey(b: any): string {
   const n = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-  const amt = b.amount != null ? Number(b.amount).toFixed(2) : "";
-  return `${n(b.entity)}_${n(b.vendor)}_${n(b.invoiceNo || "")}_${b.dueDate || ""}_${amt}`;
+  return `${n(b.entity)}_${n(b.vendor)}_${n(b.invoiceNo || "")}_${b.dueDate || ""}`;
 }
 
 function mergeDatasets(liveList: any[], currentList: any[], idKey = "id") {

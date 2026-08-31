@@ -1725,11 +1725,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const DRIVE_CACHE_KEY = "billDriveLinks_v2";
   const driveKeyFor = (b: any) => {
     const n = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-    // Amount (rounded to 2dp) is included so bills from the same vendor on the
-    // same due date without an invoice number don't share a key and steal each
-    // other's Drive attachment URL.
-    const amt = b.amount != null ? Number(b.amount).toFixed(2) : "";
-    return `${n(b.entity)}_${n(b.vendor)}_${n(b.invoiceNo || "")}_${b.dueDate || ""}_${amt}`;
+    return `${n(b.entity)}_${n(b.vendor)}_${n(b.invoiceNo || "")}_${b.dueDate || ""}`;
   };
   const saveDriveCache = (bills: any[]) => {
     try {
