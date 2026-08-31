@@ -152,16 +152,23 @@ export const NotesFloatingWidget: React.FC = () => {
   const openCount = quickNotes.filter((n) => !n.status || n.status === "open").length;
   const doneCount = quickNotes.filter((n) => n.status === "done").length;
 
-  const filteredNotes = quickNotes.filter((n) => {
+  const filteredNotes = (() => {
     const q = searchQuery.toLowerCase();
-    const matchSearch =
-      !searchQuery ||
-      n.title.toLowerCase().includes(q) ||
-      n.content.toLowerCase().includes(q) ||
-      (n.vendorName && n.vendorName.toLowerCase().includes(q));
-    const s = n.status || "open";
-    return matchSearch && (statusFilter === "all" || s === statusFilter);
-  });
+    const base = quickNotes.filter((n) => {
+      const matchSearch =
+        !searchQuery ||
+        n.title.toLowerCase().includes(q) ||
+        n.content.toLowerCase().includes(q) ||
+        (n.vendorName && n.vendorName.toLowerCase().includes(q));
+      const s = n.status || "open";
+      return matchSearch && (statusFilter === "all" || s === statusFilter);
+    });
+    // Open notes first, then newest-to-oldest within each group
+    const byDate = (a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+    const open   = base.filter(n => !n.status || n.status === "open").sort(byDate);
+    const closed = base.filter(n => n.status && n.status !== "open").sort(byDate);
+    return [...open, ...closed];
+  })();
 
   const inp = `w-full p-2 rounded-lg text-xs font-medium border focus:outline-none focus:ring-2 focus:ring-purple-500 ${
     isLight ? "bg-white border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"

@@ -177,23 +177,73 @@ export const DataSyncPage: React.FC = () => {
       const files: { id: string; name: string; webViewLink: string }[] = data.files;
 
       const n = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
       const preview: BillMatchRow[] = files.map(f => {
         const bare = f.name.replace(/\.[^.]+$/, "");
         const parts = bare.split("_");
-        if (parts.length < 3) return { fileId: f.id, fileName: f.name, url: f.webViewLink, matchedBill: null, reason: "filename format unrecognized" };
+
+        if (parts.length < 2) return { fileId: f.id, fileName: f.name, url: f.webViewLink, matchedBill: null, reason: "filename too short to parse" };
+
+        // Last segment must be YYYY-MM-DD
         const datePart = parts[parts.length - 1];
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return { fileId: f.id, fileName: f.name, url: f.webViewLink, matchedBill: null, reason: "no date suffix in filename" };
-        const feN = n(parts[0]), fvN = n(parts[1]);
-        let best = 0, match: any = null;
-        for (const b of apBills as any[]) {
-          if (n(b.entity) !== feN) continue;
-          if (b.dueDate !== datePart && b.invoiceDate !== datePart) continue;
-          const bvN = n(b.vendor);
-          const score = bvN === fvN ? 100 : (bvN.includes(fvN) || fvN.includes(bvN)) ? 70 : 0;
-          if (score > best) { best = score; match = b; }
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return { fileId: f.id, fileName: f.name, url: f.webViewLink, matchedBill: null, reason: "no YYYY-MM-DD date at end of filename" };
+
+        const entityPart = parts[0];
+        const middle = parts.slice(1, -1); // between entity and date
+
+        // If 2+ middle segments and the last middle segment contains digits → treat as invoice#
+        let invoicePart: string | null = null;
+        let vendorParts = middle;
+        if (middle.length >= 2 && /\d/.test(middle[middle.length - 1])) {
+          invoicePart = middle[middle.length - 1];
+          vendorParts = middle.slice(0, -1);
         }
-        return { fileId: f.id, fileName: f.name, url: f.webViewLink, matchedBill: match, reason: match ? `matched (score ${best})` : "no matching bill found" };
+        const vendorStr = vendorParts.join(" ");
+
+        const feN = n(entityPart);
+        const fiN = invoicePart ? n(invoicePart) : null;
+        const fvN = n(vendorStr);
+
+        // ── Step 1: Invoice# match (most reliable) ──────────────────────────
+        if (fiN) {
+          const invMatches = (apBills as any[]).filter((b: any) =>
+            n(b.entity) === feN && b.invoiceNo && n(b.invoiceNo) === fiN
+          );
+          if (invMatches.length === 1)
+            return { fileId: f.id, fileName: f.name, url: f.webViewLink, matchedBill: invMatches[0], reason: `✓ Invoice# match: ${invoicePart}` };
+          if (invMatches.length > 1)
+            return { fileId: f.id, fileName: f.name, url: f.webViewLink, matchedBill: null, reason: `Ambiguous — ${invMatches.length} bills share invoice# ${invoicePart}` };
+        }
+
+        // ── Step 2: Date + vendor match ──────────────────────────────────────
+        if (fvN) {
+          const dateVendorMatches = (apBills as any[]).filter((b: any) => {
+            if (n(b.entity) !== feN) return false;
+            const dateOk = b.dueDate === datePart || b.invoiceDate === datePart;
+            if (!dateOk) return false;
+            const bvN = n(b.vendor || "");
+            return bvN === fvN || bvN.includes(fvN) || fvN.includes(bvN);
+          });
+          if (dateVendorMatches.length === 1)
+            return { fileId: f.id, fileName: f.name, url: f.webViewLink, matchedBill: dateVendorMatches[0], reason: `✓ Date + vendor match` };
+          if (dateVendorMatches.length > 1)
+            return { fileId: f.id, fileName: f.name, url: f.webViewLink, matchedBill: null, reason: `Ambiguous — ${dateVendorMatches.length} bills match date+vendor` };
+        }
+
+        // ── Step 3: Vendor-only (low confidence, flag it) ───────────────────
+        if (fvN) {
+          const vendorOnly = (apBills as any[]).filter((b: any) => {
+            if (n(b.entity) !== feN) return false;
+            const bvN = n(b.vendor || "");
+            return bvN === fvN || bvN.includes(fvN) || fvN.includes(bvN);
+          });
+          if (vendorOnly.length === 1)
+            return { fileId: f.id, fileName: f.name, url: f.webViewLink, matchedBill: vendorOnly[0], reason: `⚠ Vendor-only match (no date match — verify before applying)` };
+        }
+
+        return { fileId: f.id, fileName: f.name, url: f.webViewLink, matchedBill: null, reason: "no matching bill found" };
       });
+
       setBillMatchPreview(preview);
     } catch (e: any) {
       setBillResolveError(e?.message || "Unknown error");
@@ -212,24 +262,28 @@ export const DataSyncPage: React.FC = () => {
       if (!token) throw new Error("Not signed in to Google.");
       const AP_SHEET_ID = "15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs";
 
-      // Single-batch: clear only bills that HAVE an existing link (not all 977 bills)
-      const clearItems = (apBills as any[]).filter(b => b.row && b.entity && b.driveViewUrl).map(b => ({ row: b.row, entity: b.entity }));
-      const writeItems = billMatchPreview.filter(p => p.matchedBill?.row && p.matchedBill?.entity).map(p => ({
-        row: p.matchedBill.row, entity: p.matchedBill.entity, driveViewUrl: p.url,
-      }));
-      const resp = await fetch("/api/drive/batch-clear-and-write-links", {
+      // Only write the matched rows — do NOT bulk-clear the portal's local state
+      // (stale local state writing back is what causes links to reappear on sheet)
+      const writeItems = billMatchPreview
+        .filter(p => p.matchedBill?.row && p.matchedBill?.entity)
+        .map(p => ({ row: p.matchedBill.row, entity: p.matchedBill.entity, driveViewUrl: p.url }));
+
+      if (!writeItems.length) { setBillApplyError("No matched bills to write."); return; }
+
+      // Use batch-write (overwrites existing values on the matched rows only)
+      const resp = await fetch("/api/drive/batch-write-drive-urls", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userAccessToken: token, spreadsheetId: AP_SHEET_ID, clearItems, writeItems }),
+        body: JSON.stringify({ userAccessToken: token, spreadsheetId: AP_SHEET_ID, items: writeItems }),
       });
       const data = await resp.json();
       if (!data.ok) throw new Error(data.error || "Server error");
-      setBillApplyResult({ cleared: data.cleared || 0, written: data.written || 0 });
+      setBillApplyResult({ cleared: 0, written: data.written || writeItems.length });
     } catch (e: any) {
       setBillApplyError(e?.message || "Unknown error");
     } finally {
       setBillApplying(false);
     }
-  }, [billMatchPreview, apBills]);
+  }, [billMatchPreview]);
 
   const openConfirm = useCallback((target: ConfirmTarget) => {
     setConfirmTarget(target);
@@ -919,7 +973,7 @@ export const DataSyncPage: React.FC = () => {
               <div className={`flex flex-wrap gap-4 text-xs px-1 ${sub}`}>
                 <span><span className="font-bold text-emerald-500">{billMatchPreview.filter(r => r.matchedBill).length}</span> matched</span>
                 <span><span className="font-bold text-amber-500">{billMatchPreview.filter(r => !r.matchedBill).length}</span> unmatched</span>
-                <span className={`text-[11px] ${muted}`}>Applying will clear {(apBills as any[]).filter(b => b.row && b.entity && b.driveViewUrl).length} existing link(s) then write these {billMatchPreview.filter(r => r.matchedBill).length} correct ones.</span>
+                <span className={`text-[11px] ${muted}`}>Applying will write {billMatchPreview.filter(r => r.matchedBill).length} link(s) directly to the matched rows only — does not touch any other bills.</span>
               </div>
 
               {billApplyError && (
@@ -939,7 +993,7 @@ export const DataSyncPage: React.FC = () => {
                   onClick={applyBillLinks}
                   disabled={billApplying || billMatchPreview.filter(r => r.matchedBill).length === 0}
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-500 text-white transition-colors disabled:opacity-40">
-                  {billApplying ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Applying…</> : <><RefreshCw className="w-3.5 h-3.5" /> Clear All Existing &amp; Write {billMatchPreview.filter(r => r.matchedBill).length} Correct Links</>}
+                  {billApplying ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Applying…</> : <><RefreshCw className="w-3.5 h-3.5" /> Write {billMatchPreview.filter(r => r.matchedBill).length} Matched Link{billMatchPreview.filter(r => r.matchedBill).length !== 1 ? "s" : ""} to Sheet</>}
                 </button>
               )}
             </div>

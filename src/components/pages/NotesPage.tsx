@@ -246,6 +246,13 @@ export const NotesPage: React.FC = () => {
     return matchesSearch && matchesEntity && matchesStatus && matchesWeekRange;
   });
 
+  // ── Sorting: open notes first, then newest-to-oldest within each group ──────
+  const byDate = (a: DashboardNote, b: DashboardNote) =>
+    new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+  const openNotes   = filteredNotes.filter(n => !n.status || n.status === "open").sort(byDate);
+  const closedNotes = filteredNotes.filter(n => n.status && n.status !== "open").sort(byDate);
+  const sortedFilteredNotes = [...openNotes, ...closedNotes];
+
   // ── Week Grouping ──────────────────────────────────────────────────────────
   function getNoteWeekLabel(dateStr: string): string {
     if (!dateStr) return "Older Notes";
@@ -276,11 +283,11 @@ export const NotesPage: React.FC = () => {
     return `${noteDate.toLocaleString("default", { month: "short" })} ${noteDate.getFullYear()}`;
   }
 
-  // Group notes into weeks
+  // Group notes into weeks (preserving open-first sort order within each group)
   const weekGroupMap: { [key: string]: DashboardNote[] } = {};
   const weekOrderPreference = ["This Week", "Last Week", "2 Weeks Ago", "3 Weeks Ago"];
 
-  filteredNotes.forEach((note) => {
+  sortedFilteredNotes.forEach((note) => {
     const label = getNoteWeekLabel(note.createdAt);
     if (!weekGroupMap[label]) weekGroupMap[label] = [];
     weekGroupMap[label].push(note);
