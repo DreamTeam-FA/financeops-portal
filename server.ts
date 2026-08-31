@@ -915,6 +915,30 @@ app.post("/api/drive/upload-bill", async (req, res) => {
 });
 
 /**
+ * List all files under BILLS_ROOT_FOLDER_ID using raw fetch (not googleapis client).
+ * The googleapis client throws "Invalid Value" with short-lived user OAuth tokens.
+ */
+async function listBillDriveFiles(userAccessToken: string): Promise<{ id: string; name: string; webViewLink: string }[]> {
+  const allFiles: { id: string; name: string; webViewLink: string }[] = [];
+  let pageToken: string | undefined;
+  const q = encodeURIComponent(`'${BILLS_ROOT_FOLDER_ID}' in ancestors and mimeType != 'application/vnd.google-apps.folder' and trashed=false`);
+  const fields = encodeURIComponent("nextPageToken,files(id,name,webViewLink)");
+  do {
+    const pageParam = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "";
+    const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=1000${pageParam}`;
+    const resp = await fetch(url, { headers: { Authorization: `Bearer ${userAccessToken}` } });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err?.error?.message || `Drive API error ${resp.status}`);
+    }
+    const data: any = await resp.json();
+    allFiles.push(...(data.files || []));
+    pageToken = data.nextPageToken;
+  } while (pageToken);
+  return allFiles;
+}
+
+/**
  * Core bill-link recovery logic — shared by the API endpoint and pull-live.
  * Scans BILLS_ROOT_FOLDER_ID, matches files to AP bills, saves driveViewUrl.
  */
@@ -924,21 +948,7 @@ async function runBillLinkRecovery(userAccessToken: string): Promise<{
   matches: { vendor: string; date: string; file: string }[];
   message: string;
 }> {
-  const drive = getDriveClient(userAccessToken);
-
-  const allFiles: { id: string; name: string; webViewLink: string }[] = [];
-  let pageToken: string | undefined;
-  do {
-    const resp: any = await drive.files.list({
-      q: `'${BILLS_ROOT_FOLDER_ID}' in ancestors and mimeType != 'application/vnd.google-apps.folder' and trashed=false`,
-      fields: "nextPageToken, files(id,name,webViewLink)",
-      spaces: "drive",
-      pageSize: 1000,
-      pageToken,
-    });
-    allFiles.push(...(resp.data.files || []));
-    pageToken = resp.data.nextPageToken;
-  } while (pageToken);
+  const allFiles = await listBillDriveFiles(userAccessToken);
 
   // Deduplicate: keep first occurrence of each filename (Drive returns newest first)
   const seenNames = new Set<string>();
@@ -1048,25 +1058,9 @@ app.post("/api/drive/remap-all-bill-links", async (req, res) => {
   const { userAccessToken } = req.body || {};
   if (!userAccessToken) return res.status(401).json({ ok: false, error: "userAccessToken required" });
 
-  let drive: any;
-  try { drive = getDriveClient(userAccessToken); }
-  catch (e: any) { return res.status(500).json({ ok: false, error: e.message }); }
-
   try {
-    // 1. List every non-folder file under BILLS_ROOT_FOLDER_ID (all pages)
-    const allFiles: { id: string; name: string; webViewLink: string }[] = [];
-    let pageToken: string | undefined;
-    do {
-      const resp: any = await drive.files.list({
-        q: `'${BILLS_ROOT_FOLDER_ID}' in ancestors and mimeType != 'application/vnd.google-apps.folder' and trashed=false`,
-        fields: "nextPageToken, files(id,name,webViewLink)",
-        spaces: "drive",
-        pageSize: 1000,
-        pageToken,
-      });
-      allFiles.push(...(resp.data.files || []));
-      pageToken = resp.data.nextPageToken;
-    } while (pageToken);
+    // 1. List every non-folder file under BILLS_ROOT_FOLDER_ID using raw fetch
+    const allFiles = await listBillDriveFiles(userAccessToken);
 
     const normalise = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
