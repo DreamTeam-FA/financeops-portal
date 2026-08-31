@@ -549,25 +549,12 @@ app.post("/api/pull-live", async (req, res) => {
 
   saveStoredData(merged);
 
-  // Await recovery so the response includes driveViewUrl on every single load
-  if (accessToken) {
-    await runBillLinkRecovery(accessToken).catch((e) =>
-      console.warn("[pull-live] bill link recovery skipped:", e?.message)
-    );
+  // NOTE: runBillLinkRecovery and the driveViewUrl flush-to-sheet have been removed.
+  // The folder-scan recovery used a cross-account OAuth token that caused "Invalid Value"
+  // errors, and the flush step was overwriting manual sheet edits every Pull All.
+  // Bill links are now assigned exclusively via the Bill Link Manager (paste-and-match).
 
-    // Flush any driveViewUrls already in JSON to the sheet's Drive links column.
-    // Uses single-cell writes — safe, idempotent, touches only the Drive links column.
-    const toFlush = (getStoredData().ap || []).filter((b: any) => b.driveViewUrl && b.row && b.entity);
-    for (const bill of toFlush) {
-      writeBillDriveUrl(bill.row, bill.entity, bill.driveViewUrl, AP_SPREADSHEET_ID, accessToken)
-        .catch((e: any) => console.warn(`[pull-live/flush] sheet write failed for ${bill.vendor}:`, e?.message));
-    }
-    if (toFlush.length) console.log(`[pull-live] flushing ${toFlush.length} driveViewUrl(s) to sheet`);
-  }
-
-  // Reload stored data post-recovery so driveViewUrl is in the response immediately
-  const afterRecovery = getStoredData();
-  res.json({ success: true, data: afterRecovery, timestamp: new Date().toISOString() });
+  res.json({ success: true, data: merged, timestamp: new Date().toISOString() });
 });
 
 app.post("/api/data", (req, res) => {
