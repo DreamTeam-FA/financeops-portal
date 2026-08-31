@@ -818,8 +818,15 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const init = async () => {
 
       // Step 1 — localStorage cache: instant paint with last-session data
+      // driveViewUrl is stripped from cached AP bills — it is ONLY sourced from the live sheet
+      // via pull-live, never from the local cache. This prevents autoPush from writing stale
+      // drive URLs back to the sheet during the window before pull-live completes.
       const cache = loadCache();
       if (cache) {
+        if (Array.isArray(cache.ap)) {
+          cache.ap = cache.ap.map((b: any) => { const { driveViewUrl: _d, driveFileName: _f, ...rest } = b; return rest; });
+        }
+        try { localStorage.removeItem("billDriveLinks_v2"); } catch {}
         applyData(cache);
         setIsLoading(false);
       }

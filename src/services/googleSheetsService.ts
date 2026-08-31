@@ -493,7 +493,8 @@ export const parseAPSheetRows = (
 
     // driveViewUrl — read from the entity's dedicated Drive links column (confirmed in sheet)
     const driveUrlRaw = map.driveViewUrlCol !== null ? String(row[map.driveViewUrlCol] || "").trim() : "";
-    const driveViewUrl = /^https?:\/\//i.test(driveUrlRaw) ? driveUrlRaw : undefined;
+    // Only accept actual Google Drive URLs — reject Gmail, mail, or other non-Drive links
+    const driveViewUrl = /^https:\/\/(drive|docs)\.google\.com\//i.test(driveUrlRaw) ? driveUrlRaw : undefined;
 
     bills.push({
       id: `ap-gs-${idx + 1}-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
