@@ -188,6 +188,11 @@ function mergeDatasets(liveList: any[], currentList: any[], idKey = "id") {
   currentList.forEach((ci) => {
     const ciId = String(ci[idKey] || "");
     // Preserve local user-created records that are not from Google Sheets
+    // AR items created via the portal UI have timestamp-based IDs (e.g. "ar-1788266562934")
+    // while sheet-parsed AR items have row+month IDs (e.g. "ar-12-September").
+    // Timestamp IDs: at least one segment that is a long number (>= 10 digits).
+    // Sheet-parsed IDs never have such a segment — they use short row numbers.
+    const isPortalCreatedAR = ciId.startsWith("ar-") && /ar-\d{10,}/.test(ciId);
     if (
       ciId &&
       !liveIds.has(ciId) &&
@@ -196,8 +201,9 @@ function mergeDatasets(liveList: any[], currentList: any[], idKey = "id") {
       !ciId.startsWith("ap-") &&
       !ciId.startsWith("b-") &&
       !ciId.startsWith("l-") &&
-      !ciId.startsWith("ar-") &&
-      !ciId.startsWith("stmt-")
+      !ciId.startsWith("stmt-") &&
+      // Sheet-parsed AR items drop on sync (live sheet is truth); portal-created ones survive
+      (!ciId.startsWith("ar-") || isPortalCreatedAR)
     ) {
       merged.unshift(ci);
     }
@@ -301,6 +307,24 @@ function getStoredData() {
         parsed._arMonthFixed = true;
         fs.writeFileSync(DATA_FILE, JSON.stringify(parsed, null, 2));
         console.log(`[startup] AR month fix: corrected ${fixed} item(s).`);
+      }
+      // One-time restore: re-add the 2 September AEI entries that were dropped when
+      // mergeDatasets incorrectly excluded all "ar-" IDs (portal-created AR items).
+      // These were created via the portal UI on 2026-09-01 and lost on the next Pull All.
+      if (!parsed._aeiSepRestored) {
+        const AEI_SEP = [
+          { id: "ar-1788266535918", entity: "TI", customer: "AEI - A", description: "Consulting Services", amount: 7500, dueDate: "2026-09-16", month: "September", occurrence: "Monthly", invoice: true, approval: true, sent: true, payment: false, remarks: "Newly created invoice" },
+          { id: "ar-1788266562934", entity: "TI", customer: "AEI - B", description: "Consulting Services", amount: 7500, dueDate: "2026-09-30", month: "September", occurrence: "Monthly", invoice: true, approval: true, sent: true, payment: false, remarks: "Newly created invoice" },
+        ];
+        if (!Array.isArray(parsed.ar)) parsed.ar = [];
+        for (const entry of AEI_SEP) {
+          if (!parsed.ar.find((x: any) => x.id === entry.id)) {
+            parsed.ar.unshift(entry);
+          }
+        }
+        parsed._aeiSepRestored = true;
+        fs.writeFileSync(DATA_FILE, JSON.stringify(parsed, null, 2));
+        console.log("[startup] Restored 2 September AEI AR entries.");
       }
       return parsed;
     }
