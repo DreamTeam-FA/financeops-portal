@@ -2112,25 +2112,30 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     pushSingleBankToSheet(updatedAccount, "write");
   };
 
+  // PHT-aware date string (UTC+8) — prevents UTC midnight from stamping wrong date
+  const todayPHT = () => new Date(Date.now() + 8 * 3600 * 1000).toISOString().split("T")[0];
+
   const updateBankBalance = (id: string, newBalance: number) => {
     let updatedAcc: BankAccount | undefined;
+    const asOf = todayPHT();
     const nextAccs = bankAccounts.map((a) => {
       if (a.id === id) {
         const trend: "up" | "down" = newBalance >= a.balance ? "up" : "down";
-        updatedAcc = { ...a, yesterday: a.balance, balance: newBalance, asOf: new Date().toISOString().split("T")[0], trend };
+        // Always copy current balance → yesterday before applying the new value
+        updatedAcc = { ...a, yesterday: a.balance, balance: newBalance, asOf, trend };
         return updatedAcc;
       }
       return a;
     });
     setBankAccounts(nextAccs);
     persistChanges({ banks: nextAccs });
-    logAction("Updated Bank Balance", `Account ID ${id} set to $${newBalance}`);
+    logAction("Updated Bank Balance", `Account ID ${id}: prev $${updatedAcc?.yesterday ?? "?"} → new $${newBalance} (as of ${asOf} PHT)`);
     if (updatedAcc) pushSingleBankToSheet(updatedAcc, "write");
   };
 
   // Copy ALL current balances → yesterday at 6pm PHT each day
   const copyAllBalancesToYesterday = () => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = todayPHT();
     const nextAccs = bankAccounts.map((a) => ({
       ...a,
       yesterday: a.balance,
