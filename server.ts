@@ -1303,6 +1303,221 @@ app.post("/api/drive/restore-known-good-links", async (req, res) => {
   return res.json({ ok: errors.length === 0, restored, notFound, errors });
 });
 
+// ─── AR Sheet Write Helpers ────────────────────────────────────────────────────
+
+/** Convert 0-based column index to spreadsheet letter notation (0=A, 26=AA, …) */
+function colToLetter(col: number): string {
+  let s = "";
+  let n = col + 1;
+  while (n > 0) {
+    const rem = (n - 1) % 26;
+    s = String.fromCharCode(65 + rem) + s;
+    n = Math.floor((n - 1) / 26);
+  }
+  return s;
+}
+
+/** Read the AR Dashboard Data header to detect month→column mapping. */
+async function detectARMonthColumns(userAccessToken: string): Promise<{
+  headerRowIdx: number;
+  months: { name: string; col: number; blockSize: number }[];
+} | null> {
+  const MONTH_LOOKUP: Record<string, string> = {
+    january:"January", jan:"January", february:"February", feb:"February",
+    march:"March", mar:"March", april:"April", apr:"April", may:"May",
+    june:"June", jun:"June", july:"July", jul:"July",
+    august:"August", aug:"August", september:"September", sep:"September", sept:"September",
+    october:"October", oct:"October", november:"November", nov:"November",
+    december:"December", dec:"December",
+  };
+  const MONTH_ORDER = ["January","February","March","April","May","June",
+                       "July","August","September","October","November","December"];
+  const sid = AP_SPREADSHEET_ID;
+  const tabName = "AR Dashboard Data";
+  const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}/values/${encodeURIComponent("'" + tabName + "'")}`
+    + `?valueRenderOption=FORMATTED_VALUE&majorDimension=ROWS`;
+  const resp = await fetch(readUrl, { headers: { Authorization: `Bearer ${userAccessToken}` } });
+  if (!resp.ok) return null;
+  const data: any = await resp.json();
+  const rows: any[][] = data.values || [];
+
+  for (let ri = 0; ri < Math.min(6, rows.length); ri++) {
+    const row = rows[ri];
+    const seen = new Set<string>();
+    const found: { name: string; col: number }[] = [];
+    for (let ci = 0; ci < row.length; ci++) {
+      const raw = String(row[ci] || "").trim();
+      const prefix = raw.split("-")[0].toLowerCase();
+      const full = MONTH_LOOKUP[raw.toLowerCase()] || MONTH_LOOKUP[prefix];
+      if (full && !seen.has(full)) { seen.add(full); found.push({ name: full, col: ci }); }
+    }
+    if (found.length < 2) continue;
+    found.sort((a, b) => a.col - b.col);
+    const ordered = found.every((f, i) =>
+      i === 0 || MONTH_ORDER.indexOf(f.name) > MONTH_ORDER.indexOf(found[i - 1].name)
+    );
+    if (!ordered) continue;
+    const blockSize = found[1].col - found[0].col;
+    if (found[0].name !== "March") {
+      const marchCol = found[0].col - blockSize;
+      if (marchCol >= 0) found.unshift({ name: "March", col: marchCol });
+    }
+    return {
+      headerRowIdx: ri,
+      months: found.map((m, i, arr) => ({
+        name: m.name, col: m.col,
+        blockSize: i < arr.length - 1 ? arr[i + 1].col - m.col : blockSize,
+      })),
+    };
+  }
+  return null;
+}
+
+/**
+ * POST /api/ar/add-item
+ * Writes a new AR invoice entry to the AR Dashboard Data sheet.
+ * Finds the existing row for this customer (entity+customer match) or appends a new one,
+ * then fills in the month block columns for invoice, approval, sent, payment, remarks,
+ * dueDate, and amount. Sheet is always the truth — this is the only persistent write.
+ */
+app.post("/api/ar/add-item", async (req, res) => {
+  const { userAccessToken, entity, customer, description, occurrence, month,
+          dueDate, amount, invoice, approval, sent, payment, remarks } = req.body || {};
+  if (!userAccessToken) return res.status(401).json({ ok: false, error: "userAccessToken required" });
+  if (!customer || !month) return res.status(400).json({ ok: false, error: "customer and month required" });
+
+  const sid = AP_SPREADSHEET_ID;
+  const tabName = "AR Dashboard Data";
+
+  // Detect month column layout
+  const layout = await detectARMonthColumns(userAccessToken);
+  if (!layout) return res.status(500).json({ ok: false, error: "Could not read AR sheet header" });
+
+  const { headerRowIdx, months } = layout;
+  const mi = months.findIndex(m => m.name === month);
+  if (mi < 0) return res.status(400).json({ ok: false, error: `Month "${month}" not found in AR sheet columns` });
+
+  const { col: startCol, blockSize } = months[mi];
+  const last = startCol + blockSize - 1;
+  // Standard 11-col layout: inv(+0) _(+1) app(+2) _(+3) sen(+4) _(+5) pay(+6) _(+7) rem(+8) due(+9) amt(+10)
+  const amtCol  = last;
+  const dueCol  = last - 1;
+  const remCol  = blockSize >= 3 ? last - 2 : -1;
+  const payCol  = blockSize >= 5 ? last - 4 : -1;
+  const senCol  = blockSize >= 7 ? last - 6 : -1;
+  const appCol  = blockSize >= 9 ? last - 8 : -1;
+  const invCol  = blockSize >= 11 ? startCol : -1;
+
+  // Read all data rows to find the customer's existing row
+  const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}/values/${encodeURIComponent("'" + tabName + "'")}`
+    + `?valueRenderOption=FORMATTED_VALUE&majorDimension=ROWS`;
+  const readResp = await fetch(readUrl, { headers: { Authorization: `Bearer ${userAccessToken}` } });
+  if (!readResp.ok) return res.status(500).json({ ok: false, error: "Failed to read AR sheet rows" });
+  const readData: any = await readResp.json();
+  const rows: any[][] = readData.values || [];
+
+  let sheetRow = -1;
+  for (let ri = headerRowIdx + 1; ri < rows.length; ri++) {
+    const r = rows[ri];
+    const rowEntity   = String(r[0] || "").trim();
+    const rowCustomer = String(r[1] || "").trim();
+    const entityOk = !entity || !rowEntity ||
+      rowEntity.toLowerCase().includes((entity || "").toLowerCase()) ||
+      (entity || "").toLowerCase().includes(rowEntity.toLowerCase());
+    if (entityOk && rowCustomer.toLowerCase() === (customer || "").toLowerCase()) {
+      sheetRow = ri + 1; // 1-indexed sheet row
+      break;
+    }
+  }
+
+  if (sheetRow < 0) {
+    // No existing row — append a new customer row (cols A–D)
+    const appendUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}/values/`
+      + `${encodeURIComponent("'" + tabName + "'!A:D")}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+    const appendResp = await fetch(appendUrl, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${userAccessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ values: [[entity || "TI", customer, description || "Consulting Services", occurrence || "Monthly"]] }),
+    });
+    if (!appendResp.ok) {
+      const e: any = await appendResp.json().catch(() => ({}));
+      return res.status(500).json({ ok: false, error: `Row append failed: ${e?.error?.message || appendResp.status}` });
+    }
+    const appendData: any = await appendResp.json();
+    const updatedRange: string = appendData.updates?.updatedRange || "";
+    const rowMatch = updatedRange.match(/(\d+)(?::|$)/);
+    sheetRow = rowMatch ? parseInt(rowMatch[1]) : -1;
+    if (sheetRow < 0) return res.status(500).json({ ok: false, error: "Could not determine appended row number" });
+    console.log(`[AR/add-item] Appended new row ${sheetRow} for ${entity} / ${customer}`);
+  } else {
+    console.log(`[AR/add-item] Found existing row ${sheetRow} for ${entity} / ${customer}`);
+  }
+
+  // Build batch writes for the month block cells
+  const batchData: { range: string; values: any[][] }[] = [];
+  const cell = (col: number, val: any) => {
+    if (col < 0) return;
+    batchData.push({ range: `'${tabName}'!${colToLetter(col)}${sheetRow}`, values: [[val]] });
+  };
+  cell(invCol,  invoice  ? "TRUE" : "FALSE");
+  cell(appCol,  approval ? "TRUE" : "FALSE");
+  cell(senCol,  sent     ? "TRUE" : "FALSE");
+  cell(payCol,  payment  ? "TRUE" : "FALSE");
+  cell(remCol,  remarks  || "");
+  cell(dueCol,  dueDate  || "");
+  cell(amtCol,  amount   || 0);
+
+  const batchUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}/values:batchUpdate`;
+  const batchResp = await fetch(batchUrl, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${userAccessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ valueInputOption: "USER_ENTERED", data: batchData }),
+  });
+  if (!batchResp.ok) {
+    const e: any = await batchResp.json().catch(() => ({}));
+    return res.status(500).json({ ok: false, error: `Cell write failed: ${e?.error?.message || batchResp.status}` });
+  }
+
+  console.log(`[AR/add-item] Wrote ${batchData.length} cells to row ${sheetRow} (${tabName}!${month})`);
+  return res.json({ ok: true, sheetRow, cellsWritten: batchData.length });
+});
+
+/**
+ * POST /api/ar/sync-portal-items-to-sheet
+ * Writes all portal-created AR items (timestamp IDs) from the JSON cache to the sheet.
+ * Called on login, after restore-known-good-links, so the sheet becomes the truth source
+ * for these items and Pull All can read them back normally.
+ */
+app.post("/api/ar/sync-portal-items-to-sheet", async (req, res) => {
+  const { userAccessToken } = req.body || {};
+  if (!userAccessToken) return res.status(401).json({ ok: false, error: "userAccessToken required" });
+
+  const stored = getStoredData();
+  const portalAR = (stored.ar || []).filter((item: any) => /^ar-\d{10,}$/.test(item.id || ""));
+  if (!portalAR.length) return res.json({ ok: true, synced: 0, message: "No portal-created AR items to sync" });
+
+  const synced: string[] = [];
+  const errors: string[] = [];
+
+  for (const item of portalAR) {
+    try {
+      const writeResp = await fetch(`http://localhost:${process.env.PORT || 10000}/api/ar/add-item`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...item, userAccessToken }),
+      });
+      const result: any = await writeResp.json();
+      if (result.ok) synced.push(`${item.customer} / ${item.month} → row ${result.sheetRow}`);
+      else errors.push(`${item.customer}: ${result.error}`);
+    } catch (e: any) {
+      errors.push(`${item.customer}: ${e?.message}`);
+    }
+  }
+
+  console.log(`[AR/sync-portal] Synced ${synced.length}/${portalAR.length} portal AR items to sheet`);
+  return res.json({ ok: errors.length === 0, synced, errors });
+});
+
 /**
  * POST /api/drive/resolve-file-ids
  * Look up Drive file metadata (name + webViewLink) for a list of specific file IDs.
@@ -2408,10 +2623,18 @@ app.post("/api/ar/scan-invoice", async (req, res) => {
   "entity": "issuing company if identifiable (e.g. Ruby's, TI, MSDx, Capable DNA)"
 }
 Return ONLY the JSON object, no markdown, no other text.`;
-    const result = await callVisionLLM(prompt, fileBase64, mimeType || "image/jpeg", 512);
+    const result = await callVisionLLM(prompt, fileBase64, mimeType || "image/jpeg", 1024);
     if (!result.ok) return res.status(502).json({ ok: false, error: result.error });
     const jsonMatch = result.text.match(/\{[\s\S]*\}/);
-    const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
+    let parsed: any = {};
+    if (jsonMatch) {
+      try { parsed = JSON.parse(jsonMatch[0]); } catch { parsed = {}; }
+    }
+    // Normalise amount to a plain numeric string (strip currency symbols/commas)
+    if (parsed.amount != null) {
+      const cleaned = String(parsed.amount).replace(/[^0-9.]/g, "");
+      parsed.amount = cleaned || "";
+    }
     res.json({ ok: true, parsed });
   } catch (e: any) {
     res.status(500).json({ ok: false, error: e?.message || String(e) });

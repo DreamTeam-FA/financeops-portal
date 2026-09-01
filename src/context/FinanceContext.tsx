@@ -1071,6 +1071,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ userAccessToken: token }),
               });
+              // Also sync any portal-created AR items that aren't in the sheet yet
+              await fetch("/api/ar/sync-portal-items-to-sheet", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userAccessToken: token }),
+              });
               // Give the sheet a moment to commit the writes before we pull
               await new Promise(r => setTimeout(r, 3000));
             }
@@ -2155,7 +2161,18 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setArItems(nextAR);
     persistChanges({ ar: nextAR });
     logAction("Added AR Item", `${newAR.customer} (${newAR.entity}) - $${newAR.amount}`);
-    pushSingleARToSheet(newAR, "append");
+    // Rule #1: sheet is source of truth — write directly to AR Dashboard Data sheet
+    const token = getAccessToken();
+    if (token) {
+      fetch("/api/ar/add-item", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...newAR, userAccessToken: token }),
+      }).then(r => r.json()).then(result => {
+        if (result.ok) showToast("AR Invoice saved to Sheet ✓", "success", 2500);
+        else { console.warn("[addARItem] sheet write failed:", result.error); showToast("Saved locally; sheet write failed — try Pull All later.", "warning", 4000); }
+      }).catch(e => { console.warn("[addARItem] sheet write error:", e?.message); });
+    }
   };
 
   const updateARItem = (updatedAR: ARItem) => {

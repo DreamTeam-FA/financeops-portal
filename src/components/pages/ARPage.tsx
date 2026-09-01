@@ -605,7 +605,7 @@ export const ARPage: React.FC = () => {
                               onChange={e => setEditedScanData(d => ({ ...d, entity: e.target.value }))}
                               className={`flex-1 rounded px-2 py-0.5 text-[12px] border ${isLight ? "border-green-200 bg-white text-slate-800" : "border-green-700/40 bg-[#111318] text-white"}`}
                             >
-                              {["TI", "FA", "GC", "CPRO"].map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                              {["TI", "Ruby's", "MSDx"].map(opt => <option key={opt} value={opt}>{opt}</option>)}
                             </select>
                           ) : (
                             <input
