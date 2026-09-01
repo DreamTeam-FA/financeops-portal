@@ -265,5 +265,6 @@ export type PageRoute =
   | "bank-statement"
   | "pdf-table-extractor"
   | "email-scanner"
+  | "ap-calendar"
   | "cc-expenses"
   | "workflows";

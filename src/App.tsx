@@ -33,6 +33,7 @@ import { PDFTableExtractorPage } from "./components/pages/PDFTableExtractorPage"
 import { EmailInboxScannerPage } from "./components/pages/EmailInboxScannerPage";
 import { CCExpensePage } from "./components/pages/CCExpensePage";
 import { WorkflowsPage } from "./components/pages/WorkflowsPage";
+import { PayablesCalendarPage } from "./components/pages/PayablesCalendarPage";
 import { GlobalSearchModal } from "./components/GlobalSearchModal";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { NotesFloatingWidget } from "./components/modals/NotesFloatingWidget";
@@ -349,6 +350,8 @@ const PortalContent: React.FC = () => {
         return <HubPage />;
       case "ap":
         return <APPage />;
+      case "ap-calendar":
+        return <PayablesCalendarPage />;
       case "banks":
         return <BankBalancesPage />;
       case "loans":

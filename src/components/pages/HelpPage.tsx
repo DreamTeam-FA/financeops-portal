@@ -58,6 +58,10 @@ const FAQ = [
     a: "On the AR / Invoices page, click 'Add Invoice' and then choose 'Scan with AI'. Upload a photo or PDF of the invoice. Gemini AI reads all fields — vendor, amount, due date, invoice number, etc. — and pre-fills the Add Invoice form automatically. Review every field and make any corrections, then click Save. Nothing is written until you confirm.",
   },
   {
+    q: "How do I use the Payables Calendar?",
+    a: "The Payables Calendar (sidebar: Payables Calendar, under Accounts Payables) shows all AP bills spread across a 7-day Monday–Sunday grid for the selected week. Each bill appears as a card in the column matching its due date, with a colored left-accent bar and badge for Ruby's (pink), TI (blue), and MSDx (teal). Unpaid past-due bills are highlighted in red; paid bills are dimmed. Navigate weeks with the ← → arrows or jump back to the current week with 'This Week'. A day-total footer shows the unpaid subtotal per day, and the bottom bar breaks totals by entity. Use the entity filter pills in the page header (ALL / Ruby's / TI / MSDx) to narrow the view. The layout is screenshot-friendly for weekly review meetings.",
+  },
+  {
     q: "How does the AI Bill Scanner work?",
     a: "On the AP / Bills page, click 'Add Bill' → 'Scan with AI'. Upload a photo, scanned PDF, or digital PDF of the bill. Gemini AI extracts vendor, amount, due date, and other fields. The scanned vendor name is fuzzy-matched to the closest existing vendor in your bill history — so category, description, and sub-company fields auto-populate from the matched vendor's prior bill. Review all pre-filled fields, add your own remarks if needed, and click Save to confirm.",
   },
@@ -962,6 +966,7 @@ export const HelpPage: React.FC = () => {
                       {[
                         { r: '"hub"',                  d: 'HubPage — KPI cards, AP summary chart, bank totals, recent activity' },
                         { r: '"ap"',                   d: 'APPage — full bill table, entity filter, bucket grouping, inline edit' },
+                        { r: '"ap-calendar"',          d: 'PayablesCalendarPage — weekly 7-day grid of bills by due date, entity colors, week navigation' },
                         { r: '"rubys" / "ti"',         d: 'APPage with filterEntityOverride — entity-scoped AP view' },
                         { r: '"banks"',                d: 'BankBalancesPage — account cards per entity, trend indicators' },
                         { r: '"loans"',                d: 'LoansPage — loan cards with outstanding / monthly / maturity' },

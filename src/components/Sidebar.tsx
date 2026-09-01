@@ -133,6 +133,7 @@ export const Sidebar: React.FC = () => {
   const navItems: { id: PageRoute; label: string; icon: React.ReactNode; badgeKey?: keyof typeof navBadges; badgeColor?: string; badgeTitle?: string }[] = [
     { id: "hub",         label: "Finance Overview",    icon: <LayoutDashboard className="w-4 h-4" /> },
     { id: "ap",          label: "Accounts Payables",   icon: <Banknote className="w-4 h-4" />,        badgeKey: "ap",         badgeColor: "bg-[#1a73e8]",  badgeTitle: "unpaid bills" },
+    { id: "ap-calendar", label: "Payables Calendar",   icon: <CalendarDays className="w-4 h-4 text-[#1a73e8]" /> },
     { id: "ar",          label: "Accounts Receivables",icon: <Receipt className="w-4 h-4" />,          badgeKey: "ar",         badgeColor: "bg-[#16a34a]",  badgeTitle: "pending payments" },
     { id: "banks",       label: "Bank Balances",       icon: <Landmark className="w-4 h-4" />,         badgeKey: "banks",      badgeColor: "bg-[#0891b2]",  badgeTitle: "low balance accounts" },
     { id: "loans",       label: "Loans & CC Dues",     icon: <TrendingDown className="w-4 h-4" />,     badgeKey: "loans",      badgeColor: "bg-[#dc2626]",  badgeTitle: "due today or overdue" },
