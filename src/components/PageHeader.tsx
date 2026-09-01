@@ -93,7 +93,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
         {/* Left: Title + auth badge */}
         <div className="flex items-center gap-2.5">
           <h1 className="text-lg font-bold tracking-tight" style={{ fontFamily: "var(--font-sans)" }}>{title}</h1>
-          {googleUser ? (
+          {googleUser && !needsAuth ? (
             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border transition-all duration-500 ${
               tokenFlash
                 ? "bg-blue-500/30 text-blue-100 border-blue-400/40"
@@ -109,10 +109,12 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           ) : (
             <button
               onClick={handleGoogleSignIn}
-              className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/30 text-amber-100 hover:bg-amber-500/40 text-[11px] font-medium border border-amber-300/40 transition-colors"
+              className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/30 text-amber-100 hover:bg-amber-500/40 text-[11px] font-medium border border-amber-300/40 transition-colors cursor-pointer"
             >
               <AlertCircle className="w-3 h-3 text-amber-300" />
-              <span className="hidden sm:inline">Connect Google Sheets</span>
+              <span className="hidden sm:inline">
+                {needsAuth && googleUser ? "Reconnect Google" : "Connect Google Sheets"}
+              </span>
             </button>
           )}
         </div>
