@@ -111,16 +111,16 @@ export const BankBalancesPage: React.FC = () => {
   const copiedTodayRef = useRef<string>("");
   useEffect(() => {
     const checkEOD = () => {
-      const now = new Date();
-      // PHT = UTC+8
-      const phtHour   = (now.getUTCHours() + 8) % 24;
-      const phtMin    = now.getUTCMinutes();
-      const todayPHT  = new Date(now.getTime() + 8 * 3600 * 1000).toISOString().split("T")[0];
+      const now        = new Date();
+      // Use the browser's local time — works for any timezone the user is in
+      const localHour  = now.getHours();
+      const localMin   = now.getMinutes();
+      const todayLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
-      const lastCopy  = localStorage.getItem("bank_eod_copy_date") || "";
-      if (phtHour === 18 && phtMin === 0 && lastCopy !== todayPHT) {
-        localStorage.setItem("bank_eod_copy_date", todayPHT);
-        copiedTodayRef.current = todayPHT;
+      const lastCopy = localStorage.getItem("bank_eod_copy_date") || "";
+      if (localHour === 18 && localMin === 0 && lastCopy !== todayLocal) {
+        localStorage.setItem("bank_eod_copy_date", todayLocal);
+        copiedTodayRef.current = todayLocal;
         copyAllBalancesToYesterday?.();
       }
     };

@@ -2112,8 +2112,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     pushSingleBankToSheet(updatedAccount, "write");
   };
 
-  // PHT-aware date string (UTC+8) — prevents UTC midnight from stamping wrong date
-  const todayPHT = () => new Date(Date.now() + 8 * 3600 * 1000).toISOString().split("T")[0];
+  // Local-timezone date string — adapts to whichever timezone the browser is in
+  const todayPHT = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
 
   const updateBankBalance = (id: string, newBalance: number) => {
     let updatedAcc: BankAccount | undefined;
