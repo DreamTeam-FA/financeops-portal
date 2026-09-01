@@ -1477,18 +1477,51 @@ app.post("/api/ar/add-item", async (req, res) => {
     console.log(`[AR/add-item] Found existing row ${sheetRow} for ${entity} / ${customer}`);
   }
 
+  // ── Auto-expand sheet columns if needed ────────────────────────────────────
+  // The largest column index we'll write to (0-based). amtCol is always the rightmost.
+  const maxColNeeded = Math.max(amtCol, invCol, appCol, senCol, payCol, remCol, dueCol);
+
+  // Get the sheet's current column count via spreadsheet metadata
+  const metaForColUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}`
+    + `?fields=sheets.properties(sheetId,title,gridProperties/columnCount)`;
+  const metaForColResp = await fetch(metaForColUrl, { headers: { Authorization: `Bearer ${userAccessToken}` } });
+  let currentColCount = 70; // fallback if metadata read fails
+  let arSheetId: number | null = null;
+  if (metaForColResp.ok) {
+    const metaForColData: any = await metaForColResp.json();
+    const sheetMeta = (metaForColData.sheets || []).find((s: any) =>
+      (s.properties?.title || "").toLowerCase() === tabName.toLowerCase()
+    );
+    if (sheetMeta) {
+      currentColCount = sheetMeta.properties?.gridProperties?.columnCount ?? 70;
+      arSheetId = sheetMeta.properties?.sheetId ?? null;
+    }
+  }
+
+  // If the write target exceeds current columns, append enough columns automatically
+  const colsNeeded = maxColNeeded + 1; // 0-indexed → 1-indexed count
+  if (colsNeeded > currentColCount && arSheetId !== null) {
+    const toAdd = colsNeeded - currentColCount + 10; // add a 10-col buffer for future months
+    console.log(`[AR/add-item] Auto-expanding "${tabName}" by ${toAdd} columns (current=${currentColCount}, need=${colsNeeded})`);
+    const expandUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}:batchUpdate`;
+    const expandResp = await fetch(expandUrl, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${userAccessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        requests: [{ appendDimension: { sheetId: arSheetId, dimension: "COLUMNS", length: toAdd } }],
+      }),
+    });
+    if (!expandResp.ok) {
+      const e: any = await expandResp.json().catch(() => ({}));
+      return res.status(500).json({ ok: false, error: `Could not expand sheet columns: ${e?.error?.message || expandResp.status}` });
+    }
+    console.log(`[AR/add-item] Sheet expanded successfully — now has ~${currentColCount + toAdd} columns`);
+  }
+
   // Build batch writes for the month block cells
-  // Guard: AR Dashboard Data sheet has a fixed column limit. colToLetter is 0-indexed;
-  // max valid column is whatever the sheet's actual column count allows.
-  // We detect the limit from the header width (last column found) + a small buffer;
-  // as a hard safety cap we also skip any column that would produce BS (index 70) or beyond
-  // since those have been confirmed to exceed grid limits on the production sheet.
-  const AR_SERVER_MAX_COL = 69; // 0-indexed; col 70 (1-indexed, "BR") is the last valid column
-  const skippedCols: number[] = [];
   const batchData: { range: string; values: any[][] }[] = [];
   const cell = (col: number, val: any) => {
     if (col < 0) return;
-    if (col > AR_SERVER_MAX_COL) { skippedCols.push(col); return; }
     batchData.push({ range: `'${tabName}'!${colToLetter(col)}${sheetRow}`, values: [[val]] });
   };
   cell(invCol,  invoice  ? "TRUE" : "FALSE");
@@ -1503,8 +1536,6 @@ app.post("/api/ar/add-item", async (req, res) => {
   if (needsHeaderWrite) {
     const hdrRow = headerRowIdx + 1; // 1-indexed
     const monthAbbr = month.substring(0, 3); // "Sep", "Oct", etc.
-    // Labels matching what liveSheetsFetcher.ts looks for: "Sep-Invoice", "Sep-Approval", etc.
-    // Only the first col of each pair needs the prefix label; the second can be blank or a date label
     const hdrLabels: [number, string][] = [
       [startCol,        `${monthAbbr}-Invoice`],
       [startCol + 2,    `${monthAbbr}-Approval`],
@@ -1515,7 +1546,6 @@ app.post("/api/ar/add-item", async (req, res) => {
       [startCol + 10,   `${monthAbbr}-Amount`],
     ];
     for (const [col, label] of hdrLabels) {
-      if (col > AR_SERVER_MAX_COL) { skippedCols.push(col); continue; }
       batchData.push({ range: `'${tabName}'!${colToLetter(col)}${hdrRow}`, values: [[label]] });
     }
     console.log(`[AR/add-item] Writing ${hdrLabels.length} header labels for new month "${month}" at col ${startCol}`);
@@ -1531,22 +1561,8 @@ app.post("/api/ar/add-item", async (req, res) => {
     const e: any = await batchResp.json().catch(() => ({}));
     return res.status(500).json({ ok: false, error: `Cell write failed: ${e?.error?.message || batchResp.status}` });
   }
-
-  if (skippedCols.length > 0) {
-    // Some cells couldn't be written because they exceed the sheet's column limit.
-    // This typically means the sheet needs more columns added for months like September+.
-    console.warn(`[AR/add-item] Skipped ${skippedCols.length} columns (>${AR_SERVER_MAX_COL}) for ${customer}/${month}: cols ${skippedCols.join(",")}`);
-  }
   console.log(`[AR/add-item] Wrote ${batchData.length} cells to row ${sheetRow} (${tabName}!${month})`);
-  return res.json({
-    ok: true,
-    sheetRow,
-    cellsWritten: batchData.length,
-    ...(skippedCols.length > 0 ? {
-      warning: `${skippedCols.length} column(s) skipped — month "${month}" requires columns beyond the sheet's current limit (max col BR). Expand the sheet by adding more columns to fit September and later months.`,
-      skippedCols,
-    } : {}),
-  });
+  return res.json({ ok: true, sheetRow, cellsWritten: batchData.length });
 });
 
 /**
@@ -1574,12 +1590,8 @@ app.post("/api/ar/sync-portal-items-to-sheet", async (req, res) => {
         body: JSON.stringify({ ...item, userAccessToken }),
       });
       const result: any = await writeResp.json();
-      if (result.ok) {
-        const note = result.warning ? ` ⚠ ${result.warning}` : "";
-        synced.push(`${item.customer} / ${item.month} → row ${result.sheetRow}${note}`);
-      } else {
-        errors.push(`${item.customer}: ${result.error}`);
-      }
+      if (result.ok) synced.push(`${item.customer} / ${item.month} → row ${result.sheetRow}`);
+      else errors.push(`${item.customer}: ${result.error}`);
     } catch (e: any) {
       errors.push(`${item.customer}: ${e?.message}`);
     }
