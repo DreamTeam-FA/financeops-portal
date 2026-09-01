@@ -1060,25 +1060,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         startAutoTokenRefresh();
         logAction("Google OAuth Authenticated", `Connected as ${res.user.email}`);
         window.dispatchEvent(new Event("google-token-refreshed"));
-        // After sign-in the token is now in memory — re-run pull-live WITH the token so the server
-        // can run Drive bill link recovery synchronously and return driveViewUrl in the response.
-        // This is the only reliable way to get bill copies without a manual page reload.
-        setTimeout(async () => {
-          try {
-            const tok = getAccessToken();
-            if (!tok) return;
-            const pullResp = await fetch("/api/pull-live", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ accessToken: tok }),
-            }).then(r => r.json());
-            if (pullResp?.data?.ap && pullResp.data.ap.length > 0) {
-              // Clear stale localStorage drive cache before applying — sheet is source of truth
-              try { localStorage.removeItem("billDriveLinks_v2"); } catch {}
-              setApBills(recomputeBills(pullResp.data.ap));
-            }
-          } catch { /* non-fatal */ }
-        }, 2000);
+        // After sign-in, do a full Pull All so all modules (AP, banks, loans, AR, etc.)
+        // are refreshed from the live sheet, including driveViewUrl from column AM/AA.
+        setTimeout(() => { syncAllFromGoogleSheets().catch(() => {}); }, 1000);
         // Capture device + location, then ensure the logs sheet exists and append the login entry
         captureLoginMetadata().then(async (meta) => {
           const token = getAccessToken();

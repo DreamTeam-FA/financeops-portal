@@ -575,6 +575,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
 
     const finalDueDate = dueDate || new Date().toISOString().split("T")[0];
 
+    const driveUrlRuby = String(row[38] || "").trim();
     ap.push({
       id: `ap-ruby-${i + 1}`,
       vendor,
@@ -594,6 +595,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       status1,
       description: String(row[4] || "").trim() || undefined, // col E
       category:    String(row[5] || "").trim() || undefined, // col F
+      driveViewUrl: /^https:\/\/(drive|docs)\.google\.com\//i.test(driveUrlRuby) ? driveUrlRuby : undefined, // col AM (index 38)
       row: i - 3 // dataStart=5: row 1 = sheet row 5, so bill.row = i+1-(dataStart-1) = i-3
     });
   });
@@ -726,6 +728,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       const paidViaTI = String(row[12] || "").trim() || undefined;
       const remarksTI = String(row[14] || "").trim() || undefined;
 
+      const driveUrlTI = String(row[26] || "").trim();
       ap.push({
         id: `ap-ti-${tabName.replace(/\s+/g, "")}-${i + 1}`,
         vendor,
@@ -743,6 +746,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
         invoiceNo,
         paidVia: paidViaTI,
         remarks: remarksTI,
+        driveViewUrl: /^https:\/\/(drive|docs)\.google\.com\//i.test(driveUrlTI) ? driveUrlTI : undefined, // col AA (index 26)
         row: i - 5 // dataStart=7: row 1 = sheet row 7, so bill.row = i+1-(dataStart-1) = i-5
       });
     });
@@ -787,6 +791,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       col11MSDxStr.startsWith("Date(");
     const status1MSDx = col11MSDxStr && !col11MSDxIsDate ? col11MSDxStr : undefined;
 
+    const driveUrlMSDx = String(row[26] || "").trim();
     ap.push({
       id: `ap-msdx-${i + 1}`,
       vendor,
@@ -805,6 +810,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       status1: status1MSDx,
       description: String(row[4] || "").trim() || undefined, // col E
       category:    String(row[5] || "").trim() || undefined, // col F
+      driveViewUrl: /^https:\/\/(drive|docs)\.google\.com\//i.test(driveUrlMSDx) ? driveUrlMSDx : undefined, // col AA (index 26)
       row: i - 4 // dataStart=6: row 1 = sheet row 6, so bill.row = i+1-(dataStart-1) = i-4
     });
   });
