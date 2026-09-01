@@ -150,6 +150,10 @@ export const DataSyncPage: React.FC = () => {
   const [clearAllLinksLoading, setClearAllLinksLoading] = useState(false);
   const [clearAllLinksResult, setClearAllLinksResult] = useState<string | null>(null);
 
+  // ── AR Sheet Fix state ──────────────────────────────────────────────────────
+  const [arFixRunning, setArFixRunning] = useState(false);
+  const [arFixResult, setArFixResult] = useState<string | null>(null);
+
   const extractFileIds = (text: string): string[] => {
     const pattern = /\/file\/d\/([A-Za-z0-9_\-]+)\//g;
     const ids = new Set<string>();
@@ -306,6 +310,46 @@ export const DataSyncPage: React.FC = () => {
       setClearAllLinksResult(`❌ ${e?.message || "Unknown error"}`);
     } finally {
       setClearAllLinksLoading(false);
+    }
+  }, []);
+
+  const runArSheetFix = useCallback(async () => {
+    setArFixRunning(true);
+    setArFixResult(null);
+    try {
+      const { getAccessToken } = await import("../../services/googleAuth");
+      const token = await getAccessToken();
+      if (!token) throw new Error("Not signed in to Google.");
+
+      // Step 1: Delete wrong-format rows
+      const cleanupResp = await fetch("/api/ar/cleanup-bad-rows", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userAccessToken: token }),
+      });
+      const cleanupData = await cleanupResp.json();
+      if (!cleanupData.ok && !cleanupResp.ok) throw new Error(cleanupData.error || "Cleanup failed");
+
+      // Step 2: Sync portal-created AR items to correct columns
+      const syncResp = await fetch("/api/ar/sync-portal-items-to-sheet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userAccessToken: token }),
+      });
+      const syncData = await syncResp.json();
+
+      const deletedRows = cleanupData.rows?.join(", ") || "none";
+      const synced = syncData.synced?.length || 0;
+      const errors = syncData.errors?.length || 0;
+      setArFixResult(
+        `✓ Deleted bad rows: ${cleanupData.deleted ?? 0} (rows ${deletedRows})\n` +
+        `✓ Synced to sheet: ${synced} item(s)` +
+        (errors ? `\n⚠ ${errors} error(s): ${syncData.errors?.join("; ")}` : "")
+      );
+    } catch (e: any) {
+      setArFixResult(`❌ ${e?.message || "Unknown error"}`);
+    } finally {
+      setArFixRunning(false);
     }
   }, []);
 
@@ -1038,6 +1082,38 @@ export const DataSyncPage: React.FC = () => {
                 </button>
               )}
             </div>
+          )}
+        </div>
+
+        {/* ── 7b. AR Sheet Fix ─────────────────────────────────────────────── */}
+        <div className={`border rounded-2xl p-6 space-y-4 ${card}`}>
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="flex items-start gap-3">
+              <FileSpreadsheet className="w-4 h-4 text-teal-400 mt-0.5 shrink-0" />
+              <div>
+                <h3 className={`text-sm font-bold ${heading}`}>AR Sheet Fix</h3>
+                <p className={`text-xs ${sub}`}>
+                  Removes any wrong-format rows appended by old code (flat rows with amount in col D,
+                  date in col E), then writes portal AR items to the correct horizontal month block columns.
+                  Run this if AR entries are missing from the sheet or were appended in the wrong format.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={runArSheetFix}
+              disabled={arFixRunning || !googleUser}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold bg-teal-600 hover:bg-teal-500 text-white transition-colors disabled:opacity-40 shrink-0">
+              {arFixRunning
+                ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Fixing…</>
+                : <><Zap className="w-3.5 h-3.5" /> Fix AR Sheet Now</>}
+            </button>
+          </div>
+          {arFixResult && (
+            <pre className={`text-[11px] whitespace-pre-wrap rounded-lg px-3 py-2 border ${
+              arFixResult.startsWith("❌")
+                ? (isLight ? "bg-red-50 border-red-200 text-red-700" : "bg-red-900/15 border-red-700/25 text-red-300")
+                : (isLight ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-emerald-900/15 border-emerald-700/25 text-emerald-300")
+            }`}>{arFixResult}</pre>
           )}
         </div>
 
