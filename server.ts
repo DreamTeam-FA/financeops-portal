@@ -224,66 +224,6 @@ function applyCalendarOverrides(events: any[], overrides: { deleted: string[]; d
     });
 }
 
-/**
- * Injects known bill-copy Drive links into AP bills based on entity + vendor + invoice/date.
- * Works entirely in-memory — does NOT read or write the sheet.
- * Only sets driveViewUrl if the bill doesn't already have one (respects manual uploads).
- */
-function applyKnownGoodDriveLinks(bills: any[]): any[] {
-  // Each entry: entity, vendor keyword (lowercase), invoice keyword (substring, lowercase),
-  // due date YYYY-MM-DD, and the Drive view URL.
-  const LINKS: Array<{ entity: string; vendorKw: string; invoiceKw: string; date: string; url: string }> = [
-    // Ruby's Bills
-    { entity: "Ruby's", vendorKw: "airgas", invoiceKw: "9174294112", date: "2026-08-31", url: "https://drive.google.com/file/d/1jpKaW2plMojV_qs9Hn9_6JBXrB0ZYWnq/view?usp=drivesdk" },
-    { entity: "Ruby's", vendorKw: "airgas", invoiceKw: "5526534263", date: "2026-08-31", url: "https://drive.google.com/file/d/1B6gm9UTadNbh2PY5hJn1nuVrOpy9VkPr/view?usp=drivesdk" },
-    { entity: "Ruby's", vendorKw: "alsco",  invoiceKw: "logd1832949", date: "2026-08-31", url: "https://drive.google.com/file/d/1m0giat7s2RP_kgGooJAxFkWIqCe1lY1m/view?usp=drivesdk" },
-    { entity: "Ruby's", vendorKw: "alsco",  invoiceKw: "logd1830797", date: "2026-08-21", url: "https://drive.google.com/file/d/1BfneidhoIb7lajTV-Y-JSuFZpvEu9WNX/view?usp=drivesdk" },
-    { entity: "Ruby's", vendorKw: "alsco",  invoiceKw: "logd1832150", date: "2026-08-28", url: "https://drive.google.com/file/d/1hSwKuOxutn8GziIw5Lsj6ilZEv9IUXAj/view?usp=drivesdk" },
-    { entity: "Ruby's", vendorKw: "alsco",  invoiceKw: "logd1831652", date: "2026-08-24", url: "https://drive.google.com/file/d/1zV3pmPQcCaVTyfScBd6ZrmrYYXSvJ9B3/view?usp=drivesdk" },
-    { entity: "Ruby's", vendorKw: "alsco",  invoiceKw: "logd1830297", date: "2026-08-17", url: "https://drive.google.com/file/d/14BBtRtd7SOPukb88fN2IProdviouLW5k/view?usp=drivesdk" },
-    { entity: "Ruby's", vendorKw: "square", invoiceKw: "479561",      date: "2026-08-05", url: "https://drive.google.com/file/d/1PnTR6e6w9EO2Ib9hKLwWwErRrbOmJcdm/view?usp=drivesdk" },
-    { entity: "Ruby's", vendorKw: "alsco",  invoiceKw: "logd1833437", date: "2026-08-04", url: "https://drive.google.com/file/d/11OqXRcurveNy7qtWVJmNFEwAKXKvZOe7/view?usp=drivesdk" },
-    { entity: "Ruby's", vendorKw: "alsco",  invoiceKw: "logd1833437", date: "2026-09-04", url: "https://drive.google.com/file/d/15D-OazYkHnSQ4adE4w5vsS85rrnUkDcP/view?usp=drivesdk" },
-    { entity: "Ruby's", vendorKw: "alsco",  invoiceKw: "logd1834227", date: "2026-09-07", url: "https://drive.google.com/file/d/1sweiavdQn8UVvOwCwXwCPcMngqDgYVzc/view?usp=drivesdk" },
-    { entity: "Ruby's", vendorKw: "airgas", invoiceKw: "9174543116",  date: "2026-09-09", url: "https://drive.google.com/file/d/17MgNtUORq-kvmrDbvAazfsnkeufOjPgX/view?usp=drivesdk" },
-    { entity: "Ruby's", vendorKw: "airgas", invoiceKw: "9174909928",  date: "2026-09-20", url: "https://drive.google.com/file/d/1qN2n35KT6dWdJpV2MFpTIGKwv8qak8qb/view?usp=drivesdk" },
-    { entity: "Ruby's", vendorKw: "airgas", invoiceKw: "9174948144",  date: "2026-09-23", url: "https://drive.google.com/file/d/1QFK4d1-zEoRCm3O_Kr4R54RuV4oHE04m/view?usp=drivesdk" },
-    // TI Bills
-    { entity: "TI",     vendorKw: "ipg",     invoiceKw: "36",     date: "2026-08-14", url: "https://drive.google.com/file/d/1ExWen6VB6OEEPzCTy8c5gbkLmhcfC3hf/view?usp=drivesdk" },
-    { entity: "TI",     vendorKw: "pershing",invoiceKw: "lp1317", date: "2026-09-03", url: "https://drive.google.com/file/d/1b0IwJmami0ZO7j_nzWOhe-tFOkDUoBps/view?usp=drivesdk" },
-    { entity: "TI",     vendorKw: "pershing",invoiceKw: "lp1331", date: "2026-09-03", url: "https://drive.google.com/file/d/1kFs2PklaYLi5So_gkxRlKvjaP7QfCGVk/view?usp=drivesdk" },
-    { entity: "TI",     vendorKw: "arcadia", invoiceKw: "26101802", date: "2026-09-24", url: "https://drive.google.com/file/d/1FLGBSFeqNdYzW2B-tbpgHZ8aN7XDrE-v/view?usp=drivesdk" },
-    // MSDx Bills
-    { entity: "MSDx",   vendorKw: "starlink",invoiceKw: "vd3ecv9wj394qagmhv", date: "2026-08-18", url: "https://drive.google.com/file/d/1-axgnLr8Gr82gBvCDJxTnVlqkHBT9GNr/view?usp=drivesdk" },
-    { entity: "MSDx",   vendorKw: "ipg",     invoiceKw: "37",     date: "2026-08-14", url: "https://drive.google.com/file/d/1B8AlsSwea0tPs10iY54WQzeb9RFZjo33/view?usp=drivesdk" },
-  ];
-
-  return bills.map((bill: any) => {
-    if (bill.driveViewUrl) return bill; // already has a link — don't overwrite
-    const bEntity  = (bill.entity  || "").trim();
-    const bVendor  = (bill.vendor  || "").toLowerCase();
-    const bInvoice = (bill.invoiceNo || "").toLowerCase().trim();
-    const bDate    = (bill.dueDate  || "").trim();
-    for (const link of LINKS) {
-      if (link.entity !== bEntity) continue;
-      if (!bVendor.includes(link.vendorKw)) continue;
-      // Invoice is the primary key; date disambiguates duplicates (e.g. LOGD1833437 × 2)
-      const invoiceMatch = bInvoice.includes(link.invoiceKw);
-      const dateMatch    = bDate === link.date;
-      if (invoiceMatch && dateMatch) return { ...bill, driveViewUrl: link.url };
-    }
-    // Second pass: invoice only (if date didn't match but invoice is unique enough)
-    for (const link of LINKS) {
-      if (link.entity !== bEntity) continue;
-      if (!bVendor.includes(link.vendorKw)) continue;
-      if (link.invoiceKw.length >= 6 && bInvoice.includes(link.invoiceKw)) {
-        return { ...bill, driveViewUrl: link.url };
-      }
-    }
-    return bill;
-  });
-}
-
 async function syncLiveDataFromSheets(accessToken?: string) {
   try {
     const method = accessToken ? "Sheets API v4 (FORMATTED_VALUE)" : "GViz public API";
@@ -297,7 +237,7 @@ async function syncLiveDataFromSheets(accessToken?: string) {
     // Previously, authenticated syncs replaced AP outright with liveData.ap, losing saved bill copies.
     const updated = {
       ...current,
-      ap: applyKnownGoodDriveLinks(mergeDatasets(liveData.ap, current.ap, "id")),
+      ap: mergeDatasets(liveData.ap, current.ap, "id"),
       banks: mergeDatasets(liveData.banks, current.banks, "id"),
       loans: mergeDatasets(liveData.loans, current.loans, "id"),
       ar: mergeDatasets(liveData.ar, current.ar, "id"),
@@ -784,64 +724,6 @@ function getDriveClient(userAccessToken: string) {
   return google.drive({ version: "v3", auth });
 }
 
-// ─── Hardcoded bill copy links ────────────────────────────────────────────────
-// Scanned from Drive on 2026-08-27. New files still discovered dynamically via
-// runBillLinkRecovery when the user is signed in; this constant ensures existing
-// copies always show without needing an OAuth token.
-const KNOWN_DRIVE_FILES: { name: string; viewUrl: string }[] = [
-  // Ruby's — Aug
-  { name: "Ruby's_Airgas_9174294112_2026-08-31.pdf", viewUrl: "https://drive.google.com/file/d/1jpKaW2plMojV_qs9Hn9_6JBXrB0ZYWnq/view?usp=drivesdk" },
-  { name: "Ruby's_Airgas_5526534263_2026-08-31.pdf",  viewUrl: "https://drive.google.com/file/d/1B6gm9UTadNbh2PY5hJn1nuVrOpy9VkPr/view?usp=drivesdk" },
-  { name: "Ruby's_Alsco_LOGD1832949_2026-08-31.pdf",  viewUrl: "https://drive.google.com/file/d/1m0giat7s2RP_kgGooJAxFkWIqCe1lY1m/view?usp=drivesdk" },
-  { name: "Ruby's_Alsco_LOGD1830797_2026-08-21.pdf",  viewUrl: "https://drive.google.com/file/d/1BfneidhoIb7lajTV-Y-JSuFZpvEu9WNX/view?usp=drivesdk" },
-  { name: "Ruby's_Alsco_LOGD1832150_2026-08-28.pdf",  viewUrl: "https://drive.google.com/file/d/1hSwKuOxutn8GziIw5Lsj6ilZEv9IUXAj/view?usp=drivesdk" },
-  { name: "Ruby's_Alsco_LOGD1831652_2026-08-24.pdf",  viewUrl: "https://drive.google.com/file/d/1zV3pmPQcCaVTyfScBd6ZrmrYYXSvJ9B3/view?usp=drivesdk" },
-  { name: "Ruby's_Alsco_LOGD1830297_2026-08-17.pdf",  viewUrl: "https://drive.google.com/file/d/14BBtRtd7SOPukb88fN2IProdviouLW5k/view?usp=drivesdk" },
-  { name: "Ruby's_Square_One_479561_2026-08-05.pdf",  viewUrl: "https://drive.google.com/file/d/1PnTR6e6w9EO2Ib9hKLwWwErRrbOmJcdm/view?usp=drivesdk" },
-  { name: "Ruby's_Alsco_LOGD1833437_2026-08-04.pdf",  viewUrl: "https://drive.google.com/file/d/11OqXRcurveNy7qtWVJmNFEwAKXKvZOe7/view?usp=drivesdk" },
-  // Ruby's — Sep
-  { name: "Ruby's_Alsco_LOGD1833437_2026-09-04.pdf",  viewUrl: "https://drive.google.com/file/d/15D-OazYkHnSQ4adE4w5vsS85rrnUkDcP/view?usp=drivesdk" },
-  { name: "Ruby's_Alsco_LOGD1834227_2026-09-07.pdf",  viewUrl: "https://drive.google.com/file/d/1sweiavdQn8UVvOwCwXwCPcMngqDgYVzc/view?usp=drivesdk" },
-  { name: "Ruby's_Airgas_9174543116_2026-09-09.pdf",  viewUrl: "https://drive.google.com/file/d/17MgNtUORq-kvmrDbvAazfsnkeufOjPgX/view?usp=drivesdk" },
-  { name: "Ruby's_Airgas_9174909928_2026-09-20.pdf",  viewUrl: "https://drive.google.com/file/d/1qN2n35KT6dWdJpV2MFpTIGKwv8qak8qb/view?usp=drivesdk" },
-  { name: "Ruby's_Airgas_9174948144_2026-09-23.pdf",  viewUrl: "https://drive.google.com/file/d/1QFK4d1-zEoRCm3O_Kr4R54RuV4oHE04m/view?usp=drivesdk" },
-  // TI — Aug
-  { name: "TI_IPG_Studio_36_2026-08-14.pdf",          viewUrl: "https://drive.google.com/file/d/1ExWen6VB6OEEPzCTy8c5gbkLmhcfC3hf/view?usp=drivesdk" },
-  // TI — Sep
-  { name: "TI_Pershing_&_Co_-_4YR_LP1317_2026-09-03.pdf", viewUrl: "https://drive.google.com/file/d/1b0IwJmami0ZO7j_nzWOhe-tFOkDUoBps/view?usp=drivesdk" },
-  { name: "TI_Pershing_&_Co_-_4G_LP1331_2026-09-03.pdf",  viewUrl: "https://drive.google.com/file/d/1kFs2PklaYLi5So_gkxRlKvjaP7QfCGVk/view?usp=drivesdk" },
-  { name: "TI_Arcadia_Publishing_26101802_2026-09-24.pdf", viewUrl: "https://drive.google.com/file/d/1FLGBSFeqNdYzW2B-tbpgHZ8aN7XDrE-v/view?usp=drivesdk" },
-  // MSDx — Aug
-  { name: "MSDx_Starlink_INV-DF-US-VD3ECV9WJ394QAGMHV_2026-08-18.pdf", viewUrl: "https://drive.google.com/file/d/1-axgnLr8Gr82gBvCDJxTnVlqkHBT9GNr/view?usp=drivesdk" },
-  { name: "MSDx_IPG_Studio_37_2026-08-14.pdf",        viewUrl: "https://drive.google.com/file/d/1B8AlsSwea0tPs10iY54WQzeb9RFZjo33/view?usp=drivesdk" },
-];
-
-/** Apply KNOWN_DRIVE_FILES to bills that don't already have driveViewUrl set. */
-function applyKnownDriveLinks(bills: any[]): any[] {
-  const normalise = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-  return bills.map(bill => {
-    if (bill.driveViewUrl) return bill;
-    for (const file of KNOWN_DRIVE_FILES) {
-      const fname = file.name.replace(/\.[^.]+$/, "");
-      const parts = fname.split("_");
-      if (parts.length < 3) continue;
-      const dateCandidate = parts[parts.length - 1];
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateCandidate)) continue;
-      if (bill.dueDate !== dateCandidate && bill.invoiceDate !== dateCandidate) continue;
-      const fv = normalise(parts[1]);
-      const fi = normalise(parts.length > 3 ? parts.slice(2, -1).join("_") : "");
-      const bv = normalise(bill.vendor || "");
-      const bi = normalise(bill.invoiceNo || bill.id || "");
-      const vendorMatch = bv.includes(fv) || fv.includes(bv);
-      const invoiceMatch = fi && (bi.includes(fi) || fi.includes(bi));
-      if (vendorMatch || invoiceMatch) {
-        return { ...bill, driveViewUrl: file.viewUrl, driveFileName: file.name };
-      }
-    }
-    return bill;
-  });
-}
-
 /** Find a child folder by name under parentId, or create it. Returns folder ID. */
 async function getOrCreateFolder(drive: any, parentId: string, name: string): Promise<string> {
   const q = `name='${name.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`;
@@ -1278,165 +1160,103 @@ app.post("/api/drive/restore-known-good-links", async (req, res) => {
 
   const sid = AP_SPREADSHEET_ID;
 
-  // Helper: normalise a date string to YYYY-MM-DD for comparison
-  const normDate = (s: string): string => {
-    const v = String(s || "").trim();
-    // Already YYYY-MM-DD
-    if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
-    // M/D/YYYY or MM/DD/YYYY
-    const slash = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (slash) return `${slash[3]}-${slash[1].padStart(2, "0")}-${slash[2].padStart(2, "0")}`;
-    return v.toLowerCase();
+  // Use fetchFullLiveDataset — same parser the portal uses — to get bills with their
+  // exact sheet row numbers already computed. Match by the parsed fields (vendor,
+  // invoiceNo, dueDate, entity) which are reliable, then write to the exact cell.
+  //
+  // Sheet-row formula per tab (bill.row + offset = 1-indexed sheet row):
+  //   Ruby's Bills: offset 4  (dataStart=5)   driveCol AM
+  //   TI Bills:     offset 6  (dataStart=7)   driveCol AA
+  //   MSDx Bills:   offset 5  (dataStart=6)   driveCol AA
+  const ENTITY_META: Record<string, { offset: number; driveCol: string; tab: string }> = {
+    "Ruby's": { offset: 4, driveCol: "AM", tab: "Ruby's Bills" },
+    "TI":     { offset: 6, driveCol: "AA", tab: "TI Bills"     },
+    "MSDx":   { offset: 5, driveCol: "AA", tab: "MSDx Bills"   },
   };
 
-  // matchFn: returns true if row matches this bill (vendor + invoice or date)
-  // Ruby's Bills: vendor=row[3], invoice=row[6], date=row[8]
-  // TI Bills:     vendor in row[3..5], invoice=row[6], date=row[8]
-  // MSDx Bills:   vendor in row[2..4], invoice=row[6], date=row[8]
-  const mkMatch = (
-    tab: string,
-    vendorKw: string,        // lowercase keyword that vendor cell must include
-    invoice: string,         // exact invoice string (row[6])
-    date: string,            // YYYY-MM-DD due date (row[8] fallback)
-    requireDate = false      // if true, date match required in addition to vendor+invoice
-  ) => (row: any[]): boolean => {
-    const inv  = String(row[6] || "").trim();
-    const dt   = normDate(String(row[8] || ""));
-    let vendorStr = "";
-    if (tab === "Ruby's Bills") vendorStr = String(row[3] || "").toLowerCase();
-    else if (tab === "TI Bills") vendorStr = [row[3], row[4], row[5]].map(c => String(c || "").toLowerCase()).join(" ");
-    else vendorStr = [row[2], row[3], row[4]].map(c => String(c || "").toLowerCase()).join(" ");
-    const vendorOk  = vendorStr.includes(vendorKw);
-    const invoiceOk = inv.toLowerCase() === invoice.toLowerCase();
-    const dateOk    = dt === date;
-    return vendorOk && invoiceOk && (requireDate ? dateOk : true);
-  };
-
-  const KNOWN_GOOD: Array<{ tab: string; driveCol: string; driveColIdx: number; viewUrl: string; matchFn: (row: any[]) => boolean }> = [
-    // ── Ruby's Bills (col AM, index 38) ──────────────────────────────────────
-    { tab: "Ruby's Bills", driveCol: "AM", driveColIdx: 38,
-      viewUrl: "https://drive.google.com/file/d/1jpKaW2plMojV_qs9Hn9_6JBXrB0ZYWnq/view?usp=drivesdk",
-      matchFn: mkMatch("Ruby's Bills", "airgas", "9174294112", "2026-08-31") },
-    { tab: "Ruby's Bills", driveCol: "AM", driveColIdx: 38,
-      viewUrl: "https://drive.google.com/file/d/1B6gm9UTadNbh2PY5hJn1nuVrOpy9VkPr/view?usp=drivesdk",
-      matchFn: mkMatch("Ruby's Bills", "airgas", "5526534263", "2026-08-31") },
-    { tab: "Ruby's Bills", driveCol: "AM", driveColIdx: 38,
-      viewUrl: "https://drive.google.com/file/d/1m0giat7s2RP_kgGooJAxFkWIqCe1lY1m/view?usp=drivesdk",
-      matchFn: mkMatch("Ruby's Bills", "alsco", "LOGD1832949", "2026-08-31") },
-    { tab: "Ruby's Bills", driveCol: "AM", driveColIdx: 38,
-      viewUrl: "https://drive.google.com/file/d/1BfneidhoIb7lajTV-Y-JSuFZpvEu9WNX/view?usp=drivesdk",
-      matchFn: mkMatch("Ruby's Bills", "alsco", "LOGD1830797", "2026-08-21") },
-    { tab: "Ruby's Bills", driveCol: "AM", driveColIdx: 38,
-      viewUrl: "https://drive.google.com/file/d/1hSwKuOxutn8GziIw5Lsj6ilZEv9IUXAj/view?usp=drivesdk",
-      matchFn: mkMatch("Ruby's Bills", "alsco", "LOGD1832150", "2026-08-28") },
-    { tab: "Ruby's Bills", driveCol: "AM", driveColIdx: 38,
-      viewUrl: "https://drive.google.com/file/d/1zV3pmPQcCaVTyfScBd6ZrmrYYXSvJ9B3/view?usp=drivesdk",
-      matchFn: mkMatch("Ruby's Bills", "alsco", "LOGD1831652", "2026-08-24") },
-    { tab: "Ruby's Bills", driveCol: "AM", driveColIdx: 38,
-      viewUrl: "https://drive.google.com/file/d/14BBtRtd7SOPukb88fN2IProdviouLW5k/view?usp=drivesdk",
-      matchFn: mkMatch("Ruby's Bills", "alsco", "LOGD1830297", "2026-08-17") },
-    { tab: "Ruby's Bills", driveCol: "AM", driveColIdx: 38,
-      viewUrl: "https://drive.google.com/file/d/1PnTR6e6w9EO2Ib9hKLwWwErRrbOmJcdm/view?usp=drivesdk",
-      matchFn: mkMatch("Ruby's Bills", "square", "479561", "2026-08-05") },
-    // LOGD1833437 appears twice — use requireDate=true to disambiguate
-    { tab: "Ruby's Bills", driveCol: "AM", driveColIdx: 38,
-      viewUrl: "https://drive.google.com/file/d/11OqXRcurveNy7qtWVJmNFEwAKXKvZOe7/view?usp=drivesdk",
-      matchFn: mkMatch("Ruby's Bills", "alsco", "LOGD1833437", "2026-08-04", true) },
-    { tab: "Ruby's Bills", driveCol: "AM", driveColIdx: 38,
-      viewUrl: "https://drive.google.com/file/d/15D-OazYkHnSQ4adE4w5vsS85rrnUkDcP/view?usp=drivesdk",
-      matchFn: mkMatch("Ruby's Bills", "alsco", "LOGD1833437", "2026-09-04", true) },
-    { tab: "Ruby's Bills", driveCol: "AM", driveColIdx: 38,
-      viewUrl: "https://drive.google.com/file/d/1sweiavdQn8UVvOwCwXwCPcMngqDgYVzc/view?usp=drivesdk",
-      matchFn: mkMatch("Ruby's Bills", "alsco", "LOGD1834227", "2026-09-07") },
-    { tab: "Ruby's Bills", driveCol: "AM", driveColIdx: 38,
-      viewUrl: "https://drive.google.com/file/d/17MgNtUORq-kvmrDbvAazfsnkeufOjPgX/view?usp=drivesdk",
-      matchFn: mkMatch("Ruby's Bills", "airgas", "9174543116", "2026-09-09") },
-    { tab: "Ruby's Bills", driveCol: "AM", driveColIdx: 38,
-      viewUrl: "https://drive.google.com/file/d/1qN2n35KT6dWdJpV2MFpTIGKwv8qak8qb/view?usp=drivesdk",
-      matchFn: mkMatch("Ruby's Bills", "airgas", "9174909928", "2026-09-20") },
-    { tab: "Ruby's Bills", driveCol: "AM", driveColIdx: 38,
-      viewUrl: "https://drive.google.com/file/d/1QFK4d1-zEoRCm3O_Kr4R54RuV4oHE04m/view?usp=drivesdk",
-      matchFn: mkMatch("Ruby's Bills", "airgas", "9174948144", "2026-09-23") },
-    // ── TI Bills (col AA, index 26) ───────────────────────────────────────────
-    { tab: "TI Bills", driveCol: "AA", driveColIdx: 26,
-      viewUrl: "https://drive.google.com/file/d/1ExWen6VB6OEEPzCTy8c5gbkLmhcfC3hf/view?usp=drivesdk",
-      matchFn: mkMatch("TI Bills", "ipg", "36", "2026-08-14", true) },
-    { tab: "TI Bills", driveCol: "AA", driveColIdx: 26,
-      viewUrl: "https://drive.google.com/file/d/1b0IwJmami0ZO7j_nzWOhe-tFOkDUoBps/view?usp=drivesdk",
-      matchFn: mkMatch("TI Bills", "pershing", "LP1317", "2026-09-03") },
-    { tab: "TI Bills", driveCol: "AA", driveColIdx: 26,
-      viewUrl: "https://drive.google.com/file/d/1kFs2PklaYLi5So_gkxRlKvjaP7QfCGVk/view?usp=drivesdk",
-      matchFn: mkMatch("TI Bills", "pershing", "LP1331", "2026-09-03") },
-    { tab: "TI Bills", driveCol: "AA", driveColIdx: 26,
-      viewUrl: "https://drive.google.com/file/d/1FLGBSFeqNdYzW2B-tbpgHZ8aN7XDrE-v/view?usp=drivesdk",
-      matchFn: mkMatch("TI Bills", "arcadia", "26101802", "2026-09-24") },
-    // ── MSDx Bills (col AA, index 26) ────────────────────────────────────────
-    { tab: "MSDx Bills", driveCol: "AA", driveColIdx: 26,
-      viewUrl: "https://drive.google.com/file/d/1-axgnLr8Gr82gBvCDJxTnVlqkHBT9GNr/view?usp=drivesdk",
-      matchFn: mkMatch("MSDx Bills", "starlink", "INV-DF-US-VD3ECV9WJ394QAGMHV", "2026-08-18") },
-    { tab: "MSDx Bills", driveCol: "AA", driveColIdx: 26,
-      viewUrl: "https://drive.google.com/file/d/1B8AlsSwea0tPs10iY54WQzeb9RFZjo33/view?usp=drivesdk",
-      matchFn: mkMatch("MSDx Bills", "ipg", "37", "2026-08-14", true) },
+  // Known bill copies: match by entity + vendor keyword + invoice keyword + date
+  const KNOWN: Array<{ entity: string; vendorKw: string; invoiceKw: string; date: string; url: string }> = [
+    { entity: "Ruby's", vendorKw: "airgas", invoiceKw: "9174294112",  date: "2026-08-31", url: "https://drive.google.com/file/d/1jpKaW2plMojV_qs9Hn9_6JBXrB0ZYWnq/view?usp=drivesdk" },
+    { entity: "Ruby's", vendorKw: "airgas", invoiceKw: "5526534263",  date: "2026-08-31", url: "https://drive.google.com/file/d/1B6gm9UTadNbh2PY5hJn1nuVrOpy9VkPr/view?usp=drivesdk" },
+    { entity: "Ruby's", vendorKw: "alsco",  invoiceKw: "logd1832949", date: "2026-08-31", url: "https://drive.google.com/file/d/1m0giat7s2RP_kgGooJAxFkWIqCe1lY1m/view?usp=drivesdk" },
+    { entity: "Ruby's", vendorKw: "alsco",  invoiceKw: "logd1830797", date: "2026-08-21", url: "https://drive.google.com/file/d/1BfneidhoIb7lajTV-Y-JSuFZpvEu9WNX/view?usp=drivesdk" },
+    { entity: "Ruby's", vendorKw: "alsco",  invoiceKw: "logd1832150", date: "2026-08-28", url: "https://drive.google.com/file/d/1hSwKuOxutn8GziIw5Lsj6ilZEv9IUXAj/view?usp=drivesdk" },
+    { entity: "Ruby's", vendorKw: "alsco",  invoiceKw: "logd1831652", date: "2026-08-24", url: "https://drive.google.com/file/d/1zV3pmPQcCaVTyfScBd6ZrmrYYXSvJ9B3/view?usp=drivesdk" },
+    { entity: "Ruby's", vendorKw: "alsco",  invoiceKw: "logd1830297", date: "2026-08-17", url: "https://drive.google.com/file/d/14BBtRtd7SOPukb88fN2IProdviouLW5k/view?usp=drivesdk" },
+    { entity: "Ruby's", vendorKw: "square", invoiceKw: "479561",      date: "2026-08-05", url: "https://drive.google.com/file/d/1PnTR6e6w9EO2Ib9hKLwWwErRrbOmJcdm/view?usp=drivesdk" },
+    { entity: "Ruby's", vendorKw: "alsco",  invoiceKw: "logd1833437", date: "2026-08-04", url: "https://drive.google.com/file/d/11OqXRcurveNy7qtWVJmNFEwAKXKvZOe7/view?usp=drivesdk" },
+    { entity: "Ruby's", vendorKw: "alsco",  invoiceKw: "logd1833437", date: "2026-09-04", url: "https://drive.google.com/file/d/15D-OazYkHnSQ4adE4w5vsS85rrnUkDcP/view?usp=drivesdk" },
+    { entity: "Ruby's", vendorKw: "alsco",  invoiceKw: "logd1834227", date: "2026-09-07", url: "https://drive.google.com/file/d/1sweiavdQn8UVvOwCwXwCPcMngqDgYVzc/view?usp=drivesdk" },
+    { entity: "Ruby's", vendorKw: "airgas", invoiceKw: "9174543116",  date: "2026-09-09", url: "https://drive.google.com/file/d/17MgNtUORq-kvmrDbvAazfsnkeufOjPgX/view?usp=drivesdk" },
+    { entity: "Ruby's", vendorKw: "airgas", invoiceKw: "9174909928",  date: "2026-09-20", url: "https://drive.google.com/file/d/1qN2n35KT6dWdJpV2MFpTIGKwv8qak8qb/view?usp=drivesdk" },
+    { entity: "Ruby's", vendorKw: "airgas", invoiceKw: "9174948144",  date: "2026-09-23", url: "https://drive.google.com/file/d/1QFK4d1-zEoRCm3O_Kr4R54RuV4oHE04m/view?usp=drivesdk" },
+    { entity: "TI",     vendorKw: "ipg",     invoiceKw: "36",          date: "2026-08-14", url: "https://drive.google.com/file/d/1ExWen6VB6OEEPzCTy8c5gbkLmhcfC3hf/view?usp=drivesdk" },
+    { entity: "TI",     vendorKw: "pershing",invoiceKw: "lp1317",      date: "2026-09-03", url: "https://drive.google.com/file/d/1b0IwJmami0ZO7j_nzWOhe-tFOkDUoBps/view?usp=drivesdk" },
+    { entity: "TI",     vendorKw: "pershing",invoiceKw: "lp1331",      date: "2026-09-03", url: "https://drive.google.com/file/d/1kFs2PklaYLi5So_gkxRlKvjaP7QfCGVk/view?usp=drivesdk" },
+    { entity: "TI",     vendorKw: "arcadia", invoiceKw: "26101802",    date: "2026-09-24", url: "https://drive.google.com/file/d/1FLGBSFeqNdYzW2B-tbpgHZ8aN7XDrE-v/view?usp=drivesdk" },
+    { entity: "MSDx",   vendorKw: "starlink",invoiceKw: "vd3ecv9wj394qagmhv", date: "2026-08-18", url: "https://drive.google.com/file/d/1-axgnLr8Gr82gBvCDJxTnVlqkHBT9GNr/view?usp=drivesdk" },
+    { entity: "MSDx",   vendorKw: "ipg",     invoiceKw: "37",          date: "2026-08-14", url: "https://drive.google.com/file/d/1B8AlsSwea0tPs10iY54WQzeb9RFZjo33/view?usp=drivesdk" },
   ];
 
-  // Cache fetched tab data so we don't re-fetch the same tab multiple times
-  const tabCache: Record<string, any[][]> = {};
-  const fetchTab = async (tab: string): Promise<any[][]> => {
-    if (tabCache[tab]) return tabCache[tab];
-    const a1Name = "'" + tab.replace(/'/g, "''") + "'";
-    const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}/values/${encodeURIComponent(a1Name)}?valueRenderOption=FORMATTED_VALUE&majorDimension=ROWS`;
-    const resp = await fetch(readUrl, { headers: { Authorization: `Bearer ${userAccessToken}` } });
-    if (!resp.ok) throw new Error(`read ${tab} failed ${resp.status}`);
-    const d: any = await resp.json();
-    tabCache[tab] = d.values || [];
-    return tabCache[tab];
-  };
+  let liveData: any;
+  try {
+    liveData = await fetchFullLiveDataset(userAccessToken);
+  } catch (e: any) {
+    return res.status(500).json({ ok: false, error: `fetchFullLiveDataset failed: ${e?.message}` });
+  }
 
+  const bills: any[] = liveData.ap || [];
   const restored: string[] = [];
-  const skipped: string[] = [];
+  const notFound: string[] = [];
   const errors: string[] = [];
 
-  for (const { tab, driveCol, driveColIdx, viewUrl, matchFn } of KNOWN_GOOD) {
-    try {
-      const rows = await fetchTab(tab);
-      let foundRow = -1;
-      for (let i = 0; i < rows.length; i++) {
-        if (!matchFn(rows[i])) continue;
-        const existing = String(rows[i][driveColIdx] || "").trim();
-        // Skip if cell already has a different Drive URL (user uploaded something else — don't overwrite)
-        if (existing && existing.startsWith("https://") && existing !== viewUrl) {
-          skipped.push(`${tab} row ${i + 1}: already has different URL, skipped`);
-          foundRow = -2; // signal "found but skipped"
-          break;
-        }
-        foundRow = i + 1;
-        // Update cache so duplicate LOGD1833437 rows don't both match the same row
-        if (!rows[i][driveColIdx]) rows[i][driveColIdx] = viewUrl;
-        break;
-      }
-      if (foundRow === -2) continue;
-      if (foundRow < 1) { errors.push(`${tab}: no match for ${driveCol} — vendor+invoice not found`); continue; }
+  for (const entry of KNOWN) {
+    const meta = ENTITY_META[entry.entity];
+    if (!meta) { errors.push(`Unknown entity ${entry.entity}`); continue; }
 
-      const cellRange = `'${tab.replace(/'/g, "''")}'!${driveCol}${foundRow}`;
+    // Find matching bill using parsed fields — same data the portal UI shows
+    const match = bills.find((b: any) => {
+      if ((b.entity || "").trim() !== entry.entity) return false;
+      if (!(b.vendor || "").toLowerCase().includes(entry.vendorKw)) return false;
+      const inv = (b.invoiceNo || "").toLowerCase();
+      const dt  = (b.dueDate  || "").trim();
+      return inv.includes(entry.invoiceKw) && dt === entry.date;
+    });
+
+    if (!match) {
+      notFound.push(`${entry.entity} ${entry.vendorKw} ${entry.invoiceKw} ${entry.date}`);
+      console.warn(`[RestoreKnownGood] no match: ${entry.entity} ${entry.vendorKw} ${entry.invoiceKw} ${entry.date}`);
+      continue;
+    }
+
+    if (match.driveViewUrl && match.driveViewUrl !== entry.url) {
+      // Bill already has a different (user-uploaded) Drive link — don't overwrite
+      restored.push(`SKIPPED ${meta.tab} row ${match.row} — already has different URL`);
+      continue;
+    }
+
+    const sheetRow = match.row + meta.offset;
+    const cellRange = `'${meta.tab.replace(/'/g, "''")}'!${meta.driveCol}${sheetRow}`;
+    try {
       const writeUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}/values/${encodeURIComponent(cellRange)}?valueInputOption=USER_ENTERED`;
       const wr = await fetch(writeUrl, {
         method: "PUT",
         headers: { Authorization: `Bearer ${userAccessToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ values: [[viewUrl]] }),
+        body: JSON.stringify({ values: [[entry.url]] }),
       });
       if (!wr.ok) {
         const e: any = await wr.json().catch(() => ({}));
-        errors.push(`${tab} row ${foundRow}: write failed — ${e?.error?.message || wr.status}`);
+        errors.push(`${cellRange}: ${e?.error?.message || wr.status}`);
       } else {
-        restored.push(`${tab} ${driveCol}${foundRow}`);
-        console.log(`[RestoreKnownGood] ✓ ${tab} ${driveCol}${foundRow}`);
+        restored.push(`${cellRange} ← ${entry.vendorKw} ${entry.invoiceKw}`);
+        console.log(`[RestoreKnownGood] ✓ ${cellRange}`);
       }
     } catch (e: any) {
-      errors.push(`${tab}: ${e?.message}`);
+      errors.push(`${cellRange}: ${e?.message}`);
     }
   }
 
-  return res.json({ ok: errors.length === 0, restored, skipped, errors });
+  return res.json({ ok: errors.length === 0, restored, notFound, errors });
 });
 
 /**

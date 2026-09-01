@@ -1060,9 +1060,23 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         startAutoTokenRefresh();
         logAction("Google OAuth Authenticated", `Connected as ${res.user.email}`);
         window.dispatchEvent(new Event("google-token-refreshed"));
-        // After sign-in, Pull All — server automatically injects known bill-copy Drive
-        // links in memory via applyKnownGoodDriveLinks, no sheet writes required.
-        setTimeout(() => { syncAllFromGoogleSheets().catch(() => {}); }, 1000);
+        // After sign-in: restore known bill-copy Drive links to the sheet (sheet is source of truth),
+        // then Pull All so the portal reads them back from the sheet normally.
+        setTimeout(async () => {
+          try {
+            const token = getAccessToken();
+            if (token) {
+              await fetch("/api/drive/restore-known-good-links", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userAccessToken: token }),
+              });
+              // Give the sheet a moment to commit the writes before we pull
+              await new Promise(r => setTimeout(r, 3000));
+            }
+          } catch { /* non-fatal — Pull All still runs below */ }
+          syncAllFromGoogleSheets().catch(() => {});
+        }, 1000);
         // Capture device + location, then ensure the logs sheet exists and append the login entry
         captureLoginMetadata().then(async (meta) => {
           const token = getAccessToken();
