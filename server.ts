@@ -541,7 +541,6 @@ app.get("/api/data", (_req, res) => {
 });
 
 app.post("/api/pull-live", async (req, res) => {
-  const forceOverwrite = req.body?.force === true;
   const requestToken: string | undefined = req.body?.accessToken || undefined;
   // Use the request token if provided; otherwise fall back to the server-cached token
   // from the last sign-in (valid for ~55 min) so Drive recovery runs without a fresh login.

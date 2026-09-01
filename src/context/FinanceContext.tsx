@@ -1614,6 +1614,19 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
         if (live.lastSyncedAt) setLastSyncedAt(live.lastSyncedAt);
 
+        // Update localStorage cache so the next page load starts with this fresh data
+        // (including driveViewUrls from column AM/AA) instead of the previous session's snapshot.
+        try {
+          const slim = {
+            ap: live.ap, banks: live.banks, loans: live.loans, ar: live.ar,
+            statements: live.statements, headleys: live.headleys,
+            payrollPivot: live.payrollPivot, payrollWeeks: live.payrollWeeks,
+            calendarLocalEvents: live.calendarLocalEvents,
+            quickNotes: live.quickNotes, lastSyncedAt: live.lastSyncedAt,
+          };
+          localStorage.setItem("financeops_data_cache_v2", JSON.stringify({ ts: Date.now(), data: slim }));
+        } catch { /* non-fatal */ }
+
         const now = new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" });
         addSyncLog({
           timestamp: now,
