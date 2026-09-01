@@ -1581,6 +1581,9 @@ app.post("/api/ar/sync-portal-items-to-sheet", async (req, res) => {
 
   const synced: string[] = [];
   const errors: string[] = [];
+  // Track ID remaps: old timestamp ID → new row-based ID (ar-{row}-{Month})
+  // so the next Pull All can match them correctly via mergeDatasets.
+  const idRemaps: Record<string, string> = {};
 
   for (const item of portalAR) {
     try {
@@ -1590,11 +1593,30 @@ app.post("/api/ar/sync-portal-items-to-sheet", async (req, res) => {
         body: JSON.stringify({ ...item, userAccessToken }),
       });
       const result: any = await writeResp.json();
-      if (result.ok) synced.push(`${item.customer} / ${item.month} → row ${result.sheetRow}`);
-      else errors.push(`${item.customer}: ${result.error}`);
+      if (result.ok) {
+        synced.push(`${item.customer} / ${item.month} → row ${result.sheetRow}`);
+        // Map the portal timestamp ID to the row-based ID the fetcher will generate on Pull All.
+        // Fetcher generates: ar-${rowIndex + 1}-${monthName} where rowIndex is 0-based in arRawRows.
+        // result.sheetRow is 1-based sheet row number = same as (rowIndex + 1) since arRawRows[0] = sheet row 1.
+        const newId = `ar-${result.sheetRow}-${item.month}`;
+        idRemaps[item.id] = newId;
+      } else {
+        errors.push(`${item.customer}: ${result.error}`);
+      }
     } catch (e: any) {
       errors.push(`${item.customer}: ${e?.message}`);
     }
+  }
+
+  // Apply ID remaps to the JSON cache so Pull All mergeDatasets matches correctly.
+  if (Object.keys(idRemaps).length > 0) {
+    const refreshed = getStoredData();
+    const updatedAR = (refreshed.ar || []).map((item: any) => {
+      if (idRemaps[item.id]) return { ...item, id: idRemaps[item.id] };
+      return item;
+    });
+    saveStoredData({ ...refreshed, ar: updatedAR });
+    console.log(`[AR/sync-portal] Updated ${Object.keys(idRemaps).length} AR item IDs in cache to row-based format`);
   }
 
   console.log(`[AR/sync-portal] Synced ${synced.length}/${portalAR.length} portal AR items to sheet`);

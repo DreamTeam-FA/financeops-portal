@@ -1066,7 +1066,9 @@ export async function fetchFullLiveDataset(accessToken?: string) {
           amount:      amt,
           dueDate:     resolvedDueDate,
           month:       mCfg.name,
-          occurrence:  String(row[6] || "Monthly"),
+          // Col D (index 3) = occurrence (Monthly / Quarterly / Annual).
+          // Old code erroneously used row[6] which falls inside the March-Approval block.
+          occurrence:  String(row[3] || "Monthly"),
           invoice:     isTrue(invVal) || amt > 0,
           approval:    isTrue(appVal) || amt > 0,
           sent:        isTrue(senVal) || amt > 0,
