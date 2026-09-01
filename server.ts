@@ -1581,7 +1581,11 @@ app.post("/api/ar/cleanup-bad-rows", async (req, res) => {
   const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}/values/`
     + `${encodeURIComponent("'" + tabName + "'")}?valueRenderOption=FORMATTED_VALUE&majorDimension=ROWS`;
   const resp = await fetch(readUrl, { headers: { Authorization: `Bearer ${userAccessToken}` } });
-  if (!resp.ok) return res.status(500).json({ ok: false, error: "Failed to read AR sheet" });
+  if (!resp.ok) {
+    const errBody: any = await resp.json().catch(() => ({}));
+    const detail = errBody?.error?.message || errBody?.error?.status || `HTTP ${resp.status}`;
+    return res.status(500).json({ ok: false, error: `Failed to read AR sheet: ${detail}` });
+  }
   const data: any = await resp.json();
   const rows: any[][] = data.values || [];
 
