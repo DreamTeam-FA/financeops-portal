@@ -877,6 +877,33 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (!cache) setIsLoading(false);
       }
 
+      // Step 2.5 — Early pull-live using server's cached access token.
+      // Fires in parallel with the Firebase token wait so every user (including
+      // users who aren't signed into Google, or whose token hasn't loaded yet)
+      // gets fresh sheet data on every hard refresh without waiting up to 10 s.
+      // The full Step 4 pull (with the user's own token) still runs afterward
+      // and will overwrite this with fully-authenticated data.
+      fetch("/api/pull-live", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}), // empty body → server falls back to its cached token
+      })
+        .then(r => r.json())
+        .then(resp => {
+          if (resp?.data) {
+            try { localStorage.removeItem("billDriveLinks_v2"); } catch {}
+            applyData(resp.data);
+            saveCache(resp.data);
+            setIsLoading(false);
+            try {
+              const bc = new BroadcastChannel("financeops_sync");
+              bc.postMessage({ type: "data-refreshed", ts: Date.now() });
+              bc.close();
+            } catch {}
+          }
+        })
+        .catch(() => {}); // non-fatal — if server has no cached token it fails silently
+
       // Step 3 — Wait for OAuth token (Firebase auth fires asynchronously)
       setIsSyncing(true);
       const tok = await waitForToken(10_000);
