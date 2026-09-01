@@ -148,13 +148,17 @@ export const ARPage: React.FC = () => {
   const handleCreateAR = (e: React.FormEvent) => {
     e.preventDefault();
     if (!customer || !amount) return;
+    // Derive month name from the selected dueDate so the item shows under the correct month tab
+    const monthFromDueDate = dueDate
+      ? new Date(dueDate + "T12:00:00").toLocaleString("default", { month: "long" })
+      : currentMonthName;
     addARItem({
       customer,
       entity,
       amount: parseFloat(amount),
       dueDate,
       description: description || "Client Monthly Services",
-      month: "July",
+      month: monthFromDueDate,
       occurrence: "Monthly",
       invoice: true,
       approval: true,

@@ -282,6 +282,26 @@ function getStoredData() {
         fs.writeFileSync(DATA_FILE, JSON.stringify(parsed, null, 2));
         console.log("[startup] Done — driveViewUrls cleared from JSON. Pull All to repopulate from sheet.");
       }
+      // One-time migration: fix AR items that were created with hardcoded month:"July".
+      // Derive the correct month name from each item's dueDate.
+      if (!parsed._arMonthFixed) {
+        const MONTH_NAMES_FULL = ["January","February","March","April","May","June",
+                                  "July","August","September","October","November","December"];
+        let fixed = 0;
+        if (Array.isArray(parsed.ar)) {
+          parsed.ar = parsed.ar.map((item: any) => {
+            if (!item.dueDate) return item;
+            const d = new Date(item.dueDate + "T12:00:00");
+            if (isNaN(d.getTime())) return item;
+            const correctMonth = MONTH_NAMES_FULL[d.getMonth()];
+            if (item.month !== correctMonth) { fixed++; return { ...item, month: correctMonth }; }
+            return item;
+          });
+        }
+        parsed._arMonthFixed = true;
+        fs.writeFileSync(DATA_FILE, JSON.stringify(parsed, null, 2));
+        console.log(`[startup] AR month fix: corrected ${fixed} item(s).`);
+      }
       return parsed;
     }
   } catch (e) {
