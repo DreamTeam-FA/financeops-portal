@@ -254,9 +254,90 @@ const PortalContent: React.FC = () => {
   }, [isLoading]);
 
   if (isLoading) {
+    const LOGOS = [
+      { src: "/logos/rubys.png",       alt: "Ruby's",      bg: "#eef1f8" },
+      { src: "/logos/msdx.png",        alt: "MSDx",        bg: "#0d1f3c" },
+      { src: "/logos/ti.png",          alt: "TI",          bg: "#eef1f8" },
+      { src: "/logos/4yr.png",         alt: "4You Pros",   bg: "#eef1f8" },
+      { src: "/logos/curcuminpro.jpg", alt: "CurcuminPro", bg: "#eef1f8" },
+      { src: "/logos/ziglar.jpg",      alt: "Ziglar",      bg: "#eef1f8" },
+    ];
+    const ORBIT_DUR = 14;
+    const ORBIT_R   = 180;
+    const isLight   = theme === "light";
     return (
-      <div className={`flex h-screen w-screen items-center justify-center ${theme === "light" ? "bg-slate-100 text-slate-800" : "bg-[#0a0a0a] text-white"} text-sm font-semibold`}>
-        Loading FinanceOps Hub...
+      <div
+        className="flex h-screen w-screen items-center justify-center overflow-hidden relative"
+        style={{ background: isLight ? "#f1f5f9" : "linear-gradient(180deg,#0e2040 0%,#0c1a2e 50%,#091626 100%)" }}
+      >
+        <style>{`
+          @keyframes lo-spin    { from{transform:rotate(0deg)}    to{transform:rotate(360deg)} }
+          @keyframes lo-counter { from{transform:translateX(${ORBIT_R}px) rotate(0deg)}
+                                  to  {transform:translateX(${ORBIT_R}px) rotate(-360deg)} }
+          @keyframes lo-pulse   { 0%,100%{border-color:rgba(100,160,255,.12)} 50%{border-color:rgba(100,160,255,.28)} }
+          @keyframes lo-dot     { 0%,100%{opacity:.4} 50%{opacity:1} }
+        `}</style>
+
+        {/* Subtle grid overlay (dark mode only) */}
+        {!isLight && (
+          <div style={{
+            position:"absolute",inset:0,pointerEvents:"none",
+            backgroundImage:"linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px)",
+            backgroundSize:"48px 48px",
+            maskImage:"radial-gradient(ellipse 80% 80% at 50% 50%,black 20%,transparent 75%)",
+            WebkitMaskImage:"radial-gradient(ellipse 80% 80% at 50% 50%,black 20%,transparent 75%)",
+          }} />
+        )}
+
+        {/* Radial glow */}
+        <div style={{
+          position:"absolute",inset:0,pointerEvents:"none",
+          background:`radial-gradient(ellipse 55% 55% at 50% 50%,${isLight ? "rgba(26,115,232,.07)" : "rgba(26,115,232,.15)"} 0%,transparent 70%)`,
+        }} />
+
+        {/* Orbit stage */}
+        <div style={{ position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:0,height:0,pointerEvents:"none" }}>
+          {/* Dashed orbit track */}
+          <div style={{
+            position:"absolute",
+            top:-(ORBIT_R+24),left:-(ORBIT_R+24),
+            width:(ORBIT_R+24)*2,height:(ORBIT_R+24)*2,
+            borderRadius:"50%",
+            border:"1px dashed rgba(100,160,255,.18)",
+            animation:"lo-pulse 4s ease-in-out infinite",
+          }} />
+          {/* Orbiting logos */}
+          {LOGOS.map((logo, i) => (
+            <div key={logo.alt} style={{
+              position:"absolute",top:0,left:0,width:0,height:0,
+              animation:`lo-spin ${ORBIT_DUR}s linear infinite`,
+              animationDelay:`${-(ORBIT_DUR/LOGOS.length)*i}s`,
+            }}>
+              <div style={{
+                position:"absolute",top:-22,left:-22,
+                width:44,height:44,borderRadius:12,
+                background:logo.bg,padding:5,overflow:"hidden",
+                boxShadow:"0 4px 20px rgba(0,0,0,.4),0 0 0 2px rgba(255,255,255,.18)",
+                animation:`lo-counter ${ORBIT_DUR}s linear infinite`,
+                animationDelay:`${-(ORBIT_DUR/LOGOS.length)*i}s`,
+              }}>
+                <img src={logo.src} alt={logo.alt} style={{ width:"100%",height:"100%",objectFit:"contain",borderRadius:7,display:"block" }} />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Centre label */}
+        <div className="relative z-10 flex flex-col items-center gap-3 select-none">
+          <div className={`text-sm font-bold tracking-wide ${isLight ? "text-slate-700" : "text-slate-200"}`}>
+            Loading FinanceOps Hub…
+          </div>
+          <div className="flex items-center gap-1.5">
+            {[0,1,2].map(i => (
+              <div key={i} style={{ width:5,height:5,borderRadius:"50%",background:"#1a73e8",animation:`lo-dot 1.2s ease-in-out ${i*0.2}s infinite` }} />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
