@@ -181,12 +181,24 @@ const HOWTOS = [
     ],
   },
   {
+    title: "Update a Bank Balance",
+    steps: [
+      "Go to Bank Balances → switch to Table View (top-right toggle).",
+      "Click the ✏️ Edit (pencil) icon on the row you want to update.",
+      "A popup modal appears showing the current balance — enter the new balance and click 'Save Balance' (or press Enter).",
+      "The change writes immediately to the Google Sheet and the portal updates in real-time.",
+      "The Yesterday column shows the balance before the last update.",
+      "Every day at 6pm Philippine Standard Time, the portal automatically copies all current balances into the Yesterday column in the sheet — no manual step needed.",
+    ],
+  },
+  {
     title: "Reconnect Google Sheets After Token Expiry",
     steps: [
       "Look for the amber 'Google Auth' toast at the bottom of the screen.",
       "Click 'Reconnect Google Sheets' inside the toast.",
       "Complete the Google sign-in flow in the popup.",
-      "If no toast appears, refresh the page — you'll be prompted to sign in again.",
+      "No login screen appears on page load — the portal opens directly to your cached data.",
+      "All live sheet read/write operations (Pull All, balance updates, AR writes) require a valid Google token; they will fail silently until you reconnect.",
     ],
   },
   {

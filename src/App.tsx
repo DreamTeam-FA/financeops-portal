@@ -37,7 +37,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { NotesFloatingWidget } from "./components/modals/NotesFloatingWidget";
 import { AlertsProvider, AlertsToasts } from "./components/AlertsCenter";
 import { TooltipProvider } from "./components/Tooltip";
-import { LoginModal } from "./components/modals/LoginModal";
+
 import {
   LayoutDashboard,
   CreditCard,
@@ -225,7 +225,7 @@ const GlobalDatePickerModal: React.FC = () => {
 };
 
 const PortalContent: React.FC = () => {
-  const { currentPage, setCurrentPage, isLoading, theme, activeMember, needsAuth,
+  const { currentPage, setCurrentPage, isLoading, theme, activeMember,
           apBills, bankAccounts, loans, arItems, lastSyncedAt, syncLogs } = useFinance();
 
   // ── Scheduled portal audit (fires every 48 h, after data loads) ─────────
@@ -350,9 +350,6 @@ const PortalContent: React.FC = () => {
           {renderPage()}
         </ErrorBoundary>
       </main>
-
-      {/* Login Gate Modal */}
-      <LoginModal isOpen={needsAuth} />
 
       {/* Floating Notes Widget */}
       <NotesFloatingWidget />

@@ -1,8 +1,8 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { getBankBalanceWarning } from "../../utils/bankWarning";
-import { Landmark, TrendingUp, TrendingDown, Edit2, BarChart3, Trash2, LayoutGrid, Table as TableIcon, AlertTriangle, Download } from "lucide-react";
+import { Landmark, TrendingUp, TrendingDown, Edit2, BarChart3, Trash2, LayoutGrid, Table as TableIcon, AlertTriangle, Download, X } from "lucide-react";
 import { exportBanksCSV } from "../../utils/exportUtils";
 import { AddBankModal } from "../modals/AddBankModal";
 import { Tooltip as AppTooltip } from "../Tooltip";
@@ -18,9 +18,79 @@ import {
   Cell
 } from "recharts";
 
+/* ─── Edit Balance Popup Modal ────────────────────────────────────────────── */
+interface EditBalanceModalProps {
+  bank: { id: string; bank: string; entity: string; acct?: string; balance: number };
+  isLight: boolean;
+  onSave: (id: string, val: number) => void;
+  onClose: () => void;
+}
+const EditBalanceModal: React.FC<EditBalanceModalProps> = ({ bank, isLight, onSave, onClose }) => {
+  const [val, setVal] = useState(String(bank.balance));
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { inputRef.current?.select(); }, []);
+
+  const bg   = isLight ? "bg-white border-slate-200"           : "bg-[#181c24] border-[#2a3140]";
+  const txt  = isLight ? "text-slate-800"                      : "text-slate-100";
+  const txt2 = isLight ? "text-slate-500"                      : "text-slate-400";
+  const inp  = isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#333] text-white";
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className={`relative z-10 rounded-xl shadow-2xl border w-full max-w-sm p-6 ${bg}`}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className={`font-bold text-sm ${txt}`}>✏️ Edit Balance</h2>
+          <button onClick={onClose} className={`w-7 h-7 flex items-center justify-center rounded text-lg ${txt2} hover:opacity-70`}>
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className={`text-xs font-semibold mb-1 ${txt2}`}>{bank.entity} — {bank.bank}{bank.acct ? ` (${bank.acct})` : ""}</div>
+        <div className={`text-[11px] mb-4 ${txt2}`}>
+          Current: <span className={`font-bold ${txt}`}>{formatCurrency(bank.balance)}</span>
+        </div>
+
+        <label className={`block text-[11px] font-semibold mb-1.5 uppercase tracking-wider ${txt2}`}>New Balance ($)</label>
+        <input
+          ref={inputRef}
+          type="number"
+          step="0.01"
+          value={val}
+          onChange={(e) => setVal(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { const n = parseFloat(val); if (!isNaN(n)) onSave(bank.id, n); } if (e.key === "Escape") onClose(); }}
+          className={`w-full px-3 py-2 rounded-lg border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#0891b2]/50 mb-5 ${inp}`}
+          placeholder="0.00"
+        />
+
+        <div className="flex items-center justify-end gap-2">
+          <button onClick={onClose} className={`text-xs px-4 py-2 rounded border ${isLight ? "border-slate-300 text-slate-600" : "border-[#333] text-slate-400"} hover:opacity-70`}>
+            Cancel
+          </button>
+          <button
+            onClick={() => { const n = parseFloat(val); if (!isNaN(n)) onSave(bank.id, n); }}
+            className="text-xs px-5 py-2 rounded text-white font-semibold hover:opacity-90"
+            style={{ background: "#0891b2" }}
+          >
+            ✓ Save Balance
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ─── Main Page ───────────────────────────────────────────────────────────── */
 export const BankBalancesPage: React.FC = () => {
-  const { bankAccounts, selectedEntities, updateBankBalance, deleteBankAccount, theme, showConfirm, searchHighlightId, setSearchHighlightId } = useFinance() as any;
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const {
+    bankAccounts, selectedEntities, updateBankBalance, copyAllBalancesToYesterday,
+    deleteBankAccount, theme, showConfirm, searchHighlightId, setSearchHighlightId
+  } = useFinance() as any;
+
+  const [editTarget, setEditTarget] = useState<{ id: string; bank: string; entity: string; acct?: string; balance: number } | null>(null);
+  const [isAddOpen, setIsAddOpen]   = useState(false);
+  const [viewMode, setViewMode]     = useState<"chart" | "table">("chart");
+  const isLight = theme === "light";
 
   // Deep-link: scroll to & flash the item from global search
   useEffect(() => {
@@ -36,27 +106,44 @@ export const BankBalancesPage: React.FC = () => {
     }, 300);
     return () => clearTimeout(timer);
   }, [searchHighlightId]);
-  const [newVal, setNewVal] = useState("");
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"chart" | "table">("chart");
 
-  const isLight = theme === "light";
+  // 6pm PHT (UTC+8 = 10:00 UTC) auto-copy: fires once per day when the clock ticks to 18:00 PHT
+  const copiedTodayRef = useRef<string>("");
+  useEffect(() => {
+    const checkEOD = () => {
+      const now = new Date();
+      // PHT = UTC+8
+      const phtHour   = (now.getUTCHours() + 8) % 24;
+      const phtMin    = now.getUTCMinutes();
+      const todayPHT  = new Date(now.getTime() + 8 * 3600 * 1000).toISOString().split("T")[0];
+
+      const lastCopy  = localStorage.getItem("bank_eod_copy_date") || "";
+      if (phtHour === 18 && phtMin === 0 && lastCopy !== todayPHT) {
+        localStorage.setItem("bank_eod_copy_date", todayPHT);
+        copiedTodayRef.current = todayPHT;
+        copyAllBalancesToYesterday?.();
+      }
+    };
+    // Check immediately in case the page loaded right at 6pm
+    checkEOD();
+    const interval = setInterval(checkEOD, 30_000); // check every 30 seconds
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleSaveBalance = useCallback((id: string, newVal: number) => {
+    updateBankBalance(id, newVal);
+    setEditTarget(null);
+  }, [updateBankBalance]);
 
   const filtered = bankAccounts.filter(
-    (b) => selectedEntities.has("ALL") || selectedEntities.has(b.entity)
+    (b: any) => selectedEntities.has("ALL") || selectedEntities.has(b.entity)
   );
 
-  const totalBalance = filtered.reduce((s, a) => s + a.balance, 0);
+  const totalBalance = filtered.reduce((s: number, a: any) => s + a.balance, 0);
 
-  const handleSaveBalance = (id: string) => {
-    if (!newVal) return;
-    updateBankBalance(id, parseFloat(newVal));
-    setEditingId(null);
-    setNewVal("");
-  };
-
-  // Prepare chart data for each bank account
-  const accountChartData = filtered.map((b) => ({
+  // Prepare chart data
+  const accountChartData = filtered.map((b: any) => ({
     name: b.accountName || b.bank,
     balance: b.balance,
     entity: b.entity,
@@ -75,9 +162,7 @@ export const BankBalancesPage: React.FC = () => {
           <div className={`text-[11px] font-semibold ${isLight ? "text-slate-500" : "text-[#999]"}`}>
             {data.entity} {data.bank ? `• ${data.bank}` : ""} {data.acct ? `(${data.acct})` : ""}
           </div>
-          <div className="text-sm font-black text-[#0891b2]">
-            {formatCurrency(data.balance)}
-          </div>
+          <div className="text-sm font-black text-[#0891b2]">{formatCurrency(data.balance)}</div>
           {warn ? (
             <div className={`mt-1.5 flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black border ${warn.badgeClass}`}>
               <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
@@ -94,12 +179,12 @@ export const BankBalancesPage: React.FC = () => {
     return null;
   };
 
-  // Prepare entity summary chart data
+  // Entity summary chart data
   const entityChartData = ["Ruby's", "TI", "MSDx"]
     .filter((en) => selectedEntities.has("ALL") || selectedEntities.has(en))
     .map((en) => ({
       entity: en,
-      total: filtered.filter((a) => a.entity === en).reduce((s, a) => s + a.balance, 0)
+      total: filtered.filter((a: any) => a.entity === en).reduce((s: number, a: any) => s + a.balance, 0)
     }));
 
   const getEntityColor = (entity: string) => {
@@ -149,18 +234,11 @@ export const BankBalancesPage: React.FC = () => {
           </div>
 
           {["Ruby's", "TI", "MSDx"].map((en) => {
-            const eTotal = filtered
-              .filter((a) => a.entity === en)
-              .reduce((s, a) => s + a.balance, 0);
-
+            const eTotal = filtered.filter((a: any) => a.entity === en).reduce((s: number, a: any) => s + a.balance, 0);
             return (
               <div key={en} className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-4 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]`}>
-                <div className={`text-[11px] font-semibold ${isLight ? "text-slate-500" : "text-[#888]"} uppercase`}>
-                  {en} Total
-                </div>
-                <div className={`text-xl font-bold ${isLight ? "text-slate-900" : "text-white"} mt-1`}>
-                  {formatCurrency(eTotal)}
-                </div>
+                <div className={`text-[11px] font-semibold ${isLight ? "text-slate-500" : "text-[#888]"} uppercase`}>{en} Total</div>
+                <div className={`text-xl font-bold ${isLight ? "text-slate-900" : "text-white"} mt-1`}>{formatCurrency(eTotal)}</div>
                 <div className={`text-[11px] ${isLight ? "text-slate-500" : "text-[#888]"} mt-1`}>{en} Cash Accounts</div>
               </div>
             );
@@ -169,42 +247,27 @@ export const BankBalancesPage: React.FC = () => {
 
         {/* View Toggle Bar */}
         <div className={`flex items-center justify-between p-2 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"}`}>
-          <div className={`text-xs font-bold px-2 ${isLight ? "text-slate-600" : "text-gray-300"}`}>
-            Bank Accounts View Mode
-          </div>
+          <div className={`text-xs font-bold px-2 ${isLight ? "text-slate-600" : "text-gray-300"}`}>Bank Accounts View Mode</div>
           <div className={`flex items-center gap-1 ${isLight ? "bg-slate-100" : "bg-[#0d111a]"} p-1 rounded-lg`}>
-            <button
-              onClick={() => setViewMode("chart")}
-              className={`flex items-center gap-1 px-3.5 py-1.5 rounded text-xs font-semibold transition-colors ${
-                viewMode === "chart"
-                  ? isLight
-                    ? "bg-white text-slate-900 shadow-sm border border-slate-200"
-                    : "bg-[#262626] text-white shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] border border-[#333]"
-                  : isLight
-                    ? "text-slate-500 hover:text-slate-900"
-                    : "text-[#888] hover:text-white"
-              }`}
-            >
-              <BarChart3 className="w-3.5 h-3.5" /> Chart View
-            </button>
-            <button
-              onClick={() => setViewMode("table")}
-              className={`flex items-center gap-1 px-3.5 py-1.5 rounded text-xs font-semibold transition-colors ${
-                viewMode === "table"
-                  ? isLight
-                    ? "bg-white text-slate-900 shadow-sm border border-slate-200"
-                    : "bg-[#262626] text-white shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] border border-[#333]"
-                  : isLight
-                    ? "text-slate-500 hover:text-slate-900"
-                    : "text-[#888] hover:text-white"
-              }`}
-            >
-              <TableIcon className="w-3.5 h-3.5" /> Table View
-            </button>
+            {(["chart", "table"] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setViewMode(m)}
+                className={`flex items-center gap-1 px-3.5 py-1.5 rounded text-xs font-semibold transition-colors ${
+                  viewMode === m
+                    ? isLight
+                      ? "bg-white text-slate-900 shadow-sm border border-slate-200"
+                      : "bg-[#262626] text-white shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] border border-[#333]"
+                    : isLight ? "text-slate-500 hover:text-slate-900" : "text-[#888] hover:text-white"
+                }`}
+              >
+                {m === "chart" ? <><BarChart3 className="w-3.5 h-3.5" /> Chart View</> : <><TableIcon className="w-3.5 h-3.5" /> Table View</>}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Visual Bar Graph Section - Single Full Width Chart */}
+        {/* Chart View */}
         {viewMode === "chart" && (
           <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-4 shadow-sm`}>
             <div className="flex items-center justify-between mb-3">
@@ -217,23 +280,11 @@ export const BankBalancesPage: React.FC = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={accountChartData} margin={{ top: 10, right: 10, left: 0, bottom: 25 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={isLight ? "#e2e8f0" : "#222"} />
-                  <XAxis
-                    dataKey="name"
-                    stroke={isLight ? "#64748b" : "#888"}
-                    fontSize={10}
-                    tickLine={false}
-                    interval={0}
-                    angle={-15}
-                    textAnchor="end"
-                  />
-                  <YAxis
-                    stroke={isLight ? "#64748b" : "#888"}
-                    fontSize={10}
-                    tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`}
-                  />
+                  <XAxis dataKey="name" stroke={isLight ? "#64748b" : "#888"} fontSize={10} tickLine={false} interval={0} angle={-15} textAnchor="end" />
+                  <YAxis stroke={isLight ? "#64748b" : "#888"} fontSize={10} tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`} />
                   <Tooltip content={<CustomBarTooltip />} />
                   <Bar dataKey="balance" radius={[4, 4, 0, 0]}>
-                    {accountChartData.map((entry, index) => (
+                    {accountChartData.map((entry: any, index: number) => (
                       <Cell key={`cell-${index}`} fill={getEntityColor(entry.entity)} />
                     ))}
                   </Bar>
@@ -243,56 +294,47 @@ export const BankBalancesPage: React.FC = () => {
           </div>
         )}
 
-        {/* Bank Table */}
+        {/* Table View */}
         {viewMode === "table" && (
           <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl overflow-hidden shadow-sm`}>
             <div className={`p-3 ${isLight ? "bg-slate-50 border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border-b flex items-center justify-between`}>
               <h3 className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-slate-800" : "text-white"} flex items-center gap-2`}>
                 <Landmark className="w-4 h-4 text-[#0891b2]" /> Managed Cash & Deposit Accounts
               </h3>
-              <span className={`text-[11px] ${isLight ? "text-slate-500" : "text-[#888]"}`}>Updated in real-time</span>
+              <span className={`text-[11px] ${isLight ? "text-slate-500" : "text-[#888]"}`}>
+                EOD copy: auto at 6pm PH Time
+              </span>
             </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className={`${isLight ? "bg-slate-100/70 border-slate-200 text-slate-600" : "bg-[#141414] border-[#1a2235] text-[#888]"} border-b font-semibold`}>
-                  <th className="p-3">Entity</th>
-                  <th className="p-3">Bank Name</th>
-                  <th className="p-3">Account Type</th>
-                  <th className="p-3">Account #</th>
-                  <th className="p-3">Current Balance</th>
-                  <th className="p-3 hidden md:table-cell">Yesterday</th>
-                  <th className="p-3 hidden sm:table-cell">As Of</th>
-                  <th className="p-3 hidden md:table-cell">Trend</th>
-                  <th className="p-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody className={`divide-y ${isLight ? "divide-slate-200" : "divide-[#222]"}`}>
-                {filtered.map((b) => {
-                  const yestVal = b.yesterday !== undefined ? b.yesterday : Math.round(b.balance * 0.98);
-                  const diff = b.balance - yestVal;
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className={`${isLight ? "bg-slate-100/70 border-slate-200 text-slate-600" : "bg-[#141414] border-[#1a2235] text-[#888]"} border-b font-semibold`}>
+                    <th className="p-3">Entity</th>
+                    <th className="p-3">Bank Name</th>
+                    <th className="p-3">Account Type</th>
+                    <th className="p-3">Account #</th>
+                    <th className="p-3">Current Balance</th>
+                    <th className="p-3 hidden md:table-cell">Yesterday</th>
+                    <th className="p-3 hidden sm:table-cell">As Of</th>
+                    <th className="p-3 hidden md:table-cell">Trend</th>
+                    <th className="p-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className={`divide-y ${isLight ? "divide-slate-200" : "divide-[#222]"}`}>
+                  {filtered.map((b: any) => {
+                    const yestVal = b.yesterday !== undefined ? b.yesterday : Math.round(b.balance * 0.98);
+                    const diff = b.balance - yestVal;
 
-                  return (
-                    <tr key={b.id} data-search-id={b.id} className={`${isLight ? "hover:bg-slate-50" : "hover:bg-white/5"} transition-colors`}>
-                      <td className="p-3">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${getEntityBadge(b.entity)}`}>
-                          {b.entity}
-                        </span>
-                      </td>
-                      <td className={`p-3 font-semibold ${isLight ? "text-slate-900" : "text-white"}`}>{b.bank}</td>
-                      <td className={`p-3 ${isLight ? "text-slate-600" : "text-[#888]"}`}>{b.type}</td>
-                      <td className={`p-3 ${isLight ? "text-slate-600" : "text-[#888]"} font-mono`}>{b.acct}</td>
-                      <td className="p-3">
-                        {editingId === b.id ? (
-                          <input
-                            type="number"
-                            step="0.01"
-                            defaultValue={b.balance}
-                            onChange={(e) => setNewVal(e.target.value)}
-                            className={`border border-[#1a73e8] rounded px-2 py-0.5 text-xs w-28 ${isLight ? "bg-white text-slate-900" : "bg-[#0d111a] text-white"}`}
-                          />
-                        ) : (
+                    return (
+                      <tr key={b.id} data-search-id={b.id} className={`${isLight ? "hover:bg-slate-50" : "hover:bg-white/5"} transition-colors`}>
+                        <td className="p-3">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${getEntityBadge(b.entity)}`}>{b.entity}</span>
+                        </td>
+                        <td className={`p-3 font-semibold ${isLight ? "text-slate-900" : "text-white"}`}>{b.bank}</td>
+                        <td className={`p-3 ${isLight ? "text-slate-600" : "text-[#888]"}`}>{b.type}</td>
+                        <td className={`p-3 ${isLight ? "text-slate-600" : "text-[#888]"} font-mono`}>{b.acct}</td>
+                        <td className="p-3">
                           <div className="flex flex-col gap-0.5">
                             <span className={`font-extrabold whitespace-nowrap ${isLight ? "text-slate-900" : "text-white"} text-sm`}>
                               {formatCurrency(b.balance)}
@@ -308,66 +350,62 @@ export const BankBalancesPage: React.FC = () => {
                               );
                             })()}
                           </div>
-                        )}
-                      </td>
-                      <td className={`p-3 font-medium hidden md:table-cell ${isLight ? "text-slate-600" : "text-[#aaa]"}`}>
-                        {formatCurrency(yestVal)}
-                      </td>
-                      <td className={`p-3 hidden sm:table-cell ${isLight ? "text-slate-500" : "text-[#888]"}`}>{b.asOf}</td>
-                      <td className="p-3 hidden md:table-cell">
-                        {diff >= 0 ? (
-                          <span className={`${isLight ? "text-emerald-600" : "text-[#4ade80]"} flex items-center gap-1 font-semibold`}>
-                            <TrendingUp className="w-3.5 h-3.5" /> +{formatCurrency(diff)}
-                          </span>
-                        ) : (
-                          <span className={`${isLight ? "text-red-500" : "text-[#f87171]"} flex items-center gap-1 font-semibold`}>
-                            <TrendingDown className="w-3.5 h-3.5" /> {formatCurrency(diff)}
-                          </span>
-                        )}
-                      </td>
-                      <td className="p-3">
-                        <div className="flex items-center gap-1.5">
-                          {editingId === b.id ? (
-                            <button
-                              onClick={() => handleSaveBalance(b.id)}
-                              className="px-2.5 py-1 rounded bg-[#16a34a] hover:bg-[#15803d] text-[11px] font-bold text-white"
-                            >
-                              Save
-                            </button>
+                        </td>
+                        <td className={`p-3 font-medium hidden md:table-cell ${isLight ? "text-slate-600" : "text-[#aaa]"}`}>
+                          {formatCurrency(yestVal)}
+                        </td>
+                        <td className={`p-3 hidden sm:table-cell ${isLight ? "text-slate-500" : "text-[#888]"}`}>{b.asOf}</td>
+                        <td className="p-3 hidden md:table-cell">
+                          {diff >= 0 ? (
+                            <span className={`${isLight ? "text-emerald-600" : "text-[#4ade80]"} flex items-center gap-1 font-semibold`}>
+                              <TrendingUp className="w-3.5 h-3.5" /> +{formatCurrency(diff)}
+                            </span>
                           ) : (
-                            <AppTooltip label="Edit">
+                            <span className={`${isLight ? "text-red-500" : "text-[#f87171]"} flex items-center gap-1 font-semibold`}>
+                              <TrendingDown className="w-3.5 h-3.5" /> {formatCurrency(diff)}
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3">
+                          <div className="flex items-center gap-1.5">
+                            <AppTooltip label="Edit Balance">
                               <button
-                                onClick={() => {
-                                  setEditingId(b.id);
-                                  setNewVal(String(b.balance));
-                                }}
+                                onClick={() => setEditTarget({ id: b.id, bank: b.bank, entity: b.entity, acct: b.acct, balance: b.balance })}
                                 className={`p-1.5 rounded hover:bg-blue-500/10 ${isLight ? "text-blue-600" : "text-blue-400"} transition-colors`}
                               >
                                 <Edit2 className="w-3.5 h-3.5" />
                               </button>
                             </AppTooltip>
-                          )}
-                          <AppTooltip label="Delete Bank Account">
-                            <button
-                              onClick={() => showConfirm("Delete this bank account?", () => deleteBankAccount(b.id))}
-                              className="p-2 text-red-500 hover:text-red-600 transition-colors touch-manipulation"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </AppTooltip>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                            <AppTooltip label="Delete Bank Account">
+                              <button
+                                onClick={() => showConfirm("Delete this bank account?", () => deleteBankAccount(b.id))}
+                                className="p-2 text-red-500 hover:text-red-600 transition-colors touch-manipulation"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </AppTooltip>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
         )}
       </div>
 
       <AddBankModal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} />
+
+      {editTarget && (
+        <EditBalanceModal
+          bank={editTarget}
+          isLight={isLight}
+          onSave={handleSaveBalance}
+          onClose={() => setEditTarget(null)}
+        />
+      )}
     </div>
   );
 };

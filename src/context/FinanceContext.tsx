@@ -134,6 +134,7 @@ interface FinanceContextType {
   addBankAccount: (acc: Omit<BankAccount, "id">) => void;
   updateBankAccount: (account: BankAccount) => void;
   updateBankBalance: (id: string, newBalance: number) => void;
+  copyAllBalancesToYesterday: () => void;
   deleteBankAccount: (id: string) => void;
   
   addLoan: (loan: Omit<Loan, "id">) => void;
@@ -2127,6 +2128,21 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (updatedAcc) pushSingleBankToSheet(updatedAcc, "write");
   };
 
+  // Copy ALL current balances → yesterday at 6pm PHT each day
+  const copyAllBalancesToYesterday = () => {
+    const today = new Date().toISOString().split("T")[0];
+    const nextAccs = bankAccounts.map((a) => ({
+      ...a,
+      yesterday: a.balance,
+      asOf: today,
+    }));
+    setBankAccounts(nextAccs);
+    persistChanges({ banks: nextAccs });
+    logAction("Bank Balances — EOD Copy", `Copied current balances to yesterday column for ${nextAccs.length} accounts`);
+    // Push each updated account to the sheet
+    nextAccs.forEach((acc) => pushSingleBankToSheet(acc, "write"));
+  };
+
   const deleteBankAccount = (id: string) => {
     const nextAccs = bankAccounts.filter((a) => a.id !== id);
     setBankAccounts(nextAccs);
@@ -2346,6 +2362,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         addBankAccount,
         updateBankAccount,
         updateBankBalance,
+        copyAllBalancesToYesterday,
         deleteBankAccount,
         addLoan,
         updateLoan,
