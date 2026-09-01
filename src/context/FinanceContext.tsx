@@ -1081,7 +1081,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
               });
             }
           } catch { /* non-fatal — Pull All will still run */ }
-          // Step 3: Pull All fetches the now-correct sheet data
+          // Step 3: wait 3s for Google Sheets API to propagate the restore writes, then Pull All
+          await new Promise(r => setTimeout(r, 3000));
           syncAllFromGoogleSheets().catch(() => {});
         }, 1000);
         // Capture device + location, then ensure the logs sheet exists and append the login entry
