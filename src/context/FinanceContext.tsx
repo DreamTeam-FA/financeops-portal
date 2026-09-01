@@ -1920,7 +1920,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const pushSingleBankToSheet = (account: BankAccount, action: "write" | "append") => {
     const token = getAccessToken();
-    if (!token) return;
+    if (!token) {
+      setNeedsAuth(true);
+      showToast("Connect Google Sheets to save bank balance to the sheet.", "error", 5000);
+      return;
+    }
     const mapping = sheetMappings.find((m) => m.module === "banks");
     if (!mapping) return;
     (async () => {
@@ -1934,7 +1938,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const pushSingleLoanToSheet = (loan: Loan, action: "write" | "append") => {
     const token = getAccessToken();
-    if (!token) return;
+    if (!token) {
+      setNeedsAuth(true);
+      showToast("Connect Google Sheets to save loan changes to the sheet.", "error", 5000);
+      return;
+    }
     const mapping = sheetMappings.find((m) => m.module === "loans");
     if (!mapping) return;
     (async () => {
@@ -1948,7 +1956,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const pushSingleARToSheet = (item: ARItem, action: "write" | "append") => {
     const token = getAccessToken();
-    if (!token) return;
+    if (!token) {
+      setNeedsAuth(true);
+      showToast("Connect Google Sheets to save AR changes to the sheet.", "error", 5000);
+      return;
+    }
     const mapping = sheetMappings.find((m) => m.module === "ar");
     if (!mapping) return;
     (async () => {
@@ -1962,7 +1974,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const pushSingleStatementToSheet = (statement: BankStatement, action: "write" | "append") => {
     const token = getAccessToken();
-    if (!token) return;
+    if (!token) {
+      setNeedsAuth(true);
+      showToast("Connect Google Sheets to save statement changes to the sheet.", "error", 5000);
+      return;
+    }
     const mapping = sheetMappings.find((m) => m.module === "statements");
     if (!mapping) return;
     (async () => {
