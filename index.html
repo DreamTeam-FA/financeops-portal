@@ -342,17 +342,34 @@
     </div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Elapsed-time counter for the fallback screen
       (function () {
         var start = Date.now();
-        var el = document.getElementById('fo-timer');
-        if (!el) return;
-        var iv = setInterval(function () {
-          if (!document.getElementById('fo-fallback')) { clearInterval(iv); return; }
+        var timerEl = document.getElementById('fo-timer');
+
+        // Elapsed-time counter
+        var counterIv = setInterval(function () {
+          if (!document.getElementById('fo-fallback')) { clearInterval(counterIv); return; }
           var s = Math.floor((Date.now() - start) / 1000);
           if (s < 5) return;
-          el.textContent = 'Still loading… (' + s + 's elapsed)';
+          if (timerEl) timerEl.textContent = 'Still starting… (' + s + 's elapsed)';
         }, 1000);
+
+        // Auto-reload once the server responds — poll /api/health every 4 s.
+        // When the server is cold-starting, health checks fail until it's ready.
+        // The moment it responds OK, reload so the React bundle loads fresh.
+        var reloadIv = setInterval(function () {
+          if (!document.getElementById('fo-fallback')) { clearInterval(reloadIv); return; }
+          fetch('/api/health', { cache: 'no-store' })
+            .then(function (r) {
+              if (r.ok) {
+                clearInterval(reloadIv);
+                clearInterval(counterIv);
+                if (timerEl) timerEl.textContent = 'Server ready — reloading…';
+                setTimeout(function () { location.reload(); }, 500);
+              }
+            })
+            .catch(function () {}); // still starting — try again next tick
+        }, 4000);
       })();
     </script>
   </body>

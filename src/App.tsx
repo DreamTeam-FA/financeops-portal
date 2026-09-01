@@ -230,6 +230,14 @@ const PortalContent: React.FC = () => {
   const { currentPage, setCurrentPage, isLoading, theme, activeMember, needsAuth,
           apBills, bankAccounts, loans, arItems, lastSyncedAt, syncLogs } = useFinance();
 
+  // ── Keep-alive ping — prevents Render free-tier sleep (every 12 min) ────
+  useEffect(() => {
+    const id = setInterval(() => {
+      fetch("/api/health", { cache: "no-store" }).catch(() => {});
+    }, 12 * 60 * 1000); // 12 minutes — Render sleeps after 15 min idle
+    return () => clearInterval(id);
+  }, []);
+
   // ── Scheduled portal audit (fires every 48 h, after data loads) ─────────
   const [auditFindings, setAuditFindings] = useState<AuditFinding[] | null>(null);
   const [auditTs, setAuditTs]             = useState<number>(0);
