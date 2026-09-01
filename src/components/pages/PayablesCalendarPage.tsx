@@ -75,13 +75,17 @@ const BillCard: React.FC<{ bill: any; today: string; isLight: boolean }> = ({ bi
   );
 };
 
-/* ── Summary bill card (overdue / last-week columns) ──────────────────────── */
-const SummaryBillCard: React.FC<{ bill: any; isLight: boolean; isLastWeek?: boolean }> = ({ bill, isLight, isLastWeek }) => {
-  const ec = entityColor(bill.entity);
-  const daysDue = bill.dueDate
-    ? Math.floor((Date.now() - new Date(bill.dueDate + "T00:00:00").getTime()) / 86400000)
-    : 0;
+/* ── Vendor group row (overdue / last-week columns) ──────────────────────── */
+interface VendorGroup {
+  entity: string;
+  subcompany: string;
+  vendor: string;
+  totalAmount: number;
+  count: number;
+}
 
+const VendorGroupRow: React.FC<{ group: VendorGroup; isLight: boolean; isLastWeek?: boolean }> = ({ group, isLight, isLastWeek }) => {
+  const ec = entityColor(group.entity);
   return (
     <div className={`relative overflow-hidden rounded-lg border text-[11px] mb-1.5 last:mb-0 ${
       isLastWeek
@@ -89,27 +93,25 @@ const SummaryBillCard: React.FC<{ bill: any; isLight: boolean; isLastWeek?: bool
         : isLight ? "border-red-200 bg-red-50/50" : "border-red-800/30 bg-red-950/20"
     }`}>
       <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg" style={{ background: ec.bar }} />
-      <div className="pl-3 pr-2 py-2">
-        <div className="flex items-center gap-1 mb-1">
-          <span className={`px-1.5 py-0 rounded text-[10px] font-bold ${ec.bg} ${ec.text}`}>{bill.entity}</span>
-          {bill.subcompany && (
-            <span className={`text-[10px] truncate max-w-[60px] ${isLight ? "text-slate-400" : "text-[#666]"}`}>
-              {bill.subcompany}
-            </span>
+      <div className="pl-3 pr-2 py-1.5">
+        <div className="flex items-center gap-1 mb-0.5">
+          <span className={`px-1.5 py-0 rounded text-[10px] font-bold shrink-0 ${ec.bg} ${ec.text}`}>{group.entity}</span>
+          {group.subcompany && (
+            <span className={`text-[10px] truncate ${isLight ? "text-slate-400" : "text-[#666]"}`}>{group.subcompany}</span>
           )}
-          {daysDue > 0 && (
-            <span className={`ml-auto text-[9px] font-semibold shrink-0 ${isLastWeek ? "text-amber-500" : "text-red-500"}`}>
-              {daysDue}d ago
-            </span>
+          {group.count > 1 && (
+            <span className={`ml-auto text-[9px] shrink-0 ${isLastWeek ? "text-amber-500" : "text-red-500"}`}>×{group.count}</span>
           )}
         </div>
-        <div className={`font-semibold truncate leading-tight ${isLight ? "text-slate-800" : "text-white"}`}>{bill.vendor}</div>
-        <div className={`font-extrabold mt-0.5 ${
-          isLastWeek
-            ? isLight ? "text-amber-700" : "text-amber-400"
-            : isLight ? "text-red-700" : "text-red-400"
-        }`}>
-          {formatCurrency(bill.amount)}
+        <div className="flex items-center justify-between gap-1">
+          <div className={`font-semibold truncate leading-tight ${isLight ? "text-slate-800" : "text-white"}`}>{group.vendor}</div>
+          <div className={`font-extrabold shrink-0 ${
+            isLastWeek
+              ? isLight ? "text-amber-700" : "text-amber-400"
+              : isLight ? "text-red-700" : "text-red-400"
+          }`}>
+            {formatCurrency(group.totalAmount)}
+          </div>
         </div>
       </div>
     </div>
@@ -158,12 +160,32 @@ const SummaryColumn: React.FC<{
 }> = ({ label, icon, bills, isLight, isLastWeek, headerColorClass }) => {
   const total = bills.reduce((s, b) => s + (b.amount || 0), 0);
 
-  const sorted = [...bills].sort((a, b) => {
-    const ea = ENTITY_ORDER[a.entity] ?? 99;
-    const eb = ENTITY_ORDER[b.entity] ?? 99;
-    if (ea !== eb) return ea - eb;
-    return (a.vendor || "").localeCompare(b.vendor || "");
-  });
+  // Group by entity + subcompany + vendor → one row per group
+  const groupMap = new Map<string, VendorGroup>();
+  [...bills]
+    .sort((a, b) => {
+      const ea = ENTITY_ORDER[a.entity] ?? 99;
+      const eb = ENTITY_ORDER[b.entity] ?? 99;
+      if (ea !== eb) return ea - eb;
+      return (a.vendor || "").localeCompare(b.vendor || "");
+    })
+    .forEach(b => {
+      const key = `${b.entity}||${b.subcompany || ""}||${b.vendor || ""}`;
+      const existing = groupMap.get(key);
+      if (existing) {
+        existing.totalAmount += b.amount || 0;
+        existing.count += 1;
+      } else {
+        groupMap.set(key, {
+          entity: b.entity,
+          subcompany: b.subcompany || "",
+          vendor: b.vendor || "",
+          totalAmount: b.amount || 0,
+          count: 1,
+        });
+      }
+    });
+  const groups = Array.from(groupMap.values());
 
   const entityTotals = ENTITIES
     .map(en => ({
@@ -184,16 +206,16 @@ const SummaryColumn: React.FC<{
           <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
         </div>
         <div className="text-sm font-extrabold">{formatCurrency(total)}</div>
-        <div className="text-[9px] opacity-70">{bills.length} bill{bills.length !== 1 ? "s" : ""}</div>
+        <div className="text-[9px] opacity-70">{bills.length} bill{bills.length !== 1 ? "s" : ""} · {groups.length} vendor{groups.length !== 1 ? "s" : ""}</div>
       </div>
 
-      {/* Bills list */}
+      {/* Vendor group rows */}
       <div className="flex-1 overflow-y-auto p-2">
-        {sorted.length === 0 ? (
+        {groups.length === 0 ? (
           <div className={`text-center text-[11px] mt-4 ${isLight ? "text-slate-300" : "text-[#333]"}`}>—</div>
         ) : (
-          sorted.map((b: any, idx: number) => (
-            <SummaryBillCard key={b.id || idx} bill={b} isLight={isLight} isLastWeek={isLastWeek} />
+          groups.map((g, idx) => (
+            <VendorGroupRow key={`${g.entity}-${g.subcompany}-${g.vendor}-${idx}`} group={g} isLight={isLight} isLastWeek={isLastWeek} />
           ))
         )}
       </div>
