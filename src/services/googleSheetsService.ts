@@ -1430,8 +1430,12 @@ export const writeSingleARItem = async (
   if (!mCfg) return;
   const sheetRow = item.row;
   const updates: Promise<any>[] = [];
+  // AR Dashboard Data sheet has a max of 70 columns (A–BR, 1-indexed; 0–69, 0-indexed).
+  // Writing beyond that (e.g. September+ which maps to col BS/71+) causes a grid-limit error.
+  // Guard: silently skip writes to columns outside the sheet boundary.
+  const AR_SHEET_MAX_COL = 69; // 0-indexed; col 70 (1-indexed) = BR is the last valid column
   const writeCell = (colIdx: number, val: any) => {
-    if (colIdx < 0) return;
+    if (colIdx < 0 || colIdx > AR_SHEET_MAX_COL) return;
     const cl = zeroIdxColLetter(colIdx);
     updates.push(updateSheetValues(spreadsheetId, `${tabPart}!${cl}${sheetRow}`, [[val]], accessToken));
   };
