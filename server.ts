@@ -1146,6 +1146,65 @@ app.post("/api/drive/batch-clear-and-write-links", async (req, res) => {
 });
 
 /**
+ * POST /api/drive/clear-all-drive-links
+ * Wipes the entire Drive-link column from all AP bill sheets (Ruby's AM, TI AA, MSDx AA).
+ * Use this to reset all wrong/stale bill copy links. Re-upload correct files via the
+ * bill card's upload button — each upload writes the correct URL to the exact sheet row.
+ */
+app.post("/api/drive/clear-all-drive-links", async (req, res) => {
+  const { userAccessToken } = req.body || {};
+  if (!userAccessToken) return res.status(401).json({ ok: false, error: "userAccessToken required" });
+
+  const sid = AP_SPREADSHEET_ID;
+  // Cover the full data range for each entity's Drive-link column
+  const rangesToClear = [
+    encodeURIComponent("'Ruby''s Bills'!AM1:AM1504"),
+    encodeURIComponent("'TI Bills'!AA1:AA1504"),
+    encodeURIComponent("'MSDx Bills'!AA1:AA1504"),
+  ];
+
+  const cleared: string[] = [];
+  const errors: string[] = [];
+
+  for (const range of rangesToClear) {
+    try {
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}/values/${range}:clear`;
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${userAccessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (!resp.ok) {
+        const e: any = await resp.json().catch(() => ({}));
+        errors.push(`${decodeURIComponent(range)}: ${e?.error?.message || resp.status}`);
+      } else {
+        cleared.push(decodeURIComponent(range));
+        console.log(`[ClearAllDriveLinks] cleared ${decodeURIComponent(range)}`);
+      }
+    } catch (e: any) {
+      errors.push(`${decodeURIComponent(range)}: ${e?.message}`);
+    }
+  }
+
+  // Also strip driveViewUrl from server JSON so stale URLs don't persist between pulls
+  try {
+    const data = getStoredData();
+    if (Array.isArray(data.ap)) {
+      data.ap = data.ap.map((b: any) => {
+        const { driveViewUrl: _dvu, driveFileName: _dfn, ...rest } = b;
+        return rest;
+      });
+      saveStoredData(data);
+      console.log("[ClearAllDriveLinks] stripped driveViewUrls from server JSON");
+    }
+  } catch (e: any) {
+    errors.push(`JSON strip: ${(e as any)?.message}`);
+  }
+
+  return res.json({ ok: errors.length === 0, cleared, errors });
+});
+
+/**
  * POST /api/drive/resolve-file-ids
  * Look up Drive file metadata (name + webViewLink) for a list of specific file IDs.
  * Uses files.get per-file — NOT files.list — so it works even when folder-level

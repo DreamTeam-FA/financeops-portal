@@ -147,6 +147,8 @@ export const DataSyncPage: React.FC = () => {
   const [billApplying, setBillApplying] = useState(false);
   const [billApplyResult, setBillApplyResult] = useState<{ cleared: number; written: number } | null>(null);
   const [billApplyError, setBillApplyError] = useState<string | null>(null);
+  const [clearAllLinksLoading, setClearAllLinksLoading] = useState(false);
+  const [clearAllLinksResult, setClearAllLinksResult] = useState<string | null>(null);
 
   const extractFileIds = (text: string): string[] => {
     const pattern = /\/file\/d\/([A-Za-z0-9_\-]+)\//g;
@@ -284,6 +286,28 @@ export const DataSyncPage: React.FC = () => {
       setBillApplying(false);
     }
   }, [billMatchPreview]);
+
+  const clearAllDriveLinks = useCallback(async () => {
+    if (!window.confirm("This will permanently clear ALL bill copy Drive links from column AM (Ruby's Bills) and column AA (TI Bills, MSDx Bills) in the sheet.\n\nAre you sure? You can re-upload correct bill copies via the 📎 button on each bill card.")) return;
+    setClearAllLinksLoading(true);
+    setClearAllLinksResult(null);
+    try {
+      const { getAccessToken } = await import("../../services/googleAuth");
+      const token = await getAccessToken();
+      if (!token) throw new Error("Not signed in to Google.");
+      const resp = await fetch("/api/drive/clear-all-drive-links", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userAccessToken: token }),
+      });
+      const data = await resp.json();
+      if (!data.ok) throw new Error((data.errors || []).join("; ") || "Server error");
+      setClearAllLinksResult(`✅ Cleared ${data.cleared?.length || 0} column(s) — ${data.cleared?.join(", ")}. Do a Pull All to confirm.`);
+    } catch (e: any) {
+      setClearAllLinksResult(`❌ ${e?.message || "Unknown error"}`);
+    } finally {
+      setClearAllLinksLoading(false);
+    }
+  }, []);
 
   const openConfirm = useCallback((target: ConfirmTarget) => {
     setConfirmTarget(target);
@@ -915,6 +939,23 @@ export const DataSyncPage: React.FC = () => {
               <AlertTriangle className="w-3.5 h-3.5" /> Connect your Google account above first.
             </p>
           )}
+
+          {/* ── Danger: Clear ALL drive links ── */}
+          <div className={`rounded-xl border p-4 space-y-2 ${isLight ? "border-red-200 bg-red-50" : "border-red-800/30 bg-red-900/10"}`}>
+            <p className={`text-[11px] font-semibold ${isLight ? "text-red-700" : "text-red-400"}`}>⚠️ Clear ALL Bill Copy Links from Sheet</p>
+            <p className={`text-[10px] leading-relaxed ${isLight ? "text-red-600/80" : "text-red-400/60"}`}>
+              Wipes column AM (Ruby's Bills) and column AA (TI &amp; MSDx Bills) entirely. Use this when wrong links are showing across many bills. After clearing, re-upload the correct bill copies via the 📎 button on each bill card.
+            </p>
+            <button
+              onClick={clearAllDriveLinks}
+              disabled={clearAllLinksLoading || !googleUser}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-500 text-white transition-colors disabled:opacity-40">
+              {clearAllLinksLoading ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Clearing…</> : "🗑 Clear All Drive Links from Sheet"}
+            </button>
+            {clearAllLinksResult && (
+              <p className={`text-[11px] mt-1 ${clearAllLinksResult.startsWith("✅") ? (isLight ? "text-emerald-700" : "text-emerald-400") : (isLight ? "text-red-700" : "text-red-400")}`}>{clearAllLinksResult}</p>
+            )}
+          </div>
 
           {/* Paste area */}
           <div className="space-y-2">
