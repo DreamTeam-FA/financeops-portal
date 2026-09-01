@@ -1,6 +1,39 @@
 import https from "https";
 import { EntityName } from "../types";
 
+// These Drive URLs were incorrectly written to column AM/AA by old portal restore-links code.
+// Filter them out silently — they are NOT valid bill copies and must never appear in the portal.
+const KNOWN_BAD_DRIVE_URLS = new Set<string>([
+  "https://drive.google.com/file/d/1jpKaW2plMojV_qs9Hn9_6JBXrB0ZYWnq/view?usp=drivesdk",
+  "https://drive.google.com/file/d/1B6gm9UTadNbh2PY5hJn1nuVrOpy9VkPr/view?usp=drivesdk",
+  "https://drive.google.com/file/d/1m0giat7s2RP_kgGooJAxFkWIqCe1lY1m/view?usp=drivesdk",
+  "https://drive.google.com/file/d/1BfneidhoIb7lajTV-Y-JSuFZpvEu9WNX/view?usp=drivesdk",
+  "https://drive.google.com/file/d/1hSwKuOxutn8GziIw5Lsj6ilZEv9IUXAj/view?usp=drivesdk",
+  "https://drive.google.com/file/d/1zV3pmPQcCaVTyfScBd6ZrmrYYXSvJ9B3/view?usp=drivesdk",
+  "https://drive.google.com/file/d/14BBtRtd7SOPukb88fN2IProdviouLW5k/view?usp=drivesdk",
+  "https://drive.google.com/file/d/1PnTR6e6w9EO2Ib9hKLwWwErRrbOmJcdm/view?usp=drivesdk",
+  "https://drive.google.com/file/d/11OqXRcurveNy7qtWVJmNFEwAKXKvZOe7/view?usp=drivesdk",
+  "https://drive.google.com/file/d/15D-OazYkHnSQ4adE4w5vsS85rrnUkDcP/view?usp=drivesdk",
+  "https://drive.google.com/file/d/1sweiavdQn8UVvOwCwXwCPcMngqDgYVzc/view?usp=drivesdk",
+  "https://drive.google.com/file/d/17MgNtUORq-kvmrDbvAazfsnkeufOjPgX/view?usp=drivesdk",
+  "https://drive.google.com/file/d/1qN2n35KT6dWdJpV2MFpTIGKwv8qak8qb/view?usp=drivesdk",
+  "https://drive.google.com/file/d/1QFK4d1-zEoRCm3O_Kr4R54RuV4oHE04m/view?usp=drivesdk",
+  "https://drive.google.com/file/d/1ExWen6VB6OEEPzCTy8c5gbkLmhcfC3hf/view?usp=drivesdk",
+  "https://drive.google.com/file/d/1b0IwJmami0ZO7j_nzWOhe-tFOkDUoBps/view?usp=drivesdk",
+  "https://drive.google.com/file/d/1kFs2PklaYLi5So_gkxRlKvjaP7QfCGVk/view?usp=drivesdk",
+  "https://drive.google.com/file/d/1FLGBSFeqNdYzW2B-tbpgHZ8aN7XDrE-v/view?usp=drivesdk",
+  "https://drive.google.com/file/d/1-axgnLr8Gr82gBvCDJxTnVlqkHBT9GNr/view?usp=drivesdk",
+  "https://drive.google.com/file/d/1B8AlsSwea0tPs10iY54WQzeb9RFZjo33/view?usp=drivesdk",
+]);
+
+/** Returns undefined if the URL is a known-bad KNOWN_DRIVE_FILES link. */
+function sanitizeDriveUrl(url: string): string | undefined {
+  if (!url) return undefined;
+  if (!/^https:\/\/(drive|docs)\.google\.com\//i.test(url)) return undefined;
+  if (KNOWN_BAD_DRIVE_URLS.has(url)) return undefined;
+  return url;
+}
+
 const SPREADSHEET_ID = "15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs";
 const CALENDAR_SPREADSHEET_ID = "1ChoHr7dsfai0Unl-Gk-HyPmgrpWOYu07gllY9PA8epo";
 
@@ -595,7 +628,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       status1,
       description: String(row[4] || "").trim() || undefined, // col E
       category:    String(row[5] || "").trim() || undefined, // col F
-      driveViewUrl: /^https:\/\/(drive|docs)\.google\.com\//i.test(driveUrlRuby) ? driveUrlRuby : undefined, // col AM (index 38)
+      driveViewUrl: sanitizeDriveUrl(driveUrlRuby), // col AM (index 38) — strips KNOWN_BAD_DRIVE_URLS
       row: i - 3 // dataStart=5: row 1 = sheet row 5, so bill.row = i+1-(dataStart-1) = i-3
     });
   });
@@ -746,7 +779,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
         invoiceNo,
         paidVia: paidViaTI,
         remarks: remarksTI,
-        driveViewUrl: /^https:\/\/(drive|docs)\.google\.com\//i.test(driveUrlTI) ? driveUrlTI : undefined, // col AA (index 26)
+        driveViewUrl: sanitizeDriveUrl(driveUrlTI), // col AA (index 26) — strips KNOWN_BAD_DRIVE_URLS
         row: i - 5 // dataStart=7: row 1 = sheet row 7, so bill.row = i+1-(dataStart-1) = i-5
       });
     });
@@ -810,7 +843,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       status1: status1MSDx,
       description: String(row[4] || "").trim() || undefined, // col E
       category:    String(row[5] || "").trim() || undefined, // col F
-      driveViewUrl: /^https:\/\/(drive|docs)\.google\.com\//i.test(driveUrlMSDx) ? driveUrlMSDx : undefined, // col AA (index 26)
+      driveViewUrl: sanitizeDriveUrl(driveUrlMSDx), // col AA (index 26) — strips KNOWN_BAD_DRIVE_URLS
       row: i - 4 // dataStart=6: row 1 = sheet row 6, so bill.row = i+1-(dataStart-1) = i-4
     });
   });

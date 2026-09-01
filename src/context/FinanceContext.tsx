@@ -1060,9 +1060,21 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         startAutoTokenRefresh();
         logAction("Google OAuth Authenticated", `Connected as ${res.user.email}`);
         window.dispatchEvent(new Event("google-token-refreshed"));
-        // After sign-in, do a full Pull All so all modules (AP, banks, loans, AR, etc.)
-        // are refreshed from the live sheet, including driveViewUrl from column AM/AA.
-        setTimeout(() => { syncAllFromGoogleSheets().catch(() => {}); }, 1000);
+        // After sign-in: auto-clear any stale KNOWN_DRIVE_FILES URLs from the sheet,
+        // then do a full Pull All so all modules refresh with clean data.
+        setTimeout(async () => {
+          try {
+            const token = getAccessToken();
+            if (token) {
+              await fetch("/api/drive/clear-all-drive-links", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userAccessToken: token }),
+              });
+            }
+          } catch { /* non-fatal — Pull All will still run */ }
+          syncAllFromGoogleSheets().catch(() => {});
+        }, 1000);
         // Capture device + location, then ensure the logs sheet exists and append the login entry
         captureLoginMetadata().then(async (meta) => {
           const token = getAccessToken();
