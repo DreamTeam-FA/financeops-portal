@@ -18,12 +18,12 @@ const KNOWN_BAD_DRIVE_URLS = new Set<string>([
   "https://drive.google.com/file/d/17MgNtUORq-kvmrDbvAazfsnkeufOjPgX/view?usp=drivesdk",
   "https://drive.google.com/file/d/1qN2n35KT6dWdJpV2MFpTIGKwv8qak8qb/view?usp=drivesdk",
   "https://drive.google.com/file/d/1QFK4d1-zEoRCm3O_Kr4R54RuV4oHE04m/view?usp=drivesdk",
-  "https://drive.google.com/file/d/1ExWen6VB6OEEPzCTy8c5gbkLmhcfC3hf/view?usp=drivesdk",
+  // 1ExWen6... = TI IPG Studio 36 — real bill copy, NOT blocked (restored via restore-known-good-links)
+  // 1FLGBSFe... = TI Arcadia 26101802 — real bill copy, NOT blocked
+  // 1B8AlsSw... = MSDx IPG Studio 37 — real bill copy, NOT blocked
   "https://drive.google.com/file/d/1b0IwJmami0ZO7j_nzWOhe-tFOkDUoBps/view?usp=drivesdk",
   "https://drive.google.com/file/d/1kFs2PklaYLi5So_gkxRlKvjaP7QfCGVk/view?usp=drivesdk",
-  "https://drive.google.com/file/d/1FLGBSFeqNdYzW2B-tbpgHZ8aN7XDrE-v/view?usp=drivesdk",
   "https://drive.google.com/file/d/1-axgnLr8Gr82gBvCDJxTnVlqkHBT9GNr/view?usp=drivesdk",
-  "https://drive.google.com/file/d/1B8AlsSwea0tPs10iY54WQzeb9RFZjo33/view?usp=drivesdk",
 ]);
 
 /** Returns undefined if the URL is a known-bad KNOWN_DRIVE_FILES link. */

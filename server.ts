@@ -1205,6 +1205,108 @@ app.post("/api/drive/clear-all-drive-links", async (req, res) => {
 });
 
 /**
+ * POST /api/drive/restore-known-good-links
+ * Writes the 3 real bill-copy Drive links back to the correct sheet cells.
+ * These were wiped by clear-all-drive-links but belong to real uploaded files:
+ *   - TI Bills:   IPG Studio invoice 36  (2026-08-14)
+ *   - MSDx Bills: IPG Studio invoice 37  (2026-08-14)
+ *   - TI Bills:   Arcadia Publishing 26101802 (2026-09-24)
+ */
+app.post("/api/drive/restore-known-good-links", async (req, res) => {
+  const { userAccessToken } = req.body || {};
+  if (!userAccessToken) return res.status(401).json({ ok: false, error: "userAccessToken required" });
+
+  const sid = AP_SPREADSHEET_ID;
+
+  // Known-good links: { tab, urlColIndex(0-based), viewUrl, matchFn }
+  const KNOWN_GOOD = [
+    {
+      tab: "TI Bills",
+      viewUrl: "https://drive.google.com/file/d/1ExWen6VB6OEEPzCTy8c5gbkLmhcfC3hf/view?usp=drivesdk",
+      // Match by invoice ~36 AND vendor contains IPG AND date ~2026-08-14
+      matchFn: (row: any[]) => {
+        const cells = row.map(c => String(c || "").trim().toLowerCase());
+        const hasIPG = cells.some(c => c.includes("ipg"));
+        const has36 = cells.some(c => c === "36" || c.includes("studio 36") || c.includes("studio36"));
+        const hasAug14 = cells.some(c => c.includes("2026-08-14") || c.includes("8/14/2026") || c.includes("aug") && c.includes("14"));
+        return hasIPG && (has36 || hasAug14);
+      },
+    },
+    {
+      tab: "TI Bills",
+      viewUrl: "https://drive.google.com/file/d/1FLGBSFeqNdYzW2B-tbpgHZ8aN7XDrE-v/view?usp=drivesdk",
+      // Match Arcadia Publishing invoice 26101802 (Sep 24)
+      matchFn: (row: any[]) => {
+        const cells = row.map(c => String(c || "").trim().toLowerCase());
+        const hasArcadia = cells.some(c => c.includes("arcadia"));
+        const hasInvoice = cells.some(c => c.includes("26101802") || c.includes("2026-09-24") || c.includes("9/24/2026"));
+        return hasArcadia && hasInvoice;
+      },
+    },
+    {
+      tab: "MSDx Bills",
+      viewUrl: "https://drive.google.com/file/d/1B8AlsSwea0tPs10iY54WQzeb9RFZjo33/view?usp=drivesdk",
+      // Match IPG Studio 37 on 2026-08-14
+      matchFn: (row: any[]) => {
+        const cells = row.map(c => String(c || "").trim().toLowerCase());
+        const hasIPG = cells.some(c => c.includes("ipg"));
+        const has37 = cells.some(c => c === "37" || c.includes("studio 37") || c.includes("studio37"));
+        const hasAug14 = cells.some(c => c.includes("2026-08-14") || c.includes("8/14/2026"));
+        return hasIPG && (has37 || hasAug14);
+      },
+    },
+  ];
+
+  const restored: string[] = [];
+  const errors: string[] = [];
+
+  for (const { tab, viewUrl, matchFn } of KNOWN_GOOD) {
+    try {
+      // Fetch the full tab
+      const a1Name = "'" + tab.replace(/'/g, "''") + "'";
+      const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}/values/${encodeURIComponent(a1Name)}?valueRenderOption=FORMATTED_VALUE&majorDimension=ROWS`;
+      const readResp = await fetch(readUrl, { headers: { Authorization: `Bearer ${userAccessToken}` } });
+      if (!readResp.ok) { errors.push(`${tab}: read failed ${readResp.status}`); continue; }
+      const readData: any = await readResp.json();
+      const rows: any[][] = readData.values || [];
+
+      // Find matching row (1-indexed sheet row)
+      let foundSheetRow = -1;
+      for (let i = 0; i < rows.length; i++) {
+        if (matchFn(rows[i])) { foundSheetRow = i + 1; break; }
+      }
+
+      if (foundSheetRow < 1) {
+        errors.push(`${tab}: no matching row found for ${viewUrl.slice(0, 60)}`);
+        console.warn(`[RestoreKnownGood] no match in ${tab} for ${viewUrl}`);
+        continue;
+      }
+
+      // Column AA = 27th column (A=1 ... Z=26, AA=27)
+      const colLetter = tab === "Ruby's Bills" ? "AM" : "AA";
+      const cellRange = `'${tab.replace(/'/g, "''")}'!${colLetter}${foundSheetRow}`;
+      const writeUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}/values/${encodeURIComponent(cellRange)}?valueInputOption=USER_ENTERED`;
+      const writeResp = await fetch(writeUrl, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${userAccessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ values: [[viewUrl]] }),
+      });
+      if (!writeResp.ok) {
+        const e: any = await writeResp.json().catch(() => ({}));
+        errors.push(`${tab} row ${foundSheetRow}: write failed — ${e?.error?.message || writeResp.status}`);
+      } else {
+        restored.push(`${tab} row ${foundSheetRow} → ${cellRange}`);
+        console.log(`[RestoreKnownGood] wrote ${viewUrl} to ${cellRange}`);
+      }
+    } catch (e: any) {
+      errors.push(`${tab}: ${e?.message}`);
+    }
+  }
+
+  return res.json({ ok: errors.length === 0, restored, errors });
+});
+
+/**
  * POST /api/drive/resolve-file-ids
  * Look up Drive file metadata (name + webViewLink) for a list of specific file IDs.
  * Uses files.get per-file — NOT files.list — so it works even when folder-level

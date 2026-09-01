@@ -1060,19 +1060,28 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         startAutoTokenRefresh();
         logAction("Google OAuth Authenticated", `Connected as ${res.user.email}`);
         window.dispatchEvent(new Event("google-token-refreshed"));
-        // After sign-in: auto-clear any stale KNOWN_DRIVE_FILES URLs from the sheet,
-        // then do a full Pull All so all modules refresh with clean data.
+        // After sign-in: (1) wipe stale KNOWN_DRIVE_FILES URLs from sheet columns,
+        // (2) restore the 3 real bill-copy links that belong to real uploaded files,
+        // (3) full Pull All so all modules refresh with clean live data.
         setTimeout(async () => {
           try {
             const token = getAccessToken();
             if (token) {
+              // Step 1: clear the bad links (blanket column wipe)
               await fetch("/api/drive/clear-all-drive-links", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userAccessToken: token }),
+              });
+              // Step 2: write back the 3 real bill copies to their correct rows
+              await fetch("/api/drive/restore-known-good-links", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ userAccessToken: token }),
               });
             }
           } catch { /* non-fatal — Pull All will still run */ }
+          // Step 3: Pull All fetches the now-correct sheet data
           syncAllFromGoogleSheets().catch(() => {});
         }, 1000);
         // Capture device + location, then ensure the logs sheet exists and append the login entry
