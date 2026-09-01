@@ -98,6 +98,18 @@ const FAQ = [
     a: "The portal uses a localStorage cache ('financeops_data_cache_v2') with a 20-minute TTL. On every load it paints your last session's data immediately while the live Google Sheets pull runs in the background. Once the live pull finishes, the display updates automatically. If the live pull fails, a red toast appears with a 'Sync' prompt — your cached data is still shown.",
   },
   {
+    q: "How do bill copy links (View Bill Copy) work?",
+    a: "Bill copy Drive URLs are stored permanently in the Google Sheet: column AM for Ruby's Bills and column AA for TI and MSDx Bills. When you upload a bill copy via the 📎 icon on a bill card, the file is saved to the Bills Root folder in Drive and its URL is written immediately to the correct column in the sheet. On every Pull All (or auto-pull after sign-in), the portal reads these columns and shows the 'View Bill Copy' button. Google Sheets is always the source of truth — if you delete the URL from the sheet and do a Pull All, the link disappears from the portal permanently.",
+  },
+  {
+    q: "I deleted a bill copy link from the sheet but it keeps coming back — why?",
+    a: "This was a bug in an earlier version where a hardcoded list (KNOWN_DRIVE_FILES) and stale localStorage cache were re-applying deleted links after every Pull All. Both have been removed. If a link reappears now, check that (a) the cell in column AM / AA is truly empty in the sheet (not just visually cleared), and (b) you did a full Pull All after clearing it. The portal no longer writes bill copy URLs back to the sheet on its own — they only come from the sheet.",
+  },
+  {
+    q: "Why does the portal automatically sync all data right after I log in?",
+    a: "After you sign in with Google, the portal waits 1 second for the OAuth token to settle and then automatically runs a full Pull All — fetching all AP bills, banks, loans, AR, calendar, and notes from Google Sheets. This means you always see fresh, live data immediately after login without having to click the Sync button manually.",
+  },
+  {
     q: "What happens if the live data pull fails on startup?",
     a: "The portal retries once after 3 seconds. If both attempts fail, a red error toast appears at the bottom: 'Live data refresh failed — showing cached data. Click Sync to retry.' Your data from the last successful session is still displayed. Click the Sync button in the Data Sync page or any page header to retry manually.",
   },
@@ -130,6 +142,18 @@ const FAQ = [
 /* ── How-To data ──────────────────────────────────────────────────────── */
 const HOWTOS = [
   {
+    title: "Upload or View a Bill Copy",
+    steps: [
+      "Find the bill on the AP page and open it (click the bill card to expand).",
+      "Click the 📎 (paperclip / upload) icon on the bill card.",
+      "Select the bill copy image or PDF from your device.",
+      "The file is uploaded to the Bills Root folder in Google Drive, organized by entity and vendor. The Drive URL is written automatically to column AM (Ruby's) or column AA (TI/MSDx) in the sheet.",
+      "After upload the 'View Bill Copy' button appears on the bill card. Click it to open the file in Drive.",
+      "To view an already-uploaded copy: click 'View Bill Copy' on any bill that has one. If the button is missing after a Pull All, check that column AM/AA in the sheet has the correct Drive URL for that row.",
+      "To remove a bill copy link: clear the cell in column AM/AA in the sheet directly, then do a Pull All. The portal reads the sheet as the single source of truth — clearing the cell removes the link.",
+    ],
+  },
+  {
     title: "Mark a Bill as Paid",
     steps: [
       "Go to the AP page and find the bill (use search or filter by entity).",
@@ -149,10 +173,11 @@ const HOWTOS = [
   {
     title: "Sync / Pull Live Data from Sheets",
     steps: [
-      "Click the ⟳ Refresh button in any page header to re-fetch that module's data.",
-      "For a full sync across all modules, go to ⚙️ → Settings & Data Sync.",
-      "Hit 'Pull Live from Sheets' — this fetches all modules in one pass.",
+      "After sign-in, the portal automatically runs a full Pull All within 1 second — you get live data from Google Sheets immediately without any manual step.",
+      "To manually pull at any time: click the ⟳ Refresh button in any page header to re-fetch that module's data.",
+      "For a full sync across all modules (including bill copy Drive links), go to ⚙️ → Settings & Data Sync and hit 'Pull Live from Sheets'.",
       "A toast notification will confirm success or report any partial failures.",
+      "Bill copy Drive links are read from column AM (Ruby's) or column AA (TI/MSDx) on every Pull All — no separate step needed.",
     ],
   },
   {
@@ -301,6 +326,9 @@ const BREAKAGE = [
   { symptom: "Sheet mappings reset to defaults after everyone signs in", cause: "'_config' tab deleted from portal logs sheet", fix: "Re-create the '_config' tab in the logs sheet (ID: 19ColN3UOnuGbk1CkHtZswxPZf7oj7Zs2pKaqmGlN4m8) — the portal will auto-recreate it and re-populate on the next mapping save" },
   { symptom: "Activity log entries missing from logs sheet", cause: "No Google token when actions were taken (offline / before sign-in)", fix: "Entries are queued in localStorage. Sign in to Google — the queue flushes automatically. Check the Pending Log Queue card on Service Limits & Usage." },
   { symptom: "Other browser tab shows stale data", cause: "BroadcastChannel not supported (very old browser)", fix: "Manually click Sync / Refresh on the stale tab. BroadcastChannel is supported in all modern browsers (Chrome 54+, Firefox 38+, Safari 15.4+)." },
+  { symptom: "'View Bill Copy' button missing after Pull All", cause: "Column AM (Ruby's) or AA (TI/MSDx) is blank or has a non-Drive URL in the sheet", fix: "Check the cell in the sheet. The URL must start with https://drive.google.com or https://docs.google.com. Uploading via the 📎 icon on the bill card writes the correct URL automatically." },
+  { symptom: "Deleted bill copy link keeps reappearing", cause: "Old versions used a hardcoded KNOWN_DRIVE_FILES list and stale localStorage that re-applied deleted links — both have been removed", fix: "Hard-refresh the portal (Ctrl+Shift+R), sign in, then do a Pull All. If the link still appears, check that the cell in column AM/AA is truly empty (not just visually cleared) in the sheet." },
+  { symptom: "Bill copy uploaded but 'View Bill Copy' never appears", cause: "Upload succeeded but the portal cache from before the upload is still showing", fix: "Click Pull All (⚙️ → Settings & Data Sync → Pull Live from Sheets). The Drive URL written to the sheet during upload will be read and the button will appear." },
 ];
 
 /* ── Sheet reference data ──────────────────────────────────────────────── */
@@ -317,9 +345,9 @@ const SHEETS = [
     badgeText: "text-[#4da3ff]",
     purpose: "AP Bills · AR · Banks · Loans · Notes · Statements",
     tabs: [
-      { name: "Ruby's Bills",         gid: "1244424272", note: "AP bills — Ruby's Pizzeria & Grill" },
-      { name: "TI Bills",             gid: "1881273371", note: "AP bills — Tmm Investments" },
-      { name: "MSDx Bills",           gid: "626198915",  note: "AP bills — Mobile Swallowing Dx" },
+      { name: "Ruby's Bills",         gid: "1244424272", note: "AP bills — Ruby's Pizzeria & Grill (Drive link: col AM)" },
+      { name: "TI Bills",             gid: "1881273371", note: "AP bills — Timm Investments (Drive link: col AA)" },
+      { name: "MSDx Bills",           gid: "626198915",  note: "AP bills — Mobile Swallowing Dx (Drive link: col AA)" },
       { name: "AR Dashboard Data",    gid: "1095820813", note: "Accounts Receivable" },
       { name: "Bank Balances",        gid: "573058575",  note: "Bank account balances" },
       { name: "Loans",                gid: "860453470",  note: "Loans & credit card dues" },
@@ -381,7 +409,7 @@ const SHEETS = [
 
 const SERVICE_FILES = [
   { file: "googleSheetsService.ts",   path: "src/services/", role: "All Sheets API calls, all parsers, all column maps", color: "#4da3ff" },
-  { file: "liveSheetsFetcher.ts",     path: "src/services/", role: "Full dataset fetch used by the sync button",         color: "#4da3ff" },
+  { file: "liveSheetsFetcher.ts",     path: "src/services/", role: "Full dataset fetch used by Pull All — reads driveViewUrl from col AM (Ruby's) and col AA (TI/MSDx)", color: "#4da3ff" },
   { file: "googleCalendarService.ts", path: "src/services/", role: "Calendar sheet reads/writes + Google Calendar API",  color: "#34d399" },
   { file: "fourYrPayrollService.ts",  path: "src/services/", role: "4YR Payroll-specific reads/writes",                  color: "#34d399" },
   { file: "googleAuth.ts",            path: "src/services/", role: "Firebase Auth, Google OAuth, token refresh",         color: "#fb923c" },
