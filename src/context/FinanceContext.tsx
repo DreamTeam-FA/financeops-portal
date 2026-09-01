@@ -430,9 +430,15 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Auth State
   const [googleUser, setGoogleUser] = useState<User | null>(null);
-  // Always require sign-in on every page load — sessionStorage bypass is removed
-  // so the login screen appears on every refresh/open, logging all user sessions.
-  const [needsAuth, setNeedsAuth] = useState<boolean>(true);
+  // Show login modal once per calendar day. If the user already signed in today
+  // (tracked in localStorage 'financeops_login_date'), skip the modal on reload.
+  const _localDateStr = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+  const [needsAuth, setNeedsAuth] = useState<boolean>(
+    () => localStorage.getItem("financeops_login_date") !== _localDateStr()
+  );
 
   const setUserEmail = (email: string) => {
     const clean = email.trim();
@@ -711,10 +717,13 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => {
     const unsubscribe = initAuthListener(
       (user, _token) => {
-        // Restore user/token silently for Sheets access, but do NOT dismiss
-        // the login gate — the gate only opens after an explicit button click.
         setGoogleUser(user);
         startAutoTokenRefresh();
+        // If the user already signed in today, dismiss the modal automatically
+        // (their Firebase session + token restored silently — no need to show the gate)
+        if (localStorage.getItem("financeops_login_date") === _localDateStr()) {
+          setNeedsAuth(false);
+        }
         // Fetch available AP sheet tabs so the portal picks up any new entities
         const tok = getAccessToken();
         const apMapping = sheetMappings.find((m) => m.module === "ap");
@@ -1052,6 +1061,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setGoogleUser(res.user);
         setUserEmail(res.user.email || "accounting@marktimm.com");
         setNeedsAuth(false);
+        // Record today's date so the modal is skipped for the rest of the day
+        localStorage.setItem("financeops_login_date", _localDateStr());
         // Tell other open tabs that we're now authenticated
         try {
           const ch = new BroadcastChannel("financeops_auth");
@@ -1170,6 +1181,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     await logoutGoogle();
     setGoogleUser(null);
     sessionStorage.removeItem("financeops_session_authed");
+    // Clear the daily login stamp so the modal appears on next load
+    localStorage.removeItem("financeops_login_date");
     // Tell other open tabs to also require re-auth
     try {
       const ch = new BroadcastChannel("financeops_auth");

@@ -7,6 +7,7 @@ import {
   runPortalAudit,
   type AuditFinding,
 } from "./utils/portalAudit";
+import { LoginModal } from "./components/modals/LoginModal";
 import { Sidebar } from "./components/Sidebar";
 import { HubPage } from "./components/pages/HubPage";
 import { APPage } from "./components/pages/APPage";
@@ -225,7 +226,7 @@ const GlobalDatePickerModal: React.FC = () => {
 };
 
 const PortalContent: React.FC = () => {
-  const { currentPage, setCurrentPage, isLoading, theme, activeMember,
+  const { currentPage, setCurrentPage, isLoading, theme, activeMember, needsAuth,
           apBills, bankAccounts, loans, arItems, lastSyncedAt, syncLogs } = useFinance();
 
   // ── Scheduled portal audit (fires every 48 h, after data loads) ─────────
@@ -431,6 +432,9 @@ const PortalContent: React.FC = () => {
           {renderPage()}
         </ErrorBoundary>
       </main>
+
+      {/* Login Gate — shown only on first visit of each calendar day */}
+      <LoginModal isOpen={needsAuth} />
 
       {/* Floating Notes Widget */}
       <NotesFloatingWidget />
