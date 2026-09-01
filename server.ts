@@ -1206,11 +1206,11 @@ app.post("/api/drive/clear-all-drive-links", async (req, res) => {
 
 /**
  * POST /api/drive/restore-known-good-links
- * Writes the 3 real bill-copy Drive links back to the correct sheet cells.
- * These were wiped by clear-all-drive-links but belong to real uploaded files:
- *   - TI Bills:   IPG Studio invoice 36  (2026-08-14)
- *   - MSDx Bills: IPG Studio invoice 37  (2026-08-14)
- *   - TI Bills:   Arcadia Publishing 26101802 (2026-09-24)
+ * Writes ALL 20 known bill-copy Drive links to the correct sheet rows.
+ * Ruby's Bills → col AM (index 38). TI Bills / MSDx Bills → col AA (index 26).
+ * Matching: vendor keyword in the right column(s) + invoice exact match + date fallback.
+ * Skips cells that already have a different Drive URL (respects manual uploads).
+ * Safe to call multiple times (idempotent).
  */
 app.post("/api/drive/restore-known-good-links", async (req, res) => {
   const { userAccessToken } = req.body || {};
@@ -1218,101 +1218,165 @@ app.post("/api/drive/restore-known-good-links", async (req, res) => {
 
   const sid = AP_SPREADSHEET_ID;
 
-  // Exact-column matching — row[6]=invoiceNo, vendor in row[3..5] for TI, row[2..4] for MSDx.
-  // matchFn receives the raw row array (strings from FORMATTED_VALUE).
-  const KNOWN_GOOD: Array<{
-    tab: string;
-    viewUrl: string;
-    matchFn: (row: any[]) => boolean;
-  }> = [
-    {
-      tab: "TI Bills",
+  // Helper: normalise a date string to YYYY-MM-DD for comparison
+  const normDate = (s: string): string => {
+    const v = String(s || "").trim();
+    // Already YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+    // M/D/YYYY or MM/DD/YYYY
+    const slash = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (slash) return `${slash[3]}-${slash[1].padStart(2, "0")}-${slash[2].padStart(2, "0")}`;
+    return v.toLowerCase();
+  };
+
+  // matchFn: returns true if row matches this bill (vendor + invoice or date)
+  // Ruby's Bills: vendor=row[3], invoice=row[6], date=row[8]
+  // TI Bills:     vendor in row[3..5], invoice=row[6], date=row[8]
+  // MSDx Bills:   vendor in row[2..4], invoice=row[6], date=row[8]
+  const mkMatch = (
+    tab: string,
+    vendorKw: string,        // lowercase keyword that vendor cell must include
+    invoice: string,         // exact invoice string (row[6])
+    date: string,            // YYYY-MM-DD due date (row[8] fallback)
+    requireDate = false      // if true, date match required in addition to vendor+invoice
+  ) => (row: any[]): boolean => {
+    const inv  = String(row[6] || "").trim();
+    const dt   = normDate(String(row[8] || ""));
+    let vendorStr = "";
+    if (tab === "Ruby's Bills") vendorStr = String(row[3] || "").toLowerCase();
+    else if (tab === "TI Bills") vendorStr = [row[3], row[4], row[5]].map(c => String(c || "").toLowerCase()).join(" ");
+    else vendorStr = [row[2], row[3], row[4]].map(c => String(c || "").toLowerCase()).join(" ");
+    const vendorOk  = vendorStr.includes(vendorKw);
+    const invoiceOk = inv.toLowerCase() === invoice.toLowerCase();
+    const dateOk    = dt === date;
+    return vendorOk && invoiceOk && (requireDate ? dateOk : true);
+  };
+
+  const KNOWN_GOOD: Array<{ tab: string; driveCol: string; driveColIdx: number; viewUrl: string; matchFn: (row: any[]) => boolean }> = [
+    // ── Ruby's Bills (col AM, index 38) ──────────────────────────────────────
+    { tab: "Ruby's Bills", driveCol: "AM", driveColIdx: 38,
+      viewUrl: "https://drive.google.com/file/d/1jpKaW2plMojV_qs9Hn9_6JBXrB0ZYWnq/view?usp=drivesdk",
+      matchFn: mkMatch("Ruby's Bills", "airgas", "9174294112", "2026-08-31") },
+    { tab: "Ruby's Bills", driveCol: "AM", driveColIdx: 38,
+      viewUrl: "https://drive.google.com/file/d/1B6gm9UTadNbh2PY5hJn1nuVrOpy9VkPr/view?usp=drivesdk",
+      matchFn: mkMatch("Ruby's Bills", "airgas", "5526534263", "2026-08-31") },
+    { tab: "Ruby's Bills", driveCol: "AM", driveColIdx: 38,
+      viewUrl: "https://drive.google.com/file/d/1m0giat7s2RP_kgGooJAxFkWIqCe1lY1m/view?usp=drivesdk",
+      matchFn: mkMatch("Ruby's Bills", "alsco", "LOGD1832949", "2026-08-31") },
+    { tab: "Ruby's Bills", driveCol: "AM", driveColIdx: 38,
+      viewUrl: "https://drive.google.com/file/d/1BfneidhoIb7lajTV-Y-JSuFZpvEu9WNX/view?usp=drivesdk",
+      matchFn: mkMatch("Ruby's Bills", "alsco", "LOGD1830797", "2026-08-21") },
+    { tab: "Ruby's Bills", driveCol: "AM", driveColIdx: 38,
+      viewUrl: "https://drive.google.com/file/d/1hSwKuOxutn8GziIw5Lsj6ilZEv9IUXAj/view?usp=drivesdk",
+      matchFn: mkMatch("Ruby's Bills", "alsco", "LOGD1832150", "2026-08-28") },
+    { tab: "Ruby's Bills", driveCol: "AM", driveColIdx: 38,
+      viewUrl: "https://drive.google.com/file/d/1zV3pmPQcCaVTyfScBd6ZrmrYYXSvJ9B3/view?usp=drivesdk",
+      matchFn: mkMatch("Ruby's Bills", "alsco", "LOGD1831652", "2026-08-24") },
+    { tab: "Ruby's Bills", driveCol: "AM", driveColIdx: 38,
+      viewUrl: "https://drive.google.com/file/d/14BBtRtd7SOPukb88fN2IProdviouLW5k/view?usp=drivesdk",
+      matchFn: mkMatch("Ruby's Bills", "alsco", "LOGD1830297", "2026-08-17") },
+    { tab: "Ruby's Bills", driveCol: "AM", driveColIdx: 38,
+      viewUrl: "https://drive.google.com/file/d/1PnTR6e6w9EO2Ib9hKLwWwErRrbOmJcdm/view?usp=drivesdk",
+      matchFn: mkMatch("Ruby's Bills", "square", "479561", "2026-08-05") },
+    // LOGD1833437 appears twice — use requireDate=true to disambiguate
+    { tab: "Ruby's Bills", driveCol: "AM", driveColIdx: 38,
+      viewUrl: "https://drive.google.com/file/d/11OqXRcurveNy7qtWVJmNFEwAKXKvZOe7/view?usp=drivesdk",
+      matchFn: mkMatch("Ruby's Bills", "alsco", "LOGD1833437", "2026-08-04", true) },
+    { tab: "Ruby's Bills", driveCol: "AM", driveColIdx: 38,
+      viewUrl: "https://drive.google.com/file/d/15D-OazYkHnSQ4adE4w5vsS85rrnUkDcP/view?usp=drivesdk",
+      matchFn: mkMatch("Ruby's Bills", "alsco", "LOGD1833437", "2026-09-04", true) },
+    { tab: "Ruby's Bills", driveCol: "AM", driveColIdx: 38,
+      viewUrl: "https://drive.google.com/file/d/1sweiavdQn8UVvOwCwXwCPcMngqDgYVzc/view?usp=drivesdk",
+      matchFn: mkMatch("Ruby's Bills", "alsco", "LOGD1834227", "2026-09-07") },
+    { tab: "Ruby's Bills", driveCol: "AM", driveColIdx: 38,
+      viewUrl: "https://drive.google.com/file/d/17MgNtUORq-kvmrDbvAazfsnkeufOjPgX/view?usp=drivesdk",
+      matchFn: mkMatch("Ruby's Bills", "airgas", "9174543116", "2026-09-09") },
+    { tab: "Ruby's Bills", driveCol: "AM", driveColIdx: 38,
+      viewUrl: "https://drive.google.com/file/d/1qN2n35KT6dWdJpV2MFpTIGKwv8qak8qb/view?usp=drivesdk",
+      matchFn: mkMatch("Ruby's Bills", "airgas", "9174909928", "2026-09-20") },
+    { tab: "Ruby's Bills", driveCol: "AM", driveColIdx: 38,
+      viewUrl: "https://drive.google.com/file/d/1QFK4d1-zEoRCm3O_Kr4R54RuV4oHE04m/view?usp=drivesdk",
+      matchFn: mkMatch("Ruby's Bills", "airgas", "9174948144", "2026-09-23") },
+    // ── TI Bills (col AA, index 26) ───────────────────────────────────────────
+    { tab: "TI Bills", driveCol: "AA", driveColIdx: 26,
       viewUrl: "https://drive.google.com/file/d/1ExWen6VB6OEEPzCTy8c5gbkLmhcfC3hf/view?usp=drivesdk",
-      // TI Bills: invoiceNo=row[6]="36", vendor in cols 3-5 contains "IPG"
-      matchFn: (row) => {
-        const inv = String(row[6] || "").trim();
-        const vendor = [row[3], row[4], row[5]].map(c => String(c || "").toLowerCase()).join(" ");
-        const dateCell = String(row[8] || "").toLowerCase();
-        const invoiceMatch = inv === "36" || inv.toLowerCase() === "ipg-36" || inv.toLowerCase().includes("36");
-        const vendorMatch = vendor.includes("ipg");
-        const dateMatch = dateCell.includes("8/14") || dateCell.includes("08/14") || dateCell.includes("aug");
-        console.log(`[RestoreKnownGood] TI row inv="${inv}" vendor="${vendor}" date="${dateCell}" → inv:${invoiceMatch} vendor:${vendorMatch} date:${dateMatch}`);
-        return vendorMatch && (invoiceMatch || dateMatch);
-      },
-    },
-    {
-      tab: "MSDx Bills",
+      matchFn: mkMatch("TI Bills", "ipg", "36", "2026-08-14", true) },
+    { tab: "TI Bills", driveCol: "AA", driveColIdx: 26,
+      viewUrl: "https://drive.google.com/file/d/1b0IwJmami0ZO7j_nzWOhe-tFOkDUoBps/view?usp=drivesdk",
+      matchFn: mkMatch("TI Bills", "pershing", "LP1317", "2026-09-03") },
+    { tab: "TI Bills", driveCol: "AA", driveColIdx: 26,
+      viewUrl: "https://drive.google.com/file/d/1kFs2PklaYLi5So_gkxRlKvjaP7QfCGVk/view?usp=drivesdk",
+      matchFn: mkMatch("TI Bills", "pershing", "LP1331", "2026-09-03") },
+    { tab: "TI Bills", driveCol: "AA", driveColIdx: 26,
+      viewUrl: "https://drive.google.com/file/d/1FLGBSFeqNdYzW2B-tbpgHZ8aN7XDrE-v/view?usp=drivesdk",
+      matchFn: mkMatch("TI Bills", "arcadia", "26101802", "2026-09-24") },
+    // ── MSDx Bills (col AA, index 26) ────────────────────────────────────────
+    { tab: "MSDx Bills", driveCol: "AA", driveColIdx: 26,
+      viewUrl: "https://drive.google.com/file/d/1-axgnLr8Gr82gBvCDJxTnVlqkHBT9GNr/view?usp=drivesdk",
+      matchFn: mkMatch("MSDx Bills", "starlink", "INV-DF-US-VD3ECV9WJ394QAGMHV", "2026-08-18") },
+    { tab: "MSDx Bills", driveCol: "AA", driveColIdx: 26,
       viewUrl: "https://drive.google.com/file/d/1B8AlsSwea0tPs10iY54WQzeb9RFZjo33/view?usp=drivesdk",
-      // MSDx Bills: invoiceNo=row[6]="37", vendor in cols 2-4 contains "IPG"
-      matchFn: (row) => {
-        const inv = String(row[6] || "").trim();
-        const vendor = [row[2], row[3], row[4]].map(c => String(c || "").toLowerCase()).join(" ");
-        const dateCell = String(row[8] || "").toLowerCase();
-        const invoiceMatch = inv === "37" || inv.toLowerCase().includes("37");
-        const vendorMatch = vendor.includes("ipg");
-        const dateMatch = dateCell.includes("8/14") || dateCell.includes("08/14") || dateCell.includes("aug");
-        console.log(`[RestoreKnownGood] MSDx row inv="${inv}" vendor="${vendor}" date="${dateCell}" → inv:${invoiceMatch} vendor:${vendorMatch} date:${dateMatch}`);
-        return vendorMatch && (invoiceMatch || dateMatch);
-      },
-    },
+      matchFn: mkMatch("MSDx Bills", "ipg", "37", "2026-08-14", true) },
   ];
 
+  // Cache fetched tab data so we don't re-fetch the same tab multiple times
+  const tabCache: Record<string, any[][]> = {};
+  const fetchTab = async (tab: string): Promise<any[][]> => {
+    if (tabCache[tab]) return tabCache[tab];
+    const a1Name = "'" + tab.replace(/'/g, "''") + "'";
+    const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}/values/${encodeURIComponent(a1Name)}?valueRenderOption=FORMATTED_VALUE&majorDimension=ROWS`;
+    const resp = await fetch(readUrl, { headers: { Authorization: `Bearer ${userAccessToken}` } });
+    if (!resp.ok) throw new Error(`read ${tab} failed ${resp.status}`);
+    const d: any = await resp.json();
+    tabCache[tab] = d.values || [];
+    return tabCache[tab];
+  };
+
   const restored: string[] = [];
+  const skipped: string[] = [];
   const errors: string[] = [];
 
-  for (const { tab, viewUrl, matchFn } of KNOWN_GOOD) {
+  for (const { tab, driveCol, driveColIdx, viewUrl, matchFn } of KNOWN_GOOD) {
     try {
-      // Fetch the full tab
-      const a1Name = "'" + tab.replace(/'/g, "''") + "'";
-      const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}/values/${encodeURIComponent(a1Name)}?valueRenderOption=FORMATTED_VALUE&majorDimension=ROWS`;
-      const readResp = await fetch(readUrl, { headers: { Authorization: `Bearer ${userAccessToken}` } });
-      if (!readResp.ok) { errors.push(`${tab}: read failed ${readResp.status}`); continue; }
-      const readData: any = await readResp.json();
-      const rows: any[][] = readData.values || [];
-
-      console.log(`[RestoreKnownGood] scanning ${tab}: ${rows.length} rows`);
-
-      // Find ALL matching rows and pick the first one that doesn't already have a Drive link in col AA
-      let foundSheetRow = -1;
+      const rows = await fetchTab(tab);
+      let foundRow = -1;
       for (let i = 0; i < rows.length; i++) {
         if (!matchFn(rows[i])) continue;
-        // Prefer rows where col AA (index 26) is currently empty (just cleared)
-        const existingLink = String(rows[i][26] || "").trim();
-        if (!existingLink || !existingLink.startsWith("https://drive")) {
-          foundSheetRow = i + 1;
+        const existing = String(rows[i][driveColIdx] || "").trim();
+        // Skip if cell already has a different Drive URL (user uploaded something else — don't overwrite)
+        if (existing && existing.startsWith("https://") && existing !== viewUrl) {
+          skipped.push(`${tab} row ${i + 1}: already has different URL, skipped`);
+          foundRow = -2; // signal "found but skipped"
           break;
         }
-        // Also accept if already has the correct URL (idempotent)
-        if (existingLink === viewUrl) { foundSheetRow = i + 1; break; }
+        foundRow = i + 1;
+        // Update cache so duplicate LOGD1833437 rows don't both match the same row
+        if (!rows[i][driveColIdx]) rows[i][driveColIdx] = viewUrl;
+        break;
       }
+      if (foundRow === -2) continue;
+      if (foundRow < 1) { errors.push(`${tab}: no match for ${driveCol} — vendor+invoice not found`); continue; }
 
-      if (foundSheetRow < 1) {
-        errors.push(`${tab}: no matching row found — check console for row-scan debug output`);
-        console.warn(`[RestoreKnownGood] no match in ${tab} for ${viewUrl}`);
-        continue;
-      }
-
-      const colLetter = "AA"; // col AA = index 26 for both TI Bills and MSDx Bills
-      const cellRange = `'${tab.replace(/'/g, "''")}'!${colLetter}${foundSheetRow}`;
+      const cellRange = `'${tab.replace(/'/g, "''")}'!${driveCol}${foundRow}`;
       const writeUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}/values/${encodeURIComponent(cellRange)}?valueInputOption=USER_ENTERED`;
-      const writeResp = await fetch(writeUrl, {
+      const wr = await fetch(writeUrl, {
         method: "PUT",
         headers: { Authorization: `Bearer ${userAccessToken}`, "Content-Type": "application/json" },
         body: JSON.stringify({ values: [[viewUrl]] }),
       });
-      if (!writeResp.ok) {
-        const e: any = await writeResp.json().catch(() => ({}));
-        errors.push(`${tab} row ${foundSheetRow}: write failed — ${e?.error?.message || writeResp.status}`);
+      if (!wr.ok) {
+        const e: any = await wr.json().catch(() => ({}));
+        errors.push(`${tab} row ${foundRow}: write failed — ${e?.error?.message || wr.status}`);
       } else {
-        restored.push(`${tab} row ${foundSheetRow} → ${cellRange}`);
-        console.log(`[RestoreKnownGood] ✓ wrote to ${cellRange}`);
+        restored.push(`${tab} ${driveCol}${foundRow}`);
+        console.log(`[RestoreKnownGood] ✓ ${tab} ${driveCol}${foundRow}`);
       }
     } catch (e: any) {
       errors.push(`${tab}: ${e?.message}`);
     }
   }
 
-  return res.json({ ok: errors.length === 0, restored, errors });
+  return res.json({ ok: errors.length === 0, restored, skipped, errors });
 });
 
 /**
