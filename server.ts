@@ -224,6 +224,66 @@ function applyCalendarOverrides(events: any[], overrides: { deleted: string[]; d
     });
 }
 
+/**
+ * Injects known bill-copy Drive links into AP bills based on entity + vendor + invoice/date.
+ * Works entirely in-memory — does NOT read or write the sheet.
+ * Only sets driveViewUrl if the bill doesn't already have one (respects manual uploads).
+ */
+function applyKnownGoodDriveLinks(bills: any[]): any[] {
+  // Each entry: entity, vendor keyword (lowercase), invoice keyword (substring, lowercase),
+  // due date YYYY-MM-DD, and the Drive view URL.
+  const LINKS: Array<{ entity: string; vendorKw: string; invoiceKw: string; date: string; url: string }> = [
+    // Ruby's Bills
+    { entity: "Ruby's", vendorKw: "airgas", invoiceKw: "9174294112", date: "2026-08-31", url: "https://drive.google.com/file/d/1jpKaW2plMojV_qs9Hn9_6JBXrB0ZYWnq/view?usp=drivesdk" },
+    { entity: "Ruby's", vendorKw: "airgas", invoiceKw: "5526534263", date: "2026-08-31", url: "https://drive.google.com/file/d/1B6gm9UTadNbh2PY5hJn1nuVrOpy9VkPr/view?usp=drivesdk" },
+    { entity: "Ruby's", vendorKw: "alsco",  invoiceKw: "logd1832949", date: "2026-08-31", url: "https://drive.google.com/file/d/1m0giat7s2RP_kgGooJAxFkWIqCe1lY1m/view?usp=drivesdk" },
+    { entity: "Ruby's", vendorKw: "alsco",  invoiceKw: "logd1830797", date: "2026-08-21", url: "https://drive.google.com/file/d/1BfneidhoIb7lajTV-Y-JSuFZpvEu9WNX/view?usp=drivesdk" },
+    { entity: "Ruby's", vendorKw: "alsco",  invoiceKw: "logd1832150", date: "2026-08-28", url: "https://drive.google.com/file/d/1hSwKuOxutn8GziIw5Lsj6ilZEv9IUXAj/view?usp=drivesdk" },
+    { entity: "Ruby's", vendorKw: "alsco",  invoiceKw: "logd1831652", date: "2026-08-24", url: "https://drive.google.com/file/d/1zV3pmPQcCaVTyfScBd6ZrmrYYXSvJ9B3/view?usp=drivesdk" },
+    { entity: "Ruby's", vendorKw: "alsco",  invoiceKw: "logd1830297", date: "2026-08-17", url: "https://drive.google.com/file/d/14BBtRtd7SOPukb88fN2IProdviouLW5k/view?usp=drivesdk" },
+    { entity: "Ruby's", vendorKw: "square", invoiceKw: "479561",      date: "2026-08-05", url: "https://drive.google.com/file/d/1PnTR6e6w9EO2Ib9hKLwWwErRrbOmJcdm/view?usp=drivesdk" },
+    { entity: "Ruby's", vendorKw: "alsco",  invoiceKw: "logd1833437", date: "2026-08-04", url: "https://drive.google.com/file/d/11OqXRcurveNy7qtWVJmNFEwAKXKvZOe7/view?usp=drivesdk" },
+    { entity: "Ruby's", vendorKw: "alsco",  invoiceKw: "logd1833437", date: "2026-09-04", url: "https://drive.google.com/file/d/15D-OazYkHnSQ4adE4w5vsS85rrnUkDcP/view?usp=drivesdk" },
+    { entity: "Ruby's", vendorKw: "alsco",  invoiceKw: "logd1834227", date: "2026-09-07", url: "https://drive.google.com/file/d/1sweiavdQn8UVvOwCwXwCPcMngqDgYVzc/view?usp=drivesdk" },
+    { entity: "Ruby's", vendorKw: "airgas", invoiceKw: "9174543116",  date: "2026-09-09", url: "https://drive.google.com/file/d/17MgNtUORq-kvmrDbvAazfsnkeufOjPgX/view?usp=drivesdk" },
+    { entity: "Ruby's", vendorKw: "airgas", invoiceKw: "9174909928",  date: "2026-09-20", url: "https://drive.google.com/file/d/1qN2n35KT6dWdJpV2MFpTIGKwv8qak8qb/view?usp=drivesdk" },
+    { entity: "Ruby's", vendorKw: "airgas", invoiceKw: "9174948144",  date: "2026-09-23", url: "https://drive.google.com/file/d/1QFK4d1-zEoRCm3O_Kr4R54RuV4oHE04m/view?usp=drivesdk" },
+    // TI Bills
+    { entity: "TI",     vendorKw: "ipg",     invoiceKw: "36",     date: "2026-08-14", url: "https://drive.google.com/file/d/1ExWen6VB6OEEPzCTy8c5gbkLmhcfC3hf/view?usp=drivesdk" },
+    { entity: "TI",     vendorKw: "pershing",invoiceKw: "lp1317", date: "2026-09-03", url: "https://drive.google.com/file/d/1b0IwJmami0ZO7j_nzWOhe-tFOkDUoBps/view?usp=drivesdk" },
+    { entity: "TI",     vendorKw: "pershing",invoiceKw: "lp1331", date: "2026-09-03", url: "https://drive.google.com/file/d/1kFs2PklaYLi5So_gkxRlKvjaP7QfCGVk/view?usp=drivesdk" },
+    { entity: "TI",     vendorKw: "arcadia", invoiceKw: "26101802", date: "2026-09-24", url: "https://drive.google.com/file/d/1FLGBSFeqNdYzW2B-tbpgHZ8aN7XDrE-v/view?usp=drivesdk" },
+    // MSDx Bills
+    { entity: "MSDx",   vendorKw: "starlink",invoiceKw: "vd3ecv9wj394qagmhv", date: "2026-08-18", url: "https://drive.google.com/file/d/1-axgnLr8Gr82gBvCDJxTnVlqkHBT9GNr/view?usp=drivesdk" },
+    { entity: "MSDx",   vendorKw: "ipg",     invoiceKw: "37",     date: "2026-08-14", url: "https://drive.google.com/file/d/1B8AlsSwea0tPs10iY54WQzeb9RFZjo33/view?usp=drivesdk" },
+  ];
+
+  return bills.map((bill: any) => {
+    if (bill.driveViewUrl) return bill; // already has a link — don't overwrite
+    const bEntity  = (bill.entity  || "").trim();
+    const bVendor  = (bill.vendor  || "").toLowerCase();
+    const bInvoice = (bill.invoiceNo || "").toLowerCase().trim();
+    const bDate    = (bill.dueDate  || "").trim();
+    for (const link of LINKS) {
+      if (link.entity !== bEntity) continue;
+      if (!bVendor.includes(link.vendorKw)) continue;
+      // Invoice is the primary key; date disambiguates duplicates (e.g. LOGD1833437 × 2)
+      const invoiceMatch = bInvoice.includes(link.invoiceKw);
+      const dateMatch    = bDate === link.date;
+      if (invoiceMatch && dateMatch) return { ...bill, driveViewUrl: link.url };
+    }
+    // Second pass: invoice only (if date didn't match but invoice is unique enough)
+    for (const link of LINKS) {
+      if (link.entity !== bEntity) continue;
+      if (!bVendor.includes(link.vendorKw)) continue;
+      if (link.invoiceKw.length >= 6 && bInvoice.includes(link.invoiceKw)) {
+        return { ...bill, driveViewUrl: link.url };
+      }
+    }
+    return bill;
+  });
+}
+
 async function syncLiveDataFromSheets(accessToken?: string) {
   try {
     const method = accessToken ? "Sheets API v4 (FORMATTED_VALUE)" : "GViz public API";
@@ -237,7 +297,7 @@ async function syncLiveDataFromSheets(accessToken?: string) {
     // Previously, authenticated syncs replaced AP outright with liveData.ap, losing saved bill copies.
     const updated = {
       ...current,
-      ap: mergeDatasets(liveData.ap, current.ap, "id"),
+      ap: applyKnownGoodDriveLinks(mergeDatasets(liveData.ap, current.ap, "id")),
       banks: mergeDatasets(liveData.banks, current.banks, "id"),
       loans: mergeDatasets(liveData.loans, current.loans, "id"),
       ar: mergeDatasets(liveData.ar, current.ar, "id"),
