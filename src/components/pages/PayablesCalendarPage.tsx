@@ -43,14 +43,11 @@ function entityColor(entity: string) {
 /* ── Bill card (day columns) ───────────────────────────────────────────────── */
 const BillCard: React.FC<{ bill: any; today: string; isLight: boolean }> = ({ bill, today, isLight }) => {
   const ec       = entityColor(bill.entity);
-  const isPastDue = bill.status !== "paid" && bill.dueDate < today;
-  const isPaid    = bill.status === "paid";
+  const isPastDue = bill.dueDate < today;
 
   return (
     <div className={`relative overflow-hidden rounded-lg border text-[11px] mb-1.5 last:mb-0 ${
-      isPaid
-        ? isLight ? "border-slate-200 bg-slate-50/60 opacity-60" : "border-[#222] bg-white/3 opacity-60"
-        : isPastDue
+      isPastDue
         ? isLight ? "border-red-200 bg-red-50" : "border-red-800/40 bg-red-950/30"
         : isLight ? "border-slate-200 bg-white" : "border-[#1a2235] bg-[#0d111a]"
     }`}>
@@ -64,10 +61,9 @@ const BillCard: React.FC<{ bill: any; today: string; isLight: boolean }> = ({ bi
             </span>
           )}
           {isPastDue && <AlertTriangle className="w-3 h-3 text-red-500 shrink-0 ml-auto" />}
-          {isPaid && <span className={`ml-auto text-[9px] font-bold ${isLight ? "text-emerald-600" : "text-emerald-400"}`}>PAID</span>}
         </div>
         <div className={`font-semibold truncate leading-tight ${isLight ? "text-slate-800" : "text-white"}`}>{bill.vendor}</div>
-        <div className={`font-extrabold mt-0.5 ${isPaid ? (isLight ? "text-slate-400" : "text-[#555]") : isLight ? "text-slate-900" : "text-white"}`}>
+        <div className={`font-extrabold mt-0.5 ${isLight ? "text-slate-900" : "text-white"}`}>
           {formatCurrency(bill.amount)}
         </div>
       </div>
@@ -279,12 +275,12 @@ export const PayablesCalendarPage: React.FC = () => {
     ),
   [bills, lastWeekMondayStr, lastWeekSundayStr]);
 
-  /* Map bills to their day slot within the visible week */
+  /* Map UNPAID bills to their day slot within the visible week */
   const dayBills = useMemo(() => {
     const map: Record<string, any[]> = {};
     weekDays.forEach(d => { map[toYMD(d)] = []; });
     bills.forEach(b => {
-      if (b.dueDate && map[b.dueDate] !== undefined) {
+      if (b.status !== "paid" && b.dueDate && map[b.dueDate] !== undefined) {
         map[b.dueDate].push(b);
       }
     });
