@@ -1394,10 +1394,34 @@ app.post("/api/ar/add-item", async (req, res) => {
   if (!layout) return res.status(500).json({ ok: false, error: "Could not read AR sheet header" });
 
   const { headerRowIdx, months } = layout;
-  const mi = months.findIndex(m => m.name === month);
-  if (mi < 0) return res.status(400).json({ ok: false, error: `Month "${month}" not found in AR sheet columns` });
+  let mi = months.findIndex(m => m.name === month);
 
-  const { col: startCol, blockSize } = months[mi];
+  const MONTH_ORDER_FULL = ["January","February","March","April","May","June",
+                            "July","August","September","October","November","December"];
+  let startCol: number;
+  let blockSize: number;
+  let needsHeaderWrite = false;
+
+  if (mi >= 0) {
+    startCol  = months[mi].col;
+    blockSize = months[mi].blockSize;
+  } else {
+    // Month not yet in the sheet header — infer its column position from the block pattern
+    // and schedule writing the header labels so the parser can detect it on next Pull All
+    if (!months.length) return res.status(500).json({ ok: false, error: "No months detected in AR sheet" });
+    const inferredBlockSize = months.length >= 2 ? months[1].col - months[0].col : 11;
+    const firstMonthIdx   = MONTH_ORDER_FULL.indexOf(months[0].name);
+    const targetMonthIdx  = MONTH_ORDER_FULL.indexOf(month);
+    if (firstMonthIdx < 0 || targetMonthIdx < 0)
+      return res.status(400).json({ ok: false, error: `Cannot infer column for month "${month}"` });
+    if (targetMonthIdx < firstMonthIdx)
+      return res.status(400).json({ ok: false, error: `Month "${month}" is before the sheet's first detected month` });
+    const offset = targetMonthIdx - firstMonthIdx;
+    startCol = months[0].col + offset * inferredBlockSize;
+    blockSize = inferredBlockSize;
+    needsHeaderWrite = true;
+    console.log(`[AR/add-item] Month "${month}" not in header; inferred startCol=${startCol} (blockSize=${blockSize}). Will write header labels.`);
+  }
   const last = startCol + blockSize - 1;
   // Standard 11-col layout: inv(+0) _(+1) app(+2) _(+3) sen(+4) _(+5) pay(+6) _(+7) rem(+8) due(+9) amt(+10)
   const amtCol  = last;
@@ -1467,6 +1491,27 @@ app.post("/api/ar/add-item", async (req, res) => {
   cell(dueCol,  dueDate  || "");
   cell(amtCol,  amount   || 0);
 
+  // If this is a new month block (not yet in header), write header labels so the parser detects it
+  if (needsHeaderWrite) {
+    const hdrRow = headerRowIdx + 1; // 1-indexed
+    const monthAbbr = month.substring(0, 3); // "Sep", "Oct", etc.
+    // Labels matching what liveSheetsFetcher.ts looks for: "Sep-Invoice", "Sep-Approval", etc.
+    // Only the first col of each pair needs the prefix label; the second can be blank or a date label
+    const hdrLabels: [number, string][] = [
+      [startCol,        `${monthAbbr}-Invoice`],
+      [startCol + 2,    `${monthAbbr}-Approval`],
+      [startCol + 4,    `${monthAbbr}-Sent`],
+      [startCol + 6,    `${monthAbbr}-Payment`],
+      [startCol + 8,    `${monthAbbr}-Remarks`],
+      [startCol + 9,    `${monthAbbr}-DueDate`],
+      [startCol + 10,   `${monthAbbr}-Amount`],
+    ];
+    for (const [col, label] of hdrLabels) {
+      batchData.push({ range: `'${tabName}'!${colToLetter(col)}${hdrRow}`, values: [[label]] });
+    }
+    console.log(`[AR/add-item] Writing ${hdrLabels.length} header labels for new month "${month}" at col ${startCol}`);
+  }
+
   const batchUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}/values:batchUpdate`;
   const batchResp = await fetch(batchUrl, {
     method: "POST",
@@ -1516,6 +1561,78 @@ app.post("/api/ar/sync-portal-items-to-sheet", async (req, res) => {
 
   console.log(`[AR/sync-portal] Synced ${synced.length}/${portalAR.length} portal AR items to sheet`);
   return res.json({ ok: errors.length === 0, synced, errors });
+});
+
+/**
+ * POST /api/ar/cleanup-bad-rows
+ * Detects and deletes rows in AR Dashboard Data that were written in the wrong flat format
+ * by the old appendARItem code. Bad rows have a numeric value in col D (amount) and a
+ * date string like "2026-09-16" in col E (which should be the March-invoice checkbox).
+ * Rows are deleted bottom-up so indices don't shift.
+ */
+app.post("/api/ar/cleanup-bad-rows", async (req, res) => {
+  const { userAccessToken } = req.body || {};
+  if (!userAccessToken) return res.status(401).json({ ok: false, error: "userAccessToken required" });
+
+  const sid     = AP_SPREADSHEET_ID;
+  const tabName = "AR Dashboard Data";
+
+  // Read all rows
+  const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}/values/`
+    + `${encodeURIComponent("'" + tabName + "'")}?valueRenderOption=FORMATTED_VALUE&majorDimension=ROWS`;
+  const resp = await fetch(readUrl, { headers: { Authorization: `Bearer ${userAccessToken}` } });
+  if (!resp.ok) return res.status(500).json({ ok: false, error: "Failed to read AR sheet" });
+  const data: any = await resp.json();
+  const rows: any[][] = data.values || [];
+
+  // We need the spreadsheet ID to get the sheet (tab) ID for deleteDimension
+  const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}?fields=sheets.properties`;
+  const metaResp = await fetch(metaUrl, { headers: { Authorization: `Bearer ${userAccessToken}` } });
+  if (!metaResp.ok) return res.status(500).json({ ok: false, error: "Failed to read sheet metadata" });
+  const metaData: any = await metaResp.json();
+  const sheetObj = (metaData.sheets || []).find((s: any) =>
+    (s.properties?.title || "").toLowerCase() === tabName.toLowerCase()
+  );
+  if (!sheetObj) return res.status(404).json({ ok: false, error: `Tab "${tabName}" not found` });
+  const sheetId: number = sheetObj.properties.sheetId;
+
+  // Identify bad rows: col D (index 3) is a non-empty number AND col E (index 4) looks like a date
+  const badRowIndices: number[] = [];
+  for (let ri = 1; ri < rows.length; ri++) {
+    const row = rows[ri];
+    const colD = String(row[3] || "").trim();
+    const colE = String(row[4] || "").trim();
+    const colDIsNumber = colD !== "" && !isNaN(Number(colD)) && Number(colD) > 0;
+    const colEIsDate   = /^\d{4}-\d{2}-\d{2}/.test(colE);
+    if (colDIsNumber && colEIsDate) {
+      badRowIndices.push(ri); // 0-based
+    }
+  }
+
+  if (!badRowIndices.length) {
+    return res.json({ ok: true, deleted: 0, message: "No bad-format rows found" });
+  }
+
+  // Delete bottom-up so row indices stay valid
+  const deleteRequests = [...badRowIndices].reverse().map(ri => ({
+    deleteDimension: {
+      range: { sheetId, dimension: "ROWS", startIndex: ri, endIndex: ri + 1 }
+    }
+  }));
+
+  const batchUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}:batchUpdate`;
+  const batchResp = await fetch(batchUrl, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${userAccessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ requests: deleteRequests }),
+  });
+  if (!batchResp.ok) {
+    const e: any = await batchResp.json().catch(() => ({}));
+    return res.status(500).json({ ok: false, error: `Delete failed: ${e?.error?.message || batchResp.status}` });
+  }
+
+  console.log(`[AR/cleanup] Deleted ${badRowIndices.length} bad-format rows: ${JSON.stringify(badRowIndices.map(i => i + 1))}`);
+  return res.json({ ok: true, deleted: badRowIndices.length, rows: badRowIndices.map(i => i + 1) });
 });
 
 /**

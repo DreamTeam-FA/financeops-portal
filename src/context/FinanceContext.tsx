@@ -1071,7 +1071,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ userAccessToken: token }),
               });
-              // Also sync any portal-created AR items that aren't in the sheet yet
+              // Clean up any wrong-format rows appended by old code, then sync portal AR items
+              await fetch("/api/ar/cleanup-bad-rows", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userAccessToken: token }),
+              });
               await fetch("/api/ar/sync-portal-items-to-sheet", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
