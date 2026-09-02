@@ -368,7 +368,7 @@ export async function getMasterListWeeks(token: string): Promise<WeekMeta[]> {
     weeks.push({
       weekNum,
       year,
-      label    : fmtDateShort(startISO) + ' – ' + fmtDateShort(endISO),
+      label    : fmtDateShort(startISO) + ' - ' + fmtDateShort(endISO),
       startDate: isoToMmDdYyyy(startISO),
       endDate  : isoToMmDdYyyy(endISO),
       sheetName: String(f[3] || '').trim() || undefined
@@ -453,7 +453,7 @@ export function buildWeekMap(rows: RawRow[]): WeekMeta[] {
     return {
       weekNum  : wk,
       year     : d.getFullYear(),
-      label    : fmtDateShort(min) + ' – ' + fmtDateShort(max),
+      label    : fmtDateShort(min) + ' - ' + fmtDateShort(max),
       startDate: isoToMmDdYyyy(min),
       endDate  : isoToMmDdYyyy(max)
     };
