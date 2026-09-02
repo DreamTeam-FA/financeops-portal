@@ -326,24 +326,8 @@ function getStoredData() {
         fs.writeFileSync(DATA_FILE, JSON.stringify(parsed, null, 2));
         console.log(`[startup] AR month fix: corrected ${fixed} item(s).`);
       }
-      // One-time restore: re-add the 2 September AEI entries that were dropped when
-      // mergeDatasets incorrectly excluded all "ar-" IDs (portal-created AR items).
-      // These were created via the portal UI on 2026-09-01 and lost on the next Pull All.
-      if (!parsed._aeiSepRestored) {
-        const AEI_SEP = [
-          { id: "ar-1788266535918", entity: "TI", customer: "AEI - A", description: "Consulting Services", amount: 7500, dueDate: "2026-09-16", month: "September", occurrence: "Monthly", invoice: true, approval: true, sent: true, payment: false, remarks: "Newly created invoice" },
-          { id: "ar-1788266562934", entity: "TI", customer: "AEI - B", description: "Consulting Services", amount: 7500, dueDate: "2026-09-30", month: "September", occurrence: "Monthly", invoice: true, approval: true, sent: true, payment: false, remarks: "Newly created invoice" },
-        ];
-        if (!Array.isArray(parsed.ar)) parsed.ar = [];
-        for (const entry of AEI_SEP) {
-          if (!parsed.ar.find((x: any) => x.id === entry.id)) {
-            parsed.ar.unshift(entry);
-          }
-        }
-        parsed._aeiSepRestored = true;
-        fs.writeFileSync(DATA_FILE, JSON.stringify(parsed, null, 2));
-        console.log("[startup] Restored 2 September AEI AR entries.");
-      }
+      // NOTE: AEI-A and AEI-B September entries were removed by user on 2026-09-03.
+      // Do not restore them. The one-time restore block was intentionally deleted.
       // One-time dedup: remove portal-created AR items (timestamp IDs) that duplicate
       // sheet-parsed items (row+month IDs). These cause the same invoice to show twice.
       // This can happen when a prior migration (e.g. _aeiSepRestored) manually injected
@@ -3154,7 +3138,7 @@ app.get("/api/config/sheet-ids", (_req, res) => {
     ok: true,
     ids: {
       main:       overrides.main       || "15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs",
-      payroll4yr: overrides.payroll4yr || "1SITtQDT3iFo5yIOBgjbERbqJjYJ8rk6drXwkLm3sAGE",
+      payroll4yr: overrides.payroll4yr || "15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs",
       calendar:   overrides.calendar   || "1ChoHr7dsfai0Unl-Gk-HyPmgrpWOYu07gllY9PA8epo",
       cc:         overrides.cc         || "1gKCKrWw8mkqJDiRl_9xYIhkzmtjOEoauQZgbtW9gIew",
     },
