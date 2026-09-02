@@ -30,6 +30,11 @@ const DATA_FILE = process.env.VERCEL
   ? "/tmp/financeops_data.json"
   : path.join(process.cwd(), "financeops_data.json");
 
+// Persisted server OAuth token — survives cold starts so pull-live doesn't fall back to GViz
+const TOKEN_FILE = process.env.VERCEL
+  ? "/tmp/financeops_server_token.json"
+  : path.join(process.cwd(), "financeops_server_token.json");
+
 // Default initial backend data structure
 const DEFAULT_DATA = {
   ap: [],
@@ -205,6 +210,19 @@ function mergeDatasets(liveList: any[], currentList: any[], idKey = "id") {
       // Sheet-parsed AR items drop on sync (live sheet is truth); portal-created ones survive
       (!ciId.startsWith("ar-") || isPortalCreatedAR)
     ) {
+      // DUPLICATE PREVENTION: if this portal-created AR item matches a live sheet item
+      // by entity+customer+month+amount, skip it — the sheet version already covers it.
+      // This prevents the same invoice appearing twice when it was entered in both the
+      // portal (timestamp ID) and the sheet (row+month ID).
+      if (isPortalCreatedAR) {
+        const alreadyCoveredByLive = liveList.some(li =>
+          li.entity === ci.entity &&
+          li.customer === ci.customer &&
+          li.month === ci.month &&
+          Math.abs((li.amount || 0) - (ci.amount || 0)) < 0.01
+        );
+        if (alreadyCoveredByLive) return; // sheet has it — drop portal copy
+      }
       merged.unshift(ci);
     }
   });
@@ -325,6 +343,33 @@ function getStoredData() {
         parsed._aeiSepRestored = true;
         fs.writeFileSync(DATA_FILE, JSON.stringify(parsed, null, 2));
         console.log("[startup] Restored 2 September AEI AR entries.");
+      }
+      // One-time dedup: remove portal-created AR items (timestamp IDs) that duplicate
+      // sheet-parsed items (row+month IDs). These cause the same invoice to show twice.
+      // This can happen when a prior migration (e.g. _aeiSepRestored) manually injected
+      // entries that the sheet already provides.  The permanent fix is in mergeDatasets,
+      // but we also clean the JSON file now so the duplicates vanish before the next Pull All.
+      if (!parsed._arPortalDedupDone) {
+        if (Array.isArray(parsed.ar)) {
+          const sheetItems = parsed.ar.filter((x: any) => !/ar-\d{10,}/.test(String(x.id || "")));
+          const before = parsed.ar.length;
+          parsed.ar = parsed.ar.filter((item: any) => {
+            const isPortal = /ar-\d{10,}/.test(String(item.id || ""));
+            if (!isPortal) return true; // keep sheet-parsed items unconditionally
+            // Drop portal copy if a sheet-parsed item has matching entity+customer+month+amount
+            const coveredBySheet = sheetItems.some((si: any) =>
+              si.entity === item.entity &&
+              si.customer === item.customer &&
+              si.month === item.month &&
+              Math.abs((si.amount || 0) - (item.amount || 0)) < 0.01
+            );
+            return !coveredBySheet; // drop if covered
+          });
+          const removed = before - parsed.ar.length;
+          if (removed > 0) console.log(`[startup] AR dedup: removed ${removed} portal-created duplicate(s) already in sheet.`);
+        }
+        parsed._arPortalDedupDone = true;
+        fs.writeFileSync(DATA_FILE, JSON.stringify(parsed, null, 2));
       }
       return parsed;
     }
@@ -740,8 +785,33 @@ app.post("/api/audit-log", (req, res) => {
 let cachedDriveToken: { token: string; expiresAt: number } | null = null;
 
 function setCachedDriveToken(token: string) {
-  cachedDriveToken = { token, expiresAt: Date.now() + 55 * 60 * 1000 }; // 55-min safety margin
+  const entry = { token, expiresAt: Date.now() + 55 * 60 * 1000 }; // 55-min safety margin
+  cachedDriveToken = entry;
+  // Persist to disk so the token survives Render cold starts.
+  // Without this, every restart falls back to the GViz public API which can't
+  // read private spreadsheets — showing stale JSON cache instead of live sheet data.
+  try { fs.writeFileSync(TOKEN_FILE, JSON.stringify(entry)); } catch {}
 }
+
+// On startup, load any persisted token from the previous run.
+// If it's still valid (< 55 min old), we can pull live sheet data immediately
+// without waiting for a user to sign in.
+(function loadPersistedToken() {
+  try {
+    if (fs.existsSync(TOKEN_FILE)) {
+      const raw = fs.readFileSync(TOKEN_FILE, "utf-8");
+      const entry = JSON.parse(raw);
+      if (entry?.token && typeof entry.expiresAt === "number" && entry.expiresAt > Date.now()) {
+        cachedDriveToken = entry;
+        console.log(`[startup] Loaded persisted server token — valid until ${new Date(entry.expiresAt).toISOString()}`);
+      } else {
+        console.log("[startup] Persisted server token expired — will refresh on next user sign-in.");
+      }
+    }
+  } catch (e) {
+    console.warn("[startup] Could not load persisted token:", e);
+  }
+})();
 
 function getEffectiveDriveToken(requestToken?: string): string | null {
   if (requestToken) {
