@@ -391,10 +391,10 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                   <div className={`grid grid-cols-12 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider border-b ${
                     isLight ? "bg-slate-50 border-slate-200 text-slate-500" : "bg-[#1c1c1c] border-[#1a2235] text-gray-400"
                   }`}>
-                    <div className="col-span-5">VENDOR</div>
-                    <div className="col-span-3 text-center whitespace-nowrap">{isPaidTab ? "PAID DATE" : "DUE"}</div>
-                    <div className="col-span-2 text-center whitespace-nowrap">BILLS</div>
-                    <div className="col-span-2 text-right whitespace-nowrap">AMOUNT</div>
+                    <div className="col-span-7 sm:col-span-5">VENDOR</div>
+                    <div className="hidden sm:block sm:col-span-3 text-center whitespace-nowrap">{isPaidTab ? "PAID DATE" : "DUE"}</div>
+                    <div className="col-span-2 sm:col-span-2 text-center whitespace-nowrap">BILLS</div>
+                    <div className="col-span-3 sm:col-span-2 text-right whitespace-nowrap">AMOUNT</div>
                   </div>
 
                   {/* Vendor rows */}
@@ -429,22 +429,22 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                             }`}
                           >
                             {/* Vendor name */}
-                            <div className="col-span-5 flex items-center gap-1 min-w-0">
+                            <div className="col-span-7 sm:col-span-5 flex items-center gap-1 min-w-0">
                               <Eye className={`w-3 h-3 shrink-0 ${isLight ? "text-slate-300" : "text-gray-600"}`} />
                               <span className="truncate font-semibold">{vName}</span>
                             </div>
-                            {/* Due date */}
-                            <div className={`col-span-3 text-center text-[11px] ${isLight ? "text-slate-500" : "text-gray-400"}`}>
+                            {/* Due date — hidden on mobile */}
+                            <div className={`hidden sm:block sm:col-span-3 text-center text-[11px] ${isLight ? "text-slate-500" : "text-gray-400"}`}>
                               {formatDateStr(latestDate)}
                             </div>
                             {/* Bill count */}
-                            <div className="col-span-2 text-center">
+                            <div className="col-span-2 sm:col-span-2 text-center">
                               <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isLight ? "bg-slate-100 text-slate-600" : "bg-white/10 text-gray-300"}`}>
                                 {vBills.length}
                               </span>
                             </div>
                             {/* Amount — orange for on-hold, otherwise entity color */}
-                            <div className={`col-span-2 text-right font-bold whitespace-nowrap ${bucketId === "on-hold-sec" ? "text-orange-500" : vCfg.textClass}`}>
+                            <div className={`col-span-3 sm:col-span-2 text-right font-bold whitespace-nowrap ${bucketId === "on-hold-sec" ? "text-orange-500" : vCfg.textClass}`}>
                               {formatCurrency(vTotal)}
                             </div>
                           </div>

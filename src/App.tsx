@@ -49,7 +49,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Info,
-  X
+  X,
+  Receipt
 } from "lucide-react";
 
 /* ── Toast config per type ───────────────────────────────────────────── */
@@ -226,9 +227,95 @@ const GlobalDatePickerModal: React.FC = () => {
   );
 };
 
+// ── Mobile "More" navigation drawer ──────────────────────────────────────────
+const MobileMoreDrawer: React.FC<{ open: boolean; onClose: () => void; onNav: (p: string) => void; currentPage: string; theme: string }> = ({ open, onClose, onNav, currentPage, theme }) => {
+  const isLight = theme === "light";
+  const nav = (p: string) => { onNav(p); onClose(); };
+
+  const sections = [
+    {
+      label: "Finance",
+      items: [
+        { page: "ar",         icon: "📥", label: "Receivables" },
+        { page: "loans",      icon: "🏦", label: "Loans & CC" },
+        { page: "statements", icon: "📄", label: "Bank Statements" },
+        { page: "calendar",   icon: "📅", label: "Calendar" },
+        { page: "ap-calendar",icon: "🗓", label: "Payables Calendar" },
+      ],
+    },
+    {
+      label: "Tools",
+      items: [
+        { page: "notes",          icon: "📝", label: "Notes" },
+        { page: "workflows",      icon: "⚡", label: "Workflows" },
+        { page: "email-scanner",  icon: "📧", label: "Email Scanner" },
+        { page: "cc-expenses",    icon: "💳", label: "CC Expenses" },
+      ],
+    },
+    {
+      label: "Admin",
+      items: [
+        { page: "datasync",       icon: "🔄", label: "Data Sync" },
+        { page: "logs",           icon: "📊", label: "Activity Logs" },
+        { page: "help",           icon: "❓", label: "Help & Reference" },
+      ],
+    },
+  ];
+
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-[200] md:hidden">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      {/* Drawer */}
+      <div
+        className={`absolute bottom-0 left-0 right-0 rounded-t-2xl overflow-hidden animate-in slide-in-from-bottom-4 duration-200 ${
+          isLight ? "bg-white" : "bg-[#0f1520]"
+        }`}
+        style={{ maxHeight: "80vh" }}
+      >
+        {/* Drag handle */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className={`w-10 h-1 rounded-full ${isLight ? "bg-slate-200" : "bg-[#2a3545]"}`} />
+        </div>
+        <div className={`px-4 py-2 flex items-center justify-between border-b ${isLight ? "border-slate-100" : "border-[#1a2235]"}`}>
+          <span className={`text-[13px] font-bold ${isLight ? "text-slate-800" : "text-white"}`}>All Modules</span>
+          <button onClick={onClose} className={`p-1.5 rounded-full ${isLight ? "text-slate-400 hover:bg-slate-100" : "text-[#666] hover:bg-white/8"}`}>
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="overflow-y-auto pb-8" style={{ maxHeight: "calc(80vh - 64px)" }}>
+          {sections.map(sec => (
+            <div key={sec.label}>
+              <div className={`px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-widest ${isLight ? "text-slate-400" : "text-[#4a6080]"}`}>{sec.label}</div>
+              <div className="grid grid-cols-3 gap-1 px-3 pb-2">
+                {sec.items.map(item => (
+                  <button
+                    key={item.page}
+                    onClick={() => nav(item.page)}
+                    className={`flex flex-col items-center gap-1.5 py-3 px-1 rounded-xl transition-colors ${
+                      currentPage === item.page
+                        ? isLight ? "bg-blue-50 text-blue-700" : "bg-blue-900/30 text-blue-400"
+                        : isLight ? "text-slate-700 hover:bg-slate-50" : "text-[#9aafc4] hover:bg-white/5"
+                    }`}
+                  >
+                    <span className="text-xl">{item.icon}</span>
+                    <span className="text-[10px] font-medium text-center leading-tight">{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const PortalContent: React.FC = () => {
   const { currentPage, setCurrentPage, isLoading, theme, activeMember, needsAuth,
           apBills, bankAccounts, loans, arItems, lastSyncedAt, syncLogs } = useFinance();
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
 
   // ── Keep-alive ping — prevents Render free-tier sleep (every 12 min) ────
   useEffect(() => {
@@ -475,53 +562,49 @@ const PortalContent: React.FC = () => {
       <GlobalSearchModal />
 
       {/* Mobile Bottom Navigation */}
-      <nav className={`md:hidden fixed bottom-0 left-0 right-0 ${theme === "light" ? "bg-white border-slate-200" : "bg-[#0f0f0f] border-[#262626]"} border-t flex justify-around items-center py-2 px-1 z-50 text-[10px]`}>
+      <nav className={`md:hidden fixed bottom-0 left-0 right-0 ${theme === "light" ? "bg-white border-slate-200" : "bg-[#0f0f0f] border-[#262626]"} border-t flex justify-around items-center py-2 px-1 z-50 text-[10px] safe-area-inset-bottom`}>
+        {[
+          { page: "hub",     icon: <LayoutDashboard className="w-5 h-5" />, label: "Hub" },
+          { page: "ap",      icon: <CreditCard className="w-5 h-5" />,      label: "AP" },
+          { page: "banks",   icon: <Landmark className="w-5 h-5" />,        label: "Banks" },
+          { page: "ar",      icon: <Receipt className="w-5 h-5" />,         label: "AR" },
+          { page: "payroll", icon: <Users className="w-5 h-5" />,           label: "Payroll" },
+        ].map(item => (
+          <button
+            key={item.page}
+            onClick={() => { setMobileMoreOpen(false); setCurrentPage(item.page as any); }}
+            className={`flex flex-col items-center gap-1 px-2 py-0.5 rounded-lg transition-colors ${
+              currentPage === item.page ? "text-[#1a73e8]" : "text-[#888]"
+            }`}
+          >
+            {item.icon}
+            {item.label}
+          </button>
+        ))}
+        {/* More button */}
         <button
-          onClick={() => setCurrentPage("hub")}
-          className={`flex flex-col items-center gap-1 ${
-            currentPage === "hub" ? "text-[#1a73e8]" : "text-[#888]"
+          onClick={() => setMobileMoreOpen(o => !o)}
+          className={`flex flex-col items-center gap-1 px-2 py-0.5 rounded-lg transition-colors ${
+            mobileMoreOpen ? "text-[#1a73e8]" : "text-[#888]"
           }`}
         >
-          <LayoutDashboard className="w-5 h-5" />
-          Hub
-        </button>
-        <button
-          onClick={() => setCurrentPage("ap")}
-          className={`flex flex-col items-center gap-1 ${
-            currentPage === "ap" ? "text-[#1a73e8]" : "text-[#888]"
-          }`}
-        >
-          <CreditCard className="w-5 h-5" />
-          AP
-        </button>
-        <button
-          onClick={() => setCurrentPage("banks")}
-          className={`flex flex-col items-center gap-1 ${
-            currentPage === "banks" ? "text-[#1a73e8]" : "text-[#888]"
-          }`}
-        >
-          <Landmark className="w-5 h-5" />
-          Banks
-        </button>
-        <button
-          onClick={() => setCurrentPage("payroll")}
-          className={`flex flex-col items-center gap-1 ${
-            currentPage === "payroll" ? "text-[#1a73e8]" : "text-[#888]"
-          }`}
-        >
-          <Users className="w-5 h-5" />
-          Payroll
-        </button>
-        <button
-          onClick={() => setCurrentPage("calendar")}
-          className={`flex flex-col items-center gap-1 ${
-            currentPage === "calendar" ? "text-[#1a73e8]" : "text-[#888]"
-          }`}
-        >
-          <CalendarDays className="w-5 h-5" />
-          Calendar
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none"/>
+            <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
+            <circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none"/>
+          </svg>
+          More
         </button>
       </nav>
+
+      {/* Mobile More Drawer */}
+      <MobileMoreDrawer
+        open={mobileMoreOpen}
+        onClose={() => setMobileMoreOpen(false)}
+        onNav={(p) => setCurrentPage(p as any)}
+        currentPage={currentPage}
+        theme={theme}
+      />
     </div>
   );
 };

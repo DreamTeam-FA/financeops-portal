@@ -120,7 +120,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
         </div>
 
         {/* Right: controls */}
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="flex items-center gap-1.5 flex-wrap justify-end">
 
           {/* Entity Filter Pills */}
           {showEntityPills && (
@@ -182,7 +182,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           {onAddClick && (
             <button onClick={onAddClick} className="btn-3d btn-3d-ghost font-bold">
               <Plus className="w-3.5 h-3.5" />
-              {addLabel}
+              <span className="hidden sm:inline">{addLabel}</span>
             </button>
           )}
 
