@@ -1184,7 +1184,7 @@ export const appendAPBill = async (
   entity: string,
   spreadsheetId: string,
   accessToken: string
-): Promise<void> => {
+): Promise<number> => {
   const map = getAPColMap(entity);
   const cleanId = extractSpreadsheetId(spreadsheetId);
   if (!cleanId) throw new Error("Invalid spreadsheet ID");
@@ -1208,17 +1208,18 @@ export const appendAPBill = async (
   // Write the new bill directly to that row
   const writeRange = `${tabName}!A${nextRow}:${lastDataCol}${nextRow}`;
   await updateSheetValues(spreadsheetId, writeRange, [buildAPBillRow(bill, entity)], accessToken);
+  // Return the row number so callers can store it on the bill for future writes
 
   // Add checkbox validation to the inQBO cell of the new row
   const metaRes = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}?fields=sheets.properties`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
-  if (!metaRes.ok) return;
+  if (!metaRes.ok) return nextRow;
   const meta = await metaRes.json();
   const tabTitle = tabName.replace(/^'|'$/g, "").replace(/''/g, "'");
   const sheetMeta = (meta.sheets || []).find((s: any) => s.properties?.title === tabTitle);
-  if (!sheetMeta) return;
+  if (!sheetMeta) return nextRow;
 
   await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${cleanId}:batchUpdate`, {
     method: "POST",
@@ -1232,6 +1233,7 @@ export const appendAPBill = async (
       }]
     })
   });
+  return nextRow;
 };
 
 // Delete a bill's row from the sheet (removes the row, shifting rows above down)

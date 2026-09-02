@@ -1904,7 +1904,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     (async () => {
       try {
         if (action === "append") {
-          await appendAPBill(bill, entity, mapping.spreadsheetIdOrUrl, token);
+          const sheetRow = await appendAPBill(bill, entity, mapping.spreadsheetIdOrUrl, token);
+          // Store the sheet row number on the bill so future updateBill calls can
+          // write to the correct row (writeSingleAPBill requires bill.row).
+          setApBills(prev => prev.map(b => b.id === bill.id ? { ...b, row: sheetRow } as APBill : b));
         } else if (action === "clear") {
           await clearSingleAPBill(bill, entity, mapping.spreadsheetIdOrUrl, token);
         } else {

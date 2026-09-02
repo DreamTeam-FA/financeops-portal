@@ -33,7 +33,7 @@ const DEFAULT_TI_COMPANIES = ["4G", "4YR", "Corner Property Group", "E1", "TI"];
 const PAY_VIA_OPTIONS = ["ACH", "Check", "Wire", "Credit Card", "Online", "Cash", "Auto-Debit", "Manual"];
 
 export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, defaultEntity = "Ruby's", prefillData }) => {
-  const { apBills, addBill, updateBill, theme, availableAPEntities } = useFinance();
+  const { apBills, addBill, updateBill, theme, availableAPEntities, showToast } = useFinance() as any;
   const isLight = theme === "light";
 
   const [selectedSheet, setSelectedSheet] = useState(`${defaultEntity} Bills`);
@@ -255,8 +255,14 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
       if (resp.ok) {
         const { viewUrl, fileName } = await resp.json();
         updateBill({ ...saved, driveViewUrl: viewUrl, driveFileName: fileName });
+        showToast?.("Bill copy saved to Google Drive ✓", "success", 3000);
+      } else {
+        const errBody = await resp.json().catch(() => ({}));
+        showToast?.(`Drive upload failed: ${errBody?.error || resp.statusText}`, "error", 7000);
       }
-    } catch { /* don't block close */ }
+    } catch (e: any) {
+      showToast?.(`Drive upload error: ${e?.message || "network error"}`, "error", 7000);
+    }
     setUploading(false);
     setAttachPhase(false);
     setAttachFile(null);
@@ -309,6 +315,7 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
     // Upload scanned file to Google Drive if scan produced a file
     if (pendingFile) {
       setUploading(true);
+      let driveUploadFailed = false;
       try {
         const reader = new FileReader();
         const base64: string = await new Promise((res, rej) => {
@@ -334,10 +341,25 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
           const { viewUrl, fileName } = await resp.json();
           billData.driveViewUrl = viewUrl;
           billData.driveFileName = fileName;
+        } else {
+          driveUploadFailed = true;
+          const errBody = await resp.json().catch(() => ({}));
+          showToast?.(`Drive upload failed (${resp.status}): ${errBody?.error || resp.statusText} — bill saved without copy. Attach it manually.`, "error", 8000);
         }
-      } catch { /* upload failure shouldn't block bill save */ }
+      } catch (e: any) {
+        driveUploadFailed = true;
+        showToast?.(`Drive upload error: ${e?.message || "network error"} — bill saved without copy. Attach it manually.`, "error", 8000);
+      }
       setUploading(false);
-      addBill(billData);
+      const newBill = addBill(billData);
+      // If upload failed, stay in attach-phase so user can retry with the same file
+      if (driveUploadFailed) {
+        setSavedBillId(newBill.id);
+        setAttachFile(pendingFile); // pre-load the scan file into attach-phase
+        resetForm();
+        setAttachPhase(true);
+        return;
+      }
       resetForm();
       onClose();
       return;
