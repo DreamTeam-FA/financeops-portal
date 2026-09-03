@@ -692,6 +692,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [arItems, setArItems] = useState<ARItem[]>([]);
+  // Server-side bug: startup code injects two AEI-A/B September entries (IDs below)
+  // on every Render restart. Filter them client-side until the server is redeployed.
+  const sanitizeAr = (items: ARItem[]) =>
+    items.filter(i => i.id !== 'ar-1788266535918' && i.id !== 'ar-1788266562934');
   const [bankStatements, setBankStatements] = useState<BankStatement[]>([]);
   const [payrollWeeks, setPayrollWeeks] = useState<PayrollWeek[]>([]);
   const [payrollPivot, setPayrollPivot] = useState<PayrollPivot>({});
@@ -790,7 +794,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (data.ap && data.ap.length > 0) setApBills(recomputeBills(data.ap));
       if (data.banks)      setBankAccounts(data.banks);
       if (data.loans)      setLoans(data.loans);
-      if (data.ar)         setArItems(data.ar);
+      if (data.ar)         setArItems(sanitizeAr(data.ar));
       if (data.statements) setBankStatements(data.statements);
       if (data.headleys)   setHeadleys(data.headleys);
       if (data.payrollPivot)  setPayrollPivot(data.payrollPivot);
@@ -1658,7 +1662,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (live.ap && live.ap.length > 0) setApBills(recomputeBills(live.ap));
         if (live.banks && live.banks.length > 0) setBankAccounts(live.banks);
         if (live.loans && live.loans.length > 0) setLoans(live.loans);
-        if (live.ar && live.ar.length > 0) setArItems(live.ar);
+        if (live.ar && live.ar.length > 0) setArItems(sanitizeAr(live.ar));
         if (live.statements && live.statements.length > 0) setBankStatements(live.statements);
         if (live.quickNotes && Array.isArray(live.quickNotes) && live.quickNotes.length > 0) {
           const mergedNotes = (live.quickNotes as DashboardNote[]).map((n) => {

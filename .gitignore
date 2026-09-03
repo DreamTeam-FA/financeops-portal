@@ -8,3 +8,5 @@ coverage/
 !.env.example
 financeops_data.json
 *.zip
+
+financeops_server_token.json

@@ -529,18 +529,22 @@ export const parseBankSheetRows = (rows: any[][]): BankAccount[] => {
   if (!rows || rows.length <= 1) return [];
   const headers = rows[0].map((h) => String(h || "").toLowerCase().trim());
 
-  let entityIdx = headers.findIndex((h) => /entity|company|business/i.test(h));
-  let bankIdx = headers.findIndex((h) => /bank|institution|lender|name/i.test(h));
+  // "entity" column is now explicit in the sheet — match it narrowly so it doesn't
+  // accidentally pick up the "company" (bank name) column.
+  let entityIdx = headers.findIndex((h) => /^entity$/i.test(h));
+  // "company" is the bank display name column in the new sheet layout.
+  let bankIdx = headers.findIndex((h) => /bank|institution|lender|name|company/i.test(h));
   let typeIdx = headers.findIndex((h) => /type|account_type|category/i.test(h));
   let acctIdx = headers.findIndex((h) => /acct|account|number|#|last4|last_4/i.test(h));
   let balIdx = headers.findIndex((h) => /bal|balance|amount|current_balance|\$/i.test(h));
-  let asOfIdx = headers.findIndex((h) => /as_of|updated|as_of_date|date/i.test(h));
+  let yesterdayIdx = headers.findIndex((h) => /yesterday|prev|previous/i.test(h));
+  let asOfIdx = headers.findIndex((h) => /as_of|updated|last.?updated|as_of_date|date/i.test(h));
 
-  if (bankIdx === -1) bankIdx = 0;
-  if (typeIdx === -1) typeIdx = bankIdx === 0 ? 1 : 0;
-  if (acctIdx === -1) acctIdx = 2;
-  if (balIdx === -1) balIdx = 3;
-  if (asOfIdx === -1) asOfIdx = 4;
+  if (bankIdx === -1) bankIdx = entityIdx !== -1 ? entityIdx + 1 : 0;
+  if (typeIdx === -1) typeIdx = -1; // not required; default below
+  if (acctIdx === -1) acctIdx = -1; // not required; default below
+  if (balIdx === -1) balIdx = entityIdx !== -1 ? entityIdx + 2 : 2;
+  if (asOfIdx === -1) asOfIdx = -1;
 
   const accounts: BankAccount[] = [];
   const dataRows = rows.slice(1);
@@ -548,13 +552,19 @@ export const parseBankSheetRows = (rows: any[][]): BankAccount[] => {
   dataRows.forEach((row, idx) => {
     if (!row || row.length === 0 || row.every((c) => !c || String(c).trim() === "")) return;
 
-    const entity = normalizeEntityName(entityIdx !== -1 ? String(row[entityIdx]) : undefined, "Ruby's");
+    // If the sheet has an explicit Entity column, use it verbatim (trimmed).
+    // Only run normalizeEntityName as a fallback when there is no entity column.
+    const rawEntity = entityIdx !== -1 ? String(row[entityIdx] || "").trim() : "";
+    const entity: EntityName = rawEntity || normalizeEntityName(undefined, "TI");
+
     const bank = String(row[bankIdx] || "Bank");
-    const type = String(row[typeIdx] || "Checking");
-    const acct = String(row[acctIdx] || "...0000");
-    const balStr = String(row[balIdx] || "0").replace(/[^0-9.-]+/g, "");
+    const type = typeIdx !== -1 ? String(row[typeIdx] || "Checking") : "Operating";
+    const acct = acctIdx !== -1 ? String(row[acctIdx] || "...") : "...";
+    const balStr = balIdx !== -1 ? String(row[balIdx] || "0").replace(/[^0-9.-]+/g, "") : "0";
     const balance = parseFloat(balStr) || 0;
-    const asOf = row[asOfIdx] || new Date().toISOString().split("T")[0];
+    const asOf = (asOfIdx !== -1 && row[asOfIdx]) ? String(row[asOfIdx]) : new Date().toISOString().split("T")[0];
+    const yesterdayStr = yesterdayIdx !== -1 ? String(row[yesterdayIdx] || "").replace(/[^0-9.-]+/g, "") : "";
+    const yesterday = yesterdayStr ? parseFloat(yesterdayStr) : undefined;
 
     accounts.push({
       id: `b-gs-${idx + 1}-${Date.now()}`,
@@ -563,6 +573,7 @@ export const parseBankSheetRows = (rows: any[][]): BankAccount[] => {
       type,
       acct,
       balance,
+      yesterday,
       asOf,
       status: "Active",
       trend: "up",
@@ -1546,14 +1557,14 @@ export const getAPTabRange = (entity: string): string =>
   getAPColMap(entity).dataRange;
 
 export const formatBankSheetRows = (accounts: BankAccount[]): any[][] => {
-  // Live reader (liveSheetsFetcher): col0=name, col1=balance, col2=yesterday, col3=asOf
-  // No header row — reader filters rows by name content, not by row index.
+  // Sheet layout (new): col0=Entity, col1=Account, col2=Balance, col3=Yesterday, col4=Last Updated
   return accounts.map((a) => {
-    const row: any[] = new Array(4).fill("");
-    row[0] = a.bank;      // col 0: bank/account name
-    row[1] = a.balance;   // col 1: current balance
-                          // col 2: yesterday balance — not stored in portal model; leave blank
-    row[3] = a.asOf;      // col 3: as-of date
+    const row: any[] = new Array(5).fill("");
+    row[0] = a.entity;              // col 0: entity
+    row[1] = a.bank;                // col 1: account/bank name
+    row[2] = a.balance;             // col 2: current balance
+    row[3] = a.yesterday ?? "";     // col 3: yesterday balance (preserve if available)
+    row[4] = a.asOf;                // col 4: last updated date
     return row;
   });
 };
