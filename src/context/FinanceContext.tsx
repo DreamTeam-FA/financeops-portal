@@ -692,10 +692,13 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [arItems, setArItems] = useState<ARItem[]>([]);
-  // Server-side bug: startup code injects two AEI-A/B September entries (IDs below)
-  // on every Render restart. Filter them client-side until the server is redeployed.
+  // Filter AEI-A / AEI-B entries that are injected on every Render restart.
+  // Match by customer name so the filter survives ID reassignment across syncs.
   const sanitizeAr = (items: ARItem[]) =>
-    items.filter(i => i.id !== 'ar-1788266535918' && i.id !== 'ar-1788266562934');
+    items.filter(i =>
+      !(i.customer || "").match(/^AEI\s*[-–]\s*[AB]$/i) &&
+      i.id !== 'ar-1788266535918' && i.id !== 'ar-1788266562934'
+    );
   const [bankStatements, setBankStatements] = useState<BankStatement[]>([]);
   const [payrollWeeks, setPayrollWeeks] = useState<PayrollWeek[]>([]);
   const [payrollPivot, setPayrollPivot] = useState<PayrollPivot>({});
@@ -794,7 +797,21 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (data.ap && data.ap.length > 0) setApBills(recomputeBills(data.ap));
       if (data.banks)      setBankAccounts(data.banks);
       if (data.loans)      setLoans(data.loans);
-      if (data.ar)         setArItems(sanitizeAr(data.ar));
+      if (data.ar) {
+        const cleaned = sanitizeAr(data.ar);
+        setArItems(cleaned);
+        // If AEI items were filtered out, purge them from the server JSON cache
+        // so sync-portal-items-to-sheet doesn't re-write them to the sheet on next login.
+        if (cleaned.length < data.ar.length) {
+          setTimeout(() => {
+            fetch("/api/data", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...data, ar: cleaned }),
+            }).catch(() => {});
+          }, 1500);
+        }
+      }
       if (data.statements) setBankStatements(data.statements);
       if (data.headleys)   setHeadleys(data.headleys);
       if (data.payrollPivot)  setPayrollPivot(data.payrollPivot);
@@ -977,6 +994,31 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
               bc.close();
             } catch {}
             pullOk = true;
+
+            // Auto-refresh bank data from GViz using the fixed frontend parser
+            // (Render server has stale bank column mapping until Oct 1 redeploy)
+            setTimeout(async () => {
+              try {
+                const bankMap = serverMappings?.find(m => m.module === "banks");
+                if (bankMap && tok) {
+                  const bankRange = (bankMap as any).range || "'Bank Balances'!A1:F60";
+                  const bankRows = await fetchSheetValues(bankMap.spreadsheetIdOrUrl, bankRange, tok);
+                  if (bankRows && bankRows.length > 0) {
+                    const parsed = parseBankSheetRows(bankRows);
+                    if (parsed.length > 0) {
+                      setBankAccounts(parsed);
+                      // Update server cache so pull-live doesn't overwrite with stale data
+                      fetch("/api/data", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ ...resp.data, banks: parsed }),
+                      }).catch(() => {});
+                    }
+                  }
+                }
+              } catch {} // non-fatal — bank data still visible from pull-live
+            }, 2000);
+
             break;
           }
         } catch {

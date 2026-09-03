@@ -79,7 +79,7 @@ export const PayrollPage: React.FC = () => {
         onTabChange={(t) => setActiveTab(t as any)}
       />
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
         {/* Filter Bar */}
         <div className={`flex flex-wrap items-center gap-2 p-3 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"}`}>
           <div className="flex items-center gap-1.5 text-xs font-semibold uppercase mr-2 text-[#7c3aed]">
@@ -110,32 +110,32 @@ export const PayrollPage: React.FC = () => {
           </select>
         </div>
 
-        {/* KPIs */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className={`border rounded-xl p-4 ${isLight ? "bg-white border-slate-200 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]" : "bg-[#0d111a] border-[#1a2235]"}`}>
-            <div className={`text-[11px] font-semibold uppercase ${isLight ? "text-slate-500" : "text-[#888]"}`}>
-              Total Payroll Outflow
+        {/* KPIs — 3-col even on mobile to save vertical space */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <div className={`border rounded-xl p-2.5 sm:p-4 ${isLight ? "bg-white border-slate-200 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]" : "bg-[#0d111a] border-[#1a2235]"}`}>
+            <div className={`text-[9px] sm:text-[11px] font-semibold uppercase leading-tight ${isLight ? "text-slate-500" : "text-[#888]"}`}>
+              Payroll Outflow
             </div>
-            <div className={`text-2xl font-extrabold mt-1 ${isLight ? "text-slate-900" : "text-white"}`}>
+            <div className={`text-sm sm:text-2xl font-extrabold mt-1 truncate ${isLight ? "text-slate-900" : "text-white"}`}>
               {formatCurrency(grandTotal)}
             </div>
-            <div className="text-[11px] text-[#7c3aed] mt-1 font-semibold">For week {selectedWeekNum}</div>
+            <div className="text-[9px] sm:text-[11px] text-[#7c3aed] mt-0.5 font-semibold">Wk {selectedWeekNum}</div>
           </div>
 
-          <div className={`border rounded-xl p-4 ${isLight ? "bg-white border-slate-200 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]" : "bg-[#0d111a] border-[#1a2235]"}`}>
-            <div className={`text-[11px] font-semibold uppercase ${isLight ? "text-slate-500" : "text-[#888]"}`}>
-              Total Logged Hours
+          <div className={`border rounded-xl p-2.5 sm:p-4 ${isLight ? "bg-white border-slate-200 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]" : "bg-[#0d111a] border-[#1a2235]"}`}>
+            <div className={`text-[9px] sm:text-[11px] font-semibold uppercase leading-tight ${isLight ? "text-slate-500" : "text-[#888]"}`}>
+              Logged Hours
             </div>
-            <div className={`text-2xl font-bold mt-1 ${isLight ? "text-slate-900" : "text-white"}`}>{totalHours} hrs</div>
-            <div className={`text-[11px] mt-1 ${isLight ? "text-slate-500" : "text-[#888]"}`}>Across all departments</div>
+            <div className={`text-sm sm:text-2xl font-bold mt-1 ${isLight ? "text-slate-900" : "text-white"}`}>{totalHours} hrs</div>
+            <div className={`text-[9px] sm:text-[11px] mt-0.5 ${isLight ? "text-slate-500" : "text-[#888]"}`}>All depts</div>
           </div>
 
-          <div className={`border rounded-xl p-4 ${isLight ? "bg-white border-slate-200 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]" : "bg-[#0d111a] border-[#1a2235]"}`}>
-            <div className={`text-[11px] font-semibold uppercase ${isLight ? "text-slate-500" : "text-[#888]"}`}>
-              Line Items / Staff
+          <div className={`border rounded-xl p-2.5 sm:p-4 ${isLight ? "bg-white border-slate-200 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]" : "bg-[#0d111a] border-[#1a2235]"}`}>
+            <div className={`text-[9px] sm:text-[11px] font-semibold uppercase leading-tight ${isLight ? "text-slate-500" : "text-[#888]"}`}>
+              Line Items
             </div>
-            <div className={`text-2xl font-bold mt-1 ${isLight ? "text-slate-900" : "text-white"}`}>{lineItems.length} Active Records</div>
-            <div className="text-[11px] text-[#16a34a] mt-1 font-semibold">Verified from Google Sheets</div>
+            <div className={`text-sm sm:text-2xl font-bold mt-1 ${isLight ? "text-slate-900" : "text-white"}`}>{lineItems.length}</div>
+            <div className="text-[9px] sm:text-[11px] text-[#16a34a] mt-0.5 font-semibold">Active records</div>
           </div>
         </div>
 

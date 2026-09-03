@@ -1630,7 +1630,11 @@ app.post("/api/ar/sync-portal-items-to-sheet", async (req, res) => {
   if (!userAccessToken) return res.status(401).json({ ok: false, error: "userAccessToken required" });
 
   const stored = getStoredData();
-  const portalAR = (stored.ar || []).filter((item: any) => /^ar-\d{10,}$/.test(item.id || ""));
+  // Filter to portal-created items (timestamp IDs) but EXCLUDE AEI-A/B injected entries
+  const portalAR = (stored.ar || []).filter((item: any) =>
+    /^ar-\d{10,}$/.test(item.id || "") &&
+    !String(item.customer || "").match(/^AEI\s*[-–]\s*[AB]$/i)
+  );
   if (!portalAR.length) return res.json({ ok: true, synced: 0, message: "No portal-created AR items to sync" });
 
   const synced: string[] = [];

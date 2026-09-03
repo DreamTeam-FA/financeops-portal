@@ -197,7 +197,7 @@ const BillDetail: React.FC<{
       </div>
 
       {/* Info grid */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <InfoCard label="Company Entity" value={bill.entity} accent={accentColor} isLight={isLight} />
         <InfoCard label="Due Date" value={fmtDate(bill.dueDate) || "—"} isLight={isLight} />
         <InfoCard label="Invoice Number" value={bill.invoiceNo || "—"} isLight={isLight} />
@@ -232,7 +232,7 @@ const BillDetail: React.FC<{
             isLight ? "text-slate-500" : "text-[#888]"
           }`}>Bill Schedule &amp; Payment Details</span>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Chip label="Debit Type" value={bill.paymentType || bill.method || "Manual"}
             active={bill.paymentType === "Auto-Debit"} accentColor={accentColor} isLight={isLight} />
           <Chip label="Frequency" value={bill.recurringType || "Non-Recurring"}
@@ -628,7 +628,7 @@ export const BillDetailsModal: React.FC<BillDetailsModalProps> = ({
 
         {/* ── MULTI-BILL: Accordion list ── */}
         {multi ? (
-          <div className="px-4 pt-3 pb-4 overflow-y-auto max-h-[78vh] flex flex-col gap-2.5" style={{ scrollPaddingTop: "4px" }}>
+          <div className="px-4 pt-3 pb-4 overflow-y-auto max-h-[75dvh] flex flex-col gap-2.5" style={{ scrollPaddingTop: "4px" }}>
             {vendorBills.map((bill, i) => (
               <AccordionItem
                 key={bill.id}
@@ -645,7 +645,7 @@ export const BillDetailsModal: React.FC<BillDetailsModalProps> = ({
         ) : (
           /* ── SINGLE-BILL: original flat view ── */
           <>
-            <div className="px-5 py-4 overflow-y-auto max-h-[70vh]">
+            <div className="px-5 py-4 overflow-y-auto max-h-[65dvh]">
               <BillDetail
                 key={singleBill.id}
                 bill={singleBill}

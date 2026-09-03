@@ -265,7 +265,26 @@ const SummaryColumn: React.FC<{
   );
 };
 
-/* ── Mobile List View ─────────────────────────────────────────────────────── */
+/* ── Group bills by entity+vendor (shared helper) ─────────────────────────── */
+function groupBillsByVendor(bills: any[]): VendorGroup[] {
+  const map = new Map<string, VendorGroup>();
+  [...bills]
+    .sort((a, b) => {
+      const ea = ENTITY_ORDER[a.entity] ?? 99;
+      const eb = ENTITY_ORDER[b.entity] ?? 99;
+      if (ea !== eb) return ea - eb;
+      return (a.vendor || "").localeCompare(b.vendor || "");
+    })
+    .forEach(b => {
+      const key = `${b.entity}||${b.subcompany || ""}||${b.vendor || ""}`;
+      const ex = map.get(key);
+      if (ex) { ex.totalAmount += b.amount || 0; ex.count++; ex.bills.push(b); }
+      else map.set(key, { entity: b.entity, subcompany: b.subcompany || "", vendor: b.vendor || "", totalAmount: b.amount || 0, count: 1, bills: [b] });
+    });
+  return Array.from(map.values());
+}
+
+/* ── Mobile List View — vendor-grouped, same style as desktop columns ─────── */
 const MobileListView: React.FC<{
   overdueOldBills: any[];
   lastWeekBills: any[];
@@ -275,26 +294,33 @@ const MobileListView: React.FC<{
   isLight: boolean;
   onBillClick: (bills: any[]) => void;
 }> = ({ overdueOldBills, lastWeekBills, weekDays, dayBills, today, isLight, onBillClick }) => {
-  const fmt = (d: Date) =>
+  const fmtDay = (d: Date) =>
     `${DAY_SHORT[(d.getDay() + 6) % 7]}, ${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
 
-  const sections: { label: string; bills: any[]; accent: string }[] = [];
+  type Section = { label: string; total: number; groups: VendorGroup[]; accentClass: string; overdueStyle: boolean; lastWeekStyle: boolean };
+  const sections: Section[] = [];
 
   if (overdueOldBills.length > 0)
-    sections.push({ label: "⚠ Overdue", bills: overdueOldBills, accent: "text-red-500" });
+    sections.push({ label: "⚠ Overdue", total: overdueOldBills.reduce((s, b) => s + (b.amount || 0), 0), groups: groupBillsByVendor(overdueOldBills), accentClass: "text-red-500", overdueStyle: true, lastWeekStyle: false });
 
   if (lastWeekBills.length > 0)
-    sections.push({ label: "⏱ Last Week", bills: lastWeekBills, accent: "text-amber-400" });
+    sections.push({ label: "⏱ Last Week", total: lastWeekBills.reduce((s, b) => s + (b.amount || 0), 0), groups: groupBillsByVendor(lastWeekBills), accentClass: "text-amber-400", overdueStyle: false, lastWeekStyle: true });
 
   weekDays.forEach(d => {
     const ymd = toYMD(d);
     const arr = dayBills[ymd] || [];
-    if (arr.length > 0)
+    if (arr.length > 0) {
+      const isToday = ymd === today;
+      const isPast = ymd < today;
       sections.push({
-        label: ymd === today ? `Today — ${fmt(d)}` : fmt(d),
-        bills: arr,
-        accent: ymd === today ? "text-[#1a73e8]" : ymd < today ? "text-red-400" : isLight ? "text-slate-600" : "text-[#888]",
+        label: isToday ? `Today — ${fmtDay(d)}` : fmtDay(d),
+        total: arr.reduce((s, b) => s + (b.amount || 0), 0),
+        groups: groupBillsByVendor(arr),
+        accentClass: isToday ? "text-[#1a73e8]" : isPast ? "text-red-400" : isLight ? "text-slate-600" : "text-[#888]",
+        overdueStyle: isPast && !isToday,
+        lastWeekStyle: false,
       });
+    }
   });
 
   if (sections.length === 0)
@@ -305,37 +331,47 @@ const MobileListView: React.FC<{
     );
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-4">
+    <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-4">
       {sections.map((sec, si) => (
         <div key={si}>
-          <div className={`text-[11px] font-bold uppercase tracking-wider mb-2 ${sec.accent}`}>{sec.label}</div>
-          <div className="space-y-2">
-            {sec.bills.map((b: any) => {
-              const ec = entityColor(b.entity);
-              const isPastDue = b.dueDate < today;
+          {/* Section header */}
+          <div className="flex items-center justify-between mb-2">
+            <span className={`text-[11px] font-bold uppercase tracking-wider ${sec.accentClass}`}>{sec.label}</span>
+            <span className={`text-[11px] font-extrabold ${isLight ? "text-slate-700" : "text-white"}`}>{formatCurrency(sec.total)}</span>
+          </div>
+          {/* Vendor group rows */}
+          <div className="space-y-1.5">
+            {sec.groups.map((g, gi) => {
+              const ec = entityColor(g.entity);
               return (
                 <div
-                  key={b.id}
-                  onClick={() => onBillClick([b])}
-                  className={`relative flex items-center gap-3 rounded-xl border px-4 py-3 cursor-pointer active:scale-[0.98] transition-transform ${
-                    isPastDue
-                      ? isLight ? "border-red-200 bg-red-50" : "border-red-800/40 bg-red-950/20"
+                  key={`${g.entity}-${g.vendor}-${gi}`}
+                  onClick={() => onBillClick(g.bills)}
+                  className={`relative overflow-hidden rounded-xl border cursor-pointer active:scale-[0.98] transition-transform ${
+                    sec.overdueStyle
+                      ? isLight ? "border-red-200 bg-red-50/60" : "border-red-800/30 bg-red-950/20"
+                      : sec.lastWeekStyle
+                      ? isLight ? "border-amber-200 bg-amber-50/60" : "border-amber-800/30 bg-amber-950/20"
                       : isLight ? "border-slate-200 bg-white" : "border-[#1a2235] bg-[#0d111a]"
                   }`}
                 >
-                  <div className="absolute left-0 top-3 bottom-3 w-1 rounded-r-full" style={{ background: ec.bar }} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className={`px-1.5 py-0 rounded text-[10px] font-bold ${ec.bg} ${ec.text}`}>{b.entity}</span>
-                      {b.subcompany && (
-                        <span className={`text-[10px] truncate ${isLight ? "text-slate-400" : "text-[#666]"}`}>{b.subcompany}</span>
-                      )}
+                  <div className="absolute left-0 top-0 bottom-0 w-1" style={{ background: ec.bar }} />
+                  <div className="pl-4 pr-3 py-2.5 flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                        <span className={`px-1.5 py-0 rounded text-[10px] font-bold shrink-0 ${ec.bg} ${ec.text}`}>{g.entity}</span>
+                        {g.subcompany && <span className={`text-[10px] truncate ${isLight ? "text-slate-400" : "text-[#666]"}`}>{g.subcompany}</span>}
+                        {g.count > 1 && <span className={`ml-auto text-[10px] font-bold shrink-0 ${sec.overdueStyle ? "text-red-500" : sec.lastWeekStyle ? "text-amber-500" : "text-[#1a73e8]"}`}>×{g.count}</span>}
+                      </div>
+                      <div className={`font-semibold text-sm leading-tight truncate ${isLight ? "text-slate-800" : "text-white"}`}>{g.vendor || "—"}</div>
                     </div>
-                    <div className={`font-semibold text-sm leading-tight truncate ${isLight ? "text-slate-800" : "text-white"}`}>{b.vendor}</div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className={`font-extrabold text-sm ${isLight ? "text-slate-900" : "text-white"}`}>{formatCurrency(b.amount)}</div>
-                    {isPastDue && <AlertTriangle className="w-3.5 h-3.5 text-red-500 ml-auto mt-0.5" />}
+                    <div className={`font-extrabold text-sm shrink-0 ${
+                      sec.overdueStyle ? isLight ? "text-red-700" : "text-red-400"
+                      : sec.lastWeekStyle ? isLight ? "text-amber-700" : "text-amber-400"
+                      : isLight ? "text-slate-900" : "text-white"
+                    }`}>
+                      {formatCurrency(g.totalAmount)}
+                    </div>
                   </div>
                 </div>
               );
