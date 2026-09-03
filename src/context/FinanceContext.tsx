@@ -484,7 +484,7 @@ const DEFAULT_EXTERNAL_LINKS: ExternalLinkItem[] = [
   {
     id: "drive-receipts-2026",
     name: "Scanned Receipts (2026)",
-    url: "https://drive.google.com/drive/folders/RECEIPTS_2026",
+    url: "https://drive.google.com/drive/folders/16Qje85kzbRanWgbyuB5h2tVR7J_NrZ9m",
     iconType: "folder",
     color: "#f59e0b",
     category: "drive",
@@ -520,7 +520,7 @@ const DEFAULT_EXTERNAL_LINKS: ExternalLinkItem[] = [
   {
     id: "drive-entity-docs",
     name: "Entity Documents",
-    url: "https://drive.google.com/drive/folders/ENTITY_DOCS",
+    url: "https://drive.google.com/drive/folders/162s6Jnfw9DYeP-15ypnbtScHMJCuHNix",
     iconType: "folder",
     color: "#dc2626",
     category: "drive",
@@ -529,7 +529,7 @@ const DEFAULT_EXTERNAL_LINKS: ExternalLinkItem[] = [
   {
     id: "drive-ai-advantage",
     name: "AI Advantage",
-    url: "https://drive.google.com/drive/folders/AI_ADVANTAGE",
+    url: "https://drive.google.com/drive/folders/1hJI4zz7u3rh8kxKwvC3p8-Rl4vOs5iE3",
     iconType: "folder",
     color: "#0891b2",
     category: "drive",
