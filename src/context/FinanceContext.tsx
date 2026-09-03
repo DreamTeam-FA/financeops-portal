@@ -257,6 +257,7 @@ interface FinanceContextType {
 const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit?usp=sharing";
 
 const DEFAULT_EXTERNAL_LINKS: ExternalLinkItem[] = [
+  // ── TOOLS TAB → SHEETS ──────────────────────────────────────────────────────
   {
     id: "tool-master",
     name: "Master Finance Spreadsheet",
@@ -264,6 +265,7 @@ const DEFAULT_EXTERNAL_LINKS: ExternalLinkItem[] = [
     iconType: "sheet",
     color: "#1a73e8",
     category: "tools",
+    subType: "sheet",
     description: "Primary Google Spreadsheet sync source for AP, Banks, Loans, and AR"
   },
   {
@@ -273,8 +275,112 @@ const DEFAULT_EXTERNAL_LINKS: ExternalLinkItem[] = [
     iconType: "sheet",
     color: "#7c3aed",
     category: "tools",
+    subType: "sheet",
     description: "Payroll details, pivot data, and weekly breakdown tabs"
   },
+  {
+    id: "tool-big3-sheet",
+    name: "Weekly Big 3 Sheet",
+    url: "https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit",
+    iconType: "sheet",
+    color: "#059669",
+    category: "tools",
+    subType: "sheet",
+    description: "Weekly Big 3 Goals for Stand Up Meeting Discussion"
+  },
+  // ── TOOLS TAB → PORTALS ─────────────────────────────────────────────────────
+  {
+    id: "portal-zions-bank",
+    name: "Zion's Bank",
+    url: "https://www.zionsbank.com",
+    iconType: "globe",
+    color: "#1d4ed8",
+    category: "tools",
+    subType: "portal",
+    description: "Treasury & Banking"
+  },
+  {
+    id: "portal-usfoods",
+    name: "US Foods",
+    url: "https://www.usfoods.com",
+    iconType: "globe",
+    color: "#dc2626",
+    category: "tools",
+    subType: "portal",
+    description: "Portal. Use VPN"
+  },
+  {
+    id: "portal-remc",
+    name: "Parke County REMC",
+    url: "https://www.parkecountyremc.com",
+    iconType: "globe",
+    color: "#16a34a",
+    category: "tools",
+    subType: "portal",
+    description: "Portal. Use VPN"
+  },
+  {
+    id: "portal-godaddy",
+    name: "GoDaddy",
+    url: "https://account.godaddy.com",
+    iconType: "globe",
+    color: "#16a34a",
+    category: "tools",
+    subType: "portal",
+    description: "Website Hosting & Billing"
+  },
+  {
+    id: "portal-lastpass",
+    name: "LastPASS",
+    url: "https://www.lastpass.com",
+    iconType: "globe",
+    color: "#dc2626",
+    category: "tools",
+    subType: "portal",
+    description: "Password Vault"
+  },
+  {
+    id: "portal-toggl",
+    name: "Toggl",
+    url: "https://track.toggl.com",
+    iconType: "globe",
+    color: "#e11d48",
+    category: "tools",
+    subType: "portal",
+    description: "Time tracking tool"
+  },
+  {
+    id: "portal-sinc",
+    name: "SINC",
+    url: "https://sincsync.com",
+    iconType: "globe",
+    color: "#7c3aed",
+    category: "tools",
+    subType: "portal",
+    description: "4YR Payroll Time Tracking"
+  },
+  // ── TOOLS TAB → TOOLS ───────────────────────────────────────────────────────
+  {
+    id: "tool-content-week",
+    name: "Your Content Week",
+    url: "https://yourcontentweek.com",
+    iconType: "wrench",
+    color: "#0891b2",
+    category: "tools",
+    subType: "tool",
+    description: "Content Prompt Creator"
+  },
+  {
+    id: "tool-ops-portal",
+    name: "OPS Team Portal",
+    url: "https://ops.placeholder.com",
+    iconType: "wrench",
+    color: "#f59e0b",
+    category: "tools",
+    subType: "tool",
+    description: "Operations team portal"
+  },
+  // ── PLATFORMS TAB ───────────────────────────────────────────────────────────
   {
     id: "plat-qbo",
     name: "QuickBooks Online",
@@ -303,13 +409,86 @@ const DEFAULT_EXTERNAL_LINKS: ExternalLinkItem[] = [
     description: "Digital vendor payment automation"
   },
   {
-    id: "drive-main",
-    name: "Finance & Receipts Drive",
-    url: "https://drive.google.com/drive/folders/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs",
+    id: "plat-ghl",
+    name: "GoHighLevel",
+    url: "https://app.gohighlevel.com",
+    iconType: "globe",
+    color: "#7c3aed",
+    category: "platforms",
+    description: "GHL Platform"
+  },
+  {
+    id: "plat-amazon-sc",
+    name: "Amazon Seller Central",
+    url: "https://sellercentral.amazon.com",
+    iconType: "globe",
+    color: "#f59e0b",
+    category: "platforms",
+    description: "Seller Central for CPRO"
+  },
+  {
+    id: "plat-shopify",
+    name: "Shopify",
+    url: "https://admin.shopify.com",
+    iconType: "globe",
+    color: "#16a34a",
+    category: "platforms",
+    description: "Shopify admin for Ziglar"
+  },
+  {
+    id: "plat-woocommerce",
+    name: "WooCommerce",
+    url: "https://cpro.com/wp-admin",
+    iconType: "globe",
+    color: "#7c3aed",
+    category: "platforms",
+    description: "WC Backend for CPRO"
+  },
+  {
+    id: "plat-lightspeed",
+    name: "Lightspeed VT",
+    url: "https://app.lightspeedvt.com",
+    iconType: "globe",
+    color: "#0891b2",
+    category: "platforms",
+    description: "Superuser account for Ziglar"
+  },
+  {
+    id: "plat-keap",
+    name: "KEAP",
+    url: "https://app.keap.com",
+    iconType: "globe",
+    color: "#16a34a",
+    category: "platforms",
+    description: "Coaching Sales for Ziglar"
+  },
+  {
+    id: "plat-toast",
+    name: "Toast Tab",
+    url: "https://pos.toasttab.com",
+    iconType: "globe",
+    color: "#dc2626",
+    category: "platforms",
+    description: "Toast portal for Ruby's"
+  },
+  {
+    id: "plat-klaviyo",
+    name: "Klaviyo",
+    url: "https://www.klaviyo.com",
+    iconType: "globe",
+    color: "#1d4ed8",
+    category: "platforms",
+    description: "Email Campaigns"
+  },
+  // ── DRIVE FOLDERS TAB ───────────────────────────────────────────────────────
+  {
+    id: "drive-receipts-2026",
+    name: "Scanned Receipts (2026)",
+    url: "https://drive.google.com/drive/folders/RECEIPTS_2026",
     iconType: "folder",
     color: "#f59e0b",
     category: "drive",
-    description: "Main Google Drive folder storing invoices, receipts, and reports"
+    description: "Scanned & Uploaded Receipts from the Office - 2026"
   },
   {
     id: "drive-statements",
@@ -320,6 +499,52 @@ const DEFAULT_EXTERNAL_LINKS: ExternalLinkItem[] = [
     category: "drive",
     description: "Directory for bank PDFs, credit card statements, and reconciliations"
   },
+  {
+    id: "drive-ar-invoices",
+    name: "Accounts Receivables Invoices",
+    url: "https://drive.google.com/drive/folders/AR_INVOICES",
+    iconType: "folder",
+    color: "#1d4ed8",
+    category: "drive",
+    description: "Categorized AR Invoices"
+  },
+  {
+    id: "drive-ap-invoices",
+    name: "Accounts Payables Invoices",
+    url: "https://drive.google.com/drive/folders/AP_INVOICES",
+    iconType: "folder",
+    color: "#7c3aed",
+    category: "drive",
+    description: "Uploaded AP Invoices from the Portal"
+  },
+  {
+    id: "drive-entity-docs",
+    name: "Entity Documents",
+    url: "https://drive.google.com/drive/folders/ENTITY_DOCS",
+    iconType: "folder",
+    color: "#dc2626",
+    category: "drive",
+    description: "Company/Entity operations and registration documents"
+  },
+  {
+    id: "drive-ai-advantage",
+    name: "AI Advantage",
+    url: "https://drive.google.com/drive/folders/AI_ADVANTAGE",
+    iconType: "folder",
+    color: "#0891b2",
+    category: "drive",
+    description: "AI docs, information & activities"
+  },
+  {
+    id: "drive-main",
+    name: "Finance & Receipts Drive",
+    url: "https://drive.google.com/drive/folders/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs",
+    iconType: "folder",
+    color: "#f59e0b",
+    category: "drive",
+    description: "Main Google Drive folder storing invoices, receipts, and reports"
+  },
+  // ── QUICK LINKS ─────────────────────────────────────────────────────────────
   {
     id: "ext-gmail",
     name: "Gmail",
