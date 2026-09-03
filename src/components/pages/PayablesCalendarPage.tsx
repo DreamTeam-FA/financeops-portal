@@ -139,7 +139,7 @@ const DayEntityTotals: React.FC<{ dayBillArr: any[]; isLight: boolean }> = ({ da
   const totals = ENTITIES
     .map(en => ({
       entity: en,
-      amount: dayBillArr.filter(b => b.entity === en && b.status !== "paid").reduce((s, b) => s + (b.amount || 0), 0),
+      amount: dayBillArr.filter(b => b.entity === en && b.status !== "paid" && b.status !== "hold").reduce((s, b) => s + (b.amount || 0), 0),
       ec: entityColor(en),
     }))
     .filter(t => t.amount > 0);
@@ -419,13 +419,13 @@ export const PayablesCalendarPage: React.FC = () => {
 
   /* Column 1: Overdue — unpaid, due before last-week Monday */
   const overdueOldBills = useMemo(() =>
-    bills.filter((b: any) => b.status !== "paid" && b.dueDate && b.dueDate < lastWeekMondayStr),
+    bills.filter((b: any) => b.status !== "paid" && b.status !== "hold" && b.dueDate && b.dueDate < lastWeekMondayStr),
   [bills, lastWeekMondayStr]);
 
   /* Column 2: Last week — unpaid, due Mon–Sun of last week */
   const lastWeekBills = useMemo(() =>
     bills.filter((b: any) =>
-      b.status !== "paid" && b.dueDate &&
+      b.status !== "paid" && b.status !== "hold" && b.dueDate &&
       b.dueDate >= lastWeekMondayStr && b.dueDate <= lastWeekSundayStr
     ),
   [bills, lastWeekMondayStr, lastWeekSundayStr]);
@@ -435,7 +435,7 @@ export const PayablesCalendarPage: React.FC = () => {
     const map: Record<string, any[]> = {};
     weekDays.forEach(d => { map[toYMD(d)] = []; });
     bills.forEach(b => {
-      if (b.status !== "paid" && b.dueDate && map[b.dueDate] !== undefined) {
+      if (b.status !== "paid" && b.status !== "hold" && b.dueDate && map[b.dueDate] !== undefined) {
         map[b.dueDate].push(b);
       }
     });
@@ -446,7 +446,6 @@ export const PayablesCalendarPage: React.FC = () => {
   const weekUnpaidTotal = useMemo(() =>
     weekDays.reduce((sum, d) =>
       sum + (dayBills[toYMD(d)] || [])
-        .filter((b: any) => b.status !== "paid")
         .reduce((s: number, b: any) => s + (b.amount || 0), 0),
     0),
   [dayBills, weekDays]);
@@ -625,7 +624,7 @@ export const PayablesCalendarPage: React.FC = () => {
               const ec = entityColor(en);
               const enTotal = weekDays.reduce((sum, d) =>
                 sum + (dayBills[toYMD(d)] || [])
-                  .filter((b: any) => b.entity === en && b.status !== "paid")
+                  .filter((b: any) => b.entity === en && b.status !== "paid" && b.status !== "hold")
                   .reduce((s: number, b: any) => s + (b.amount || 0), 0),
               0);
               if (enTotal === 0) return null;

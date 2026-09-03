@@ -906,11 +906,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           fetch("/api/login-log").then(r => r.json()).then(ll => { if (Array.isArray(ll)) setLoginLogs(ll); }).catch(() => {});
           fetch("/api/logs-sheet-id").then(r => r.json()).then(({ logsSheetId: id }) => { if (id) setLogsSheetId(id); }).catch(() => {});
 
-          // Financial fallback: only use server JSON when localStorage cache is absent
-          if (!cache) {
-            applyData(serverData);
-            setIsLoading(false);
-          }
+          // NOTE: Do NOT apply server JSON financial data (ap/ar/banks) as a fallback.
+          // Server JSON is from the last committed financeops_data.json and can be weeks stale.
+          // Financial data only comes from localStorage cache (< 20 min) or pull-live (Step 4).
+          // If neither is available, keep isLoading true until pull-live delivers fresh Sheet data.
         }
       } catch (err) {
         console.error("[init] Failed to load server data:", err);
