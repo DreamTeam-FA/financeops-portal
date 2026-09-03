@@ -373,7 +373,7 @@ const DEFAULT_EXTERNAL_LINKS: ExternalLinkItem[] = [
   {
     id: "tool-ops-portal",
     name: "OPS Team Portal",
-    url: "https://ops.placeholder.com",
+    url: "https://opsteam-portal.onrender.com",
     iconType: "wrench",
     color: "#f59e0b",
     category: "tools",
