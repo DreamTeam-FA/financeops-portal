@@ -1159,51 +1159,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         startAutoTokenRefresh();
         logAction("Google OAuth Authenticated", `Connected as ${res.user.email}`);
         window.dispatchEvent(new Event("google-token-refreshed"));
-        // After sign-in: restore known bill-copy Drive links to the sheet (sheet is source of truth),
-        // then Pull All so the portal reads them back from the sheet normally.
-        setTimeout(async () => {
-          try {
-            const token = getAccessToken();
-            if (token) {
-              await fetch("/api/drive/restore-known-good-links", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ userAccessToken: token }),
-              });
-              // Clean up any wrong-format rows appended by old code, then sync portal AR items
-              await fetch("/api/ar/cleanup-bad-rows", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ userAccessToken: token }),
-              });
-              // Purge AEI phantom entries from server cache BEFORE sync-to-sheet runs,
-              // so they never get written to the sheet (server.ts fix awaits Oct 1 redeploy)
-              try {
-                const sd = await fetch("/api/data").then(r => r.json());
-                if (sd?.ar) {
-                  const cleanedAr = (sd.ar as any[]).filter(
-                    i => !/^AEI\s*[-–]\s*[AB]$/i.test(String(i.customer || ""))
-                  );
-                  if (cleanedAr.length < sd.ar.length) {
-                    await fetch("/api/data", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ ...sd, ar: cleanedAr }),
-                    });
-                  }
-                }
-              } catch { /* non-fatal */ }
-              await fetch("/api/ar/sync-portal-items-to-sheet", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ userAccessToken: token }),
-              });
-              // Give the sheet a moment to commit the writes before we pull
-              await new Promise(r => setTimeout(r, 3000));
-            }
-          } catch { /* non-fatal — Pull All still runs below */ }
+        // After sign-in: pull live from Google Sheets immediately.
+        // Sheets are the ONLY source of truth — do NOT write any cached data back to the sheet.
+        setTimeout(() => {
           syncAllFromGoogleSheets().catch(() => {});
-        }, 1000);
+        }, 500);
         // Capture device + location, then ensure the logs sheet exists and append the login entry
         captureLoginMetadata().then(async (meta) => {
           const token = getAccessToken();
