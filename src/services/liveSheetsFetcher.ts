@@ -822,20 +822,43 @@ export async function fetchFullLiveDataset(accessToken?: string) {
     });
   });
 
-  // Banks
+  // Banks — new sheet layout: Entity(A), Account(B), Balance(C), Yesterday(D), Last Updated(E)
+  // Scan up to 10 rows to find the actual header row (handles blank rows 1-3 before header at row 4)
   const banks: any[] = [];
-  (dataByTab["Bank Balances"] || []).forEach((row, i) => {
-    const name = String(row[0] || "").trim();
-    if (!name || name.toLowerCase().includes("company") || name.startsWith("Date")) return;
-    const bal = typeof row[1] === "number" ? row[1] : parseFloat(String(row[1]).replace(/[^0-9.-]+/g, "")) || 0;
-    const yestVal = typeof row[2] === "number" ? row[2] : parseFloat(String(row[2] || "").replace(/[^0-9.-]+/g, "")) || Math.round(bal * 0.98);
-    const asOf = parseDateVal(row[3]) || new Date().toISOString().split("T")[0];
-    let entity: EntityName = "Ruby's";
-    if (name.includes("4G") || name.includes("E1") || name.includes("TI") || name.includes("4YR")) entity = "TI";
-    else if (name.includes("MSDx")) entity = "MSDx";
-    else if (name.includes("Curcumin")) entity = "CurcuminPro";
+  const bankRows = dataByTab["Bank Balances"] || [];
+  const BANK_HEADER_KW = /entity|company|account|balance|bank|yesterday|updated/i;
+  let bankHeaderIdx = 0;
+  for (let h = 0; h < Math.min(bankRows.length, 10); h++) {
+    const rowStr = (bankRows[h] || []).map((c: any) => String(c || "")).join(" ");
+    if (BANK_HEADER_KW.test(rowStr) && rowStr.trim().length > 0) { bankHeaderIdx = h; break; }
+  }
+  const bankHeaders = (bankRows[bankHeaderIdx] || []).map((h: any) => String(h || "").toLowerCase().trim());
+  let bEntityIdx = bankHeaders.findIndex((h: string) => /^entity$/i.test(h));
+  let bBankIdx   = bankHeaders.findIndex((h: string) => /account|bank|institution|name|company/i.test(h));
+  let bBalIdx    = bankHeaders.findIndex((h: string) => /bal|balance|amount|\$/i.test(h));
+  let bYestIdx   = bankHeaders.findIndex((h: string) => /yesterday|prev|previous/i.test(h));
+  let bAsOfIdx   = bankHeaders.findIndex((h: string) => /updated|as_of|date/i.test(h));
+  // Fallbacks for new 5-col layout: Entity(0), Account(1), Balance(2), Yesterday(3), Last Updated(4)
+  if (bEntityIdx === -1) bEntityIdx = 0;
+  if (bBankIdx   === -1) bBankIdx   = bEntityIdx + 1;
+  if (bBalIdx    === -1) bBalIdx    = bEntityIdx + 2;
+  if (bYestIdx   === -1) bYestIdx   = bEntityIdx + 3;
+  if (bAsOfIdx   === -1) bAsOfIdx   = bEntityIdx + 4;
+  bankRows.slice(bankHeaderIdx + 1).forEach((row: any[], i: number) => {
+    if (!row || row.every((c: any) => !c || String(c).trim() === "")) return;
+    const rawEntity = String(row[bEntityIdx] || "").trim();
+    const name      = String(row[bBankIdx]   || "").trim();
+    // Skip obvious header/label rows
+    if (!rawEntity && !name) return;
+    if (/^entity$|^company$|^account$|^bank$/i.test(rawEntity)) return;
+    const bal     = typeof row[bBalIdx] === "number" ? row[bBalIdx] : parseFloat(String(row[bBalIdx] || "").replace(/[^0-9.-]+/g, "")) || 0;
+    const yestStr = bYestIdx !== -1 ? String(row[bYestIdx] || "").replace(/[^0-9.-]+/g, "") : "";
+    const yestVal = yestStr ? (parseFloat(yestStr) || 0) : Math.round(bal * 0.98);
+    const asOf    = parseDateVal(row[bAsOfIdx]) || new Date().toISOString().split("T")[0];
+    // Entity: use raw value from sheet verbatim; no normalisation collapse
+    const entity: EntityName = (rawEntity as EntityName) || "Ruby's";
 
-    banks.push({ id: `b-${i + 1}`, entity, bank: name, type: "Operating", acct: "...", balance: bal, yesterday: yestVal, asOf, status: "Active", trend: bal >= yestVal ? "up" : "down" });
+    banks.push({ id: `b-${i + 1}`, entity, bank: name || rawEntity, type: "Operating", acct: "...", balance: bal, yesterday: yestVal, asOf, status: "Active", trend: bal >= yestVal ? "up" : "down" });
   });
 
   // Loans & Credit Cards

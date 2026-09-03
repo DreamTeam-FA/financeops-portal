@@ -580,11 +580,11 @@ const PortalContent: React.FC = () => {
       {/* Mobile Bottom Navigation */}
       <nav className={`md:hidden fixed bottom-0 left-0 right-0 ${theme === "light" ? "bg-white border-slate-200" : "bg-[#0f0f0f] border-[#262626]"} border-t flex justify-around items-center py-2 px-1 z-50 text-[10px] safe-area-inset-bottom`}>
         {[
-          { page: "hub",     icon: <LayoutDashboard className="w-5 h-5" />, label: "Hub" },
-          { page: "ap",      icon: <CreditCard className="w-5 h-5" />,      label: "AP" },
-          { page: "banks",   icon: <Landmark className="w-5 h-5" />,        label: "Banks" },
-          { page: "ar",      icon: <Receipt className="w-5 h-5" />,         label: "AR" },
-          { page: "payroll", icon: <Users className="w-5 h-5" />,           label: "Payroll" },
+          { page: "hub",         icon: <LayoutDashboard className="w-5 h-5" />, label: "Hub" },
+          { page: "ap",          icon: <CreditCard className="w-5 h-5" />,      label: "AP" },
+          { page: "banks",       icon: <Landmark className="w-5 h-5" />,        label: "Banks" },
+          { page: "ar",          icon: <Receipt className="w-5 h-5" />,         label: "AR" },
+          { page: "ap-calendar", icon: <CalendarDays className="w-5 h-5" />,    label: "Calendar" },
         ].map(item => (
           <button
             key={item.page}
