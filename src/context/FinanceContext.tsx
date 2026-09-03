@@ -517,6 +517,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setExternalLinks(updated);
     localStorage.setItem("financeops_external_links", JSON.stringify(updated));
     persistChanges({ externalLinks: updated });
+    // Persist to config sheet — survives Render restarts and browser cache clears
+    const tok = getAccessToken();
+    if (tok) writeConfigKey(tok, "externalLinks", updated, userEmail).catch(() => {});
     logAction("Added External Link", `Added '${link.name}' link (${link.url})`);
   };
 
@@ -525,6 +528,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setExternalLinks(updated);
     localStorage.setItem("financeops_external_links", JSON.stringify(updated));
     persistChanges({ externalLinks: updated });
+    const tok = getAccessToken();
+    if (tok) writeConfigKey(tok, "externalLinks", updated, userEmail).catch(() => {});
     logAction("Updated External Link", `Updated link ID '${id}'`);
   };
 
@@ -533,6 +538,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setExternalLinks(updated);
     localStorage.setItem("financeops_external_links", JSON.stringify(updated));
     persistChanges({ externalLinks: updated });
+    const tok = getAccessToken();
+    if (tok) writeConfigKey(tok, "externalLinks", updated, userEmail).catch(() => {});
     logAction("Deleted External Link", `Removed link ID '${id}'`);
   };
 
@@ -972,6 +979,31 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         } else if (serverGasUrls && Object.keys(serverGasUrls).length > 0) {
           // Seed gasUrls too on first run
           writeConfigKey(tok, "gasUrls", serverGasUrls, userEmail).catch(() => {});
+        }
+        // Restore externalLinks (portals, platforms, drive folders) from config sheet
+        // — the ONLY storage that survives Render restarts and browser cache clears
+        if (cfg.externalLinks && Array.isArray(cfg.externalLinks) && cfg.externalLinks.length > 0) {
+          const defaultIds = new Set(DEFAULT_EXTERNAL_LINKS.map(d => d.id));
+          const lsRaw = (() => { try { return localStorage.getItem("financeops_external_links"); } catch { return null; } })();
+          const lsLinks: ExternalLinkItem[] = lsRaw ? (() => { try { return JSON.parse(lsRaw); } catch { return []; } })() : [];
+          const lsHasUserAdded = lsLinks.some(l => !defaultIds.has(l.id));
+          // Config sheet is always authoritative — it has more user-added links than localStorage
+          const cfgUserAdded = (cfg.externalLinks as ExternalLinkItem[]).filter(l => !defaultIds.has(l.id));
+          if (cfgUserAdded.length > 0 && !lsHasUserAdded) {
+            // localStorage has only defaults — restore user links from config sheet
+            const merged = [...DEFAULT_EXTERNAL_LINKS, ...cfgUserAdded];
+            setExternalLinks(merged);
+            localStorage.setItem("financeops_external_links", JSON.stringify(merged));
+          } else if (cfgUserAdded.length > lsLinks.filter(l => !defaultIds.has(l.id)).length) {
+            // Config sheet has more user-added links than localStorage — merge in the extras
+            const lsUserIds = new Set(lsLinks.filter(l => !defaultIds.has(l.id)).map(l => l.id));
+            const newFromCfg = cfgUserAdded.filter(l => !lsUserIds.has(l.id));
+            if (newFromCfg.length > 0) {
+              const merged = [...lsLinks, ...newFromCfg];
+              setExternalLinks(merged);
+              localStorage.setItem("financeops_external_links", JSON.stringify(merged));
+            }
+          }
         }
       }).catch(() => {}); // non-fatal — fall back to server JSON / localStorage
 
