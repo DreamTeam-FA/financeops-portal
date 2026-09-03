@@ -247,6 +247,7 @@ export const CalendarPage: React.FC = () => {
         if ((err as any)?.status === 401) {
           clearAccessToken();
           setHasGoogleToken(false);
+          window.dispatchEvent(new CustomEvent("google-token-expired"));
         } else {
           console.warn("Calendar sheet load failed:", err);
         }

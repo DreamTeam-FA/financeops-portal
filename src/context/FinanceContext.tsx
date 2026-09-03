@@ -596,7 +596,7 @@ const DEFAULT_MAPPINGS: SheetMappingConfig[] = [
     name: "Accounts Receivable (Invoices)",
     spreadsheetIdOrUrl: DEFAULT_SHEET_URL,
     tabName: "AR Dashboard Data",
-    range: "'AR Dashboard Data'!A1:L200",
+    range: "'AR Dashboard Data'!A1:BZ200",
     status: "connected"
   },
   {
@@ -728,7 +728,15 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [externalLinks, setExternalLinks] = useState<ExternalLinkItem[]>(() => {
     try {
       const saved = localStorage.getItem("financeops_external_links");
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed: ExternalLinkItem[] = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          // Merge: keep saved items + inject any new defaults not already present
+          const savedIds = new Set(parsed.map((l) => l.id));
+          const newDefaults = DEFAULT_EXTERNAL_LINKS.filter((d) => !savedIds.has(d.id));
+          return newDefaults.length > 0 ? [...parsed, ...newDefaults] : parsed;
+        }
+      }
     } catch (e) {}
     return DEFAULT_EXTERNAL_LINKS;
   });
