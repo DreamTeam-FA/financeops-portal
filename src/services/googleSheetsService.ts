@@ -492,6 +492,7 @@ export const parseAPSheetRows = (
     const invoiceDateVal = parseDateVal(row[7]) || String(row[7] || "").trim();
 
     // driveViewUrl — read from the entity's dedicated Drive links column (confirmed in sheet)
+    const map = getAPColMap(entity);
     const driveUrlRaw = map.driveViewUrlCol !== null ? String(row[map.driveViewUrlCol] || "").trim() : "";
     // Only accept actual Google Drive URLs — reject Gmail, mail, or other non-Drive links
     const driveViewUrl = /^https:\/\/(drive|docs)\.google\.com\//i.test(driveUrlRaw) ? driveUrlRaw : undefined;
@@ -1433,7 +1434,8 @@ const zeroIdxColLetter = (c: number): string => {
 const AR_MONTH_COLS: Record<string, { invCol: number; appCol: number; senCol: number; payCol: number; remCol: number }> = (() => {
   const names = ["March","April","May","June","July","August","September","October","November","December"];
   const map: Record<string, { invCol: number; appCol: number; senCol: number; payCol: number; remCol: number }> = {};
-  map["March"] = { invCol: -1, appCol: -1, senCol: -1, payCol: -1, remCol: 12 };
+  // March block starts at col 4 (0-based): inv=4, app=6, sen=8, pay=10, rem=12, due=13, amt=14
+  map["March"] = { invCol: 4, appCol: 6, senCol: 8, payCol: 10, remCol: 12 };
   let prevAmt = 14;
   for (let i = 1; i < names.length; i++) {
     const b = prevAmt + 1;

@@ -293,6 +293,7 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
       dueDate,
       amount: parseFloat(amount) || 0,
       paymentDate: paymentDate || undefined,
+      paidDate: paymentDate || undefined,
       method: "Manual",
       status: "unpaid" as const,
       sheet: selectedSheet,

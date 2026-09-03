@@ -478,7 +478,7 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
     try {
       const tokenClient = gis.initTokenClient({
         client_id: clientId,
-        scope: "https://www.googleapis.com/auth/gmail.readonly",
+        scope: GMAIL_SCOPE,
         callback: async (resp: any) => {
           setConnecting(false);
           if (resp.error) {

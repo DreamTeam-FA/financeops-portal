@@ -25,10 +25,13 @@ export const ScanToFill: React.FC<Props> = ({ type, isLight, onFill, resetKey })
   const [done, setDone] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const prevKey = useRef(resetKey);
+  // Track current request so a reset mid-scan doesn't inject stale data
+  const reqSeqRef = useRef(0);
 
   // Reset when resetKey changes
   if (resetKey !== prevKey.current) {
     prevKey.current = resetKey;
+    reqSeqRef.current++; // invalidate any in-flight scan
     if (done) setDone(false);
     if (state !== "idle") setState("idle");
     setError(null);
@@ -38,12 +41,23 @@ export const ScanToFill: React.FC<Props> = ({ type, isLight, onFill, resetKey })
 
   const processFile = useCallback(async (file: File) => {
     const isAccepted = file.type.startsWith("image/") || file.type === "application/pdf";
-    if (!isAccepted) return;
+    if (!isAccepted) {
+      setError("Unsupported file type. Please drop an image or PDF.");
+      setState("error");
+      return;
+    }
     setError(null);
     setState("scanning");
+    const mySeq = ++reqSeqRef.current;
 
     const reader = new FileReader();
+    reader.onerror = () => {
+      if (reqSeqRef.current !== mySeq) return;
+      setState("error");
+      setError("Could not read the file. Please try again.");
+    };
     reader.onload = async (e) => {
+      if (reqSeqRef.current !== mySeq) return; // reset happened — discard
       const dataUrl = e.target?.result as string;
       const base64 = dataUrl.split(",")[1];
       try {
@@ -52,6 +66,7 @@ export const ScanToFill: React.FC<Props> = ({ type, isLight, onFill, resetKey })
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ imageBase64: base64, mimeType: file.type || "image/jpeg" })
         });
+        if (reqSeqRef.current !== mySeq) return; // reset happened mid-fetch
         const json = await resp.json();
         if (!resp.ok || !json.ok) {
           setState("error");
@@ -64,6 +79,7 @@ export const ScanToFill: React.FC<Props> = ({ type, isLight, onFill, resetKey })
           setState("idle");
         }
       } catch (err: any) {
+        if (reqSeqRef.current !== mySeq) return;
         setState("error");
         setError(err?.message || "Network error");
       }

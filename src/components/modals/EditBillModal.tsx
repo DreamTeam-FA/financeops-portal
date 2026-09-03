@@ -135,26 +135,35 @@ export const EditBillModal: React.FC<EditBillModalProps> = ({ bill, isOpen, onCl
       amount: parseFloat(amount) || 0,
       paymentDate: paymentDate || undefined,
       paidDate: paymentDate || undefined,
-      method: "Manual" as any,
+      method: (bill.method || "Manual") as any,
       status,
       inQBO,
       sheet: selectedSheet,
-      // Clear all remarks fields then set correct one
-      remarks: undefined,
-      notes: undefined,
-      paymentInstructions: undefined,
-      status1: undefined,
+      // Preserve all remarks fields; only overwrite the targeted one below
+      remarks: bill.remarks,
+      notes: bill.notes,
+      paymentInstructions: bill.paymentInstructions,
+      status1: bill.status1,
     };
 
     if (isTI) {
-      if (remarks) {
-        if (remarksTarget === "payvia") updated.method = remarks as any;
-        else updated.remarks = remarks;
+      if (remarksTarget === "payvia") {
+        updated.method = (remarks || bill.method || "Manual") as any;
+        updated.remarks = bill.remarks;
+      } else {
+        updated.remarks = remarks || "";
+        // Preserve method from existing bill for TI if not editing payvia
+        updated.method = (bill.method || "Manual") as any;
       }
     } else {
       if (remarks) {
-        if (remarksTarget === "instr") updated.paymentInstructions = remarks;
-        else updated.status1 = remarks;
+        if (remarksTarget === "instr") {
+          updated.paymentInstructions = remarks;
+          updated.status1 = bill.status1; // preserve other field
+        } else {
+          updated.status1 = remarks;
+          updated.paymentInstructions = bill.paymentInstructions; // preserve other field
+        }
       }
     }
 

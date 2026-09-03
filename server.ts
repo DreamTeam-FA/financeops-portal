@@ -1938,13 +1938,11 @@ app.post("/api/drive/remap-all-bill-links", async (req, res) => {
 // =============================================================================
 
 const GEMINI_MODELS = [
-  { version: "v1beta", model: "gemini-3.5-flash"      },
-  { version: "v1beta", model: "gemini-3.5-flash-lite"  },
-  { version: "v1beta", model: "gemini-3.6-flash"      },
-  { version: "v1beta", model: "gemini-3.7-flash"      },
   { version: "v1beta", model: "gemini-2.5-flash"      },
   { version: "v1beta", model: "gemini-2.5-flash-lite" },
   { version: "v1beta", model: "gemini-2.5-pro"        },
+  { version: "v1beta", model: "gemini-2.0-flash"      },
+  { version: "v1beta", model: "gemini-1.5-flash"      },
 ];
 
 async function callGemini(apiKey: string, prompt: string, imageBase64: string, mimeType: string, maxTokens: number): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
@@ -3257,8 +3255,10 @@ app.post("/api/sheets/clone-blank", async (req, res) => {
  * Returns: { emails: [{ id, subject, from, date, snippet, attachments }] }
  */
 app.post("/api/email/scan-inbox", async (req, res) => {
-  const { accessToken, newerThan = "30d" } = req.body || {};
+  const { accessToken, newerThan: newerThanRaw = "30d" } = req.body || {};
   if (!accessToken) return res.status(401).json({ error: "accessToken required" });
+  // Validate newerThan to prevent query injection (e.g. "30d" is valid, anything else is rejected)
+  const newerThan = /^\d{1,3}d$/.test(String(newerThanRaw)) ? String(newerThanRaw) : "30d";
 
   try {
     const auth = new google.auth.OAuth2();
@@ -3807,7 +3807,7 @@ app.get("/api/workflows", async (req, res) => {
     }
 
     // ── Fallback: Drive HTML export (works with drive scope, no extra API needed) ──
-    if (!workflows) {
+    if (!workflows || !workflows.length) {
       const exportUrl = `https://www.googleapis.com/drive/v3/files/${WORKFLOWS_DOC_ID}/export?mimeType=text%2Fhtml`;
       const exportResp = await fetch(exportUrl, { headers: { Authorization: `Bearer ${token}` } });
       if (!exportResp.ok) {

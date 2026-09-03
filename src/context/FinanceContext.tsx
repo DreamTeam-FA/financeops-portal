@@ -935,11 +935,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [arItems, setArItems] = useState<ARItem[]>([]);
-  // Filter AEI-A / AEI-B entries that are injected on every Render restart.
-  // Match by customer name so the filter survives ID reassignment across syncs.
+  // Sheet is source of truth — do not filter out any customer by name.
+  // Only filter by stale hardcoded IDs that were JSON-only artifacts (never in the sheet).
   const sanitizeAr = (items: ARItem[]) =>
     items.filter(i =>
-      !(i.customer || "").match(/^AEI\s*[-–]\s*[AB]$/i) &&
       i.id !== 'ar-1788266535918' && i.id !== 'ar-1788266562934'
     );
   const [bankStatements, setBankStatements] = useState<BankStatement[]>([]);
@@ -2607,7 +2606,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         body: JSON.stringify({ ...newAR, userAccessToken: token }),
       }).then(r => r.json()).then(result => {
         if (result.ok) showToast("AR Invoice saved to Sheet ✓", "success", 2500);
-        else { console.warn("[addARItem] sheet write failed:", result.error); showToast("Saved locally; sheet write failed — try Pull All later.", "warning", 4000); }
+        else { console.warn("[addARItem] sheet write failed:", result.error); showToast("Saved locally; sheet write failed — try Pull All later.", "error", 4000); }
       }).catch(e => { console.warn("[addARItem] sheet write error:", e?.message); });
     }
   };

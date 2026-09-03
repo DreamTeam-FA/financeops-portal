@@ -1092,9 +1092,9 @@ export async function fetchFullLiveDataset(accessToken?: string) {
           // Col D (index 3) = occurrence (Monthly / Quarterly / Annual).
           // Old code erroneously used row[6] which falls inside the March-Approval block.
           occurrence:  String(row[3] || "Monthly"),
-          invoice:     isTrue(invVal) || amt > 0,
-          approval:    isTrue(appVal) || amt > 0,
-          sent:        isTrue(senVal) || amt > 0,
+          invoice:     mCfg.invCol  >= 0 ? isTrue(invVal) : (amt > 0),
+          approval:    mCfg.appCol  >= 0 ? isTrue(appVal) : (amt > 0),
+          sent:        mCfg.senCol  >= 0 ? isTrue(senVal) : (amt > 0),
           payment:     isTrue(payVal),
           remarks:     remarksVal !== "null" ? remarksVal : "",
           row:         i + 1,

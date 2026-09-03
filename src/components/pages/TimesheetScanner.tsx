@@ -112,19 +112,24 @@ export const TimesheetScanner: React.FC<Props> = ({ isLight }) => {
 
     setItems(prev => [...newItems, ...prev]);
 
-    // Scan all in parallel
-    await Promise.all(
-      imageFiles.map(async (file, i) => {
-        const { result, error } = await scanFile(file);
-        setItems(prev =>
-          prev.map(item =>
-            item.id === newItems[i].id
-              ? { ...item, status: error ? "error" : "done", result, error }
-              : item
-          )
-        );
-      })
-    );
+    // Scan with limited concurrency (2 at a time) to avoid Gemini rate limits
+    const CONCURRENCY = 2;
+    const queue = imageFiles.map((file, i) => ({ file, i }));
+    const runNext = async (): Promise<void> => {
+      const entry = queue.shift();
+      if (!entry) return;
+      const { file, i } = entry;
+      const { result, error } = await scanFile(file);
+      setItems(prev =>
+        prev.map(item =>
+          item.id === newItems[i].id
+            ? { ...item, status: error ? "error" : (result ? "done" : "error"), result, error: error || (!result ? "No data returned from scan" : undefined) }
+            : item
+        )
+      );
+      await runNext();
+    };
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, imageFiles.length) }, runNext));
   }, [scanFile]);
 
   const onDrop = (e: React.DragEvent) => {

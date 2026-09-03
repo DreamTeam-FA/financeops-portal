@@ -244,7 +244,8 @@ export const CalendarPage: React.FC = () => {
         setHasGoogleToken(true);
       })
       .catch(err => {
-        if ((err as any)?.status === 401) {
+        const status = (err as any)?.status;
+        if (status === 401 || status === 403) {
           clearAccessToken();
           setHasGoogleToken(false);
           window.dispatchEvent(new CustomEvent("google-token-expired"));
@@ -385,9 +386,13 @@ export const CalendarPage: React.FC = () => {
         setHasGoogleToken(true);
       })
       .catch(err => {
-        if ((err as any)?.status === 401) {
+        const status = (err as any)?.status;
+        if (status === 401 || status === 403) {
           clearAccessToken();
           setHasGoogleToken(false);
+          window.dispatchEvent(new CustomEvent("google-token-expired"));
+        } else {
+          console.warn("Google Calendar fetch failed:", err);
         }
       })
       .finally(() => setLoadingGoogleCal(false));
@@ -1205,12 +1210,12 @@ export const CalendarPage: React.FC = () => {
                                     amount: totalApAmt,
                                     billsList: dayApBills,
                                     description: dayApBills
-                                      .map((b) => `${b.company || "AP"} · ${b.vendor} · $${b.amount.toFixed(2)} [${b.status || "Unpaid"}]`)
+                                      .map((b) => `${b.company || "AP"} · ${b.vendor} · $${(Number(b.amount) || 0).toFixed(2)} [${b.status || "Unpaid"}]`)
                                       .join("\n")
                                   });
                                 }}
                                 title={dayApBills
-                                  .map((b) => `${b.company || "AP"}: ${b.vendor} ($${b.amount.toFixed(2)})`)
+                                  .map((b) => `${b.company || "AP"}: ${b.vendor} ($${(Number(b.amount) || 0).toFixed(2)})`)
                                   .join("\n")}
                                 className={`text-[11px] px-2 py-1 rounded-md font-bold ${apColor.bg} ${apColor.text} shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] cursor-pointer transition-opacity hover:opacity-90 flex flex-col gap-0.5 border border-amber-300/30`}
                               >
@@ -1386,12 +1391,12 @@ export const CalendarPage: React.FC = () => {
                                 amount: totalApAmt,
                                 billsList: dayApBills,
                                 description: dayApBills
-                                  .map((b) => `${b.company || "AP"} · ${b.vendor} · $${b.amount.toFixed(2)} [${b.status || "Unpaid"}]`)
+                                  .map((b) => `${b.company || "AP"} · ${b.vendor} · $${(Number(b.amount) || 0).toFixed(2)} [${b.status || "Unpaid"}]`)
                                   .join("\n")
                               });
                             }}
                             title={dayApBills
-                              .map((b) => `${b.company || "AP"}: ${b.vendor} ($${b.amount.toFixed(2)})`)
+                              .map((b) => `${b.company || "AP"}: ${b.vendor} ($${(Number(b.amount) || 0).toFixed(2)})`)
                               .join("\n")}
                             className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${apColor.bg} ${apColor.text} shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] cursor-pointer truncate transition-opacity hover:opacity-90 flex items-center gap-1`}
                           >

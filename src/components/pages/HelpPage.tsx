@@ -35,7 +35,7 @@ const FAQ = [
   },
   {
     q: "How do I reconnect Google Sheets after a token expires?",
-    a: "Click the ⚙️ gear icon → your profile area or wait for the amber 'Google Auth' toast to appear. Click 'Reconnect Google Sheets' and complete the Google OAuth flow. Tokens expire every hour — the portal will prompt you automatically.",
+    a: "Click the ⚙️ gear icon → your profile area or wait for the amber 'Google Auth' banner at the top of any page. Click 'Reconnect Google Sheets' and complete the Google OAuth flow. Tokens expire every hour — the portal detects both 401 and 403 errors on any page (Calendar, AR, AP, etc.) and shows the amber reconnect banner globally, not just on one page.",
   },
   {
     q: "Why are some bills not showing up in the portal?",
@@ -79,7 +79,11 @@ const FAQ = [
   },
   {
     q: "What is Gemini AI used for in the portal?",
-    a: "Gemini AI powers all of the AI scanning features: bill scanner, invoice scanner, timesheet scanner, PDF data extractor, and email invoice scanner. No setup is needed on your end — the portal uses a server-side API key stored securely in the Render environment. If the primary quota is exceeded, the portal falls back to backup Gemini models automatically. You can check current API status and usage on the Service Limits & Usage page.",
+    a: "Gemini AI powers all of the AI scanning features: bill scanner, invoice scanner, timesheet scanner, PDF data extractor, and email invoice scanner. No setup is needed on your end — the portal uses a server-side API key stored securely in the Render environment. The portal tries Gemini 2.5 Flash first (fastest), then falls back to 2.5 Flash-Lite, 2.5 Pro, 2.0 Flash, and 1.5 Flash if quota is exhausted. You can check current API status and usage on the Service Limits & Usage page.",
+  },
+  {
+    q: "Why is the Email Invoice Scanner 'Scan' button greyed out after connecting?",
+    a: "The Connect Inbox button requests both Gmail read and userinfo.email scopes. If the connection appears to succeed but the Scan button stays disabled, try clicking 'Connect Inbox' again to re-authorize with the correct scopes. This is fixed in the latest version — connecting should now correctly unlock the Scan button.",
   },
   {
     q: "Why does 'Connect Inbox' fail with an origin error on the Email Scanner?",
