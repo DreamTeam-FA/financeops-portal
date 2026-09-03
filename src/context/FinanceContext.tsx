@@ -1117,8 +1117,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const onTokenExpired = () => {
       // Only show the toast if the user had a token (i.e. was connected)
       if (!needsAuth) {
+        // Mark as needing re-auth so the persistent header banner appears on ALL pages
+        setNeedsAuth(true);
         setSyncToast({
-          message: "Google Sheets token expired — click Reconnect to restore access.",
+          message: "⚠️ Google Sheets token expired — your changes won't sync until you reconnect.",
           type: "auth-error",
         });
         // duration 0 → persistent; user must click Reconnect or dismiss
