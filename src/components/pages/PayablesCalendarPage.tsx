@@ -228,6 +228,23 @@ const SummaryColumn: React.FC<{
         <div className="text-[9px] opacity-70">{bills.length} bill{bills.length !== 1 ? "s" : ""} · {groups.length} vendor{groups.length !== 1 ? "s" : ""}</div>
       </div>
 
+      {/* Per-entity totals — top, before bill rows */}
+      {entityTotals.length > 0 && (
+        <div className={`px-2 py-1.5 border-b shrink-0 ${isLight ? "border-slate-100 bg-slate-50" : "border-[#1a2235] bg-[#0a0e16]"}`}>
+          {entityTotals.map(t => (
+            <div key={t.entity} className="flex items-center justify-between mb-0.5 last:mb-0">
+              <div className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: t.ec.bar }} />
+                <span className={`text-[9px] font-semibold ${isLight ? "text-slate-400" : "text-[#555]"}`}>{t.entity}</span>
+              </div>
+              <span className={`text-[10px] font-extrabold ${isLight ? "text-slate-700" : "text-[#ccc]"}`}>
+                {formatCurrency(t.amount)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Vendor group rows */}
       <div className="flex-1 overflow-y-auto p-2">
         {groups.length === 0 ? (
@@ -244,23 +261,6 @@ const SummaryColumn: React.FC<{
           ))
         )}
       </div>
-
-      {/* Per-entity footer */}
-      {entityTotals.length > 0 && (
-        <div className={`px-2 py-1.5 border-t shrink-0 ${isLight ? "border-slate-100 bg-slate-50" : "border-[#1a2235] bg-[#0a0e16]"}`}>
-          {entityTotals.map(t => (
-            <div key={t.entity} className="flex items-center justify-between mb-0.5 last:mb-0">
-              <div className="flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: t.ec.bar }} />
-                <span className={`text-[9px] font-semibold ${isLight ? "text-slate-400" : "text-[#555]"}`}>{t.entity}</span>
-              </div>
-              <span className={`text-[10px] font-extrabold ${isLight ? "text-slate-700" : "text-[#ccc]"}`}>
-                {formatCurrency(t.amount)}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 };
