@@ -1434,8 +1434,8 @@ const zeroIdxColLetter = (c: number): string => {
 const AR_MONTH_COLS: Record<string, { invCol: number; appCol: number; senCol: number; payCol: number; remCol: number }> = (() => {
   const names = ["March","April","May","June","July","August","September","October","November","December"];
   const map: Record<string, { invCol: number; appCol: number; senCol: number; payCol: number; remCol: number }> = {};
-  // March block starts at col 4 (0-based): inv=4, app=6, sen=8, pay=10, rem=12, due=13, amt=14
-  map["March"] = { invCol: 4, appCol: 6, senCol: 8, payCol: 10, remCol: 12 };
+  // March has no Invoice/Approval/Sent/Payment checkbox columns on the sheet — data only (amount + remarks)
+  map["March"] = { invCol: -1, appCol: -1, senCol: -1, payCol: -1, remCol: 12 };
   let prevAmt = 14;
   for (let i = 1; i < names.length; i++) {
     const b = prevAmt + 1;
