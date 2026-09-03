@@ -516,6 +516,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const updated = [...externalLinks, newLink];
     setExternalLinks(updated);
     localStorage.setItem("financeops_external_links", JSON.stringify(updated));
+    persistChanges({ externalLinks: updated });
     logAction("Added External Link", `Added '${link.name}' link (${link.url})`);
   };
 
@@ -523,6 +524,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const updated = externalLinks.map((l) => (l.id === id ? { ...l, ...updates } : l));
     setExternalLinks(updated);
     localStorage.setItem("financeops_external_links", JSON.stringify(updated));
+    persistChanges({ externalLinks: updated });
     logAction("Updated External Link", `Updated link ID '${id}'`);
   };
 
@@ -530,6 +532,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const updated = externalLinks.filter((l) => l.id !== id);
     setExternalLinks(updated);
     localStorage.setItem("financeops_external_links", JSON.stringify(updated));
+    persistChanges({ externalLinks: updated });
     logAction("Deleted External Link", `Removed link ID '${id}'`);
   };
 
@@ -829,6 +832,22 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         });
         setQuickNotes(deduped);
         localStorage.setItem("financeops_quick_notes", JSON.stringify(deduped));
+      }
+      // Restore externalLinks from server if localStorage is cleared (browser cache reset)
+      if (data.externalLinks && Array.isArray(data.externalLinks) && data.externalLinks.length > 0) {
+        const lsRaw = (() => { try { return localStorage.getItem("financeops_external_links"); } catch { return null; } })();
+        const lsLinks: ExternalLinkItem[] = lsRaw ? (() => { try { return JSON.parse(lsRaw); } catch { return []; } })() : [];
+        // Only restore from server if localStorage has no user-added items (only defaults or empty)
+        const defaultIds = new Set(DEFAULT_EXTERNAL_LINKS.map(d => d.id));
+        const hasUserAdded = lsLinks.some(l => !defaultIds.has(l.id));
+        if (!hasUserAdded) {
+          const serverOnlyAdded = (data.externalLinks as ExternalLinkItem[]).filter(l => !defaultIds.has(l.id));
+          if (serverOnlyAdded.length > 0) {
+            const merged = [...lsLinks.filter(l => defaultIds.has(l.id)), ...serverOnlyAdded];
+            setExternalLinks(merged);
+            localStorage.setItem("financeops_external_links", JSON.stringify(merged));
+          }
+        }
       }
     };
 
@@ -1276,6 +1295,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     localCalendarEvents: PortalCalendarEvent[];
     quickNotes: DashboardNote[];
     gasUrls: { curcumin: string; fouryr: string; ziglar: string; msdx: string };
+    externalLinks: ExternalLinkItem[];
   }>) => {
     const payload = {
       ap: updatedData.ap || apBills,
@@ -1292,7 +1312,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       quickNotes: updatedData.quickNotes !== undefined
         ? updatedData.quickNotes
         : (() => { try { return JSON.parse(localStorage.getItem("financeops_quick_notes") || "[]"); } catch { return quickNotes; } })(),
-      gasUrls: updatedData.gasUrls || gasUrls
+      gasUrls: updatedData.gasUrls || gasUrls,
+      externalLinks: updatedData.externalLinks !== undefined
+        ? updatedData.externalLinks
+        : (() => { try { return JSON.parse(localStorage.getItem("financeops_external_links") || "[]"); } catch { return externalLinks; } })()
     };
 
     fetch("/api/data", {

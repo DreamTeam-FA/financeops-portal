@@ -50,7 +50,7 @@ const StatusBadge: React.FC<{ status: string; dueDate?: string }> = ({ status, d
         ? "bg-red-100 text-red-700 border-red-200"
         : "bg-orange-100 text-orange-700 border-orange-200"
     }`}>
-      {overdue ? "⚠ Unpaid (past due)" : "Unpaid"}
+      {overdue ? "Overdue" : "Unpaid"}
     </span>
   );
 };
@@ -447,9 +447,9 @@ const AccordionItem: React.FC<{
           Due {fmtDate(bill.dueDate) || "—"}
         </span>
 
-        {/* Invoice number (if present) */}
+        {/* Invoice number (if present) — hidden on mobile to prevent overflow */}
         {bill.invoiceNo && (
-          <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded shrink-0 ${
+          <span className={`hidden sm:inline text-[10px] font-mono px-1.5 py-0.5 rounded shrink-0 ${
             isLight ? "bg-slate-100 text-slate-500" : "bg-[#252525] text-[#888]"
           }`}>
             #{bill.invoiceNo}

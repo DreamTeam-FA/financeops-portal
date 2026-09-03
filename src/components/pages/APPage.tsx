@@ -1042,7 +1042,9 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                       {reason}
                     </div>
 
-                    {/* Column headers */}
+                    {/* Column headers + Bill rows — scrollable on mobile */}
+                    <div className="overflow-x-auto">
+                    <div className="min-w-[480px]">
                     <div className={`grid grid-cols-12 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider border-b ${isLight ? "bg-slate-100 text-slate-500 border-slate-200" : "bg-[#222] text-gray-500 border-[#2a2a2a]"}`}>
                       <div className="col-span-3">Vendor</div>
                       <div className="col-span-2 text-right">Amount</div>
@@ -1058,7 +1060,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                         <div className="col-span-3 truncate font-semibold">{bill.vendor || "—"}</div>
                         <div className="col-span-2 text-right font-bold text-blue-500">{formatCurrency(bill.amount)}</div>
                         <div className={`col-span-2 text-center ${isLight ? "text-slate-500" : "text-gray-400"}`}>{formatDateStr(bill.dueDate)}</div>
-                        <div className={`col-span-2 text-center font-mono text-[10px] ${isLight ? "text-slate-600" : "text-gray-400"}`}>{bill.invoiceNo || "—"}</div>
+                        <div className={`col-span-2 text-center font-mono text-[10px] truncate ${isLight ? "text-slate-600" : "text-gray-400"}`}>{bill.invoiceNo || "—"}</div>
                         <div className="col-span-1 text-center">
                           <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
                             bill.status === "paid" ? "bg-green-500/20 text-green-500"
@@ -1123,6 +1125,8 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                         </div>
                       </div>
                     ))}
+                    </div>{/* /min-w */}
+                    </div>{/* /overflow-x-auto */}
                   </div>
                 );
               })}

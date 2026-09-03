@@ -309,21 +309,20 @@ const MobileListView: React.FC<{
   weekDays.forEach(d => {
     const ymd = toYMD(d);
     const arr = dayBills[ymd] || [];
-    if (arr.length > 0) {
-      const isToday = ymd === today;
-      const isPast = ymd < today;
-      sections.push({
-        label: isToday ? `Today — ${fmtDay(d)}` : fmtDay(d),
-        total: arr.reduce((s, b) => s + (b.amount || 0), 0),
-        groups: groupBillsByVendor(arr),
-        accentClass: isToday ? "text-[#1a73e8]" : isPast ? "text-red-400" : isLight ? "text-slate-600" : "text-[#888]",
-        overdueStyle: isPast && !isToday,
-        lastWeekStyle: false,
-      });
-    }
+    const isToday = ymd === today;
+    const isPast = ymd < today;
+    sections.push({
+      label: isToday ? `Today — ${fmtDay(d)}` : fmtDay(d),
+      total: arr.reduce((s, b) => s + (b.amount || 0), 0),
+      groups: groupBillsByVendor(arr),
+      accentClass: isToday ? "text-[#1a73e8]" : isPast ? "text-red-400" : isLight ? "text-slate-600" : "text-[#888]",
+      overdueStyle: isPast && !isToday,
+      lastWeekStyle: false,
+    });
   });
 
-  if (sections.length === 0)
+  const totalBillsAcrossSections = sections.reduce((s, sec) => s + sec.groups.length, 0);
+  if (totalBillsAcrossSections === 0 && overdueOldBills.length === 0 && lastWeekBills.length === 0)
     return (
       <div className={`flex items-center justify-center flex-1 text-sm ${isLight ? "text-slate-300" : "text-[#444]"}`}>
         No unpaid bills this week
@@ -331,16 +330,21 @@ const MobileListView: React.FC<{
     );
 
   return (
-    <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-4">
+    <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-4 space-y-4">
       {sections.map((sec, si) => (
         <div key={si}>
           {/* Section header */}
           <div className="flex items-center justify-between mb-2">
             <span className={`text-[11px] font-bold uppercase tracking-wider ${sec.accentClass}`}>{sec.label}</span>
-            <span className={`text-[11px] font-extrabold ${isLight ? "text-slate-700" : "text-white"}`}>{formatCurrency(sec.total)}</span>
+            <span className={`text-[11px] font-extrabold ${isLight ? "text-slate-700" : "text-white"}`}>{sec.total > 0 ? formatCurrency(sec.total) : <span className={isLight ? "text-slate-300" : "text-[#444]"}>—</span>}</span>
           </div>
           {/* Vendor group rows */}
           <div className="space-y-1.5">
+            {sec.groups.length === 0 && (
+              <div className={`text-[11px] px-3 py-2 rounded-lg ${isLight ? "text-slate-300 bg-slate-50" : "text-[#444] bg-[#0d111a]"}`}>
+                No bills due
+              </div>
+            )}
             {sec.groups.map((g, gi) => {
               const ec = entityColor(g.entity);
               return (
