@@ -527,7 +527,19 @@ export const parseAPSheetRows = (
 
 export const parseBankSheetRows = (rows: any[][]): BankAccount[] => {
   if (!rows || rows.length <= 1) return [];
-  const headers = rows[0].map((h) => String(h || "").toLowerCase().trim());
+
+  // The sheet may have blank rows before the actual header (e.g., rows 1–3 blank, header at row 4).
+  // Scan up to the first 10 rows to find the row that contains recognisable column labels.
+  const HEADER_KEYWORDS = /entity|company|account|balance|bank|yesterday|updated/i;
+  let headerRowIdx = 0;
+  for (let i = 0; i < Math.min(rows.length, 10); i++) {
+    const rowStr = (rows[i] || []).map((c) => String(c || "")).join(" ");
+    if (HEADER_KEYWORDS.test(rowStr) && rowStr.trim().length > 0) {
+      headerRowIdx = i;
+      break;
+    }
+  }
+  const headers = (rows[headerRowIdx] || []).map((h) => String(h || "").toLowerCase().trim());
 
   // "entity" column is now explicit in the sheet — match it narrowly so it doesn't
   // accidentally pick up the "company" (bank name) column.
@@ -547,7 +559,7 @@ export const parseBankSheetRows = (rows: any[][]): BankAccount[] => {
   if (asOfIdx === -1) asOfIdx = -1;
 
   const accounts: BankAccount[] = [];
-  const dataRows = rows.slice(1);
+  const dataRows = rows.slice(headerRowIdx + 1);
 
   dataRows.forEach((row, idx) => {
     if (!row || row.length === 0 || row.every((c) => !c || String(c).trim() === "")) return;

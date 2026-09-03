@@ -179,8 +179,16 @@ export const BankBalancesPage: React.FC = () => {
     return null;
   };
 
-  // Entity summary chart data
-  const entityChartData = ["Ruby's", "TI", "MSDx"]
+  // Derive entity list dynamically from actual bank accounts (preserves sheet order)
+  const allEntities: string[] = Array.from(
+    bankAccounts.reduce((seen: Map<string, true>, a: any) => {
+      if (a.entity && !seen.has(a.entity)) seen.set(a.entity, true);
+      return seen;
+    }, new Map<string, true>()).keys()
+  );
+
+  // Entity summary chart data — dynamic, not hard-coded
+  const entityChartData = allEntities
     .filter((en) => selectedEntities.has("ALL") || selectedEntities.has(en))
     .map((en) => ({
       entity: en,
@@ -233,7 +241,7 @@ export const BankBalancesPage: React.FC = () => {
             </div>
           </div>
 
-          {["Ruby's", "TI", "MSDx"].map((en) => {
+          {allEntities.slice(0, 3).map((en) => {
             const eTotal = filtered.filter((a: any) => a.entity === en).reduce((s: number, a: any) => s + a.balance, 0);
             return (
               <div key={en} className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-4 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]`}>
