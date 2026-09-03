@@ -734,9 +734,11 @@ export const parseARSheetRows = (rows: any[][]): ARItem[] => {
           dueDate: String(rawDue),
           month: mCfg.monthName,
           occurrence: String(row[6] || "Monthly"),
-          invoice: isTrue(invVal) || amt > 0,
-          approval: isTrue(appVal) || amt > 0,
-          sent: isTrue(senVal) || amt > 0,
+          // Only fall back to `amt > 0` when the column doesn't exist in the sheet.
+          // If the column exists, use the actual sheet value — never auto-check.
+          invoice:  mCfg.invIdx !== -1 ? isTrue(invVal) : (amt > 0),
+          approval: mCfg.appIdx !== -1 ? isTrue(appVal) : (amt > 0),
+          sent:     mCfg.senIdx !== -1 ? isTrue(senVal) : (amt > 0),
           payment: isTrue(payVal),
           remarks: remarksVal !== "null" ? remarksVal : ""
         });

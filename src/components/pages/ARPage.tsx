@@ -6,6 +6,7 @@ import { Receipt, CheckSquare, Square, Edit3, AlertTriangle, Plus, X, Pencil, Tr
 import { Tooltip } from "../Tooltip";
 import { exportARItemsCSV } from "../../utils/exportUtils";
 import { formatCurrency, formatTimestampLocal } from "../../utils/formatters";
+import { fuzzyBest } from "../../utils/fuzzyMatch";
 
 export const ARPage: React.FC = () => {
   const {
@@ -239,6 +240,21 @@ export const ARPage: React.FC = () => {
       const data = await resp.json();
       if (!data.ok) throw new Error(data.error || "Scan failed");
       const parsed = data.parsed || {};
+
+      // Match scanned customer against existing AR customers (sheet is source of truth)
+      const knownCustomers = [...new Set(arItems.map((a: ARItem) => a.customer).filter(Boolean))];
+      if (parsed.customer && knownCustomers.length > 0) {
+        parsed.customer = fuzzyBest(parsed.customer, knownCustomers, 0.45);
+      }
+
+      // Match scanned entity against known entities
+      const knownEntities = [...new Set(arItems.map((a: ARItem) => a.entity).filter(Boolean))];
+      const validEntities = ["TI", "Ruby's", "MSDx", "4G", "4YR", "CPG", "E1"];
+      const entityPool = knownEntities.length > 0 ? knownEntities : validEntities;
+      if (parsed.entity) {
+        parsed.entity = fuzzyBest(parsed.entity, entityPool as string[], 0.45);
+      }
+
       setScannedData(parsed);
       setEditedScanData({ ...parsed }); // initialize editable copy
 

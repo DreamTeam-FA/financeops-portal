@@ -502,7 +502,7 @@ const DEFAULT_EXTERNAL_LINKS: ExternalLinkItem[] = [
   {
     id: "drive-ar-invoices",
     name: "Accounts Receivables Invoices",
-    url: "https://drive.google.com/drive/folders/AR_INVOICES",
+    url: "https://drive.google.com/drive/folders/17A6yyvoPIlCfegus79yD3Vvt6HJnCoL2",
     iconType: "folder",
     color: "#1d4ed8",
     category: "drive",
@@ -511,7 +511,7 @@ const DEFAULT_EXTERNAL_LINKS: ExternalLinkItem[] = [
   {
     id: "drive-ap-invoices",
     name: "Accounts Payables Invoices",
-    url: "https://drive.google.com/drive/folders/AP_INVOICES",
+    url: "https://drive.google.com/drive/folders/1AzwpWEMdyp1SEeNtXrie5171cSk5L7Za",
     iconType: "folder",
     color: "#7c3aed",
     category: "drive",
