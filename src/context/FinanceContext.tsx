@@ -1019,13 +1019,25 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
               try {
                 const bankMap = serverMappings?.find(m => m.module === "banks");
                 if (bankMap && tok) {
-                  const bankRange = (bankMap as any).range || "'Bank Balances'!A1:F60";
+                  // Fetch wide enough range to cover all bank sheet columns
+                  const bankRange = (bankMap as any).range || "'Bank Balances'!A1:J100";
                   const bankRows = await fetchSheetValues(bankMap.spreadsheetIdOrUrl, bankRange, tok);
                   if (bankRows && bankRows.length > 0) {
                     const parsed = parseBankSheetRows(bankRows);
                     if (parsed.length > 0) {
                       setBankAccounts(parsed);
-                      // Update server cache so pull-live doesn't overwrite with stale data
+                      // Save corrected bank data to localStorage cache so hard refreshes show correct values
+                      try {
+                        const cachedRaw = localStorage.getItem("financeops_data_cache_v2");
+                        if (cachedRaw) {
+                          const cached = JSON.parse(cachedRaw);
+                          if (cached?.data) {
+                            cached.data.banks = parsed;
+                            localStorage.setItem("financeops_data_cache_v2", JSON.stringify(cached));
+                          }
+                        }
+                      } catch {}
+                      // Update server cache too
                       fetch("/api/data", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
@@ -1035,7 +1047,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
                   }
                 }
               } catch {} // non-fatal — bank data still visible from pull-live
-            }, 2000);
+            }, 0);
 
             break;
           }
@@ -1733,6 +1745,35 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           };
           localStorage.setItem("financeops_data_cache_v2", JSON.stringify({ ts: Date.now(), data: slim }));
         } catch { /* non-fatal */ }
+
+        // Correct bank data using frontend GViz parser — server bank column mapping is stale until Oct 1 redeploy
+        const bankMapEntry = sheetMappings.find(m => m.module === "banks");
+        const bankTok = getAccessToken();
+        if (bankMapEntry && bankTok) {
+          (async () => {
+            try {
+              const bankRange = (bankMapEntry as any).range || "'Bank Balances'!A1:J100";
+              const bankRows = await fetchSheetValues(bankMapEntry.spreadsheetIdOrUrl, bankRange, bankTok);
+              if (bankRows && bankRows.length > 0) {
+                const parsed = parseBankSheetRows(bankRows);
+                if (parsed.length > 0) {
+                  setBankAccounts(parsed);
+                  // Overwrite the cache entry for banks with the correct values
+                  try {
+                    const cachedRaw = localStorage.getItem("financeops_data_cache_v2");
+                    if (cachedRaw) {
+                      const cached = JSON.parse(cachedRaw);
+                      if (cached?.data) {
+                        cached.data.banks = parsed;
+                        localStorage.setItem("financeops_data_cache_v2", JSON.stringify(cached));
+                      }
+                    }
+                  } catch {}
+                }
+              }
+            } catch {} // non-fatal — bank data from pull-live still visible
+          })();
+        }
 
         const now = new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" });
         addSyncLog({
