@@ -474,32 +474,6 @@ export const PayablesCalendarPage: React.FC = () => {
 
       <div className="flex-1 flex flex-col overflow-hidden p-3 md:p-4 gap-3 min-h-0">
 
-        {/* ── Summary bar: per-company this-week totals (TOP) ── */}
-        <div className={`shrink-0 flex flex-wrap items-center justify-between gap-3 px-3 md:px-4 py-2.5 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"}`}>
-          <div className="flex items-center gap-3 md:gap-4 flex-wrap">
-            {ENTITIES.map(en => {
-              const ec = entityColor(en);
-              const enTotal = weekDays.reduce((sum, d) =>
-                sum + (dayBills[toYMD(d)] || [])
-                  .filter((b: any) => b.entity === en && b.status !== "paid" && b.status !== "hold")
-                  .reduce((s: number, b: any) => s + (b.amount || 0), 0),
-              0);
-              if (enTotal === 0) return null;
-              return (
-                <div key={en} className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: ec.bar }} />
-                  <span className={`text-[11px] font-semibold ${isLight ? "text-slate-500" : "text-[#888]"}`}>{en}</span>
-                  <span className={`text-[11px] font-extrabold ${isLight ? "text-slate-800" : "text-white"}`}>{formatCurrency(enTotal)}</span>
-                </div>
-              );
-            })}
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className={`text-[11px] font-semibold ${isLight ? "text-slate-500" : "text-[#888]"}`}>This Week (Unpaid)</span>
-            <span className={`text-sm font-extrabold ${isLight ? "text-slate-900" : "text-white"}`}>{formatCurrency(weekUnpaidTotal)}</span>
-          </div>
-        </div>
-
         {/* ── Week navigator ── */}
         <div className={`flex items-center justify-between gap-2 px-3 md:px-4 py-2.5 md:py-3 rounded-xl border shrink-0 ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} shadow-sm`}>
           <div className="flex items-center gap-2 min-w-0">
@@ -616,6 +590,11 @@ export const PayablesCalendarPage: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Per-entity totals — top of column, before bill cards */}
+                  {dayBillArr.length > 0 && (
+                    <DayEntityTotals dayBillArr={dayBillArr} isLight={isLight} />
+                  )}
+
                   {/* Bills */}
                   <div className="flex-1 overflow-y-auto p-2 space-y-0">
                     {dayBillArr.length === 0 ? (
@@ -632,14 +611,35 @@ export const PayablesCalendarPage: React.FC = () => {
                       ))
                     )}
                   </div>
-
-                  {/* Day footer: per-entity totals */}
-                  {dayBillArr.length > 0 && (
-                    <DayEntityTotals dayBillArr={dayBillArr} isLight={isLight} />
-                  )}
                 </div>
               );
             })}
+          </div>
+        </div>
+
+        {/* ── Bottom summary bar: per-company this-week totals ── */}
+        <div className={`shrink-0 flex flex-wrap items-center justify-between gap-3 px-3 md:px-4 py-2.5 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"}`}>
+          <div className="flex items-center gap-3 md:gap-4 flex-wrap">
+            {ENTITIES.map(en => {
+              const ec = entityColor(en);
+              const enTotal = weekDays.reduce((sum, d) =>
+                sum + (dayBills[toYMD(d)] || [])
+                  .filter((b: any) => b.entity === en && b.status !== "paid" && b.status !== "hold")
+                  .reduce((s: number, b: any) => s + (b.amount || 0), 0),
+              0);
+              if (enTotal === 0) return null;
+              return (
+                <div key={en} className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: ec.bar }} />
+                  <span className={`text-[11px] font-semibold ${isLight ? "text-slate-500" : "text-[#888]"}`}>{en}</span>
+                  <span className={`text-[11px] font-extrabold ${isLight ? "text-slate-800" : "text-white"}`}>{formatCurrency(enTotal)}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className={`text-[11px] font-semibold ${isLight ? "text-slate-500" : "text-[#888]"}`}>This Week (Unpaid)</span>
+            <span className={`text-sm font-extrabold ${isLight ? "text-slate-900" : "text-white"}`}>{formatCurrency(weekUnpaidTotal)}</span>
           </div>
         </div>
 
