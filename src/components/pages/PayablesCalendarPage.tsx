@@ -3,6 +3,9 @@ import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { formatCurrency } from "../../utils/formatters";
 import { ChevronLeft, ChevronRight, Calendar, AlertTriangle, History } from "lucide-react";
+import { BillDetailsModal } from "../modals/BillDetailsModal";
+import { EditBillModal } from "../modals/EditBillModal";
+import { APBill } from "../../types";
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
 const DAY_SHORT   = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -41,16 +44,24 @@ function entityColor(entity: string) {
 }
 
 /* ── Bill card (day columns) ───────────────────────────────────────────────── */
-const BillCard: React.FC<{ bill: any; today: string; isLight: boolean }> = ({ bill, today, isLight }) => {
+const BillCard: React.FC<{
+  bill: any;
+  today: string;
+  isLight: boolean;
+  onClick: () => void;
+}> = ({ bill, today, isLight, onClick }) => {
   const ec       = entityColor(bill.entity);
   const isPastDue = bill.dueDate < today;
 
   return (
-    <div className={`relative overflow-hidden rounded-lg border text-[11px] mb-1.5 last:mb-0 ${
-      isPastDue
-        ? isLight ? "border-red-200 bg-red-50" : "border-red-800/40 bg-red-950/30"
-        : isLight ? "border-slate-200 bg-white" : "border-[#1a2235] bg-[#0d111a]"
-    }`}>
+    <div
+      onClick={onClick}
+      className={`relative overflow-hidden rounded-lg border text-[11px] mb-1.5 last:mb-0 cursor-pointer transition-all hover:scale-[1.02] hover:shadow-md active:scale-100 ${
+        isPastDue
+          ? isLight ? "border-red-200 bg-red-50 hover:border-red-300" : "border-red-800/40 bg-red-950/30 hover:border-red-700/60"
+          : isLight ? "border-slate-200 bg-white hover:border-slate-300" : "border-[#1a2235] bg-[#0d111a] hover:border-[#2a3a55]"
+      }`}
+    >
       <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg" style={{ background: ec.bar }} />
       <div className="pl-3 pr-2 py-2">
         <div className="flex items-center gap-1 mb-1">
@@ -78,16 +89,25 @@ interface VendorGroup {
   vendor: string;
   totalAmount: number;
   count: number;
+  bills: any[];
 }
 
-const VendorGroupRow: React.FC<{ group: VendorGroup; isLight: boolean; isLastWeek?: boolean }> = ({ group, isLight, isLastWeek }) => {
+const VendorGroupRow: React.FC<{
+  group: VendorGroup;
+  isLight: boolean;
+  isLastWeek?: boolean;
+  onClick: () => void;
+}> = ({ group, isLight, isLastWeek, onClick }) => {
   const ec = entityColor(group.entity);
   return (
-    <div className={`relative overflow-hidden rounded-lg border text-[11px] mb-1.5 last:mb-0 ${
-      isLastWeek
-        ? isLight ? "border-amber-200 bg-amber-50/50" : "border-amber-800/30 bg-amber-950/20"
-        : isLight ? "border-red-200 bg-red-50/50" : "border-red-800/30 bg-red-950/20"
-    }`}>
+    <div
+      onClick={onClick}
+      className={`relative overflow-hidden rounded-lg border text-[11px] mb-1.5 last:mb-0 cursor-pointer transition-all hover:scale-[1.02] hover:shadow-md active:scale-100 ${
+        isLastWeek
+          ? isLight ? "border-amber-200 bg-amber-50/50 hover:border-amber-300" : "border-amber-800/30 bg-amber-950/20 hover:border-amber-700/50"
+          : isLight ? "border-red-200 bg-red-50/50 hover:border-red-300" : "border-red-800/30 bg-red-950/20 hover:border-red-700/50"
+      }`}
+    >
       <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg" style={{ background: ec.bar }} />
       <div className="pl-3 pr-2 py-1.5">
         <div className="flex items-center gap-1 mb-0.5">
@@ -153,7 +173,8 @@ const SummaryColumn: React.FC<{
   isLight: boolean;
   isLastWeek?: boolean;
   headerColorClass: string;
-}> = ({ label, icon, bills, isLight, isLastWeek, headerColorClass }) => {
+  onBillClick: (bills: any[]) => void;
+}> = ({ label, icon, bills, isLight, isLastWeek, headerColorClass, onBillClick }) => {
   const total = bills.reduce((s, b) => s + (b.amount || 0), 0);
 
   // Group by entity + subcompany + vendor → one row per group
@@ -171,6 +192,7 @@ const SummaryColumn: React.FC<{
       if (existing) {
         existing.totalAmount += b.amount || 0;
         existing.count += 1;
+        existing.bills.push(b);
       } else {
         groupMap.set(key, {
           entity: b.entity,
@@ -178,6 +200,7 @@ const SummaryColumn: React.FC<{
           vendor: b.vendor || "",
           totalAmount: b.amount || 0,
           count: 1,
+          bills: [b],
         });
       }
     });
@@ -211,7 +234,13 @@ const SummaryColumn: React.FC<{
           <div className={`text-center text-[11px] mt-4 ${isLight ? "text-slate-300" : "text-[#333]"}`}>—</div>
         ) : (
           groups.map((g, idx) => (
-            <VendorGroupRow key={`${g.entity}-${g.subcompany}-${g.vendor}-${idx}`} group={g} isLight={isLight} isLastWeek={isLastWeek} />
+            <VendorGroupRow
+              key={`${g.entity}-${g.subcompany}-${g.vendor}-${idx}`}
+              group={g}
+              isLight={isLight}
+              isLastWeek={isLastWeek}
+              onClick={() => onBillClick(g.bills)}
+            />
           ))
         )}
       </div>
@@ -236,6 +265,88 @@ const SummaryColumn: React.FC<{
   );
 };
 
+/* ── Mobile List View ─────────────────────────────────────────────────────── */
+const MobileListView: React.FC<{
+  overdueOldBills: any[];
+  lastWeekBills: any[];
+  weekDays: Date[];
+  dayBills: Record<string, any[]>;
+  today: string;
+  isLight: boolean;
+  onBillClick: (bills: any[]) => void;
+}> = ({ overdueOldBills, lastWeekBills, weekDays, dayBills, today, isLight, onBillClick }) => {
+  const fmt = (d: Date) =>
+    `${DAY_SHORT[(d.getDay() + 6) % 7]}, ${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
+
+  const sections: { label: string; bills: any[]; accent: string }[] = [];
+
+  if (overdueOldBills.length > 0)
+    sections.push({ label: "⚠ Overdue", bills: overdueOldBills, accent: "text-red-500" });
+
+  if (lastWeekBills.length > 0)
+    sections.push({ label: "⏱ Last Week", bills: lastWeekBills, accent: "text-amber-400" });
+
+  weekDays.forEach(d => {
+    const ymd = toYMD(d);
+    const arr = dayBills[ymd] || [];
+    if (arr.length > 0)
+      sections.push({
+        label: ymd === today ? `Today — ${fmt(d)}` : fmt(d),
+        bills: arr,
+        accent: ymd === today ? "text-[#1a73e8]" : ymd < today ? "text-red-400" : isLight ? "text-slate-600" : "text-[#888]",
+      });
+  });
+
+  if (sections.length === 0)
+    return (
+      <div className={`flex items-center justify-center flex-1 text-sm ${isLight ? "text-slate-300" : "text-[#444]"}`}>
+        No unpaid bills this week
+      </div>
+    );
+
+  return (
+    <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-4">
+      {sections.map((sec, si) => (
+        <div key={si}>
+          <div className={`text-[11px] font-bold uppercase tracking-wider mb-2 ${sec.accent}`}>{sec.label}</div>
+          <div className="space-y-2">
+            {sec.bills.map((b: any) => {
+              const ec = entityColor(b.entity);
+              const isPastDue = b.dueDate < today;
+              return (
+                <div
+                  key={b.id}
+                  onClick={() => onBillClick([b])}
+                  className={`relative flex items-center gap-3 rounded-xl border px-4 py-3 cursor-pointer active:scale-[0.98] transition-transform ${
+                    isPastDue
+                      ? isLight ? "border-red-200 bg-red-50" : "border-red-800/40 bg-red-950/20"
+                      : isLight ? "border-slate-200 bg-white" : "border-[#1a2235] bg-[#0d111a]"
+                  }`}
+                >
+                  <div className="absolute left-0 top-3 bottom-3 w-1 rounded-r-full" style={{ background: ec.bar }} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className={`px-1.5 py-0 rounded text-[10px] font-bold ${ec.bg} ${ec.text}`}>{b.entity}</span>
+                      {b.subcompany && (
+                        <span className={`text-[10px] truncate ${isLight ? "text-slate-400" : "text-[#666]"}`}>{b.subcompany}</span>
+                      )}
+                    </div>
+                    <div className={`font-semibold text-sm leading-tight truncate ${isLight ? "text-slate-800" : "text-white"}`}>{b.vendor}</div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className={`font-extrabold text-sm ${isLight ? "text-slate-900" : "text-white"}`}>{formatCurrency(b.amount)}</div>
+                    {isPastDue && <AlertTriangle className="w-3.5 h-3.5 text-red-500 ml-auto mt-0.5" />}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 /* ── Main Page ────────────────────────────────────────────────────────────── */
 export const PayablesCalendarPage: React.FC = () => {
   const { apBills, selectedEntities, theme } = useFinance() as any;
@@ -243,6 +354,10 @@ export const PayablesCalendarPage: React.FC = () => {
 
   const today  = toYMD(new Date());
   const [anchor, setAnchor] = useState<Date>(() => weekMonday(new Date()));
+
+  /* Modal state */
+  const [selectedBills, setSelectedBills] = useState<APBill[]>([]);
+  const [editingBill, setEditingBill] = useState<APBill | null>(null);
 
   /* Derived week days */
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(anchor, i)), [anchor]);
@@ -304,6 +419,10 @@ export const PayablesCalendarPage: React.FC = () => {
     return `${MONTH_NAMES[s.getMonth()]} ${s.getDate()} – ${MONTH_NAMES[e.getMonth()]} ${e.getDate()}, ${e.getFullYear()}`;
   })();
 
+  const handleBillClick = (clickedBills: any[]) => {
+    setSelectedBills(clickedBills as APBill[]);
+  };
+
   return (
     <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#070b12] text-[#e8e8e8]"}`}>
       <PageHeader
@@ -314,18 +433,18 @@ export const PayablesCalendarPage: React.FC = () => {
         sheetUrl="https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit"
       />
 
-      <div className="flex-1 flex flex-col overflow-hidden p-4 gap-3">
+      <div className="flex-1 flex flex-col overflow-hidden p-3 md:p-4 gap-3 min-h-0">
 
         {/* ── Week navigator ── */}
-        <div className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} shadow-sm`}>
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-[#1a73e8]" />
-            <span className={`text-sm font-bold ${isLight ? "text-slate-800" : "text-white"}`}>{weekLabel}</span>
+        <div className={`flex items-center justify-between gap-2 px-3 md:px-4 py-2.5 md:py-3 rounded-xl border shrink-0 ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} shadow-sm`}>
+          <div className="flex items-center gap-2 min-w-0">
+            <Calendar className="w-4 h-4 text-[#1a73e8] shrink-0" />
+            <span className={`text-xs md:text-sm font-bold truncate ${isLight ? "text-slate-800" : "text-white"}`}>{weekLabel}</span>
           </div>
 
-          <div className="flex items-center gap-1.5">
-            <div className={`hidden sm:flex flex-col items-end mr-3 ${isLight ? "text-slate-500" : "text-[#888]"}`}>
-              <span className="text-[10px] uppercase font-semibold tracking-wider">Week Unpaid</span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <div className={`hidden sm:flex flex-col items-end mr-2 ${isLight ? "text-slate-500" : "text-[#888]"}`}>
+              <span className="text-[10px] uppercase font-semibold tracking-wider whitespace-nowrap">Week Unpaid</span>
               <span className={`text-sm font-extrabold ${isLight ? "text-slate-900" : "text-white"}`}>
                 {formatCurrency(weekUnpaidTotal)}
               </span>
@@ -333,7 +452,7 @@ export const PayablesCalendarPage: React.FC = () => {
             <button onClick={prevWeek} className={`p-1.5 rounded-lg border transition-colors ${isLight ? "border-slate-200 hover:bg-slate-100 text-slate-600" : "border-[#2a3140] hover:bg-white/5 text-[#aaa]"}`}>
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <button onClick={thisWeek} className="px-3 py-1.5 rounded-lg bg-[#1a73e8] hover:bg-[#1557b0] text-white text-[11px] font-bold transition-colors">
+            <button onClick={thisWeek} className="px-2.5 py-1.5 rounded-lg bg-[#1a73e8] hover:bg-[#1557b0] text-white text-[11px] font-bold transition-colors whitespace-nowrap">
               This Week
             </button>
             <button onClick={nextWeek} className={`p-1.5 rounded-lg border transition-colors ${isLight ? "border-slate-200 hover:bg-slate-100 text-slate-600" : "border-[#2a3140] hover:bg-white/5 text-[#aaa]"}`}>
@@ -342,10 +461,29 @@ export const PayablesCalendarPage: React.FC = () => {
           </div>
         </div>
 
-        {/* ── 9-column grid: 2 summary + 7 days ── */}
-        <div className="flex-1 overflow-x-auto overflow-y-hidden">
+        {/* ── Mobile: week total pill ── */}
+        <div className={`sm:hidden flex items-center justify-between px-3 py-2 rounded-lg border shrink-0 ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"}`}>
+          <span className={`text-[10px] uppercase font-semibold tracking-wider ${isLight ? "text-slate-500" : "text-[#888]"}`}>Week Unpaid</span>
+          <span className={`text-sm font-extrabold ${isLight ? "text-slate-900" : "text-white"}`}>{formatCurrency(weekUnpaidTotal)}</span>
+        </div>
+
+        {/* ── Mobile: scrollable list ── */}
+        <div className="flex md:hidden flex-1 flex-col min-h-0 overflow-hidden">
+          <MobileListView
+            overdueOldBills={overdueOldBills}
+            lastWeekBills={lastWeekBills}
+            weekDays={weekDays}
+            dayBills={dayBills}
+            today={today}
+            isLight={isLight}
+            onBillClick={handleBillClick}
+          />
+        </div>
+
+        {/* ── Desktop: 9-column grid: 2 summary + 7 days ── */}
+        <div className="hidden md:flex flex-1 overflow-x-auto overflow-y-hidden min-h-0">
           <div
-            className="h-full grid gap-2 min-w-[1040px]"
+            className="h-full grid gap-2 min-w-[1040px] w-full"
             style={{ gridTemplateColumns: "minmax(150px,1.2fr) minmax(150px,1.2fr) repeat(7, 1fr)" }}
           >
             {/* Column 1 — Overdue (older than last week) */}
@@ -359,6 +497,7 @@ export const PayablesCalendarPage: React.FC = () => {
                   ? "bg-red-50 border-red-100 text-red-700"
                   : "bg-red-950/30 border-red-900/30 text-red-400"
               }
+              onBillClick={handleBillClick}
             />
 
             {/* Column 2 — Last week's past due */}
@@ -373,6 +512,7 @@ export const PayablesCalendarPage: React.FC = () => {
                   ? "bg-amber-50 border-amber-100 text-amber-700"
                   : "bg-amber-950/30 border-amber-900/30 text-amber-400"
               }
+              onBillClick={handleBillClick}
             />
 
             {/* Columns 3–9 — Current week days */}
@@ -417,7 +557,13 @@ export const PayablesCalendarPage: React.FC = () => {
                       <div className={`text-center text-[11px] mt-4 ${isLight ? "text-slate-300" : "text-[#333]"}`}>—</div>
                     ) : (
                       dayBillArr.map((b: any) => (
-                        <BillCard key={b.id} bill={b} today={today} isLight={isLight} />
+                        <BillCard
+                          key={b.id}
+                          bill={b}
+                          today={today}
+                          isLight={isLight}
+                          onClick={() => handleBillClick([b])}
+                        />
                       ))
                     )}
                   </div>
@@ -433,8 +579,8 @@ export const PayablesCalendarPage: React.FC = () => {
         </div>
 
         {/* ── Bottom summary bar: per-company this-week totals ── */}
-        <div className={`shrink-0 flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"}`}>
-          <div className="flex items-center gap-4 flex-wrap">
+        <div className={`shrink-0 flex flex-wrap items-center justify-between gap-3 px-3 md:px-4 py-2.5 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"}`}>
+          <div className="flex items-center gap-3 md:gap-4 flex-wrap">
             {ENTITIES.map(en => {
               const ec = entityColor(en);
               const enTotal = weekDays.reduce((sum, d) =>
@@ -459,6 +605,26 @@ export const PayablesCalendarPage: React.FC = () => {
         </div>
 
       </div>
+
+      {/* Bill Details Modal */}
+      <BillDetailsModal
+        vendorBills={selectedBills}
+        isOpen={selectedBills.length > 0}
+        onClose={() => setSelectedBills([])}
+        onEdit={(bill) => {
+          setSelectedBills([]);
+          setEditingBill(bill);
+        }}
+      />
+
+      {/* Edit Bill Modal */}
+      {editingBill && (
+        <EditBillModal
+          bill={editingBill}
+          isOpen={!!editingBill}
+          onClose={() => setEditingBill(null)}
+        />
+      )}
     </div>
   );
 };
