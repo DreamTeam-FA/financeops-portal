@@ -631,7 +631,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
         {activeTab === "due" && (
           <>
             {/* Top KPI Cards */}
-            <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
               <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-3 sm:p-4 flex flex-col justify-between border-l-4 border-l-blue-500 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]`}>
                 <div className="text-[10px] sm:text-[11px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">OUTSTANDING</div>
                 <div className="text-xl sm:text-3xl font-extrabold text-blue-600 dark:text-blue-400 mt-1 whitespace-nowrap">{unpaidBills.length + onHoldBills.length}</div>

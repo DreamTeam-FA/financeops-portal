@@ -149,13 +149,13 @@ export const PayrollPage: React.FC = () => {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
+              <table className="w-full text-left text-xs border-collapse min-w-[400px]">
                 <thead>
                   <tr className={`border-b font-semibold ${isLight ? "bg-slate-100 border-slate-200 text-slate-600" : "bg-[#141414] border-[#1a2235] text-[#888]"}`}>
-                    <th className="p-3">Company / Department</th>
-                    <th className="p-3">Job Category</th>
-                    <th className="p-3">Logged Hours</th>
-                    <th className="p-3 text-right">Total Amount</th>
+                    <th className="p-3 whitespace-nowrap">Company / Department</th>
+                    <th className="p-3 whitespace-nowrap">Job Category</th>
+                    <th className="p-3 whitespace-nowrap">Logged Hours</th>
+                    <th className="p-3 text-right whitespace-nowrap">Total Amount</th>
                   </tr>
                 </thead>
                 <tbody className={`divide-y ${isLight ? "divide-slate-200" : "divide-[#222]"}`}>

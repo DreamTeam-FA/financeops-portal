@@ -417,7 +417,7 @@ export function BankStatementPage({ onBack }: { onBack: () => void }) {
 
         {/* Stats */}
         {allTxns.length > 0 && (
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
               { label: "Transactions", val: allTxns.length.toString(), icon: <FileText className="w-4 h-4" />, grad: "from-blue-500/20 to-indigo-500/20", brd: "border-blue-500/20", ic: "bg-blue-500", sh: "shadow-blue-500/15" },
               { label: "Total Debits",  val: `$${totalDebit.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, icon: <BarChart3 className="w-4 h-4" />, grad: "from-red-500/20 to-orange-500/20", brd: "border-red-500/20", ic: "bg-red-500", sh: "shadow-red-500/15" },
@@ -573,15 +573,15 @@ export function BankStatementPage({ onBack }: { onBack: () => void }) {
             </div>
 
             {/* Table body — scrollable */}
-            <div className="flex-1 overflow-y-auto">
-              <table className="w-full text-xs border-separate border-spacing-0">
+            <div className="flex-1 overflow-y-auto overflow-x-auto">
+              <table className="w-full text-xs border-separate border-spacing-0 min-w-[450px]">
                 <thead className="sticky top-0 z-10">
                   <tr className={cl(isLight ? "bg-slate-100 text-slate-500" : "bg-[#0a0e18] text-[#7a8394]")}>
-                    {files.length > 1 && <th className="px-3 py-2 text-left font-medium border-b border-white/8 w-20">File</th>}
-                    <th className="px-3 py-2 text-left font-medium border-b border-white/8 w-28">Date</th>
-                    <th className="px-3 py-2 text-left font-medium border-b border-white/8">Description</th>
-                    <th className="px-3 py-2 text-right font-medium border-b border-white/8 w-28">Debit</th>
-                    <th className="px-3 py-2 text-right font-medium border-b border-white/8 w-28">Credit</th>
+                    {files.length > 1 && <th className="px-3 py-2 text-left font-medium border-b border-white/8 w-20 whitespace-nowrap">File</th>}
+                    <th className="px-3 py-2 text-left font-medium border-b border-white/8 w-28 whitespace-nowrap">Date</th>
+                    <th className="px-3 py-2 text-left font-medium border-b border-white/8 whitespace-nowrap">Description</th>
+                    <th className="px-3 py-2 text-right font-medium border-b border-white/8 w-28 whitespace-nowrap">Debit</th>
+                    <th className="px-3 py-2 text-right font-medium border-b border-white/8 w-28 whitespace-nowrap">Credit</th>
                     <th className="px-2 py-2 border-b border-white/8 w-8" />
                   </tr>
                 </thead>

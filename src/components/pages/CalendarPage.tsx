@@ -101,7 +101,7 @@ const EditFormBody: React.FC<{
       {/* Urgency — full-width 4-pill row */}
       <div>
         <label className={lbl}>Urgency Level</label>
-        <div className="grid grid-cols-4 gap-1.5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
           {(["critical", "high", "normal", "low"] as const).map((urg) => {
             const p = urgencyPill[urg];
             const isSel = editUrgency === urg;
@@ -1989,7 +1989,7 @@ export const CalendarPage: React.FC = () => {
               {/* Urgency */}
               <div>
                 <label className="block font-semibold mb-1 text-slate-500">Urgency Level</label>
-                <div className="grid grid-cols-4 gap-1.5">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                   {(["critical", "high", "normal", "low"] as const).map((urg) => {
                     const p = URGENCY_PILL[urg];
                     const isSelected = taskUrgency === urg;

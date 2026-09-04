@@ -769,8 +769,8 @@ export const CCExpensePage: React.FC = () => {
       )}
 
       {/* ── Tabs + Controls ── */}
-      <div className={`shrink-0 px-5 pt-3 pb-0 border-b flex items-end justify-between gap-3 ${isLight ? "bg-white border-slate-200" : "bg-[#0d1117] border-[#1e2535]"}`}>
-        <div className="flex items-end gap-0">
+      <div className={`shrink-0 px-5 pt-3 pb-0 border-b flex flex-wrap items-end justify-between gap-3 ${isLight ? "bg-white border-slate-200" : "bg-[#0d1117] border-[#1e2535]"}`}>
+        <div className="flex items-end gap-0 overflow-x-auto">
           {(["weekly", "ytd", "raw"] as const).map(tab => (
             <button
               key={tab}
@@ -789,7 +789,7 @@ export const CCExpensePage: React.FC = () => {
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-3 pb-2">
+        <div className="flex flex-wrap items-center gap-3 pb-2">
           {/* Search — visible on all tabs */}
           <div className="relative">
             <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />

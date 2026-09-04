@@ -329,11 +329,12 @@ export const TimesheetScanner: React.FC<Props> = ({ isLight }) => {
 
               {/* Days table */}
               <div className={`rounded-lg border overflow-hidden ${isLight ? "border-slate-200" : "border-[#1a2235]"}`}>
-                <table className="w-full text-xs border-collapse">
+                <div className="overflow-x-auto">
+                <table className="w-full text-xs border-collapse min-w-[360px]">
                   <thead>
                     <tr className={`border-b ${isLight ? "bg-slate-100 border-slate-200 text-slate-600" : "bg-[#141414] border-[#1a2235] text-[#888]"}`}>
                       {["Day","Date","Clock In","Clock Out","Hrs"].map(h => (
-                        <th key={h} className={`p-2 font-semibold text-left ${h === "Hrs" ? "text-right" : ""}`}>{h}</th>
+                        <th key={h} className={`p-2 font-semibold text-left whitespace-nowrap ${h === "Hrs" ? "text-right" : ""}`}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -370,6 +371,7 @@ export const TimesheetScanner: React.FC<Props> = ({ isLight }) => {
                     </tr>
                   </tbody>
                 </table>
+                </div>
               </div>
 
               {/* Actions */}

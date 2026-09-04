@@ -998,7 +998,7 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
 
         {/* Stats row */}
         {scanned && queue.length > 0 && (
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {[
               { label: "Pending Review", value: pendingCount, color: "text-amber-500" },
               { label: "Created",        value: doneCount,    color: "text-emerald-500" },

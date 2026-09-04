@@ -849,7 +849,7 @@ export const DataSyncPage: React.FC = () => {
 
         {/* ── 6. Sheet Continuity ──────────────────────────────────────────── */}
         <div className={`border rounded-2xl p-6 space-y-4 ${card}`}>
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <Archive className="w-4 h-4 text-amber-400 shrink-0" />
               <div>
@@ -1340,7 +1340,7 @@ export const DataSyncPage: React.FC = () => {
             <div className="h-1.5 bg-red-500" />
 
             {/* Header */}
-            <div className={`flex items-center justify-between px-5 py-4 border-b ${isLight ? "border-slate-100" : "border-[#222]"}`}>
+            <div className={`flex flex-wrap items-center justify-between px-5 py-4 border-b gap-2 ${isLight ? "border-slate-100" : "border-[#222]"}`}>
               <div className="flex items-center gap-2">
                 <ShieldAlert className="w-4 h-4 text-red-500" />
                 <span className={`text-sm font-black ${isLight ? "text-slate-900" : "text-white"}`}>

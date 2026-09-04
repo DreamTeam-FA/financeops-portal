@@ -343,7 +343,7 @@ export const ARPage: React.FC = () => {
       />
 
       {/* Monthly Tracking Filter Bar */}
-      <div className={`flex items-center justify-between px-4 py-2 ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border-b shrink-0`}>
+      <div className={`flex flex-wrap items-center justify-between px-4 py-2 gap-2 ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border-b shrink-0`}>
         <div className="flex items-center gap-2">
           <span className={`text-xs font-semibold ${isLight ? "text-slate-500" : "text-[#888]"}`}>Select Month:</span>
           <select

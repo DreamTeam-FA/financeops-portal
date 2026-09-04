@@ -925,7 +925,7 @@ export const MemberWorkspacePage: React.FC<MemberWorkspacePageProps> = ({
               {/* Type Switcher */}
               <div>
                 <label className="block text-xs font-semibold text-slate-500 mb-1">Item Type</label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {(
                     [
                       { id: "note", label: "Note", icon: StickyNote },

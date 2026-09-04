@@ -365,17 +365,17 @@ export const LoansPage: React.FC = () => {
                   </span>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
+                  <table className="w-full text-left text-xs border-collapse min-w-[600px]">
                     <thead>
                       <tr className={`${isLight ? "bg-slate-50 border-slate-200 text-slate-500" : "bg-[#141414] border-[#1a2235] text-[#888]"} border-b font-semibold uppercase tracking-wide`}>
-                        <th className="px-4 py-2.5">Entity</th>
-                        <th className="px-4 py-2.5">Type</th>
-                        <th className="px-4 py-2.5">Lender</th>
-                        <th className="px-4 py-2.5">Purpose</th>
-                        <th className="px-4 py-2.5">Monthly</th>
-                        <th className="px-4 py-2.5">Due Date</th>
-                        <th className="px-4 py-2.5">Status</th>
-                        <th className="px-4 py-2.5">Actions</th>
+                        <th className="px-4 py-2.5 whitespace-nowrap">Entity</th>
+                        <th className="px-4 py-2.5 whitespace-nowrap">Type</th>
+                        <th className="px-4 py-2.5 whitespace-nowrap">Lender</th>
+                        <th className="px-4 py-2.5 whitespace-nowrap">Purpose</th>
+                        <th className="px-4 py-2.5 whitespace-nowrap">Monthly</th>
+                        <th className="px-4 py-2.5 whitespace-nowrap">Due Date</th>
+                        <th className="px-4 py-2.5 whitespace-nowrap">Status</th>
+                        <th className="px-4 py-2.5 whitespace-nowrap">Actions</th>
                       </tr>
                     </thead>
                     <tbody className={`divide-y ${isLight ? "divide-slate-100" : "divide-[#1e1e1e]"}`}>
