@@ -35,6 +35,10 @@ const TOKEN_FILE = process.env.VERCEL
   ? "/tmp/financeops_server_token.json"
   : path.join(process.cwd(), "financeops_server_token.json");
 
+const SHARED_INBOX_FILE = process.env.VERCEL
+  ? "/tmp/financeops_shared_inbox.json"
+  : path.join(process.cwd(), "financeops_shared_inbox.json");
+
 // Default initial backend data structure
 const DEFAULT_DATA = {
   ap: [],
@@ -805,6 +809,16 @@ function getEffectiveDriveToken(requestToken?: string): string | null {
   if (cachedDriveToken && cachedDriveToken.expiresAt > Date.now()) {
     return cachedDriveToken.token;
   }
+  try {
+    if (fs.existsSync(SHARED_INBOX_FILE)) {
+      const raw = fs.readFileSync(SHARED_INBOX_FILE, "utf-8");
+      const entry = JSON.parse(raw);
+      if (entry?.accessToken && entry.expiresAt > Date.now()) {
+        cachedDriveToken = { token: entry.accessToken, expiresAt: entry.expiresAt };
+        return entry.accessToken;
+      }
+    }
+  } catch {}
   cachedDriveToken = null;
   return null;
 }
@@ -3248,6 +3262,58 @@ app.post("/api/sheets/clone-blank", async (req, res) => {
 // =============================================================================
 // Gmail — Email Inbox Scanner
 // =============================================================================
+
+/** Save connected team inbox credentials server-wide */
+app.post("/api/email/save-shared-inbox", (req, res) => {
+  const { accessToken, email } = req.body || {};
+  if (!accessToken || !email) {
+    return res.status(400).json({ ok: false, error: "accessToken and email required" });
+  }
+  const entry = {
+    accessToken,
+    email,
+    updatedAt: new Date().toISOString(),
+    expiresAt: Date.now() + 55 * 60 * 1000,
+  };
+  try {
+    fs.writeFileSync(SHARED_INBOX_FILE, JSON.stringify(entry));
+    setCachedDriveToken(accessToken);
+    res.json({ ok: true, email, expiresAt: entry.expiresAt });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
+/** Retrieve team-wide connected email inbox status */
+app.get("/api/email/shared-inbox", (req, res) => {
+  try {
+    if (fs.existsSync(SHARED_INBOX_FILE)) {
+      const raw = fs.readFileSync(SHARED_INBOX_FILE, "utf-8");
+      const entry = JSON.parse(raw);
+      if (entry?.accessToken && entry.expiresAt > Date.now()) {
+        return res.json({
+          ok: true,
+          email: entry.email,
+          accessToken: entry.accessToken,
+          expiresAt: entry.expiresAt,
+          updatedAt: entry.updatedAt,
+        });
+      }
+    }
+    const fallbackToken = getEffectiveDriveToken();
+    if (fallbackToken) {
+      return res.json({
+        ok: true,
+        email: "accounting@marktimm.com",
+        accessToken: fallbackToken,
+        expiresAt: cachedDriveToken?.expiresAt,
+      });
+    }
+    res.json({ ok: false, email: null });
+  } catch (e: any) {
+    res.json({ ok: false, error: e?.message || String(e) });
+  }
+});
 
 /**
  * POST /api/email/scan-inbox

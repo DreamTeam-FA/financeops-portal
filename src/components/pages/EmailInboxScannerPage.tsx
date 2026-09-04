@@ -459,6 +459,22 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
   });
   const [connecting, setConnecting] = useState(false);
 
+  // Fetch team-wide shared inbox status from server
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/email/shared-inbox")
+      .then(r => r.json())
+      .then(data => {
+        if (cancelled) return;
+        if (data?.ok && data?.email) {
+          if (data.accessToken) setGmailToken(data.accessToken);
+          setGmailEmail(data.email);
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
   // Sync token whenever global Google auth refreshes
   useEffect(() => {
     const syncToken = () => {
@@ -503,15 +519,26 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
           localStorage.setItem(LS_TOKEN, tok);
           localStorage.setItem("google_access_token", tok);
           localStorage.setItem("google_token_issued_at", String(Date.now()));
-          // Fetch the chosen account's actual email address
+          // Fetch the chosen account's actual email address and save to server for team access
+          let chosenEmail = "accounting@marktimm.com";
           try {
             const info = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
               headers: { Authorization: "Bearer " + tok }
             }).then(r => r.json());
             if (info?.email) {
+              chosenEmail = info.email;
               setGmailEmail(info.email);
               localStorage.setItem(LS_EMAIL, info.email);
             }
+          } catch {}
+
+          // Save token & email to server for all team members
+          try {
+            await fetch("/api/email/save-shared-inbox", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ accessToken: tok, email: chosenEmail }),
+            });
           } catch {}
           setQueue([]);
           setScanned(false);
@@ -860,9 +887,14 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
                   <UserCircle2 className={`w-5 h-5 ${gmailToken ? "text-cyan-400" : "text-amber-500"}`} />
                 </div>
                 <div>
-                  <p className={`text-sm font-semibold ${txt}`}>{gmailEmail}</p>
+                  <div className="flex items-center gap-2">
+                    <p className={`text-sm font-semibold ${txt}`}>{gmailEmail}</p>
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 shrink-0">
+                      Team Shared
+                    </span>
+                  </div>
                   <p className={`text-[11px] ${gmailToken ? txt2 : "text-amber-500"}`}>
-                    {gmailToken ? "Gmail connected · read-only access" : "Session expired — reconnect to scan"}
+                    {gmailToken ? "Shared Gmail connected · Accessible to all team members" : "Session expired — reconnect to refresh team access"}
                   </p>
                 </div>
               </div>
