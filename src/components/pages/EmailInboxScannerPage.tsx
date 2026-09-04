@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback, useEffect, useMemo } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { fuzzyBest } from "../../utils/fuzzyMatch";
 import { bumpGeminiCounter } from "../../utils/geminiCounter";
@@ -10,7 +10,7 @@ import {
   Download, ExternalLink
 } from "lucide-react";
 
-const GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/oauth2/v3.userinfo.email";
+const GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email";
 const LS_TOKEN = "gmail_scanner_token";
 const LS_EMAIL = "gmail_scanner_email";
 
