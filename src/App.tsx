@@ -92,6 +92,44 @@ const TOAST_DARK_CFG = {
   "auth-error":{ label: "text-amber-400", border: "border-amber-500/25",   glow: "shadow-amber-500/10"   },
 } as const;
 
+/* ── Persistent top banner shown whenever the Google token is known-expired ── */
+const TokenExpiredBanner: React.FC = () => {
+  const { tokenExpired, handleGoogleSignIn, clearTokenExpired } = useFinance() as any;
+  if (!tokenExpired) return null;
+
+  const handleReconnect = async () => {
+    clearTokenExpired();
+    await handleGoogleSignIn();
+  };
+
+  return (
+    <div
+      className="fixed top-0 left-0 right-0 z-[10000] flex items-center justify-between gap-3 px-4 py-2.5 bg-amber-500 text-white text-[12px] font-semibold shadow-lg"
+      style={{ minHeight: 44 }}
+    >
+      <div className="flex items-center gap-2">
+        <span className="text-lg leading-none">⚠️</span>
+        <span>Google Sheets token expired — sheet sync is paused until you reconnect.</span>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <button
+          onClick={handleReconnect}
+          className="px-3 py-1 rounded-lg bg-white text-amber-700 hover:bg-amber-50 font-bold text-[11px] transition-colors"
+        >
+          🔄 Reconnect Now
+        </button>
+        <button
+          onClick={clearTokenExpired}
+          className="opacity-70 hover:opacity-100 transition-opacity text-white font-bold text-lg leading-none px-1"
+          aria-label="Dismiss"
+        >
+          ×
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const SyncToastBanner: React.FC = () => {
   const { syncToast, clearSyncToast, handleGoogleSignIn, theme } = useFinance();
   if (!syncToast) return null;
@@ -566,6 +604,9 @@ const PortalContent: React.FC = () => {
           onNavigate={(page) => setCurrentPage(page as any)}
         />
       )}
+
+      {/* Persistent token-expired banner — always visible until user reconnects */}
+      <TokenExpiredBanner />
 
       {/* Sync Toast Notification */}
       <SyncToastBanner />

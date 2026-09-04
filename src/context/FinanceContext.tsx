@@ -200,6 +200,8 @@ interface FinanceContextType {
   syncToast: { message: string; type: "success" | "error" | "info" | "auth-error" } | null;
   clearSyncToast: () => void;
   showToast: (message: string, type?: "success" | "error" | "info" | "auth-error", duration?: number) => void;
+  tokenExpired: boolean;
+  clearTokenExpired: () => void;
 
   // Global confirm modal (replaces all window.confirm/alert/prompt native dialogs)
   confirmModal: { message: string; onConfirm: () => void } | null;
@@ -698,11 +700,22 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [autoSyncEnabled, setAutoSyncEnabled] = useState<boolean>(false);
   const [autoPushEnabled, setAutoPushEnabled] = useState<boolean>(false);
   const [syncToast, setSyncToast] = useState<{ message: string; type: "success" | "error" | "info" | "auth-error" } | null>(null);
+  // Tracks whether the Google token is known-expired; drives the persistent top banner
+  const [tokenExpired, setTokenExpired] = useState<boolean>(false);
   const clearSyncToast = () => setSyncToast(null);
   const showToast = (message: string, type: "success" | "error" | "info" | "auth-error" = "info", duration = 4000) => {
-    setSyncToast({ message, type });
-    if (duration > 0) setTimeout(() => setSyncToast(null), duration);
-    // duration=0 → persistent until user dismisses or action resolves
+    // auth-error is highest priority — never let a lower-priority toast overwrite it
+    setSyncToast(prev => {
+      if (prev?.type === "auth-error" && type !== "auth-error") return prev;
+      return { message, type };
+    });
+    if (type === "auth-error") {
+      setTokenExpired(true); // also raise the persistent banner
+    }
+    if (duration > 0 && type !== "auth-error") {
+      setTimeout(() => setSyncToast(prev => (prev?.type !== "auth-error" ? null : prev)), duration);
+    }
+    // auth-error toasts are always duration=0 (persistent) regardless of what caller passes
   };
 
   // Global confirm modal — replaces all window.confirm/alert native dialogs
@@ -1447,6 +1460,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setGoogleUser(res.user);
         setUserEmail(res.user.email || "accounting@marktimm.com");
         setNeedsAuth(false);
+        setTokenExpired(false);
+        clearSyncToast(); // dismiss any stale auth-error toast
         // Record today's date so the modal is skipped for the rest of the day
         localStorage.setItem("financeops_login_date", _localDateStr());
         // Tell other open tabs that we're now authenticated
@@ -2851,6 +2866,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         syncToast,
         clearSyncToast,
         showToast,
+        tokenExpired,
+        clearTokenExpired: () => { setTokenExpired(false); clearSyncToast(); },
         confirmModal,
         showConfirm,
         clearConfirmModal,
