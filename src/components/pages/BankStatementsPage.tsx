@@ -1,15 +1,202 @@
 ﻿import React, { useState } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
-import { FileText, CheckCircle2, Clock, Trash2, Filter, Edit2 } from "lucide-react";
+import { FileText, CheckCircle2, Clock, Trash2, Filter, Edit2, Zap, X } from "lucide-react";
 import { AddStatementModal, EditStatementModal } from "../modals/AddBankModal";
 import { formatTimestampLocal } from "../../utils/formatters";
+
+/* ── Standard monthly bank list (mirrors columns N–P of the sheet) ─────────── */
+const STANDARD_BANKS = [
+  { entity: "MSDx",   bank: "ONB 2448",              cycle: "Monthly" },
+  { entity: "MSDx",   bank: "Seacoast 9601",          cycle: "Monthly" },
+  { entity: "TI",     bank: "ONB 0539",               cycle: "Monthly" },
+  { entity: "TI",     bank: "ONB 9304",               cycle: "Monthly" },
+  { entity: "E1",     bank: "ONB 1716",               cycle: "Monthly" },
+  { entity: "4G",     bank: "ONB 8782",               cycle: "Monthly" },
+  { entity: "4G",     bank: "Chase 5074",             cycle: "Monthly" },
+  { entity: "4G",     bank: "Citi 4024",              cycle: "Monthly" },
+  { entity: "4G",     bank: "Citi 1395 / 0228",       cycle: "Monthly" },
+  { entity: "4G",     bank: "AMEX 8008 / 5004/6002",  cycle: "Monthly" },
+  { entity: "4G",     bank: "AMEX 3002 / 2004",       cycle: "Monthly" },
+  { entity: "4G",     bank: "Citi 4418 / 3678",       cycle: "Monthly" },
+  { entity: "Ruby's", bank: "Zion's Bank",            cycle: "Monthly" },
+  { entity: "Ruby's", bank: "WF Credit Card",         cycle: "Monthly" },
+  { entity: "4YR",    bank: "Citi Costco x8237",      cycle: "Monthly" },
+  { entity: "4YR",    bank: "Chase x8676",            cycle: "Monthly" },
+  { entity: "4YR",    bank: "TriCounty 232",          cycle: "Monthly" },
+  { entity: "4YR",    bank: "ONB 4347",               cycle: "Monthly" },
+  { entity: "4G",     bank: "Chase 4011",             cycle: "Monthly" },
+];
+
+/* ── Generate Monthly Entries Modal ────────────────────────────────────────── */
+const GenerateMonthlyModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
+  const { addBankStatement, theme } = useFinance() as any;
+  const isLight = theme === "light";
+
+  // Default target: previous month (statements are requested for the prior month)
+  const now = new Date();
+  const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const defaultYear  = prevMonth.getFullYear();
+  const defaultMonth = prevMonth.getMonth(); // 0-based
+
+  const [selYear,  setSelYear]  = useState(defaultYear);
+  const [selMonth, setSelMonth] = useState(defaultMonth);
+  const [requestDate, setRequestDate] = useState(now.toISOString().split("T")[0]);
+  const [checked, setChecked]   = useState<boolean[]>(STANDARD_BANKS.map(() => true));
+  const [remarks, setRemarks]   = useState<string[]>(STANDARD_BANKS.map(() => ""));
+  const [saving,  setSaving]    = useState(false);
+
+  if (!isOpen) return null;
+
+  const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const years  = [now.getFullYear() - 1, now.getFullYear()];
+
+  // Last day of selected month
+  const lastDay = new Date(selYear, selMonth + 1, 0).getDate();
+  const periodStart = `${selYear}-${String(selMonth + 1).padStart(2,"0")}-01`;
+  const periodEnd   = `${selYear}-${String(selMonth + 1).padStart(2,"0")}-${String(lastDay).padStart(2,"0")}`;
+  const periodLabel = `${MONTHS[selMonth]} ${selYear}`;
+  const defaultRemark = `For reconciliations - ${periodLabel}`;
+
+  const toggleAll = (val: boolean) => setChecked(STANDARD_BANKS.map(() => val));
+  const selectedCount = checked.filter(Boolean).length;
+
+  const handleGenerate = async () => {
+    setSaving(true);
+    const entries = STANDARD_BANKS.filter((_, i) => checked[i]);
+    for (const entry of entries) {
+      const idx = STANDARD_BANKS.indexOf(entry);
+      addBankStatement({
+        entity:        entry.entity,
+        bankName:      entry.bank,
+        occurrence:    entry.cycle,
+        statementDate: `${periodStart}|${periodEnd}`,
+        requestDate,
+        period:        `${selYear}-${String(selMonth + 1).padStart(2,"0")}`,
+        downloaded:    false,
+        remarks:       remarks[idx] || defaultRemark,
+      });
+      // small delay to avoid hammering sheet API
+      await new Promise(r => setTimeout(r, 80));
+    }
+    setSaving(false);
+    onClose();
+  };
+
+  const getEntityBadge = (entity: string) => {
+    if (entity.includes("Ruby")) return "bg-[#d81b60]/20 text-[#e91e63]";
+    if (entity.includes("MSDx")) return "bg-[#00897b]/20 text-[#00897b]";
+    if (entity === "4YR") return "bg-purple-500/20 text-purple-400";
+    if (entity === "E1")  return "bg-orange-500/20 text-orange-400";
+    return "bg-[#1a73e8]/20 text-[#1a73e8]";
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
+      <div className={`w-full max-w-3xl max-h-[90vh] flex flex-col rounded-2xl border shadow-2xl ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"}`}>
+        {/* Header */}
+        <div className={`flex items-center justify-between p-4 border-b ${isLight ? "border-slate-200" : "border-[#1a2235]"}`}>
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-[#1a73e8]" />
+            <h2 className={`text-sm font-bold ${isLight ? "text-slate-900" : "text-white"}`}>Generate Monthly Statement Entries</h2>
+          </div>
+          <button onClick={onClose} className={`p-1 rounded ${isLight ? "hover:bg-slate-100" : "hover:bg-white/10"}`}><X className="w-4 h-4" /></button>
+        </div>
+
+        {/* Global controls */}
+        <div className={`p-4 border-b ${isLight ? "border-slate-200 bg-slate-50" : "border-[#1a2235] bg-[#070b12]"} flex flex-wrap gap-4 items-end`}>
+          <div>
+            <label className={`block text-[11px] font-semibold mb-1 ${isLight ? "text-slate-600" : "text-[#888]"}`}>Statement Month</label>
+            <div className="flex gap-2">
+              <select value={selMonth} onChange={e => setSelMonth(Number(e.target.value))}
+                className={`px-2 py-1.5 rounded-lg text-xs border ${isLight ? "bg-white border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"} focus:outline-none`}>
+                {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
+              </select>
+              <select value={selYear} onChange={e => setSelYear(Number(e.target.value))}
+                className={`px-2 py-1.5 rounded-lg text-xs border ${isLight ? "bg-white border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"} focus:outline-none`}>
+                {years.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className={`block text-[11px] font-semibold mb-1 ${isLight ? "text-slate-600" : "text-[#888]"}`}>Request Date</label>
+            <input type="date" value={requestDate} onChange={e => setRequestDate(e.target.value)}
+              className={`px-2 py-1.5 rounded-lg text-xs border ${isLight ? "bg-white border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"} focus:outline-none`} />
+          </div>
+          <div className={`text-[11px] ${isLight ? "text-slate-500" : "text-[#888]"}`}>
+            Period: <span className={`font-semibold ${isLight ? "text-slate-800" : "text-white"}`}>{periodStart} → {periodEnd}</span>
+          </div>
+          <div className="ml-auto flex gap-2">
+            <button onClick={() => toggleAll(true)}  className="text-[11px] text-[#1a73e8] hover:underline">Select All</button>
+            <button onClick={() => toggleAll(false)} className="text-[11px] text-[#888] hover:underline">None</button>
+          </div>
+        </div>
+
+        {/* Bank list */}
+        <div className="flex-1 overflow-y-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className={`${isLight ? "bg-slate-100 text-slate-600" : "bg-[#141414] text-[#888]"} text-[11px] font-semibold`}>
+                <th className="p-2 text-center w-8">✓</th>
+                <th className="p-2 text-left">Entity</th>
+                <th className="p-2 text-left">Bank Name</th>
+                <th className="p-2 text-left">Cycle</th>
+                <th className="p-2 text-left">Remarks (editable)</th>
+              </tr>
+            </thead>
+            <tbody className={`divide-y ${isLight ? "divide-slate-100" : "divide-[#1a2235]"}`}>
+              {STANDARD_BANKS.map((b, i) => (
+                <tr key={i} className={`${!checked[i] ? "opacity-40" : ""} transition-opacity ${isLight ? "hover:bg-slate-50" : "hover:bg-white/5"}`}>
+                  <td className="p-2 text-center">
+                    <input type="checkbox" checked={checked[i]} onChange={e => setChecked(c => c.map((v,j) => j===i ? e.target.checked : v))} className="accent-[#1a73e8]" />
+                  </td>
+                  <td className="p-2">
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${getEntityBadge(b.entity)}`}>{b.entity}</span>
+                  </td>
+                  <td className={`p-2 font-semibold ${isLight ? "text-slate-900" : "text-white"}`}>{b.bank}</td>
+                  <td className={`p-2 ${isLight ? "text-slate-500" : "text-[#888]"}`}>{b.cycle}</td>
+                  <td className="p-2">
+                    <input
+                      type="text"
+                      value={remarks[i]}
+                      placeholder={defaultRemark}
+                      onChange={e => setRemarks(r => r.map((v,j) => j===i ? e.target.value : v))}
+                      disabled={!checked[i]}
+                      className={`w-full px-2 py-1 rounded text-[11px] border ${isLight ? "bg-white border-slate-200 text-slate-800 placeholder-slate-400" : "bg-[#070b12] border-[#1a2235] text-white placeholder-[#555]"} focus:outline-none focus:border-[#1a73e8]`}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Footer */}
+        <div className={`p-4 border-t ${isLight ? "border-slate-200" : "border-[#1a2235]"} flex items-center justify-between`}>
+          <span className={`text-[11px] ${isLight ? "text-slate-500" : "text-[#888]"}`}>{selectedCount} of {STANDARD_BANKS.length} banks selected</span>
+          <div className="flex gap-2">
+            <button onClick={onClose} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${isLight ? "border-slate-300 text-slate-700 hover:bg-slate-50" : "border-[#1a2235] text-[#888] hover:bg-white/5"}`}>Cancel</button>
+            <button
+              onClick={handleGenerate}
+              disabled={saving || selectedCount === 0}
+              className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-[#1a73e8] hover:bg-[#1557b0] text-white disabled:opacity-50 flex items-center gap-1.5"
+            >
+              <Zap className="w-3.5 h-3.5" />
+              {saving ? "Generating..." : `Generate ${selectedCount} Entries`}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const BankStatementsPage: React.FC = () => {
   const { bankStatements, selectedEntities, toggleStatementDownload, deleteBankStatement, theme, showConfirm } = useFinance() as any;
   const currentMonthYear = new Date().toLocaleString("en-US", { month: "long", year: "numeric" });
 
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [editingStatement, setEditingStatement] = useState<any | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthYear);
   const [selectedBank, setSelectedBank] = useState<string>("ALL");
@@ -187,8 +374,16 @@ export const BankStatementsPage: React.FC = () => {
             </div>
           </div>
 
-          <div className={`text-xs ${isLight ? "text-slate-500" : "text-[#888]"}`}>
-            Showing {filtered.length} of {bankStatements.length} statement(s)
+          <div className="flex items-center gap-3">
+            <div className={`text-xs ${isLight ? "text-slate-500" : "text-[#888]"}`}>
+              Showing {filtered.length} of {bankStatements.length} statement(s)
+            </div>
+            <button
+              onClick={() => setIsGenerateOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#1a73e8] hover:bg-[#1557b0] text-white transition-colors"
+            >
+              <Zap className="w-3.5 h-3.5" /> Generate Monthly
+            </button>
           </div>
         </div>
 
@@ -284,6 +479,7 @@ export const BankStatementsPage: React.FC = () => {
       </div>
 
       <AddStatementModal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} />
+      <GenerateMonthlyModal isOpen={isGenerateOpen} onClose={() => setIsGenerateOpen(false)} />
       <EditStatementModal
         statement={editingStatement}
         isOpen={!!editingStatement}
