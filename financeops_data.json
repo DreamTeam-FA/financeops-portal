@@ -1537,8 +1537,7 @@
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Auto-Debit",
-      "paymentInstructions": "https://mail.google.com/mail/u/2/#inbox/FMfcgzQhWBlfsQLqzrWTKdVQsVVjjKlc?projector=1&messagePartId=0.1",
-      "driveViewUrl": "https://drive.google.com/file/d/1cRaKSECfapEhD6G7LqeFMx03ULS8s3Oj/view?usp=drivesdk"
+      "paymentInstructions": "https://mail.google.com/mail/u/2/#inbox/FMfcgzQhWBlfsQLqzrWTKdVQsVVjjKlc?projector=1&messagePartId=0.1"
     },
     {
       "id": "ap-ruby-298",
@@ -2533,8 +2532,7 @@
       "category": "Marketing",
       "row": 386,
       "recurringType": "Recurring",
-      "paymentType": "Manual",
-      "driveViewUrl": "https://drive.google.com/file/d/1tPcJKUC2OSD1ikiwWkC0pimbIEOUhr48/view?usp=drivesdk"
+      "paymentType": "Manual"
     },
     {
       "id": "ap-ruby-391",
@@ -2777,8 +2775,7 @@
       "category": "Accounting",
       "row": 398,
       "recurringType": "Recurring",
-      "paymentType": "Manual",
-      "driveViewUrl": "https://drive.google.com/file/d/1iT_a56jxty4eYt8zAeRtZkihHrIXYATF/view?usp=drivesdk"
+      "paymentType": "Manual"
     },
     {
       "id": "ap-ruby-403",
@@ -4688,8 +4685,7 @@
       "category": "Computer System Expenses",
       "row": 605,
       "recurringType": "Recurring",
-      "paymentType": "Auto-Debit",
-      "driveViewUrl": "https://drive.google.com/file/d/1B45V-4J3U-7T6hndtbyszinl24USfjZ7/view?usp=drivesdk"
+      "paymentType": "Auto-Debit"
     },
     {
       "id": "ap-ruby-610",
@@ -6376,8 +6372,7 @@
       "description": "PCM Technologies",
       "row": 735,
       "recurringType": "Recurring",
-      "paymentType": "Auto-Debit",
-      "driveViewUrl": "https://drive.google.com/file/d/19D9km2MUjSZkq-xEqDWhlw06Ry89NPUj/view?usp=drivesdk"
+      "paymentType": "Auto-Debit"
     },
     {
       "id": "ap-ruby-740",
@@ -7520,8 +7515,7 @@
       "row": 874,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual",
-      "driveViewUrl": "https://drive.google.com/file/d/1iP90qKnGxlyDk2FF96ye1tMzeIPcjRv5/view?usp=drivesdk"
+      "paymentType": "Manual"
     },
     {
       "id": "ap-ruby-879",
@@ -7795,8 +7789,7 @@
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual",
-      "paymentInstructions": "$8,250 - x7083\n$7,085.79 - x3002\n$680 - Zion's bank\nCC fees\n247.50 - x7083\n212.57 - x3002",
-      "driveViewUrl": "https://drive.google.com/file/d/14FFIGnn4lQvEbfpDPOAtNDK-CJZQ6xVb/view?usp=drivesdk"
+      "paymentInstructions": "$8,250 - x7083\n$7,085.79 - x3002\n$680 - Zion's bank\nCC fees\n247.50 - x7083\n212.57 - x3002"
     },
     {
       "id": "ap-ruby-895",
@@ -10636,8 +10629,7 @@
       "row": 1067,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual",
-      "driveViewUrl": "https://drive.google.com/file/d/11OqXRcurveNy7qtWVJmNFEwAKXKvZOe7/view?usp=drivesdk"
+      "paymentType": "Manual"
     },
     {
       "id": "ap-ruby-1072",
@@ -10659,8 +10651,7 @@
       "row": 1068,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual",
-      "driveViewUrl": "https://drive.google.com/file/d/11OqXRcurveNy7qtWVJmNFEwAKXKvZOe7/view?usp=drivesdk"
+      "paymentType": "Manual"
     },
     {
       "id": "ap-ruby-1073",
@@ -10682,8 +10673,7 @@
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual",
-      "paymentInstructions": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVXHZDBdQlhDdHXhcsnnGMJfq?projector=1&messagePartId=0.1",
-      "driveViewUrl": "https://drive.google.com/file/d/11OqXRcurveNy7qtWVJmNFEwAKXKvZOe7/view?usp=drivesdk"
+      "paymentInstructions": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVXHZDBdQlhDdHXhcsnnGMJfq?projector=1&messagePartId=0.1"
     },
     {
       "id": "ap-ruby-1074",
@@ -10704,8 +10694,7 @@
       "recurringType": "Recurring",
       "paymentType": "Manual",
       "category": "Utilities",
-      "costType": "Estimate",
-      "driveViewUrl": "https://drive.google.com/file/d/1jpKaW2plMojV_qs9Hn9_6JBXrB0ZYWnq/view?usp=drivesdk"
+      "costType": "Estimate"
     },
     {
       "id": "ap-ruby-1075",
@@ -10726,8 +10715,7 @@
       "row": 1071,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual",
-      "driveViewUrl": "https://drive.google.com/file/d/1jpKaW2plMojV_qs9Hn9_6JBXrB0ZYWnq/view?usp=drivesdk"
+      "paymentType": "Manual"
     },
     {
       "id": "ap-ruby-1076",
@@ -10749,8 +10737,7 @@
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual",
-      "paidDate": "2026-08-24",
-      "driveViewUrl": "https://drive.google.com/file/d/1B6gm9UTadNbh2PY5hJn1nuVrOpy9VkPr/view?usp=drivesdk"
+      "paidDate": "2026-08-24"
     },
     {
       "id": "ap-ruby-1077",
@@ -10772,8 +10759,7 @@
       "row": 1073,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual",
-      "driveViewUrl": "https://drive.google.com/file/d/11OqXRcurveNy7qtWVJmNFEwAKXKvZOe7/view?usp=drivesdk"
+      "paymentType": "Manual"
     },
     {
       "id": "ap-ruby-1078",
@@ -10795,8 +10781,7 @@
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual",
-      "paidDate": "2026-08-11",
-      "driveViewUrl": "https://drive.google.com/file/d/11OqXRcurveNy7qtWVJmNFEwAKXKvZOe7/view?usp=drivesdk"
+      "paidDate": "2026-08-11"
     },
     {
       "id": "ap-ruby-1079",
@@ -10818,8 +10803,7 @@
       "row": 1075,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual",
-      "driveViewUrl": "https://drive.google.com/file/d/14BBtRtd7SOPukb88fN2IProdviouLW5k/view?usp=drivesdk"
+      "paymentType": "Manual"
     },
     {
       "id": "ap-ruby-1080",
@@ -10840,8 +10824,7 @@
       "row": 1076,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual",
-      "driveViewUrl": "https://drive.google.com/file/d/14BBtRtd7SOPukb88fN2IProdviouLW5k/view?usp=drivesdk"
+      "paymentType": "Manual"
     },
     {
       "id": "ap-ruby-1081",
@@ -10863,8 +10846,7 @@
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual",
-      "paidDate": "2026-08-28",
-      "driveViewUrl": "https://drive.google.com/file/d/1BfneidhoIb7lajTV-Y-JSuFZpvEu9WNX/view?usp=drivesdk"
+      "paidDate": "2026-08-28"
     },
     {
       "id": "ap-ruby-1082",
@@ -10886,8 +10868,7 @@
       "row": 1078,
       "recurringType": "Recurring",
       "paymentType": "Manual",
-      "costType": "Estimate",
-      "driveViewUrl": "https://drive.google.com/file/d/1PnTR6e6w9EO2Ib9hKLwWwErRrbOmJcdm/view?usp=drivesdk"
+      "costType": "Estimate"
     },
     {
       "id": "ap-ruby-1083",
@@ -10908,8 +10889,7 @@
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual",
-      "paymentInstructions": "https://mail.google.com/mail/u/1/#search/square+one+printing/FMfcgzQhVhhQdkQFFpCXcfVxrkzgdlrS?projector=1&messagePartId=0.1",
-      "driveViewUrl": "https://drive.google.com/file/d/1PnTR6e6w9EO2Ib9hKLwWwErRrbOmJcdm/view?usp=drivesdk"
+      "paymentInstructions": "https://mail.google.com/mail/u/1/#search/square+one+printing/FMfcgzQhVhhQdkQFFpCXcfVxrkzgdlrS?projector=1&messagePartId=0.1"
     },
     {
       "id": "ap-ruby-1084",
@@ -10929,8 +10909,7 @@
       "row": 1080,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual",
-      "driveViewUrl": "https://drive.google.com/file/d/1hSwKuOxutn8GziIw5Lsj6ilZEv9IUXAj/view?usp=drivesdk"
+      "paymentType": "Manual"
     },
     {
       "id": "ap-ruby-1085",
@@ -10952,8 +10931,7 @@
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual",
-      "description": "Cylinder Rent",
-      "driveViewUrl": "https://drive.google.com/file/d/1hSwKuOxutn8GziIw5Lsj6ilZEv9IUXAj/view?usp=drivesdk"
+      "description": "Cylinder Rent"
     },
     {
       "id": "ap-ruby-1086",
@@ -10976,8 +10954,7 @@
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual",
-      "paidDate": "2026-08-28",
-      "driveViewUrl": "https://drive.google.com/file/d/1m0giat7s2RP_kgGooJAxFkWIqCe1lY1m/view?usp=drivesdk"
+      "paidDate": "2026-08-28"
     },
     {
       "id": "ap-ruby-1087",
@@ -11000,8 +10977,7 @@
       "row": 1083,
       "recurringType": "Recurring",
       "paymentType": "Manual",
-      "costType": "Estimate",
-      "driveViewUrl": "https://drive.google.com/file/d/1QFK4d1-zEoRCm3O_Kr4R54RuV4oHE04m/view?usp=drivesdk"
+      "costType": "Estimate"
     },
     {
       "id": "ap-ruby-1088",
@@ -11023,8 +10999,7 @@
       "row": 1084,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual",
-      "driveViewUrl": "https://drive.google.com/file/d/1QFK4d1-zEoRCm3O_Kr4R54RuV4oHE04m/view?usp=drivesdk"
+      "paymentType": "Manual"
     },
     {
       "id": "ap-ruby-1089",
@@ -11046,8 +11021,7 @@
       "row": 1085,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual",
-      "driveViewUrl": "https://drive.google.com/file/d/17MgNtUORq-kvmrDbvAazfsnkeufOjPgX/view?usp=drivesdk"
+      "paymentType": "Manual"
     },
     {
       "id": "ap-ruby-1090",
@@ -11069,8 +11043,7 @@
       "row": 1086,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual",
-      "driveViewUrl": "https://drive.google.com/file/d/1zV3pmPQcCaVTyfScBd6ZrmrYYXSvJ9B3/view?usp=drivesdk"
+      "paymentType": "Manual"
     },
     {
       "id": "ap-ruby-1091",
@@ -11092,8 +11065,7 @@
       "row": 1087,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual",
-      "driveViewUrl": "https://drive.google.com/file/d/15D-OazYkHnSQ4adE4w5vsS85rrnUkDcP/view?usp=drivesdk"
+      "paymentType": "Manual"
     },
     {
       "id": "ap-ruby-1092",
@@ -11115,8 +11087,7 @@
       "row": 1088,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual",
-      "driveViewUrl": "https://drive.google.com/file/d/1sweiavdQn8UVvOwCwXwCPcMngqDgYVzc/view?usp=drivesdk"
+      "paymentType": "Manual"
     },
     {
       "id": "ap-ruby-1093",
@@ -11138,8 +11109,7 @@
       "row": 1089,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual",
-      "driveViewUrl": "https://drive.google.com/file/d/1--d-mtwNQqe05kJRHMmTqnbOPxVxqPSh/view?usp=drivesdk"
+      "paymentType": "Manual"
     },
     {
       "id": "ap-ruby-1094",
@@ -11161,8 +11131,7 @@
       "row": 1090,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual",
-      "driveViewUrl": "https://drive.google.com/file/d/1QVUokrOZ6V45MW6o-8dvCBP3hA1MT_Pc/view?usp=drivesdk"
+      "paymentType": "Manual"
     },
     {
       "id": "ap-ruby-1095",
@@ -11183,8 +11152,7 @@
       "row": 1091,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual",
-      "driveViewUrl": "https://drive.google.com/file/d/1jpKaW2plMojV_qs9Hn9_6JBXrB0ZYWnq/view?usp=drivesdk"
+      "paymentType": "Manual"
     },
     {
       "id": "ap-ruby-1096",
@@ -11203,7 +11171,6 @@
       "paymentInstructions": "https://mail.google.com/mail/u/2/#inbox/FMfcgzQhWLGxGSxLtVSNtTmnBNBxCtlV?projector=1&messagePartId=0.1",
       "category": "Utilities",
       "row": 1092,
-      "driveViewUrl": "https://drive.google.com/file/d/1jpKaW2plMojV_qs9Hn9_6JBXrB0ZYWnq/view?usp=drivesdk",
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual"
@@ -11227,8 +11194,7 @@
       "row": 1093,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual",
-      "driveViewUrl": "https://drive.google.com/file/d/1FDqBakf1lUv3YTiy1IRH3-DoIaamZ_Hj/view?usp=drivesdk"
+      "paymentType": "Manual"
     },
     {
       "id": "ap-ruby-1098",
@@ -11249,8 +11215,7 @@
       "row": 1094,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual",
-      "driveViewUrl": "https://drive.google.com/file/d/13JO8Wxgc6V3XyfW1ZgKuEqAUeIThVkhJ/view?usp=drivesdk"
+      "paymentType": "Manual"
     },
     {
       "id": "ap-ti-TIBills-110",
@@ -12357,8 +12322,7 @@
       "row": 224,
       "costType": "Estimate",
       "paymentType": "Manual",
-      "paidDate": "2026-09-02",
-      "driveViewUrl": "https://drive.google.com/file/d/1FXkGVTlRr1jKE70vFzxoUrqcq53K_Tap/view?usp=drivesdk"
+      "paidDate": "2026-09-02"
     },
     {
       "id": "ap-ti-TIBills-231",
@@ -13027,8 +12991,7 @@
       "invoiceNo": "8",
       "row": 261,
       "recurringType": "Recurring",
-      "paymentType": "Manual",
-      "driveViewUrl": "https://drive.google.com/file/d/15D-OazYkHnSQ4adE4w5vsS85rrnUkDcP/view?usp=drivesdk"
+      "paymentType": "Manual"
     },
     {
       "id": "ap-ti-TIBills-268",
@@ -15515,8 +15478,7 @@
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrHKKlVCXVfzCFzKlcDVdmxB",
       "row": 387,
       "costType": "Estimate",
-      "paymentType": "Manual",
-      "driveViewUrl": "https://drive.google.com/file/d/1ExWen6VB6OEEPzCTy8c5gbkLmhcfC3hf/view?usp=drivesdk"
+      "paymentType": "Manual"
     },
     {
       "id": "ap-ti-TIBills-394",
@@ -15753,8 +15715,7 @@
       "remarks": "https://mail.google.com/mail/u/2/#inbox?projector=1",
       "row": 399,
       "costType": "Estimate",
-      "paymentType": "Manual",
-      "driveViewUrl": "https://drive.google.com/file/d/1b0IwJmami0ZO7j_nzWOhe-tFOkDUoBps/view?usp=drivesdk"
+      "paymentType": "Manual"
     },
     {
       "id": "ap-ti-TIBills-406",
@@ -15773,8 +15734,7 @@
       "paidVia": "Manual",
       "row": 400,
       "costType": "Estimate",
-      "paymentType": "Manual",
-      "driveViewUrl": "https://drive.google.com/file/d/1kFs2PklaYLi5So_gkxRlKvjaP7QfCGVk/view?usp=drivesdk"
+      "paymentType": "Manual"
     },
     {
       "id": "ap-ti-TIBills-407",
@@ -15833,8 +15793,7 @@
       "row": 403,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual",
-      "driveViewUrl": "https://drive.google.com/file/d/1FLGBSFeqNdYzW2B-tbpgHZ8aN7XDrE-v/view?usp=drivesdk"
+      "paymentType": "Manual"
     },
     {
       "id": "ap-ti-TIBills-410",
@@ -15963,8 +15922,7 @@
       "invoiceNo": "",
       "row": 39,
       "recurringType": "Recurring",
-      "paymentType": "Manual",
-      "driveViewUrl": "https://drive.google.com/file/d/1-axgnLr8Gr82gBvCDJxTnVlqkHBT9GNr/view?usp=drivesdk"
+      "paymentType": "Manual"
     },
     {
       "id": "ap-msdx-45",
@@ -16035,8 +15993,7 @@
       "invoiceNo": "",
       "row": 43,
       "recurringType": "Recurring",
-      "paymentType": "Manual",
-      "driveViewUrl": "https://drive.google.com/file/d/1-axgnLr8Gr82gBvCDJxTnVlqkHBT9GNr/view?usp=drivesdk"
+      "paymentType": "Manual"
     },
     {
       "id": "ap-msdx-49",
@@ -16092,8 +16049,7 @@
       "row": 47,
       "recurringType": "Recurring",
       "paymentType": "Auto-Debit",
-      "paymentInstructions": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQfBQJFjWvxRlftDnVkknwccvzl?projector=1&messagePartId=0.1",
-      "driveViewUrl": "https://drive.google.com/file/d/1-axgnLr8Gr82gBvCDJxTnVlqkHBT9GNr/view?usp=drivesdk"
+      "paymentInstructions": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQfBQJFjWvxRlftDnVkknwccvzl?projector=1&messagePartId=0.1"
     },
     {
       "id": "ap-msdx-54",
@@ -16148,8 +16104,7 @@
       "row": 51,
       "recurringType": "Recurring",
       "paymentType": "Auto-Debit",
-      "paidDate": "2026-08-18",
-      "driveViewUrl": "https://drive.google.com/file/d/1-axgnLr8Gr82gBvCDJxTnVlqkHBT9GNr/view?usp=drivesdk"
+      "paidDate": "2026-08-18"
     },
     {
       "id": "ap-msdx-57",
@@ -16220,8 +16175,7 @@
       "invoiceNo": "INV-DF-US-VD3ECV9WJ394QAGMHV",
       "row": 55,
       "recurringType": "Recurring",
-      "paymentType": "Auto-Debit",
-      "driveViewUrl": "https://drive.google.com/file/d/1-axgnLr8Gr82gBvCDJxTnVlqkHBT9GNr/view?usp=drivesdk"
+      "paymentType": "Auto-Debit"
     },
     {
       "id": "ap-msdx-61",
@@ -18565,8 +18519,7 @@
       "row": 200,
       "recurringType": "Recurring",
       "paymentType": "Manual",
-      "paymentInstructions": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVhhRjttksBSrjShrPVxrmrJJ",
-      "driveViewUrl": "https://drive.google.com/file/d/1kTEDeGMBlaz5JBNKoFveAlQcyiHFvME1/view?usp=drivesdk"
+      "paymentInstructions": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVhhRjttksBSrjShrPVxrmrJJ"
     },
     {
       "id": "ap-msdx-206",
@@ -18743,8 +18696,7 @@
       "row": 210,
       "recurringType": "Recurring",
       "paymentType": "Auto-Debit",
-      "paymentInstructions": "https://mail.google.com/mail/u/2/#inbox?projector=1",
-      "driveViewUrl": "https://drive.google.com/file/d/1a7XRCkxeMNpdgo0VjBDbQLkj5KkE2L8i/view?usp=drivesdk"
+      "paymentInstructions": "https://mail.google.com/mail/u/2/#inbox?projector=1"
     },
     {
       "id": "ap-msdx-216",
@@ -19212,8 +19164,7 @@
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual",
-      "invoiceDate": "2026-08-07",
-      "driveViewUrl": "https://drive.google.com/file/d/1ExWen6VB6OEEPzCTy8c5gbkLmhcfC3hf/view?usp=drivesdk"
+      "invoiceDate": "2026-08-07"
     },
     {
       "id": "ap-msdx-243",
@@ -19290,8 +19241,7 @@
       "costType": "Estimate",
       "paymentType": "Manual",
       "invoiceDate": "2026-08-07",
-      "paymentInstructions": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrHKKlVLfMPxZTrHXbKMMSfj",
-      "driveViewUrl": "https://drive.google.com/file/d/1B8AlsSwea0tPs10iY54WQzeb9RFZjo33/view?usp=drivesdk"
+      "paymentInstructions": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrHKKlVLfMPxZTrHXbKMMSfj"
     },
     {
       "id": "ap-msdx-247",
@@ -20053,7 +20003,7 @@
       "description": "Retainers",
       "amount": 4000,
       "dueDate": "2026-06-30",
-      "month": "July",
+      "month": "June",
       "occurrence": "Monthly",
       "invoice": true,
       "approval": true,
@@ -20165,7 +20115,7 @@
       "description": "Accounting",
       "amount": 2000,
       "dueDate": "2026-06-30",
-      "month": "July",
+      "month": "June",
       "occurrence": "Monthly",
       "invoice": true,
       "approval": true,
@@ -20704,6 +20654,215 @@
     }
   ],
   "statements": [
+    {
+      "entity": "MSDx",
+      "bankName": "ONB 2448",
+      "occurrence": "Monthly",
+      "statementDate": "2026-08-01|2026-08-31",
+      "requestDate": "2026-09-04",
+      "period": "2026-08",
+      "downloaded": false,
+      "remarks": "",
+      "id": "st-1788537319145-0"
+    },
+    {
+      "entity": "MSDx",
+      "bankName": "Seacoast 9601",
+      "occurrence": "Monthly",
+      "statementDate": "2026-08-01|2026-08-31",
+      "requestDate": "2026-09-04",
+      "period": "2026-08",
+      "downloaded": false,
+      "remarks": "",
+      "id": "st-1788537319145-1"
+    },
+    {
+      "entity": "TI",
+      "bankName": "ONB 0539",
+      "occurrence": "Monthly",
+      "statementDate": "2026-08-01|2026-08-31",
+      "requestDate": "2026-09-04",
+      "period": "2026-08",
+      "downloaded": false,
+      "remarks": "",
+      "id": "st-1788537319145-2"
+    },
+    {
+      "entity": "TI",
+      "bankName": "ONB 9304",
+      "occurrence": "Monthly",
+      "statementDate": "2026-08-01|2026-08-31",
+      "requestDate": "2026-09-04",
+      "period": "2026-08",
+      "downloaded": false,
+      "remarks": "",
+      "id": "st-1788537319145-3"
+    },
+    {
+      "entity": "E1",
+      "bankName": "ONB 1716",
+      "occurrence": "Monthly",
+      "statementDate": "2026-08-01|2026-08-31",
+      "requestDate": "2026-09-04",
+      "period": "2026-08",
+      "downloaded": false,
+      "remarks": "",
+      "id": "st-1788537319145-4"
+    },
+    {
+      "entity": "4G",
+      "bankName": "ONB 8782",
+      "occurrence": "Monthly",
+      "statementDate": "2026-08-01|2026-08-31",
+      "requestDate": "2026-09-04",
+      "period": "2026-08",
+      "downloaded": false,
+      "remarks": "",
+      "id": "st-1788537319145-5"
+    },
+    {
+      "entity": "4G",
+      "bankName": "Chase 5074",
+      "occurrence": "Monthly",
+      "statementDate": "2026-08-01|2026-08-31",
+      "requestDate": "2026-09-04",
+      "period": "2026-08",
+      "downloaded": false,
+      "remarks": "",
+      "id": "st-1788537319145-6"
+    },
+    {
+      "entity": "4G",
+      "bankName": "Citi 4024",
+      "occurrence": "Monthly",
+      "statementDate": "2026-08-01|2026-08-31",
+      "requestDate": "2026-09-04",
+      "period": "2026-08",
+      "downloaded": false,
+      "remarks": "",
+      "id": "st-1788537319145-7"
+    },
+    {
+      "entity": "4G",
+      "bankName": "Citi 1395 / 0228",
+      "occurrence": "Monthly",
+      "statementDate": "2026-08-01|2026-08-31",
+      "requestDate": "2026-09-04",
+      "period": "2026-08",
+      "downloaded": false,
+      "remarks": "",
+      "id": "st-1788537319145-8"
+    },
+    {
+      "entity": "4G",
+      "bankName": "AMEX 8008 / 5004/6002",
+      "occurrence": "Monthly",
+      "statementDate": "2026-08-01|2026-08-31",
+      "requestDate": "2026-09-04",
+      "period": "2026-08",
+      "downloaded": false,
+      "remarks": "",
+      "id": "st-1788537319145-9"
+    },
+    {
+      "entity": "4G",
+      "bankName": "AMEX 3002 / 2004",
+      "occurrence": "Monthly",
+      "statementDate": "2026-08-01|2026-08-31",
+      "requestDate": "2026-09-04",
+      "period": "2026-08",
+      "downloaded": false,
+      "remarks": "",
+      "id": "st-1788537319145-10"
+    },
+    {
+      "entity": "4G",
+      "bankName": "Citi 4418 / 3678",
+      "occurrence": "Monthly",
+      "statementDate": "2026-08-01|2026-08-31",
+      "requestDate": "2026-09-04",
+      "period": "2026-08",
+      "downloaded": false,
+      "remarks": "",
+      "id": "st-1788537319145-11"
+    },
+    {
+      "entity": "Ruby's",
+      "bankName": "Zion's Bank",
+      "occurrence": "Monthly",
+      "statementDate": "2026-08-01|2026-08-31",
+      "requestDate": "2026-09-04",
+      "period": "2026-08",
+      "downloaded": false,
+      "remarks": "",
+      "id": "st-1788537319145-12"
+    },
+    {
+      "entity": "Ruby's",
+      "bankName": "WF Credit Card",
+      "occurrence": "Monthly",
+      "statementDate": "2026-08-01|2026-08-31",
+      "requestDate": "2026-09-04",
+      "period": "2026-08",
+      "downloaded": false,
+      "remarks": "",
+      "id": "st-1788537319145-13"
+    },
+    {
+      "entity": "4YR",
+      "bankName": "Citi Costco x8237",
+      "occurrence": "Monthly",
+      "statementDate": "2026-08-01|2026-08-31",
+      "requestDate": "2026-09-04",
+      "period": "2026-08",
+      "downloaded": false,
+      "remarks": "",
+      "id": "st-1788537319145-14"
+    },
+    {
+      "entity": "4YR",
+      "bankName": "Chase x8676",
+      "occurrence": "Monthly",
+      "statementDate": "2026-08-01|2026-08-31",
+      "requestDate": "2026-09-04",
+      "period": "2026-08",
+      "downloaded": false,
+      "remarks": "",
+      "id": "st-1788537319145-15"
+    },
+    {
+      "entity": "4YR",
+      "bankName": "TriCounty 232",
+      "occurrence": "Monthly",
+      "statementDate": "2026-08-01|2026-08-31",
+      "requestDate": "2026-09-04",
+      "period": "2026-08",
+      "downloaded": false,
+      "remarks": "",
+      "id": "st-1788537319145-16"
+    },
+    {
+      "entity": "4YR",
+      "bankName": "ONB 4347",
+      "occurrence": "Monthly",
+      "statementDate": "2026-08-01|2026-08-31",
+      "requestDate": "2026-09-04",
+      "period": "2026-08",
+      "downloaded": false,
+      "remarks": "",
+      "id": "st-1788537319145-17"
+    },
+    {
+      "entity": "4G",
+      "bankName": "Chase 4011",
+      "occurrence": "Monthly",
+      "statementDate": "2026-08-01|2026-08-31",
+      "requestDate": "2026-09-04",
+      "period": "2026-08",
+      "downloaded": false,
+      "remarks": "",
+      "id": "st-1788537319145-18"
+    },
     {
       "id": "st-37",
       "period": "2026-07",
@@ -21858,71 +22017,6 @@
       "reconciledDate": "2026-08-21",
       "remarks": "For reconciliations - July2026 - please add August 15th statement",
       "rowIndex": 32
-    },
-    {
-      "id": "stmt-bsd-33",
-      "period": "Aug 2026",
-      "entity": "MSDx",
-      "bankName": "ONB 2448",
-      "occurrence": "Monthly",
-      "remarks": "",
-      "statementDate": "2026-08-01|2026-08-31",
-      "requestDate": "2026-09-04",
-      "downloaded": false,
-      "downloadedAt": "",
-      "rowIndex": 33
-    },
-    {
-      "id": "stmt-bsd-34",
-      "period": "Aug 2026",
-      "entity": "TI",
-      "bankName": "ONB 9304",
-      "occurrence": "Monthly",
-      "remarks": "",
-      "statementDate": "2026-08-01|2026-08-31",
-      "requestDate": "2026-09-04",
-      "downloaded": false,
-      "downloadedAt": "",
-      "rowIndex": 34
-    },
-    {
-      "id": "stmt-bsd-35",
-      "period": "Aug 2026",
-      "entity": "4G",
-      "bankName": "Citi 4024",
-      "occurrence": "Monthly",
-      "remarks": "",
-      "statementDate": "2026-08-01|2026-08-31",
-      "requestDate": "2026-09-04",
-      "downloaded": false,
-      "downloadedAt": "",
-      "rowIndex": 35
-    },
-    {
-      "id": "stmt-bsd-36",
-      "period": "Aug 2026",
-      "entity": "4YR",
-      "bankName": "ONB 4347",
-      "occurrence": "Monthly",
-      "remarks": "",
-      "statementDate": "2026-08-01|2026-08-31",
-      "requestDate": "2026-09-04",
-      "downloaded": false,
-      "downloadedAt": "",
-      "rowIndex": 36
-    },
-    {
-      "id": "stmt-bsd-37",
-      "period": "Aug 2026",
-      "entity": "4G",
-      "bankName": "Chase 4011",
-      "occurrence": "Monthly",
-      "remarks": "",
-      "statementDate": "2026-08-01|2026-08-31",
-      "requestDate": "2026-09-04",
-      "downloaded": false,
-      "downloadedAt": "",
-      "rowIndex": 37
     }
   ],
   "payrollWeeks": [
@@ -21953,50 +22047,26 @@
   ],
   "payrollPivot": {
     "Ruby's": {
-      "Operations": {
-        "Warehouse & Packing": {
-          "hours": 160,
-          "amount": 4800
-        },
-        "Quality Control": {
-          "hours": 80,
-          "amount": 2800
-        }
-      },
-      "Administration": {
-        "Accounting & Admin": {
-          "hours": 40,
-          "amount": 2200
+      "Payroll Line Items": {
+        "Payroll": {
+          "hours": 1120,
+          "amount": 975444.47
         }
       }
     },
     "TI": {
-      "Engineering": {
-        "Software Devs": {
-          "hours": 240,
-          "amount": 14400
-        },
-        "DevOps & Cloud": {
-          "hours": 120,
-          "amount": 7800
-        }
-      },
-      "Management": {
-        "Exec & Operations": {
-          "hours": 80,
-          "amount": 6500
+      "Payroll Line Items": {
+        "Payroll": {
+          "hours": 880,
+          "amount": 90328.45
         }
       }
     },
     "MSDx": {
-      "Laboratory": {
-        "Research Scientists": {
-          "hours": 160,
-          "amount": 9600
-        },
-        "Lab Technicians": {
-          "hours": 120,
-          "amount": 5400
+      "Payroll Line Items": {
+        "Payroll": {
+          "hours": 480,
+          "amount": 105500
         }
       }
     }
@@ -22541,7 +22611,663 @@
   ],
   "syncLogs": [],
   "localCalendarEvents": [],
-  "quickNotes": [],
+  "quickNotes": [
+    {
+      "id": "qn-n1781187315323681",
+      "title": "Hastings Insurance Company",
+      "content": "Enroll to auto debit",
+      "category": "Week of Jun 8–14, 2026",
+      "entity": "Corner Property Group",
+      "vendorName": "Hastings Insurance Company",
+      "status": "done",
+      "completedAt": "07/01/2026 01:30",
+      "createdAt": "2026-06-08",
+      "weekLabel": "Week of Jun 8–14, 2026",
+      "row": 2,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1781187443707326",
+      "title": "Tebra",
+      "content": "ask Mason if we owe anything",
+      "category": "Week of Jun 8–14, 2026",
+      "entity": "MSDx",
+      "vendorName": "Tebra",
+      "status": "done",
+      "completedAt": "07/01/2026 01:30",
+      "createdAt": "2026-06-08",
+      "weekLabel": "Week of Jun 8–14, 2026",
+      "row": 3,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1781189809096693",
+      "title": "Marquee Monsen",
+      "content": "Adjust check for June.\nWe paid last week of May deduct the amount from the $2,500 due this month",
+      "category": "Week of Jun 8–14, 2026",
+      "entity": "Ruby's bills",
+      "vendorName": "Marquee Monsen",
+      "status": "done",
+      "completedAt": "07/21/2026 23:12",
+      "createdAt": "2026-06-08",
+      "weekLabel": "Week of Jun 8–14, 2026",
+      "row": 4,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1781189847930512",
+      "title": "Dominion Energy",
+      "content": "Call regarding no charges May and late charge June",
+      "category": "Week of Jun 8–14, 2026",
+      "entity": "Ruby's bills",
+      "vendorName": "Dominion Energy",
+      "status": "done",
+      "completedAt": "07/01/2026 01:30",
+      "createdAt": "2026-06-08",
+      "weekLabel": "Week of Jun 8–14, 2026",
+      "row": 5,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1781192850113489",
+      "title": "Ataraxis Management, Inc.",
+      "content": "Need to pay $1,100 - ask Mark for approval",
+      "category": "Week of Jun 8–14, 2026",
+      "entity": "E1",
+      "vendorName": "Ataraxis Management, Inc.",
+      "status": "done",
+      "completedAt": "07/01/2026 01:30",
+      "createdAt": "2026-06-08",
+      "weekLabel": "Week of Jun 8–14, 2026",
+      "row": 6,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n178163257808458",
+      "title": "US Foods",
+      "content": "Confirm if already been paid",
+      "category": "Week of Jun 15–21, 2026",
+      "entity": "Ruby's bills",
+      "vendorName": "US Foods",
+      "status": "done",
+      "completedAt": "07/01/2026 01:29",
+      "createdAt": "2026-06-15",
+      "weekLabel": "Week of Jun 15–21, 2026",
+      "row": 7,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n178163314323695",
+      "title": "City of Logan",
+      "content": "Expect charges within this week",
+      "category": "Week of Jun 15–21, 2026",
+      "entity": "Ruby's bills",
+      "vendorName": "City of Logan",
+      "status": "done",
+      "completedAt": "07/01/2026 01:29",
+      "createdAt": "2026-06-15",
+      "weekLabel": "Week of Jun 15–21, 2026",
+      "row": 8,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1781634315144704",
+      "title": "Dish",
+      "content": "Expecting charges within the week",
+      "category": "Week of Jun 15–21, 2026",
+      "entity": "Ruby's bills",
+      "vendorName": "Dish",
+      "status": "done",
+      "completedAt": "07/01/2026 01:29",
+      "createdAt": "2026-06-15",
+      "weekLabel": "Week of Jun 15–21, 2026",
+      "row": 9,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1781634355024585",
+      "title": "Loman AI",
+      "content": "Expecting charges by the end of the week",
+      "category": "Week of Jun 15–21, 2026",
+      "entity": "Ruby's bills",
+      "vendorName": "Loman AI",
+      "status": "done",
+      "completedAt": "07/01/2026 01:29",
+      "createdAt": "2026-06-15",
+      "weekLabel": "Week of Jun 15–21, 2026",
+      "row": 10,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1781634623490250",
+      "title": "Payroll",
+      "content": "$35k auto debit and checks",
+      "category": "Week of Jun 15–21, 2026",
+      "entity": "Ruby's bills",
+      "vendorName": "Payroll",
+      "status": "done",
+      "completedAt": "07/01/2026 01:29",
+      "createdAt": "2026-06-15",
+      "weekLabel": "Week of Jun 15–21, 2026",
+      "row": 11,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n178163488813396",
+      "title": "Headley's",
+      "content": "Due end of the week",
+      "category": "Week of Jun 15–21, 2026",
+      "entity": "TI",
+      "vendorName": "Headley's",
+      "status": "done",
+      "completedAt": "07/01/2026 01:29",
+      "createdAt": "2026-06-15",
+      "weekLabel": "Week of Jun 15–21, 2026",
+      "row": 12,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n178283369607123",
+      "title": "Marquee Monsen",
+      "content": "Adjust check for June.\nWe paid last week of May deduct the amount from the $2,500 due this month\nUpdate: Deduct $1,600; exploring ACH",
+      "category": "Week of Jun 29–5, 2026",
+      "entity": "Ruby's bills",
+      "vendorName": "Marquee Monsen",
+      "status": "done",
+      "completedAt": "07/21/2026 23:12",
+      "createdAt": "2026-06-29",
+      "weekLabel": "Week of Jun 29–5, 2026",
+      "row": 13,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1782833725017372",
+      "title": "UTC - Sales",
+      "content": "$4k on x7083 balance on x5074",
+      "category": "Week of Jun 29–5, 2026",
+      "entity": "Ruby's bills",
+      "vendorName": "UTC - Sales",
+      "status": "done",
+      "completedAt": "07/07/2026 20:36",
+      "createdAt": "2026-06-29",
+      "weekLabel": "Week of Jun 29–5, 2026",
+      "row": 14,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n178283377281679",
+      "title": "UTC - Restaurant",
+      "content": "on x5348",
+      "category": "Week of Jun 29–5, 2026",
+      "entity": "Ruby's bills",
+      "vendorName": "UTC - Restaurant",
+      "status": "done",
+      "completedAt": "07/01/2026 21:14",
+      "createdAt": "2026-06-29",
+      "weekLabel": "Week of Jun 29–5, 2026",
+      "row": 15,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1782834164999592",
+      "title": "Hastings Insurance Company",
+      "content": "insurance must be paid within the 1st month of the quarter $888 per quarter",
+      "category": "Week of Jun 29–5, 2026",
+      "entity": "Corner Property Group",
+      "vendorName": "Hastings Insurance Company",
+      "status": "done",
+      "completedAt": "07/07/2026 21:16",
+      "createdAt": "2026-06-29",
+      "weekLabel": "Week of Jun 29–5, 2026",
+      "row": 16,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n178283444420559",
+      "title": "NSSB Loan",
+      "content": "pay later - waiting for rent check to come in",
+      "category": "Week of Jun 29–5, 2026",
+      "entity": "Corner Property Group",
+      "vendorName": "NSSB Loan",
+      "status": "done",
+      "completedAt": "07/21/2026 23:11",
+      "createdAt": "2026-06-29",
+      "weekLabel": "Week of Jun 29–5, 2026",
+      "row": 17,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1782834500526774",
+      "title": "Payroll",
+      "content": "payroll - send it tomorrow by wire",
+      "category": "Week of Jun 29–5, 2026",
+      "entity": "MSDx Bills",
+      "vendorName": "Payroll",
+      "status": "done",
+      "completedAt": "07/07/2026 20:36",
+      "createdAt": "2026-06-29",
+      "weekLabel": "Week of Jun 29–5, 2026",
+      "row": 18,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1782834920398412",
+      "title": "TI <> 4YR recon 2026 - some payment will not be taken against Markuz; Mark will identify them via the sheet; summary missing the materials",
+      "content": "TI <> 4YR recon 2026 - some payment will not be taken against Markuz; Mark will identify them via the sheet; summary missing the materials",
+      "category": "Week of Jun 29–5, 2026",
+      "entity": "TI",
+      "status": "done",
+      "completedAt": "07/07/2026 21:41",
+      "createdAt": "2026-06-29",
+      "weekLabel": "Week of Jun 29–5, 2026",
+      "row": 19,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1782834947518386",
+      "title": "Co-Alliance",
+      "content": "Pay Co-Alliance using 1395 July 2 after closing",
+      "category": "Week of Jun 29–5, 2026",
+      "entity": "TI",
+      "vendorName": "Co-Alliance",
+      "status": "done",
+      "completedAt": "07/07/2026 20:36",
+      "createdAt": "2026-06-29",
+      "weekLabel": "Week of Jun 29–5, 2026",
+      "row": 20,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n178283866437015",
+      "title": "MXR Imaging Solution Company",
+      "content": "total amount is $1211.69 see AP bills for details",
+      "category": "Week of Jun 29–5, 2026",
+      "entity": "MSDx Bills",
+      "vendorName": "MXR Imaging Solution Company",
+      "status": "done",
+      "completedAt": "07/08/2026 17:05",
+      "createdAt": "2026-06-29",
+      "weekLabel": "Week of Jun 29–5, 2026",
+      "row": 21,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1782840138073265",
+      "title": "Airgas",
+      "content": "use Wellsfargo",
+      "category": "Week of Jun 29–5, 2026",
+      "entity": "Ruby's bills",
+      "vendorName": "Airgas",
+      "status": "done",
+      "completedAt": "07/01/2026 11:09",
+      "createdAt": "2026-06-29",
+      "weekLabel": "Week of Jun 29–5, 2026",
+      "row": 26,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1783438592123581",
+      "title": "Marquee Monsen",
+      "content": "May cheque cleared last Friday; prepare $1600 cheque today to send to Iza",
+      "category": "Week of Jul 6–12, 2026",
+      "entity": "Ruby's bills",
+      "vendorName": "Marquee Monsen",
+      "status": "done",
+      "completedAt": "07/08/2026 18:16",
+      "createdAt": "2026-07-06",
+      "weekLabel": "Week of Jul 6–12, 2026",
+      "row": 27,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n178343866048154",
+      "title": "Alsco",
+      "content": "Pay on Friday using Wellsfargo",
+      "category": "Week of Jul 6–12, 2026",
+      "entity": "Ruby's bills",
+      "vendorName": "Alsco",
+      "status": "done",
+      "completedAt": "07/21/2026 23:09",
+      "createdAt": "2026-07-06",
+      "weekLabel": "Week of Jul 6–12, 2026",
+      "row": 28,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1783438760742709",
+      "title": "US Foods",
+      "content": "will apply quarterly credit - $1020.56, $8961.03; apply as other income",
+      "category": "Week of Jul 6–12, 2026",
+      "entity": "Ruby's bills",
+      "vendorName": "US Foods",
+      "status": "done",
+      "completedAt": "07/22/2026 00:07",
+      "createdAt": "2026-07-06",
+      "weekLabel": "Week of Jul 6–12, 2026",
+      "row": 29,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1783439235664638",
+      "title": "MXR Imaging Solution Company",
+      "content": "pay using AMEX 4418  - must be paid immediately; do not delay in the future",
+      "category": "Week of Jul 6–12, 2026",
+      "entity": "MSDx Bills",
+      "vendorName": "MXR Imaging Solution Company",
+      "status": "done",
+      "completedAt": "07/08/2026 12:22",
+      "createdAt": "2026-07-06",
+      "weekLabel": "Week of Jul 6–12, 2026",
+      "row": 30,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n178343926187231",
+      "title": "ExtraSpace Storage",
+      "content": "Pay using AMEX 4418",
+      "category": "Week of Jul 6–12, 2026",
+      "entity": "MSDx Bills",
+      "vendorName": "ExtraSpace Storage",
+      "status": "done",
+      "completedAt": "07/08/2026 12:22",
+      "createdAt": "2026-07-06",
+      "weekLabel": "Week of Jul 6–12, 2026",
+      "row": 31,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1783439300559891",
+      "title": "Radxcel",
+      "content": "$1000 x 3months; need to confirm with Mason",
+      "category": "Week of Jul 6–12, 2026",
+      "entity": "MSDx Bills",
+      "vendorName": "Radxcel",
+      "status": "done",
+      "completedAt": "Aug 25, 2026, 11:33 PM",
+      "createdAt": "2026-07-06",
+      "weekLabel": "Week of Jul 6–12, 2026",
+      "row": 32,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n17834394237219",
+      "title": "NSSB Loan",
+      "content": "pay on Friday",
+      "category": "Week of Jul 6–12, 2026",
+      "entity": "Corner Property Group",
+      "vendorName": "NSSB Loan",
+      "status": "done",
+      "completedAt": "07/14/2026 22:39",
+      "createdAt": "2026-07-06",
+      "weekLabel": "Week of Jul 6–12, 2026",
+      "row": 33,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1783439500253923",
+      "title": "FUNNELS ZONE LLC",
+      "content": "do not delay",
+      "category": "Week of Jul 6–12, 2026",
+      "entity": "TI",
+      "vendorName": "FUNNELS ZONE LLC",
+      "status": "done",
+      "completedAt": "07/14/2026 22:57",
+      "createdAt": "2026-07-06",
+      "weekLabel": "Week of Jul 6–12, 2026",
+      "row": 34,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1783439519853813",
+      "title": "Imran",
+      "content": "do not delay",
+      "category": "Week of Jul 6–12, 2026",
+      "entity": "E1",
+      "vendorName": "Imran",
+      "status": "done",
+      "completedAt": "07/10/2026 18:31",
+      "createdAt": "2026-07-06",
+      "weekLabel": "Week of Jul 6–12, 2026",
+      "row": 35,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1783439534051770",
+      "title": "Arcadia Publishing",
+      "content": "Pay on Friday",
+      "category": "Week of Jul 6–12, 2026",
+      "entity": "4G",
+      "vendorName": "Arcadia Publishing",
+      "status": "done",
+      "completedAt": "07/14/2026 22:38",
+      "createdAt": "2026-07-06",
+      "weekLabel": "Week of Jul 6–12, 2026",
+      "row": 36,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1784041647680966",
+      "title": "Alsco",
+      "content": "$1,657.80 - overdue (Wellsfargo cannot cover the amount)",
+      "category": "Week of Jul 13–19, 2026",
+      "entity": "Ruby's bills",
+      "vendorName": "Alsco",
+      "status": "done",
+      "completedAt": "07/23/2026 20:30",
+      "createdAt": "2026-07-13",
+      "weekLabel": "Week of Jul 13–19, 2026",
+      "row": 37,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1784041938164179",
+      "title": "Payroll",
+      "content": "Wills end the details once available - due July 15",
+      "category": "Week of Jul 13–19, 2026",
+      "entity": "Ruby's bills",
+      "vendorName": "Payroll",
+      "status": "done",
+      "completedAt": "07/16/2026 18:24",
+      "createdAt": "2026-07-13",
+      "weekLabel": "Week of Jul 13–19, 2026",
+      "row": 38,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1784042176232688",
+      "title": "City of Logan",
+      "content": "Estimated at $6k - due July 15 (auto debit)",
+      "category": "Week of Jul 13–19, 2026",
+      "entity": "Ruby's bills",
+      "vendorName": "City of Logan",
+      "status": "done",
+      "completedAt": "07/24/2026 00:16",
+      "createdAt": "2026-07-13",
+      "weekLabel": "Week of Jul 13–19, 2026",
+      "row": 39,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1784042287316107",
+      "title": "Dish",
+      "content": "$241.77 - due July 16 (auto charge wellsfargo)",
+      "category": "Week of Jul 13–19, 2026",
+      "entity": "Ruby's bills",
+      "vendorName": "Dish",
+      "status": "done",
+      "completedAt": "07/23/2026 23:51",
+      "createdAt": "2026-07-13",
+      "weekLabel": "Week of Jul 13–19, 2026",
+      "row": 40,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1784042332405713",
+      "title": "MetTel",
+      "content": "$110.16 - due J7ul 16 (auto debit Zions)",
+      "category": "Week of Jul 13–19, 2026",
+      "entity": "Ruby's bills",
+      "vendorName": "MetTel",
+      "status": "done",
+      "completedAt": "07/23/2026 23:51",
+      "createdAt": "2026-07-13",
+      "weekLabel": "Week of Jul 13–19, 2026",
+      "row": 41,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1784044494369465",
+      "title": "US Foods",
+      "content": "for payment confirmation",
+      "category": "Week of Jul 13–19, 2026",
+      "entity": "Ruby's bills",
+      "vendorName": "US Foods",
+      "status": "done",
+      "createdAt": "2026-07-13",
+      "weekLabel": "Week of Jul 13–19, 2026",
+      "row": 42,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1784044567678473",
+      "title": "Docusign",
+      "content": "$15 - due 15th (auto debit Seacoast)",
+      "category": "Week of Jul 13–19, 2026",
+      "entity": "MSDx Bills",
+      "vendorName": "Docusign",
+      "status": "done",
+      "completedAt": "07/22/2026 19:16",
+      "createdAt": "2026-07-13",
+      "weekLabel": "Week of Jul 13–19, 2026",
+      "row": 43,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1784044633707858",
+      "title": "CareLink Mobile Practice Manager",
+      "content": "$249 - due 15th (auto debit Seacoast)",
+      "category": "Week of Jul 13–19, 2026",
+      "entity": "MSDx Bills",
+      "vendorName": "CareLink Mobile Practice Manager",
+      "status": "done",
+      "completedAt": "07/23/2026 18:39",
+      "createdAt": "2026-07-13",
+      "weekLabel": "Week of Jul 13–19, 2026",
+      "row": 44,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1784045917598545",
+      "title": "Starlink",
+      "content": "$290 - (auto debit Seacoast)",
+      "category": "Week of Jul 13–19, 2026",
+      "entity": "MSDx Bills",
+      "vendorName": "Starlink",
+      "status": "done",
+      "completedAt": "07/22/2026 19:25",
+      "createdAt": "2026-07-13",
+      "weekLabel": "Week of Jul 13–19, 2026",
+      "row": 45,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n178465062282964",
+      "title": "PARKE COUNTY REMC",
+      "content": "David's PARKE COUNTY REMC 961465-005 Current Balance $-203",
+      "category": "Week of Jul 20–26, 2026",
+      "entity": "TI",
+      "vendorName": "PARKE COUNTY REMC",
+      "status": "done",
+      "completedAt": "08/04/2026 22:10",
+      "createdAt": "2026-07-20",
+      "weekLabel": "Week of Jul 20–26, 2026",
+      "row": 46,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1785260289656764",
+      "title": "US Foods",
+      "content": "need to confirm with Mark if paid",
+      "category": "Week of Jul 27–2, 2026",
+      "entity": "Ruby's bills",
+      "vendorName": "US Foods",
+      "status": "done",
+      "createdAt": "2026-07-27",
+      "weekLabel": "Week of Jul 27–2, 2026",
+      "row": 47,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n178526044965761",
+      "title": "NSSB Loan",
+      "content": "needed to pay this week",
+      "category": "Week of Jul 27–2, 2026",
+      "entity": "TI",
+      "vendorName": "NSSB Loan",
+      "status": "done",
+      "completedAt": "Aug 25, 2026, 6:01 PM",
+      "createdAt": "2026-07-27",
+      "weekLabel": "Week of Jul 27–2, 2026",
+      "row": 48,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1785260485664981",
+      "title": "Co-Alliance",
+      "content": "Mark's bldg - the one sent by Iza thru email",
+      "category": "Week of Jul 27–2, 2026",
+      "entity": "TI",
+      "vendorName": "Co-Alliance",
+      "status": "done",
+      "completedAt": "08/07/2026 02:40",
+      "createdAt": "2026-07-27",
+      "weekLabel": "Week of Jul 27–2, 2026",
+      "row": 49,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1785260526165285",
+      "title": "Co-Alliance",
+      "content": "need to confirm with Mark what card to use",
+      "category": "Week of Jul 27–2, 2026",
+      "entity": "TI",
+      "vendorName": "Co-Alliance",
+      "status": "done",
+      "completedAt": "08/07/2026 02:40",
+      "createdAt": "2026-07-27",
+      "weekLabel": "Week of Jul 27–2, 2026",
+      "row": 50,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1785260691245552",
+      "title": "Radxcel",
+      "content": "need to discuss with Mark",
+      "category": "Week of Jul 27–2, 2026",
+      "entity": "MSDx Bills",
+      "vendorName": "Radxcel",
+      "status": "done",
+      "completedAt": "Aug 25, 2026, 11:33 PM",
+      "createdAt": "2026-07-27",
+      "weekLabel": "Week of Jul 27–2, 2026",
+      "row": 51,
+      "itemType": "note"
+    },
+    {
+      "id": "qn-n1786032196960473",
+      "title": "Marquee Monsen",
+      "content": "We need to send by friday $6000 for Marquee Cleveland - from Mark's email https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVhhQnHvtTQmrLldXFbXWPVrN",
+      "category": "Week of Aug 3–9, 2026",
+      "entity": "Ruby's bills",
+      "vendorName": "Marquee Monsen",
+      "status": "done",
+      "completedAt": "Aug 13, 2026, 6:43 PM",
+      "createdAt": "2026-08-03",
+      "weekLabel": "Week of Aug 3–9, 2026",
+      "row": 52,
+      "itemType": "note"
+    }
+  ],
   "gasUrls": {
     "curcumin": "",
     "fouryr": "",
@@ -64024,6 +64750,16 @@
   "logsSheetId": "19ColN3UOnuGbk1CkHtZswxPZf7oj7Zs2pKaqmGlN4m8",
   "loginLog": [
     {
+      "id": "ll-1788537969766",
+      "timestamp": "9/5/2026, 12:06:09 AM",
+      "user": "accounting@marktimm.com",
+      "device": "Windows / Chrome",
+      "ip": "2001:4453:479:4900:7c52:fd1c:6892:8f78",
+      "city": "San Juan",
+      "region": "Calabarzon",
+      "country": "Philippines"
+    },
+    {
       "id": "ll-1788536699723",
       "timestamp": "9/4/2026, 11:44:59 PM",
       "user": "accounting@marktimm.com",
@@ -64109,12 +64845,11 @@
   "_arPortalDedupDone": true,
   "activityLog": [
     {
-      "id": "al-1788536706092",
-      "timestamp": "9/4/2026, 11:45:05 PM",
+      "id": "al-1788537974591",
+      "timestamp": "9/5/2026, 12:06:14 AM",
       "user": "accounting@marktimm.com",
       "action": "Synced All Modules",
       "details": "Live Google Sheets dataset pulled successfully."
     }
-  ],
-  "lastSyncedAt": "2026-09-04T15:51:51.035Z"
+  ]
 }

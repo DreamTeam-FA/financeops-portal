@@ -43,42 +43,72 @@ const GenerateMonthlyModal: React.FC<{ isOpen: boolean; onClose: () => void }> =
   const defaultYear  = prevMonth.getFullYear();
   const defaultMonth = prevMonth.getMonth(); // 0-based
 
-  const [selYear,  setSelYear]  = useState(defaultYear);
-  const [selMonth, setSelMonth] = useState(defaultMonth);
-  const [requestDate, setRequestDate] = useState(now.toISOString().split("T")[0]);
-  const [checked, setChecked]   = useState<boolean[]>(BANK_LIST.map(() => true));
-  const [remarks, setRemarks]   = useState<string[]>(BANK_LIST.map(b => b.remarks || ""));
-  const [saving,  setSaving]    = useState(false);
-
-  if (!isOpen) return null;
-
   const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   const years  = [now.getFullYear() - 1, now.getFullYear()];
 
-  // Last day of selected month
-  const lastDay = new Date(selYear, selMonth + 1, 0).getDate();
-  const periodStart = `${selYear}-${String(selMonth + 1).padStart(2,"0")}-01`;
-  const periodEnd   = `${selYear}-${String(selMonth + 1).padStart(2,"0")}-${String(lastDay).padStart(2,"0")}`;
-  const periodLabel = `${MONTHS[selMonth]} ${selYear}`;
+  /** Build start/end ISO dates for a given year+month (0-based) */
+  const buildPeriodDates = (y: number, m: number) => {
+    const lastDay = new Date(y, m + 1, 0).getDate();
+    const mm = String(m + 1).padStart(2, "0");
+    return {
+      start: `${y}-${mm}-01`,
+      end:   `${y}-${mm}-${String(lastDay).padStart(2, "0")}`,
+    };
+  };
+
+  /** Parse a sheet-provided pipe-separated date into {start, end}, fallback to period */
+  const parseSheetDate = (raw: string, y: number, m: number) => {
+    if (raw && raw.includes("|")) {
+      const [s, e] = raw.split("|");
+      if (s.trim() && e.trim()) return { start: s.trim(), end: e.trim() };
+    }
+    return buildPeriodDates(y, m);
+  };
+
+  const [selYear,     setSelYear]     = useState(defaultYear);
+  const [selMonth,    setSelMonth]    = useState(defaultMonth);
+  const [requestDate, setRequestDate] = useState(now.toISOString().split("T")[0]);
+  const [checked,     setChecked]     = useState<boolean[]>(BANK_LIST.map(() => true));
+  const [remarks,     setRemarks]     = useState<string[]>(BANK_LIST.map(b => b.remarks || ""));
+  // Per-row statement dates — each has a start and end date picker
+  const [stmtDates,   setStmtDates]   = useState<Array<{ start: string; end: string }>>(
+    () => BANK_LIST.map(b => parseSheetDate(b.statementDate, defaultYear, defaultMonth))
+  );
+  const [saving,      setSaving]      = useState(false);
+
+  if (!isOpen) return null;
+
+  const periodLabel   = `${MONTHS[selMonth]} ${selYear}`;
   const defaultRemark = `For reconciliations - ${periodLabel}`;
+
+  /** When the global month/year changes, update rows that have no sheet-provided date */
+  const handlePeriodChange = (newYear: number, newMonth: number) => {
+    setSelYear(newYear);
+    setSelMonth(newMonth);
+    setStmtDates(prev => prev.map((d, i) => {
+      // Keep sheet-provided dates as-is; only auto-update rows that use the period default
+      if (BANK_LIST[i].statementDate) return d;
+      return buildPeriodDates(newYear, newMonth);
+    }));
+  };
+
+  const updateStmtDate = (i: number, field: "start" | "end", val: string) =>
+    setStmtDates(prev => prev.map((d, j) => j === i ? { ...d, [field]: val } : d));
 
   const toggleAll = (val: boolean) => setChecked(BANK_LIST.map(() => val));
   const selectedCount = checked.filter(Boolean).length;
 
   const handleGenerate = () => {
     setSaving(true);
-    // Build all selected entries into a single batch — avoids stale-closure overwrite
     const batch = BANK_LIST
       .map((entry, i) => {
         if (!checked[i]) return null;
-        const sheetStmtDate = entry.statementDate && entry.statementDate.trim()
-          ? entry.statementDate.trim()
-          : `${periodStart}|${periodEnd}`;
+        const { start, end } = stmtDates[i];
         return {
           entity:        entry.entity,
           bankName:      entry.bank,
           occurrence:    entry.cycle,
-          statementDate: sheetStmtDate,
+          statementDate: start && end ? `${start}|${end}` : "",
           requestDate:   entry.requestDate || requestDate,
           period:        `${selYear}-${String(selMonth + 1).padStart(2,"0")}`,
           downloaded:    false,
@@ -104,7 +134,7 @@ const GenerateMonthlyModal: React.FC<{ isOpen: boolean; onClose: () => void }> =
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
-      <div className={`w-full max-w-3xl max-h-[90vh] flex flex-col rounded-2xl border shadow-2xl ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"}`}>
+      <div className={`w-full max-w-4xl max-h-[90vh] flex flex-col rounded-2xl border shadow-2xl ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"}`}>
         {/* Header */}
         <div className={`flex items-center justify-between p-4 border-b ${isLight ? "border-slate-200" : "border-[#1a2235]"}`}>
           <div className="flex items-center gap-2">
@@ -122,11 +152,11 @@ const GenerateMonthlyModal: React.FC<{ isOpen: boolean; onClose: () => void }> =
           <div>
             <label className={`block text-[11px] font-semibold mb-1 ${isLight ? "text-slate-600" : "text-[#888]"}`}>Statement Month</label>
             <div className="flex gap-2">
-              <select value={selMonth} onChange={e => setSelMonth(Number(e.target.value))}
+              <select value={selMonth} onChange={e => handlePeriodChange(selYear, Number(e.target.value))}
                 className={`px-2 py-1.5 rounded-lg text-xs border ${isLight ? "bg-white border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"} focus:outline-none`}>
                 {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
               </select>
-              <select value={selYear} onChange={e => setSelYear(Number(e.target.value))}
+              <select value={selYear} onChange={e => handlePeriodChange(Number(e.target.value), selMonth)}
                 className={`px-2 py-1.5 rounded-lg text-xs border ${isLight ? "bg-white border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"} focus:outline-none`}>
                 {years.map(y => <option key={y} value={y}>{y}</option>)}
               </select>
@@ -138,7 +168,8 @@ const GenerateMonthlyModal: React.FC<{ isOpen: boolean; onClose: () => void }> =
               className={`px-2 py-1.5 rounded-lg text-xs border ${isLight ? "bg-white border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#1a2235] text-white"} focus:outline-none`} />
           </div>
           <div className={`text-[11px] ${isLight ? "text-slate-500" : "text-[#888]"}`}>
-            Period: <span className={`font-semibold ${isLight ? "text-slate-800" : "text-white"}`}>{periodStart} → {periodEnd}</span>
+            Period: <span className={`font-semibold ${isLight ? "text-slate-800" : "text-white"}`}>{periodLabel}</span>
+            <span className={`ml-1 ${isLight ? "text-slate-400" : "text-[#555]"}`}>(dates auto-fill per row, editable below)</span>
           </div>
           <div className="ml-auto flex gap-2">
             <button onClick={() => toggleAll(true)}  className="text-[11px] text-[#1a73e8] hover:underline">Select All</button>
@@ -155,7 +186,8 @@ const GenerateMonthlyModal: React.FC<{ isOpen: boolean; onClose: () => void }> =
                 <th className="p-2 text-left">Entity</th>
                 <th className="p-2 text-left">Bank Name</th>
                 <th className="p-2 text-left">Cycle</th>
-                {isLiveData && <th className="p-2 text-left">Stmt Date (Sheet)</th>}
+                <th className="p-2 text-left">Stmt Start</th>
+                <th className="p-2 text-left">Stmt End</th>
                 <th className="p-2 text-left">Remarks (editable)</th>
               </tr>
             </thead>
@@ -170,11 +202,26 @@ const GenerateMonthlyModal: React.FC<{ isOpen: boolean; onClose: () => void }> =
                   </td>
                   <td className={`p-2 font-semibold ${isLight ? "text-slate-900" : "text-white"}`}>{b.bank}</td>
                   <td className={`p-2 ${isLight ? "text-slate-500" : "text-[#888]"}`}>{b.cycle}</td>
-                  {isLiveData && (
-                    <td className={`p-2 text-[10px] ${b.statementDate ? (isLight ? "text-slate-700" : "text-[#aaa]") : (isLight ? "text-slate-400" : "text-[#555]")}`}>
-                      {b.statementDate || <span className="italic">auto</span>}
-                    </td>
-                  )}
+                  {/* Per-row statement start date */}
+                  <td className="p-1.5">
+                    <input
+                      type="date"
+                      value={stmtDates[i]?.start || ""}
+                      onChange={e => updateStmtDate(i, "start", e.target.value)}
+                      disabled={!checked[i]}
+                      className={`w-[120px] px-1.5 py-1 rounded text-[11px] border ${isLight ? "bg-white border-slate-200 text-slate-800" : "bg-[#070b12] border-[#1a2235] text-white"} focus:outline-none focus:border-[#1a73e8]`}
+                    />
+                  </td>
+                  {/* Per-row statement end date */}
+                  <td className="p-1.5">
+                    <input
+                      type="date"
+                      value={stmtDates[i]?.end || ""}
+                      onChange={e => updateStmtDate(i, "end", e.target.value)}
+                      disabled={!checked[i]}
+                      className={`w-[120px] px-1.5 py-1 rounded text-[11px] border ${isLight ? "bg-white border-slate-200 text-slate-800" : "bg-[#070b12] border-[#1a2235] text-white"} focus:outline-none focus:border-[#1a73e8]`}
+                    />
+                  </td>
                   <td className="p-2">
                     <input
                       type="text"

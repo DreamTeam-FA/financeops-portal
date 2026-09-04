@@ -1156,6 +1156,28 @@ export async function fetchFullLiveDataset(accessToken?: string) {
     });
   }
 
+  // Normalise a statement-date string from the sheet into YYYY-MM-DD|YYYY-MM-DD.
+  // The sheet stores human-readable values like "August 1-31, 2026" which would break
+  // date calculations in the portal; convert them on read.
+  const normalizeStmtDate = (raw: string): string => {
+    if (!raw) return "";
+    const s = raw.trim();
+    // Already pipe-separated YYYY-MM-DD|YYYY-MM-DD → keep as-is
+    if (/^\d{4}-\d{2}-\d{2}\|\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    // "Month D-D, YYYY" e.g. "August 1-31, 2026" or "August 1 – 31, 2026"
+    const m = s.match(/^([A-Za-z]+)\s+(\d{1,2})\s*[-–]\s*(\d{1,2}),?\s*(\d{4})$/);
+    if (m) {
+      const MONTH_NAMES = ["january","february","march","april","may","june",
+                           "july","august","september","october","november","december"];
+      const mi = MONTH_NAMES.indexOf(m[1].toLowerCase());
+      if (mi >= 0) {
+        const y = m[4], mm = String(mi + 1).padStart(2, "0");
+        return `${y}-${mm}-${m[2].padStart(2, "0")}|${y}-${mm}-${m[3].padStart(2, "0")}`;
+      }
+    }
+    return s; // unrecognised format — return raw so the modal can still display it
+  };
+
   // Extract standard bank template list from columns N–T (indices 13–19) of the same tab
   // N=Entity, O=Bank Name, P=Statement Cycle, Q=Remarks, R=Statement Date, S=Request Date, T=Downloaded
   const statementTemplates: Array<{
@@ -1171,7 +1193,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       bank,
       cycle:         String(row[15] || "Monthly").trim(),
       remarks:       String(row[16] || "").trim(),
-      statementDate: String(row[17] || "").trim(),
+      statementDate: normalizeStmtDate(String(row[17] || "").trim()),
       requestDate:   String(row[18] || "").trim(),
       downloaded:    String(row[19] || "").toLowerCase() === "true",
     });
