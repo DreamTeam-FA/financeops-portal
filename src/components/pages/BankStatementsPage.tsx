@@ -30,7 +30,7 @@ const FALLBACK_BANKS = [
 
 /* ── Generate Monthly Entries Modal ────────────────────────────────────────── */
 const GenerateMonthlyModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
-  const { addBankStatement, theme, statementTemplates } = useFinance() as any;
+  const { addBankStatementsBatch, theme, statementTemplates } = useFinance() as any;
   const isLight = theme === "light";
 
   // Use live sheet data (columns N–T) if available; fall back to hardcoded list
@@ -65,28 +65,29 @@ const GenerateMonthlyModal: React.FC<{ isOpen: boolean; onClose: () => void }> =
   const toggleAll = (val: boolean) => setChecked(BANK_LIST.map(() => val));
   const selectedCount = checked.filter(Boolean).length;
 
-  const handleGenerate = async () => {
+  const handleGenerate = () => {
     setSaving(true);
-    for (let i = 0; i < BANK_LIST.length; i++) {
-      if (!checked[i]) continue;
-      const entry = BANK_LIST[i];
-      // Use sheet's pre-filled statement date if available, otherwise build from period
-      const sheetStmtDate = entry.statementDate && entry.statementDate.trim()
-        ? entry.statementDate.trim()
-        : `${periodStart}|${periodEnd}`;
-      addBankStatement({
-        entity:        entry.entity,
-        bankName:      entry.bank,
-        occurrence:    entry.cycle,
-        statementDate: sheetStmtDate,
-        requestDate:   remarks[i] !== "" ? requestDate : (entry.requestDate || requestDate),
-        period:        `${selYear}-${String(selMonth + 1).padStart(2,"0")}`,
-        downloaded:    false,
-        remarks:       remarks[i] || entry.remarks || "",
-      });
-      // small delay to avoid hammering sheet API
-      await new Promise(r => setTimeout(r, 80));
-    }
+    // Build all selected entries into a single batch — avoids stale-closure overwrite
+    const batch = BANK_LIST
+      .map((entry, i) => {
+        if (!checked[i]) return null;
+        const sheetStmtDate = entry.statementDate && entry.statementDate.trim()
+          ? entry.statementDate.trim()
+          : `${periodStart}|${periodEnd}`;
+        return {
+          entity:        entry.entity,
+          bankName:      entry.bank,
+          occurrence:    entry.cycle,
+          statementDate: sheetStmtDate,
+          requestDate:   entry.requestDate || requestDate,
+          period:        `${selYear}-${String(selMonth + 1).padStart(2,"0")}`,
+          downloaded:    false,
+          remarks:       remarks[i] || entry.remarks || "",
+        };
+      })
+      .filter(Boolean) as Array<Omit<import("../../types").BankStatement, "id">>;
+
+    addBankStatementsBatch(batch);
     setSaving(false);
     onClose();
   };

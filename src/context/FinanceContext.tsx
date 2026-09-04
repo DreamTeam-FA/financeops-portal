@@ -149,6 +149,7 @@ interface FinanceContextType {
   updateARRemarks: (id: string, remarks: string) => void;
   
   addBankStatement: (statement: Omit<BankStatement, "id">) => void;
+  addBankStatementsBatch: (statements: Array<Omit<BankStatement, "id">>) => void;
   updateBankStatement: (statement: BankStatement) => void;
   toggleStatementDownload: (id: string) => void;
   deleteBankStatement: (id: string) => void;
@@ -718,6 +719,21 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     // auth-error toasts are always duration=0 (persistent) regardless of what caller passes
   };
 
+  /**
+   * requireToken — call at the top of every write action.
+   * Returns true if the token is valid; returns false (and shows the banner + toast) if expired.
+   * Callers must immediately return when this returns false.
+   */
+  const requireToken = (): boolean => {
+    if (tokenExpired) {
+      // Re-raise the banner and show a sticky toast so the user can't miss it
+      setSyncToast({ message: "⚠️ Token expired — reconnect Google Sheets before making changes.", type: "auth-error" });
+      setTokenExpired(true);
+      return false;
+    }
+    return true;
+  };
+
   // Global confirm modal — replaces all window.confirm/alert native dialogs
   const [confirmModal, setConfirmModal] = useState<{ message: string; onConfirm: () => void } | null>(null);
   const showConfirm = (message: string, onConfirm: () => void) => setConfirmModal({ message, onConfirm });
@@ -768,6 +784,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   });
 
   const addExternalLink = (link: Omit<ExternalLinkItem, "id">) => {
+    if (!requireToken()) return;
     const newLink: ExternalLinkItem = {
       ...link,
       id: `ext-${Date.now()}`
@@ -783,6 +800,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const updateExternalLink = (id: string, updates: Partial<ExternalLinkItem>) => {
+    if (!requireToken()) return;
     const updated = externalLinks.map((l) => (l.id === id ? { ...l, ...updates } : l));
     setExternalLinks(updated);
     localStorage.setItem("financeops_external_links", JSON.stringify(updated));
@@ -793,6 +811,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const deleteExternalLink = (id: string) => {
+    if (!requireToken()) return;
     const updated = externalLinks.filter((l) => l.id !== id);
     setExternalLinks(updated);
     localStorage.setItem("financeops_external_links", JSON.stringify(updated));
@@ -875,6 +894,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const addQuickNote = (note: Omit<DashboardNote, "id">) => {
+    if (!requireToken()) return;
     const newNote: DashboardNote = {
       ...note,
       // "qn-n" prefix: "qn-" is stripped by buildNoteRow → sheet gets "n<timestamp>"
@@ -891,6 +911,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const updateQuickNote = (id: string, updates: Partial<DashboardNote>) => {
+    if (!requireToken()) return;
     const updated = quickNotes.map((n) => (n.id === id ? { ...n, ...updates } : n));
     setQuickNotes(updated);
     localStorage.setItem("financeops_quick_notes", JSON.stringify(updated));
@@ -901,6 +922,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const deleteQuickNote = (id: string) => {
+    if (!requireToken()) return;
     const noteToDelete = quickNotes.find((n) => n.id === id);
     const updated = quickNotes.filter((n) => n.id !== id);
     setQuickNotes(updated);
@@ -2455,6 +2477,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const addCalendarEvent = (eventData: Omit<PortalCalendarEvent, "id">) => {
+    if (!requireToken()) return;
     const newEv: PortalCalendarEvent = {
       ...eventData,
       id: `cal-task-${Date.now()}`
@@ -2466,6 +2489,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const deleteCalendarEvent = (id: string) => {
+    if (!requireToken()) return;
     const next = localCalendarEvents.filter((e) => e.id !== id);
     setLocalCalendarEvents(next);
     persistChanges({ localCalendarEvents: next });
@@ -2473,6 +2497,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const updateCalendarEvent = (id: string, updates: Partial<Omit<PortalCalendarEvent, "id">>) => {
+    if (!requireToken()) return;
     const next = localCalendarEvents.map((e) => e.id === id ? { ...e, ...updates } : e);
     setLocalCalendarEvents(next);
     persistChanges({ localCalendarEvents: next });
@@ -2480,6 +2505,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const addCustomSheetMapping = (mappingData: Omit<SheetMappingConfig, "id">) => {
+    if (!requireToken()) return;
     const newMapping: SheetMappingConfig = {
       ...mappingData,
       id: `map-custom-${Date.now()}`
@@ -2491,6 +2517,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const deleteSheetMapping = (id: string) => {
+    if (!requireToken()) return;
     const next = sheetMappings.filter((m) => m.id !== id);
     setSheetMappings(next);
     persistChanges({ sheetMappings: next });
@@ -2500,6 +2527,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // --- CRUD FUNCTIONS WITH EDIT SUPPORT ---
 
   const addBill = (newBillData: Omit<APBill, "id">): APBill => {
+    if (!requireToken()) return {} as APBill;
     const id = "ap-" + Date.now();
     const bucket = computeBucket(newBillData.dueDate, newBillData.status);
     const newBill: APBill = { ...newBillData, id, bucket };
@@ -2512,6 +2540,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const updateBill = (updatedBill: APBill) => {
+    if (!requireToken()) return;
     const bucket = computeBucket(updatedBill.dueDate, updatedBill.status);
     const billWithBucket = { ...updatedBill, bucket };
     const nextBills = apBills.map((b) => (b.id === updatedBill.id ? billWithBucket : b));
@@ -2522,6 +2551,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const toggleBillStatus = (id: string, newStatus: "unpaid" | "paid" | "hold", paidDate?: string) => {
+    if (!requireToken()) return;
     let updatedBill: APBill | undefined;
     const nextBills = apBills.map((b) => {
       if (b.id === id) {
@@ -2539,6 +2569,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const deleteBill = (id: string) => {
+    if (!requireToken()) return;
     const billToDelete = apBills.find((b) => b.id === id);
     const nextBills = apBills.filter((b) => b.id !== id);
     setApBills(nextBills);
@@ -2548,6 +2579,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const addBankAccount = (accData: Omit<BankAccount, "id">) => {
+    if (!requireToken()) return;
     const newAcc: BankAccount = { ...accData, id: "b-" + Date.now() };
     const nextAccs = [...bankAccounts, newAcc];
     setBankAccounts(nextAccs);
@@ -2557,6 +2589,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const updateBankAccount = (updatedAccount: BankAccount) => {
+    if (!requireToken()) return;
     const nextAccs = bankAccounts.map((a) => (a.id === updatedAccount.id ? updatedAccount : a));
     setBankAccounts(nextAccs);
     persistChanges({ banks: nextAccs });
@@ -2571,6 +2604,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const updateBankBalance = (id: string, newBalance: number) => {
+    if (!requireToken()) return;
     let updatedAcc: BankAccount | undefined;
     const asOf = todayPHT();
     const nextAccs = bankAccounts.map((a) => {
@@ -2590,6 +2624,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Copy ALL current balances → yesterday at 6pm PHT each day
   const copyAllBalancesToYesterday = () => {
+    if (!requireToken()) return;
     const today = todayPHT();
     const nextAccs = bankAccounts.map((a) => ({
       ...a,
@@ -2604,6 +2639,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const deleteBankAccount = (id: string) => {
+    if (!requireToken()) return;
     const nextAccs = bankAccounts.filter((a) => a.id !== id);
     setBankAccounts(nextAccs);
     persistChanges({ banks: nextAccs });
@@ -2612,6 +2648,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const addLoan = (loanData: Omit<Loan, "id">) => {
+    if (!requireToken()) return;
     const newLoan: Loan = { ...loanData, id: "l-" + Date.now() };
     const nextLoans = [...loans, newLoan];
     setLoans(nextLoans);
@@ -2621,6 +2658,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const updateLoan = (updatedLoan: Loan) => {
+    if (!requireToken()) return;
     const nextLoans = loans.map((l) => (l.id === updatedLoan.id ? updatedLoan : l));
     setLoans(nextLoans);
     persistChanges({ loans: nextLoans });
@@ -2629,6 +2667,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const deleteLoan = (id: string) => {
+    if (!requireToken()) return;
     const nextLoans = loans.filter((l) => l.id !== id);
     setLoans(nextLoans);
     persistChanges({ loans: nextLoans });
@@ -2637,6 +2676,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const addARItem = (arData: Omit<ARItem, "id">) => {
+    if (!requireToken()) return;
     const newAR: ARItem = { ...arData, id: "ar-" + Date.now() };
     const nextAR = [newAR, ...arItems];
     setArItems(nextAR);
@@ -2657,6 +2697,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const updateARItem = (updatedAR: ARItem) => {
+    if (!requireToken()) return;
     const nextAR = arItems.map((a) => (a.id === updatedAR.id ? updatedAR : a));
     setArItems(nextAR);
     persistChanges({ ar: nextAR });
@@ -2665,6 +2706,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const deleteARItem = (id: string) => {
+    if (!requireToken()) return;
     const nextAR = arItems.filter((a) => a.id !== id);
     setArItems(nextAR);
     persistChanges({ ar: nextAR });
@@ -2673,6 +2715,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const toggleARStage = (id: string, stage: "invoice" | "approval" | "sent" | "payment") => {
+    if (!requireToken()) return;
     let updatedAR: ARItem | undefined;
     const nextAR = arItems.map((a) => {
       if (a.id === id) {
@@ -2688,6 +2731,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const updateARRemarks = (id: string, remarks: string) => {
+    if (!requireToken()) return;
     let updatedAR: ARItem | undefined;
     const nextAR = arItems.map((a) => {
       if (a.id === id) {
@@ -2703,15 +2747,39 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const addBankStatement = (statementData: Omit<BankStatement, "id">) => {
+    if (!requireToken()) return;
     const newSt: BankStatement = { ...statementData, id: "st-" + Date.now() };
-    const nextSt = [newSt, ...bankStatements];
-    setBankStatements(nextSt);
-    persistChanges({ statements: nextSt });
+    // Use functional update so rapid batch calls don't clobber each other
+    setBankStatements(prev => {
+      const nextSt = [newSt, ...prev];
+      persistChanges({ statements: nextSt });
+      return nextSt;
+    });
     logAction("Added Bank Statement Record", `${newSt.bankName} (${newSt.period})`);
     pushSingleStatementToSheet(newSt, "append");
   };
 
+  /** Batch-add multiple statements at once — avoids stale-closure overwrite when called in a loop */
+  const addBankStatementsBatch = (statementsData: Array<Omit<BankStatement, "id">>) => {
+    if (!requireToken()) return;
+    const now = Date.now();
+    const newItems: BankStatement[] = statementsData.map((d, i) => ({
+      ...d,
+      id: `st-${now}-${i}`,
+    }));
+    setBankStatements(prev => {
+      const nextSt = [...newItems, ...prev];
+      persistChanges({ statements: nextSt });
+      return nextSt;
+    });
+    newItems.forEach(st => {
+      logAction("Added Bank Statement Record", `${st.bankName} (${st.period})`);
+      pushSingleStatementToSheet(st, "append");
+    });
+  };
+
   const updateBankStatement = (updatedStatement: BankStatement) => {
+    if (!requireToken()) return;
     const nextSt = bankStatements.map((s) => (s.id === updatedStatement.id ? updatedStatement : s));
     setBankStatements(nextSt);
     persistChanges({ statements: nextSt });
@@ -2720,6 +2788,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const deleteBankStatement = (id: string) => {
+    if (!requireToken()) return;
     const nextSt = bankStatements.filter((s) => s.id !== id);
     setBankStatements(nextSt);
     persistChanges({ statements: nextSt });
@@ -2728,6 +2797,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const toggleStatementDownload = (id: string) => {
+    if (!requireToken()) return;
     let updatedSt: BankStatement | undefined;
     const nextSt = bankStatements.map((s) => {
       if (s.id === id) {
@@ -2834,6 +2904,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         toggleARStage,
         updateARRemarks,
         addBankStatement,
+        addBankStatementsBatch,
         updateBankStatement,
         toggleStatementDownload,
         deleteBankStatement,
