@@ -3276,20 +3276,91 @@ app.post("/api/sheets/clone-blank", async (req, res) => {
 // Gmail — Email Inbox Scanner
 // =============================================================================
 
-/** Save connected team inbox credentials server-wide */
+// ── Gmail shared-inbox helpers ────────────────────────────────────────────────
+
+interface SharedInboxEntry {
+  accessToken: string;
+  refreshToken?: string;
+  email: string;
+  updatedAt: string;
+  expiresAt: number;
+}
+
+function readSharedInbox(): SharedInboxEntry | null {
+  try {
+    if (fs.existsSync(SHARED_INBOX_FILE)) {
+      const raw = fs.readFileSync(SHARED_INBOX_FILE, "utf-8");
+      return JSON.parse(raw) as SharedInboxEntry;
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
+function writeSharedInbox(entry: SharedInboxEntry): void {
+  fs.writeFileSync(SHARED_INBOX_FILE, JSON.stringify(entry));
+}
+
+/**
+ * Returns a valid Gmail access token for the shared inbox.
+ * If the stored token is expired AND a refresh token is available,
+ * silently refreshes it first. Returns null if no usable token exists.
+ */
+async function getEffectiveGmailToken(): Promise<string | null> {
+  const entry = readSharedInbox();
+  if (entry?.accessToken && entry.expiresAt > Date.now() + 30_000) {
+    return entry.accessToken; // still valid (with 30s buffer)
+  }
+
+  // Try to refresh using the stored refresh token
+  if (entry?.refreshToken) {
+    try {
+      const clientId = process.env.GOOGLE_CLIENT_ID || "";
+      const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "";
+      if (!clientId || !clientSecret) {
+        console.warn("[GmailRefresh] GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not set — cannot refresh token.");
+        return entry?.accessToken || null;
+      }
+
+      const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, "postmessage");
+      oauth2Client.setCredentials({ refresh_token: entry.refreshToken });
+      const { credentials } = await oauth2Client.refreshAccessToken();
+      const newAccessToken = credentials.access_token!;
+      const expiresAt = credentials.expiry_date ?? Date.now() + 55 * 60 * 1000;
+
+      const updated: SharedInboxEntry = {
+        ...entry,
+        accessToken: newAccessToken,
+        expiresAt,
+        updatedAt: new Date().toISOString(),
+      };
+      writeSharedInbox(updated);
+      console.log(`[GmailRefresh] Silently refreshed Gmail token for ${entry.email} — valid until ${new Date(expiresAt).toISOString()}`);
+      return newAccessToken;
+    } catch (e: any) {
+      console.error("[GmailRefresh] Failed to refresh token:", e?.message || e);
+    }
+  }
+
+  // No refresh token or refresh failed — fall back to existing (possibly expired) token
+  return entry?.accessToken || null;
+}
+
+/** Save connected team inbox credentials server-wide (legacy endpoint — kept for backward compat) */
 app.post("/api/email/save-shared-inbox", (req, res) => {
   const { accessToken, email } = req.body || {};
   if (!accessToken || !email) {
     return res.status(400).json({ ok: false, error: "accessToken and email required" });
   }
-  const entry = {
+  const existing = readSharedInbox();
+  const entry: SharedInboxEntry = {
     accessToken,
+    refreshToken: existing?.refreshToken, // preserve any existing refresh token
     email,
     updatedAt: new Date().toISOString(),
     expiresAt: Date.now() + 55 * 60 * 1000,
   };
   try {
-    fs.writeFileSync(SHARED_INBOX_FILE, JSON.stringify(entry));
+    writeSharedInbox(entry);
     setCachedDriveToken(accessToken);
     res.json({ ok: true, email, expiresAt: entry.expiresAt });
   } catch (e: any) {
@@ -3297,19 +3368,72 @@ app.post("/api/email/save-shared-inbox", (req, res) => {
   }
 });
 
-/** Retrieve team-wide connected email inbox status */
-app.get("/api/email/shared-inbox", (req, res) => {
+/**
+ * POST /api/email/exchange-gmail-code
+ * Body: { code: string }
+ * Exchanges an authorization code for access + refresh tokens, stores both
+ * server-wide so all teammates can scan without reconnecting.
+ */
+app.post("/api/email/exchange-gmail-code", async (req, res) => {
+  const { code } = req.body || {};
+  if (!code) return res.status(400).json({ ok: false, error: "code is required" });
+
+  const clientId = process.env.GOOGLE_CLIENT_ID || "";
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "";
+  if (!clientId || !clientSecret) {
+    return res.status(500).json({ ok: false, error: "GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET not configured on server." });
+  }
+
   try {
-    if (fs.existsSync(SHARED_INBOX_FILE)) {
-      const raw = fs.readFileSync(SHARED_INBOX_FILE, "utf-8");
-      const entry = JSON.parse(raw);
-      if (entry?.accessToken && entry.expiresAt > Date.now()) {
+    const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, "postmessage");
+    const { tokens } = await oauth2Client.getToken(code);
+
+    if (!tokens.access_token) {
+      return res.status(502).json({ ok: false, error: "No access_token in exchange response." });
+    }
+
+    // Fetch the email address of the connected account
+    oauth2Client.setCredentials(tokens);
+    const oauth2Api = google.oauth2({ version: "v2", auth: oauth2Client });
+    const userInfo = await oauth2Api.userinfo.get();
+    const email = userInfo.data.email || "finances@marktimm.com";
+
+    const expiresAt = tokens.expiry_date ?? Date.now() + 55 * 60 * 1000;
+    const entry: SharedInboxEntry = {
+      accessToken: tokens.access_token,
+      ...(tokens.refresh_token ? { refreshToken: tokens.refresh_token } : {}),
+      email,
+      updatedAt: new Date().toISOString(),
+      expiresAt,
+    };
+    writeSharedInbox(entry);
+    console.log(`[GmailConnect] Stored Gmail credentials for ${email}${tokens.refresh_token ? " (with refresh token)" : " (no refresh token)"}`);
+
+    res.json({ ok: true, email, expiresAt, hasRefreshToken: !!tokens.refresh_token });
+  } catch (e: any) {
+    console.error("[GmailConnect] Token exchange failed:", e?.message || e);
+    res.status(502).json({ ok: false, error: "Token exchange failed: " + (e?.message || String(e)) });
+  }
+});
+
+/** Retrieve team-wide connected email inbox status (auto-refreshes token if expired) */
+app.get("/api/email/shared-inbox", async (req, res) => {
+  try {
+    const entry = readSharedInbox();
+    if (entry) {
+      // Auto-refresh silently if expired and refresh token is available
+      const accessToken = await getEffectiveGmailToken();
+      const refreshedEntry = readSharedInbox(); // re-read in case it was updated
+      if (accessToken) {
         return res.json({
           ok: true,
-          email: entry.email,
-          accessToken: entry.accessToken,
-          expiresAt: entry.expiresAt,
-          updatedAt: entry.updatedAt,
+          email: refreshedEntry?.email || entry.email,
+          // Only return the access token so the UI can show "connected" status
+          // Don't expose refresh token to client
+          accessToken,
+          expiresAt: refreshedEntry?.expiresAt || entry.expiresAt,
+          updatedAt: refreshedEntry?.updatedAt || entry.updatedAt,
+          hasRefreshToken: !!refreshedEntry?.refreshToken,
         });
       }
     }
@@ -3320,6 +3444,7 @@ app.get("/api/email/shared-inbox", (req, res) => {
         email: "accounting@marktimm.com",
         accessToken: fallbackToken,
         expiresAt: cachedDriveToken?.expiresAt,
+        hasRefreshToken: false,
       });
     }
     res.json({ ok: false, email: null });
@@ -3330,12 +3455,13 @@ app.get("/api/email/shared-inbox", (req, res) => {
 
 /**
  * POST /api/email/scan-inbox
- * Body: { accessToken: string, maxResults?: number }
- * Returns: { emails: [{ id, subject, from, date, snippet, attachments }] }
+ * Body: { accessToken?: string, maxResults?: number }
+ * Uses server-stored Gmail token (auto-refreshed); accessToken in body is a fallback only.
  */
 app.post("/api/email/scan-inbox", async (req, res) => {
-  const { accessToken: rawToken, newerThan: newerThanRaw = "30d" } = req.body || {};
-  const accessToken = getEffectiveDriveToken(rawToken);
+  const { accessToken: clientToken, newerThan: newerThanRaw = "30d" } = req.body || {};
+  // Prefer server-stored (auto-refreshed) Gmail token; fall back to client-sent or drive token
+  const accessToken = await getEffectiveGmailToken() || getEffectiveDriveToken(clientToken);
   if (!accessToken) return res.status(401).json({ error: "No active Google token available. Please connect inbox or sign in with Google." });
   // Validate newerThan to prevent query injection (e.g. "30d" is valid, anything else is rejected)
   const newerThan = /^\d{1,3}d$/.test(String(newerThanRaw)) ? String(newerThanRaw) : "30d";
@@ -3453,11 +3579,12 @@ app.post("/api/email/scan-inbox", async (req, res) => {
 /**
  * GET /api/email/attachment/:messageId/:attachmentId?accessToken=...
  * Returns: { data: base64String, mimeType: string, filename: string }
+ * Uses server-stored Gmail token (auto-refreshed); accessToken query param is a fallback only.
  */
 app.get("/api/email/attachment/:messageId/:attachmentId", async (req, res) => {
   const { messageId, attachmentId } = req.params;
   const rawToken = req.query.accessToken as string;
-  const accessToken = getEffectiveDriveToken(rawToken);
+  const accessToken = await getEffectiveGmailToken() || getEffectiveDriveToken(rawToken);
 
   if (!accessToken) return res.status(401).json({ error: "accessToken required" });
   if (!messageId || !attachmentId) return res.status(400).json({ error: "messageId and attachmentId required" });

@@ -339,8 +339,8 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
             bg: "bg-[#1565c0] text-white"
           };
           const subSecKey = `${bucketId}-${subKey}`;
-          // rest-of-year sub-entities default collapsed; others default open
-          const isSubCollapsed = bucketId === "rest-of-year"
+          // rest-of-year and paid-tab sub-entities default collapsed; others default open
+          const isSubCollapsed = (bucketId === "rest-of-year" || bucketId === "paid-tab")
             ? collapsedSections[subSecKey] !== false
             : !!collapsedSections[subSecKey];
 

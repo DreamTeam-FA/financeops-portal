@@ -270,7 +270,11 @@ export const AddStatementModal: React.FC<{ isOpen: boolean; onClose: () => void 
   const [bankName, setBankName] = useState("");
   const [entity, setEntity] = useState<EntityName>("TI");
   const [occurrence, setOccurrence] = useState("Monthly");
-  const [statementDate, setStatementDate] = useState(new Date().toISOString().split("T")[0]);
+  // Statement date stored as YYYY-MM-DD|YYYY-MM-DD; expose as separate start/end pickers
+  const defaultStart = (() => { const d = new Date(); d.setDate(1); return d.toISOString().split("T")[0]; })();
+  const defaultEnd   = (() => { const d = new Date(); d.setMonth(d.getMonth() + 1, 0); return d.toISOString().split("T")[0]; })();
+  const [stmtStart, setStmtStart] = useState(defaultStart);
+  const [stmtEnd,   setStmtEnd]   = useState(defaultEnd);
   const [requestDate, setRequestDate] = useState(new Date().toISOString().split("T")[0]);
   const [remarks, setRemarks] = useState("Standard monthly statement");
 
@@ -282,7 +286,8 @@ export const AddStatementModal: React.FC<{ isOpen: boolean; onClose: () => void 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!bankName) return;
-    addBankStatement({ entity, bankName, occurrence, statementDate, requestDate, period: statementDate.slice(0, 7), downloaded: false, remarks });
+    const statementDate = stmtStart && stmtEnd ? `${stmtStart}|${stmtEnd}` : stmtStart;
+    addBankStatement({ entity, bankName, occurrence, statementDate, requestDate, period: stmtStart.slice(0, 7), downloaded: false, remarks });
     onClose();
     setBankName("");
   };
@@ -312,13 +317,17 @@ export const AddStatementModal: React.FC<{ isOpen: boolean; onClose: () => void 
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className={labelCls(isLight)}>Statement Date</label>
-            <input type="date" value={statementDate} onChange={(e) => setStatementDate(e.target.value)} className={inputCls(isLight)} />
+            <label className={labelCls(isLight)}>Statement Start</label>
+            <input type="date" value={stmtStart} onChange={(e) => setStmtStart(e.target.value)} className={inputCls(isLight)} />
           </div>
           <div>
-            <label className={labelCls(isLight)}>Request Date</label>
-            <input type="date" value={requestDate} onChange={(e) => setRequestDate(e.target.value)} className={inputCls(isLight)} />
+            <label className={labelCls(isLight)}>Statement End</label>
+            <input type="date" value={stmtEnd} onChange={(e) => setStmtEnd(e.target.value)} className={inputCls(isLight)} />
           </div>
+        </div>
+        <div>
+          <label className={labelCls(isLight)}>Request Date</label>
+          <input type="date" value={requestDate} onChange={(e) => setRequestDate(e.target.value)} className={inputCls(isLight)} />
         </div>
         <div>
           <label className={labelCls(isLight)}>Remarks / Details</label>
@@ -346,14 +355,25 @@ export const EditStatementModal: React.FC<{
   const [bankName, setBankName] = useState(statement?.bankName || "");
   const [entity, setEntity] = useState<EntityName>(statement?.entity || "TI");
   const [occurrence, setOccurrence] = useState(statement?.occurrence || "Monthly");
-  const [statementDate, setStatementDate] = useState(statement?.statementDate || "");
+  // Parse existing YYYY-MM-DD|YYYY-MM-DD into separate start/end fields
+  const parseStmtParts = (raw: string) => {
+    if (raw && raw.includes("|")) {
+      const [s, e] = raw.split("|");
+      return { start: s.trim(), end: e.trim() };
+    }
+    return { start: raw || "", end: "" };
+  };
+  const [stmtStart, setStmtStart] = useState(() => parseStmtParts(statement?.statementDate || "").start);
+  const [stmtEnd,   setStmtEnd]   = useState(() => parseStmtParts(statement?.statementDate || "").end);
   const [requestDate, setRequestDate] = useState(statement?.requestDate || "");
   const [remarks, setRemarks] = useState(statement?.remarks || "");
 
   React.useEffect(() => {
     if (statement) {
       setBankName(statement.bankName || ""); setEntity(statement.entity || "TI");
-      setOccurrence(statement.occurrence || "Monthly"); setStatementDate(statement.statementDate || "");
+      setOccurrence(statement.occurrence || "Monthly");
+      const parts = parseStmtParts(statement.statementDate || "");
+      setStmtStart(parts.start); setStmtEnd(parts.end);
       setRequestDate(statement.requestDate || ""); setRemarks(statement.remarks || "");
     }
   }, [statement]);
@@ -366,7 +386,8 @@ export const EditStatementModal: React.FC<{
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!bankName) return;
-    updateBankStatement({ ...statement, bankName: bankName.trim(), entity, occurrence: occurrence.trim(), statementDate, requestDate, period: statementDate.slice(0, 7), remarks: remarks.trim() });
+    const statementDate = stmtStart && stmtEnd ? `${stmtStart}|${stmtEnd}` : stmtStart;
+    updateBankStatement({ ...statement, bankName: bankName.trim(), entity, occurrence: occurrence.trim(), statementDate, requestDate, period: stmtStart.slice(0, 7), remarks: remarks.trim() });
     onClose();
   };
 
@@ -395,13 +416,17 @@ export const EditStatementModal: React.FC<{
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className={labelCls(isLight)}>Statement Date</label>
-            <input type="date" value={statementDate} onChange={(e) => setStatementDate(e.target.value)} className={inputCls(isLight)} />
+            <label className={labelCls(isLight)}>Statement Start</label>
+            <input type="date" value={stmtStart} onChange={(e) => setStmtStart(e.target.value)} className={inputCls(isLight)} />
           </div>
           <div>
-            <label className={labelCls(isLight)}>Request Date</label>
-            <input type="date" value={requestDate} onChange={(e) => setRequestDate(e.target.value)} className={inputCls(isLight)} />
+            <label className={labelCls(isLight)}>Statement End</label>
+            <input type="date" value={stmtEnd} onChange={(e) => setStmtEnd(e.target.value)} className={inputCls(isLight)} />
           </div>
+        </div>
+        <div>
+          <label className={labelCls(isLight)}>Request Date</label>
+          <input type="date" value={requestDate} onChange={(e) => setRequestDate(e.target.value)} className={inputCls(isLight)} />
         </div>
         <div>
           <label className={labelCls(isLight)}>Remarks / Details</label>

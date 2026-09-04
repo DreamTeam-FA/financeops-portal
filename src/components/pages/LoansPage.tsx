@@ -327,20 +327,6 @@ export const LoansPage: React.FC = () => {
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-1 pt-1 border-t border-slate-100 dark:border-[#1f1f1f]">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setEditingLoan(l); }}
-                            className="flex-1 flex items-center justify-center gap-1 py-1 rounded text-[9px] font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 transition-colors"
-                          >
-                            <Edit2 className="w-2.5 h-2.5" /> Edit
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setDeletingLoanId(l.id); }}
-                            className="flex-1 flex items-center justify-center gap-1 py-1 rounded text-[9px] font-semibold text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-colors"
-                          >
-                            <Trash2 className="w-2.5 h-2.5" /> Delete
-                          </button>
-                        </div>
                       </div>
                     );
                   })}

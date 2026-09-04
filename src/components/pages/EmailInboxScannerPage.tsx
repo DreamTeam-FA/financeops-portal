@@ -458,8 +458,9 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
     } catch { return null; }
   });
   const [connecting, setConnecting] = useState(false);
+  const [hasRefreshToken, setHasRefreshToken] = useState(false);
 
-  // Fetch team-wide shared inbox status from server
+  // Fetch team-wide shared inbox status from server (auto-refreshes if token expired)
   useEffect(() => {
     let cancelled = false;
     fetch("/api/email/shared-inbox")
@@ -469,6 +470,7 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
         if (data?.ok && data?.email) {
           if (data.accessToken) setGmailToken(data.accessToken);
           setGmailEmail(data.email);
+          setHasRefreshToken(!!data.hasRefreshToken);
         }
       })
       .catch(() => {});
@@ -494,10 +496,15 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
     } catch {}
   }, [gmailToken, gmailEmail]);
 
-  // ── Connect a Gmail inbox (opens account selector so user can pick ANY inbox) ──
+  // ── Connect a Gmail inbox using authorization code flow (gets refresh token) ──
+  // Uses initCodeClient so the server receives a refresh token — teammates never
+  // need to reconnect even after the 1-hour access token expires.
+  // FinanceOps Portal OAuth 2.0 client (Web application) — used for Gmail code flow
+  const GMAIL_CLIENT_ID = "564960992869-clr0a355cl5u7db147461q86hmqt8100.apps.googleusercontent.com";
+
   const connectGmail = useCallback(() => {
     const gis = (window as any).google?.accounts?.oauth2;
-    const clientId = (firebaseConfig as any).oAuthClientId;
+    const clientId = GMAIL_CLIENT_ID;
     if (!gis || !clientId) {
       setError("Google Identity Services not loaded. Please refresh the page.");
       return;
@@ -505,45 +512,49 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
     setConnecting(true);
     setError(null);
     try {
-      const tokenClient = gis.initTokenClient({
+      const codeClient = gis.initCodeClient({
         client_id: clientId,
         scope: GMAIL_SCOPE,
+        ux_mode: "popup",
         callback: async (resp: any) => {
           setConnecting(false);
           if (resp.error) {
+            if (resp.error === "popup_closed" || resp.error === "popup_failed_to_open") return;
             setError("Gmail authorization failed: " + resp.error);
             return;
           }
-          const tok = resp.access_token as string;
-          setGmailToken(tok);
-          localStorage.setItem(LS_TOKEN, tok);
-          localStorage.setItem("google_access_token", tok);
-          localStorage.setItem("google_token_issued_at", String(Date.now()));
-          // Fetch the chosen account's actual email address and save to server for team access
-          let chosenEmail = "accounting@marktimm.com";
+          const code = resp.code as string;
           try {
-            const info = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-              headers: { Authorization: "Bearer " + tok }
-            }).then(r => r.json());
-            if (info?.email) {
-              chosenEmail = info.email;
-              setGmailEmail(info.email);
-              localStorage.setItem(LS_EMAIL, info.email);
-            }
-          } catch {}
-
-          // Save token & email to server for all team members
-          try {
-            await fetch("/api/email/save-shared-inbox", {
+            // Exchange the code on the server — this yields both access + refresh tokens
+            const result = await fetch("/api/email/exchange-gmail-code", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ accessToken: tok, email: chosenEmail }),
-            });
-          } catch {}
+              body: JSON.stringify({ code }),
+            }).then(r => r.json());
+
+            if (!result.ok) {
+              // If server exchange fails (e.g. GOOGLE_CLIENT_SECRET not yet set),
+              // fall back gracefully with a clear message
+              setError(
+                result.error?.includes("not configured")
+                  ? "Server is missing GOOGLE_CLIENT_SECRET. Add it to Render environment variables and redeploy."
+                  : "Failed to connect Gmail: " + result.error
+              );
+              return;
+            }
+
+            setGmailEmail(result.email);
+            // Use a sentinel so UI shows "connected" — actual token lives server-side
+            setGmailToken("server-managed");
+            localStorage.setItem(LS_EMAIL, result.email);
+            localStorage.setItem(LS_TOKEN, "server-managed");
+          } catch (e: any) {
+            setError("Could not exchange Gmail code: " + (e?.message || e));
+          }
           setQueue([]);
           setScanned(false);
           setCacheAge(null);
-          try { localStorage.removeItem(CACHE_KEY); } catch {};
+          try { localStorage.removeItem(CACHE_KEY); } catch {}
         },
         error_callback: (err: any) => {
           setConnecting(false);
@@ -561,7 +572,7 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
         },
       });
       // Force account selector so user can choose ANY email account
-      tokenClient.requestAccessToken({ prompt: "select_account" });
+      codeClient.requestCode();
     } catch (e: any) {
       setConnecting(false);
       setError("Could not connect Gmail: " + (e?.message || e));
@@ -902,7 +913,11 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
                     </span>
                   </div>
                   <p className={`text-[11px] ${gmailToken ? txt2 : "text-amber-500"}`}>
-                    {gmailToken ? "Shared Gmail connected · Accessible to all team members" : "Session expired — reconnect to refresh team access"}
+                    {gmailToken
+                      ? hasRefreshToken
+                        ? "Permanently connected · Auto-renews · Accessible to all team members"
+                        : "Shared Gmail connected · Accessible to all team members (reconnect to make permanent)"
+                      : "Session expired — reconnect to refresh team access"}
                   </p>
                 </div>
               </div>
