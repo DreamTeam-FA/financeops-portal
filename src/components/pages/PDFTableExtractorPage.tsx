@@ -57,8 +57,12 @@ async function extractFromServer(file: File, mode: ExtractMode): Promise<DataSec
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ imageBase64: base64, mimeType: file.type || "application/pdf", mode }),
   });
-  const json = await resp.json();
-  if (!resp.ok || !json.ok) throw new Error(json.error || "Extraction failed");
+  const text = await resp.text();
+  let json: any = null;
+  try { json = JSON.parse(text); } catch { json = null; }
+  if (!resp.ok || !json || !json.ok) {
+    throw new Error(json?.error || (resp.status === 413 ? "File too large (max 50MB)" : `Extraction failed (${resp.status})`));
+  }
   bumpGeminiCounter("pdf");
   return (json.sections as any[]).map((s: any): DataSection => {
     const headers: string[] = Array.isArray(s.headers) ? s.headers.map(String) : ["Content"];

@@ -71,9 +71,11 @@ export const TimesheetScanner: React.FC<Props> = ({ isLight }) => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ imageBase64: base64, mimeType })
           });
-          const json = await resp.json();
-          if (!resp.ok || !json.ok) {
-            resolve({ result: null, error: json.error || "Scan failed" });
+          const text = await resp.text();
+          let json: any = null;
+          try { json = JSON.parse(text); } catch { json = null; }
+          if (!resp.ok || !json || !json.ok) {
+            resolve({ result: null, error: json?.error || json?.details || (resp.status === 413 ? "File too large (max 50MB)" : `Scan failed (${resp.status})`) });
           } else {
             bumpGeminiCounter("timesheet");
             resolve({ result: json.timesheet, error: null });

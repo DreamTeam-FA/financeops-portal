@@ -724,8 +724,12 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
       const attResp = await fetch(
         `/api/email/attachment/${email.id}/${att.attachmentId}?accessToken=${encodeURIComponent(token)}`
       );
-      const attJson = await attResp.json();
-      if (!attResp.ok || !attJson.ok) throw new Error(attJson.error || "Failed to fetch attachment");
+      const attText = await attResp.text();
+      let attJson: any = null;
+      try { attJson = JSON.parse(attText); } catch { attJson = null; }
+      if (!attResp.ok || !attJson || !attJson.ok || !attJson.data) {
+        throw new Error(attJson?.error || `Failed to fetch attachment (${attResp.status})`);
+      }
 
       const base64 = attJson.data as string;
 
@@ -735,8 +739,12 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageBase64: base64, mimeType: att.mimeType }),
       });
-      const scanJson = await scanResp.json();
-      if (!scanResp.ok) throw new Error(scanJson.error || "Scan failed");
+      const scanText = await scanResp.text();
+      let scanJson: any = null;
+      try { scanJson = JSON.parse(scanText); } catch { scanJson = null; }
+      if (!scanResp.ok || !scanJson || !scanJson.ok) {
+        throw new Error(scanJson?.error || scanJson?.details || (scanResp.status === 413 ? "Attachment too large (max 50MB)" : `Scan failed (${scanResp.status})`));
+      }
       bumpGeminiCounter("email");
       // Server returns { ok: true, invoice: { vendor, invoiceNo, ... } }
       const inv = scanJson.invoice || scanJson;

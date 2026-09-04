@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { ARItem, EntityName } from "../../types";
@@ -237,8 +237,12 @@ export const ARPage: React.FC = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fileBase64: base64, fileName: scanFile.name, mimeType: scanFile.type }),
       });
-      const data = await resp.json();
-      if (!data.ok) throw new Error(data.error || "Scan failed");
+      const text = await resp.text();
+      let data: any = null;
+      try { data = JSON.parse(text); } catch { data = null; }
+      if (!resp.ok || !data || !data.ok) {
+        throw new Error(data?.error || (resp.status === 413 ? "File too large (max 50MB)" : `Scan failed (${resp.status})`));
+      }
       const parsed = data.parsed || {};
 
       // Match scanned customer against existing AR customers (sheet is source of truth)

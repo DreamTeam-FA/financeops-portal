@@ -23,7 +23,19 @@ import {
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
+// Express body-parser error handler to prevent HTML responses on payload or syntax errors
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (err && (err.type === "entity.too.large" || err.status === 413)) {
+    return res.status(413).json({ ok: false, error: "File is too large. Maximum supported upload size is 50MB." });
+  }
+  if (err && err.status >= 400 && err.status < 600) {
+    return res.status(err.status).json({ ok: false, error: err.message || "Invalid request body" });
+  }
+  next(err);
+});
 
 // Persistent JSON file storage path
 const DATA_FILE = process.env.VERCEL
@@ -1952,11 +1964,9 @@ app.post("/api/drive/remap-all-bill-links", async (req, res) => {
 // =============================================================================
 
 const GEMINI_MODELS = [
-  { version: "v1beta", model: "gemini-2.5-flash"      },
-  { version: "v1beta", model: "gemini-2.5-flash-lite" },
-  { version: "v1beta", model: "gemini-2.5-pro"        },
-  { version: "v1beta", model: "gemini-2.0-flash"      },
-  { version: "v1beta", model: "gemini-1.5-flash"      },
+  { version: "v1beta", model: "gemini-2.0-flash" },
+  { version: "v1beta", model: "gemini-1.5-flash" },
+  { version: "v1beta", model: "gemini-1.5-pro"   },
 ];
 
 async function callGemini(apiKey: string, prompt: string, imageBase64: string, mimeType: string, maxTokens: number): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
@@ -3961,6 +3971,11 @@ app.get("/api/integration-test", (_req, res) => {
     checks,
     runAt:      new Date().toISOString(),
   });
+});
+
+// 404 handler for any unmatched /api routes — prevents Vite or static server from serving index.html HTML
+app.all("/api/*", (_req, res) => {
+  res.status(404).json({ ok: false, error: "API route not found" });
 });
 
 async function startServer() {

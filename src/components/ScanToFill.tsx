@@ -67,10 +67,19 @@ export const ScanToFill: React.FC<Props> = ({ type, isLight, onFill, resetKey })
           body: JSON.stringify({ imageBase64: base64, mimeType: file.type || "image/jpeg" })
         });
         if (reqSeqRef.current !== mySeq) return; // reset happened mid-fetch
-        const json = await resp.json();
-        if (!resp.ok || !json.ok) {
+
+        const text = await resp.text();
+        let json: any = null;
+        try {
+          json = JSON.parse(text);
+        } catch {
+          json = null;
+        }
+
+        if (!resp.ok || !json || !json.ok) {
           setState("error");
-          setError(json.error || "Scan failed — try again");
+          const errMsg = json?.error || json?.details || (resp.status === 413 ? "File is too large (max 50MB)" : `Scan failed (${resp.status})`);
+          setError(errMsg);
         } else {
           const data = type === "invoice" ? json.invoice : json.timesheet;
           bumpGeminiCounter(type === "invoice" ? "invoice" : "timesheet");
