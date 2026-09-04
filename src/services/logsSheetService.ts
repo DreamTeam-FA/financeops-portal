@@ -83,13 +83,43 @@ export async function createLogsSheet(accessToken: string): Promise<string> {
   return data.spreadsheetId as string;
 }
 
-/* ── Append a single row to a named tab ── */
+/* ── Ensure a tab exists; create it with a header row if missing ── */
+async function ensureTab(
+  accessToken: string,
+  sheetId: string,
+  tabTitle: string,
+  headers: string[]
+): Promise<void> {
+  // Check if tab exists
+  const meta = await api(accessToken, `/${sheetId}?fields=sheets.properties.title`).then(r => r.json()).catch(() => null);
+  const exists = (meta?.sheets || []).some((s: any) => s.properties?.title === tabTitle);
+  if (exists) return;
+
+  // Add the sheet tab
+  await api(accessToken, `/${sheetId}:batchUpdate`, {
+    method: "POST",
+    body: JSON.stringify({ requests: [{ addSheet: { properties: { title: tabTitle } } }] }),
+  });
+
+  // Write header row
+  await api(
+    accessToken,
+    `/${sheetId}/values/${encodeURIComponent(tabTitle + "!A1")}?valueInputOption=RAW`,
+    { method: "PUT", body: JSON.stringify({ values: [headers] }) }
+  );
+}
+
+/* ── Append a single row to a named tab (auto-creates Sync Log if missing) ── */
 export async function appendLogRow(
   accessToken: string,
   sheetId: string,
   tab: "Login History" | "Activity Log" | "Sync Log",
   row: string[]
 ): Promise<void> {
+  if (tab === "Sync Log") {
+    await ensureTab(accessToken, sheetId, "Sync Log",
+      ["Timestamp", "Direction", "Module", "Status", "Details", "Row Count"]);
+  }
   await api(
     accessToken,
     `/${sheetId}/values/${encodeURIComponent(tab)}!A1:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
