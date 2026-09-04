@@ -1150,6 +1150,27 @@ export async function fetchFullLiveDataset(accessToken?: string) {
     });
   }
 
+  // Extract standard bank template list from columns N–T (indices 13–19) of the same tab
+  // N=Entity, O=Bank Name, P=Statement Cycle, Q=Remarks, R=Statement Date, S=Request Date, T=Downloaded
+  const statementTemplates: Array<{
+    entity: string; bank: string; cycle: string;
+    remarks: string; statementDate: string; requestDate: string; downloaded: boolean;
+  }> = [];
+  rawStatementsTab.forEach((row) => {
+    const entity = String(row[13] || "").trim();
+    const bank   = String(row[14] || "").trim();
+    if (!entity || !bank || entity.toLowerCase() === "entity") return;
+    statementTemplates.push({
+      entity,
+      bank,
+      cycle:         String(row[15] || "Monthly").trim(),
+      remarks:       String(row[16] || "").trim(),
+      statementDate: String(row[17] || "").trim(),
+      requestDate:   String(row[18] || "").trim(),
+      downloaded:    String(row[19] || "").toLowerCase() === "true",
+    });
+  });
+
   // Fallback to "Bank Statements" tab if Bank Statements Data was empty
   if (statements.length === 0) {
     const fallbackTab = dataByTab["Bank Statements"] || [];
@@ -1481,6 +1502,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
     loans,
     ar,
     statements,
+    statementTemplates,
     quickNotes,
     calendarLocalEvents,
     payrollPivot,

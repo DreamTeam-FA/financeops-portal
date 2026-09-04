@@ -5,33 +5,37 @@ import { FileText, CheckCircle2, Clock, Trash2, Filter, Edit2, Zap, X } from "lu
 import { AddStatementModal, EditStatementModal } from "../modals/AddBankModal";
 import { formatTimestampLocal } from "../../utils/formatters";
 
-/* ── Standard monthly bank list (mirrors columns N–P of the sheet) ─────────── */
-const STANDARD_BANKS = [
-  { entity: "MSDx",   bank: "ONB 2448",              cycle: "Monthly" },
-  { entity: "MSDx",   bank: "Seacoast 9601",          cycle: "Monthly" },
-  { entity: "TI",     bank: "ONB 0539",               cycle: "Monthly" },
-  { entity: "TI",     bank: "ONB 9304",               cycle: "Monthly" },
-  { entity: "E1",     bank: "ONB 1716",               cycle: "Monthly" },
-  { entity: "4G",     bank: "ONB 8782",               cycle: "Monthly" },
-  { entity: "4G",     bank: "Chase 5074",             cycle: "Monthly" },
-  { entity: "4G",     bank: "Citi 4024",              cycle: "Monthly" },
-  { entity: "4G",     bank: "Citi 1395 / 0228",       cycle: "Monthly" },
-  { entity: "4G",     bank: "AMEX 8008 / 5004/6002",  cycle: "Monthly" },
-  { entity: "4G",     bank: "AMEX 3002 / 2004",       cycle: "Monthly" },
-  { entity: "4G",     bank: "Citi 4418 / 3678",       cycle: "Monthly" },
-  { entity: "Ruby's", bank: "Zion's Bank",            cycle: "Monthly" },
-  { entity: "Ruby's", bank: "WF Credit Card",         cycle: "Monthly" },
-  { entity: "4YR",    bank: "Citi Costco x8237",      cycle: "Monthly" },
-  { entity: "4YR",    bank: "Chase x8676",            cycle: "Monthly" },
-  { entity: "4YR",    bank: "TriCounty 232",          cycle: "Monthly" },
-  { entity: "4YR",    bank: "ONB 4347",               cycle: "Monthly" },
-  { entity: "4G",     bank: "Chase 4011",             cycle: "Monthly" },
+/* ── Hardcoded fallback bank list (used only when sheet columns N–T are empty) */
+const FALLBACK_BANKS = [
+  { entity: "MSDx",   bank: "ONB 2448",              cycle: "Monthly", remarks: "", statementDate: "", requestDate: "", downloaded: false },
+  { entity: "MSDx",   bank: "Seacoast 9601",          cycle: "Monthly", remarks: "", statementDate: "", requestDate: "", downloaded: false },
+  { entity: "TI",     bank: "ONB 0539",               cycle: "Monthly", remarks: "", statementDate: "", requestDate: "", downloaded: false },
+  { entity: "TI",     bank: "ONB 9304",               cycle: "Monthly", remarks: "", statementDate: "", requestDate: "", downloaded: false },
+  { entity: "E1",     bank: "ONB 1716",               cycle: "Monthly", remarks: "", statementDate: "", requestDate: "", downloaded: false },
+  { entity: "4G",     bank: "ONB 8782",               cycle: "Monthly", remarks: "", statementDate: "", requestDate: "", downloaded: false },
+  { entity: "4G",     bank: "Chase 5074",             cycle: "Monthly", remarks: "", statementDate: "", requestDate: "", downloaded: false },
+  { entity: "4G",     bank: "Citi 4024",              cycle: "Monthly", remarks: "", statementDate: "", requestDate: "", downloaded: false },
+  { entity: "4G",     bank: "Citi 1395 / 0228",       cycle: "Monthly", remarks: "", statementDate: "", requestDate: "", downloaded: false },
+  { entity: "4G",     bank: "AMEX 8008 / 5004/6002",  cycle: "Monthly", remarks: "", statementDate: "", requestDate: "", downloaded: false },
+  { entity: "4G",     bank: "AMEX 3002 / 2004",       cycle: "Monthly", remarks: "", statementDate: "", requestDate: "", downloaded: false },
+  { entity: "4G",     bank: "Citi 4418 / 3678",       cycle: "Monthly", remarks: "", statementDate: "", requestDate: "", downloaded: false },
+  { entity: "Ruby's", bank: "Zion's Bank",            cycle: "Monthly", remarks: "", statementDate: "", requestDate: "", downloaded: false },
+  { entity: "Ruby's", bank: "WF Credit Card",         cycle: "Monthly", remarks: "", statementDate: "", requestDate: "", downloaded: false },
+  { entity: "4YR",    bank: "Citi Costco x8237",      cycle: "Monthly", remarks: "", statementDate: "", requestDate: "", downloaded: false },
+  { entity: "4YR",    bank: "Chase x8676",            cycle: "Monthly", remarks: "", statementDate: "", requestDate: "", downloaded: false },
+  { entity: "4YR",    bank: "TriCounty 232",          cycle: "Monthly", remarks: "", statementDate: "", requestDate: "", downloaded: false },
+  { entity: "4YR",    bank: "ONB 4347",               cycle: "Monthly", remarks: "", statementDate: "", requestDate: "", downloaded: false },
+  { entity: "4G",     bank: "Chase 4011",             cycle: "Monthly", remarks: "", statementDate: "", requestDate: "", downloaded: false },
 ];
 
 /* ── Generate Monthly Entries Modal ────────────────────────────────────────── */
 const GenerateMonthlyModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
-  const { addBankStatement, theme } = useFinance() as any;
+  const { addBankStatement, theme, statementTemplates } = useFinance() as any;
   const isLight = theme === "light";
+
+  // Use live sheet data (columns N–T) if available; fall back to hardcoded list
+  const BANK_LIST: Array<{ entity: string; bank: string; cycle: string; remarks: string; statementDate: string; requestDate: string; downloaded: boolean }> =
+    (statementTemplates && statementTemplates.length > 0) ? statementTemplates : FALLBACK_BANKS;
 
   // Default target: previous month (statements are requested for the prior month)
   const now = new Date();
@@ -42,8 +46,8 @@ const GenerateMonthlyModal: React.FC<{ isOpen: boolean; onClose: () => void }> =
   const [selYear,  setSelYear]  = useState(defaultYear);
   const [selMonth, setSelMonth] = useState(defaultMonth);
   const [requestDate, setRequestDate] = useState(now.toISOString().split("T")[0]);
-  const [checked, setChecked]   = useState<boolean[]>(STANDARD_BANKS.map(() => true));
-  const [remarks, setRemarks]   = useState<string[]>(STANDARD_BANKS.map(() => ""));
+  const [checked, setChecked]   = useState<boolean[]>(BANK_LIST.map(() => true));
+  const [remarks, setRemarks]   = useState<string[]>(BANK_LIST.map(b => b.remarks || ""));
   const [saving,  setSaving]    = useState(false);
 
   if (!isOpen) return null;
@@ -58,23 +62,27 @@ const GenerateMonthlyModal: React.FC<{ isOpen: boolean; onClose: () => void }> =
   const periodLabel = `${MONTHS[selMonth]} ${selYear}`;
   const defaultRemark = `For reconciliations - ${periodLabel}`;
 
-  const toggleAll = (val: boolean) => setChecked(STANDARD_BANKS.map(() => val));
+  const toggleAll = (val: boolean) => setChecked(BANK_LIST.map(() => val));
   const selectedCount = checked.filter(Boolean).length;
 
   const handleGenerate = async () => {
     setSaving(true);
-    const entries = STANDARD_BANKS.filter((_, i) => checked[i]);
-    for (const entry of entries) {
-      const idx = STANDARD_BANKS.indexOf(entry);
+    for (let i = 0; i < BANK_LIST.length; i++) {
+      if (!checked[i]) continue;
+      const entry = BANK_LIST[i];
+      // Use sheet's pre-filled statement date if available, otherwise build from period
+      const sheetStmtDate = entry.statementDate && entry.statementDate.trim()
+        ? entry.statementDate.trim()
+        : `${periodStart}|${periodEnd}`;
       addBankStatement({
         entity:        entry.entity,
         bankName:      entry.bank,
         occurrence:    entry.cycle,
-        statementDate: `${periodStart}|${periodEnd}`,
-        requestDate,
+        statementDate: sheetStmtDate,
+        requestDate:   remarks[i] !== "" ? requestDate : (entry.requestDate || requestDate),
         period:        `${selYear}-${String(selMonth + 1).padStart(2,"0")}`,
         downloaded:    false,
-        remarks:       remarks[idx] || defaultRemark,
+        remarks:       remarks[i] || entry.remarks || defaultRemark,
       });
       // small delay to avoid hammering sheet API
       await new Promise(r => setTimeout(r, 80));
@@ -91,6 +99,8 @@ const GenerateMonthlyModal: React.FC<{ isOpen: boolean; onClose: () => void }> =
     return "bg-[#1a73e8]/20 text-[#1a73e8]";
   };
 
+  const isLiveData = statementTemplates && statementTemplates.length > 0;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
       <div className={`w-full max-w-3xl max-h-[90vh] flex flex-col rounded-2xl border shadow-2xl ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"}`}>
@@ -99,6 +109,9 @@ const GenerateMonthlyModal: React.FC<{ isOpen: boolean; onClose: () => void }> =
           <div className="flex items-center gap-2">
             <Zap className="w-4 h-4 text-[#1a73e8]" />
             <h2 className={`text-sm font-bold ${isLight ? "text-slate-900" : "text-white"}`}>Generate Monthly Statement Entries</h2>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${isLiveData ? "bg-green-500/20 text-green-400" : "bg-yellow-500/20 text-yellow-400"}`}>
+              {isLiveData ? "Live from Sheet" : "Fallback List"}
+            </span>
           </div>
           <button onClick={onClose} className={`p-1 rounded ${isLight ? "hover:bg-slate-100" : "hover:bg-white/10"}`}><X className="w-4 h-4" /></button>
         </div>
@@ -141,11 +154,12 @@ const GenerateMonthlyModal: React.FC<{ isOpen: boolean; onClose: () => void }> =
                 <th className="p-2 text-left">Entity</th>
                 <th className="p-2 text-left">Bank Name</th>
                 <th className="p-2 text-left">Cycle</th>
+                {isLiveData && <th className="p-2 text-left">Stmt Date (Sheet)</th>}
                 <th className="p-2 text-left">Remarks (editable)</th>
               </tr>
             </thead>
             <tbody className={`divide-y ${isLight ? "divide-slate-100" : "divide-[#1a2235]"}`}>
-              {STANDARD_BANKS.map((b, i) => (
+              {BANK_LIST.map((b, i) => (
                 <tr key={i} className={`${!checked[i] ? "opacity-40" : ""} transition-opacity ${isLight ? "hover:bg-slate-50" : "hover:bg-white/5"}`}>
                   <td className="p-2 text-center">
                     <input type="checkbox" checked={checked[i]} onChange={e => setChecked(c => c.map((v,j) => j===i ? e.target.checked : v))} className="accent-[#1a73e8]" />
@@ -155,11 +169,16 @@ const GenerateMonthlyModal: React.FC<{ isOpen: boolean; onClose: () => void }> =
                   </td>
                   <td className={`p-2 font-semibold ${isLight ? "text-slate-900" : "text-white"}`}>{b.bank}</td>
                   <td className={`p-2 ${isLight ? "text-slate-500" : "text-[#888]"}`}>{b.cycle}</td>
+                  {isLiveData && (
+                    <td className={`p-2 text-[10px] ${b.statementDate ? (isLight ? "text-slate-700" : "text-[#aaa]") : (isLight ? "text-slate-400" : "text-[#555]")}`}>
+                      {b.statementDate || <span className="italic">auto</span>}
+                    </td>
+                  )}
                   <td className="p-2">
                     <input
                       type="text"
                       value={remarks[i]}
-                      placeholder={defaultRemark}
+                      placeholder={b.remarks || defaultRemark}
                       onChange={e => setRemarks(r => r.map((v,j) => j===i ? e.target.value : v))}
                       disabled={!checked[i]}
                       className={`w-full px-2 py-1 rounded text-[11px] border ${isLight ? "bg-white border-slate-200 text-slate-800 placeholder-slate-400" : "bg-[#070b12] border-[#1a2235] text-white placeholder-[#555]"} focus:outline-none focus:border-[#1a73e8]`}
@@ -173,7 +192,7 @@ const GenerateMonthlyModal: React.FC<{ isOpen: boolean; onClose: () => void }> =
 
         {/* Footer */}
         <div className={`p-4 border-t ${isLight ? "border-slate-200" : "border-[#1a2235]"} flex items-center justify-between`}>
-          <span className={`text-[11px] ${isLight ? "text-slate-500" : "text-[#888]"}`}>{selectedCount} of {STANDARD_BANKS.length} banks selected</span>
+          <span className={`text-[11px] ${isLight ? "text-slate-500" : "text-[#888]"}`}>{selectedCount} of {BANK_LIST.length} banks selected</span>
           <div className="flex gap-2">
             <button onClick={onClose} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${isLight ? "border-slate-300 text-slate-700 hover:bg-slate-50" : "border-[#1a2235] text-[#888] hover:bg-white/5"}`}>Cancel</button>
             <button

@@ -111,6 +111,7 @@ interface FinanceContextType {
   loans: Loan[];
   arItems: ARItem[];
   bankStatements: BankStatement[];
+  statementTemplates: Array<{ entity: string; bank: string; cycle: string; remarks: string; statementDate: string; requestDate: string; downloaded: boolean }>;
   payrollWeeks: PayrollWeek[];
   payrollPivot: PayrollPivot;
   auditLogs: AuditLog[];
@@ -942,6 +943,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       i.id !== 'ar-1788266535918' && i.id !== 'ar-1788266562934'
     );
   const [bankStatements, setBankStatements] = useState<BankStatement[]>([]);
+  const [statementTemplates, setStatementTemplates] = useState<Array<{ entity: string; bank: string; cycle: string; remarks: string; statementDate: string; requestDate: string; downloaded: boolean }>>([]);
   const [payrollWeeks, setPayrollWeeks] = useState<PayrollWeek[]>([]);
   const [payrollPivot, setPayrollPivot] = useState<PayrollPivot>({});
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
@@ -1055,6 +1057,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
       }
       if (data.statements) setBankStatements(data.statements);
+      if (data.statementTemplates) setStatementTemplates(data.statementTemplates);
       if (data.headleys)   setHeadleys(data.headleys);
       if (data.payrollPivot)  setPayrollPivot(data.payrollPivot);
       if (data.payrollWeeks)  setPayrollWeeks(data.payrollWeeks);
@@ -1983,6 +1986,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (live.loans && live.loans.length > 0) setLoans(live.loans);
         if (live.ar && live.ar.length > 0) setArItems(sanitizeAr(live.ar));
         if (live.statements && live.statements.length > 0) setBankStatements(live.statements);
+        if (live.statementTemplates && live.statementTemplates.length > 0) setStatementTemplates(live.statementTemplates);
         if (live.quickNotes && Array.isArray(live.quickNotes) && live.quickNotes.length > 0) {
           const mergedNotes = (live.quickNotes as DashboardNote[]).map((n) => {
             const localNotes: DashboardNote[] = (() => {
@@ -2760,6 +2764,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         loans,
         arItems,
         bankStatements,
+        statementTemplates,
         payrollWeeks,
         payrollPivot,
         auditLogs,
