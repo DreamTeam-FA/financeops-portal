@@ -620,6 +620,19 @@ const DEFAULT_MAPPINGS: SheetMappingConfig[] = [
   }
 ];
 
+/** One-time migration: fix stale tab names persisted before 2026-09 rename */
+const migrateMappings = (mappings: SheetMappingConfig[]): SheetMappingConfig[] =>
+  mappings.map(m => {
+    if (m.id === "map-statements") {
+      return {
+        ...m,
+        tabName: "Bank Statements Data",
+        range: m.range?.replace(/Bank Statements(?! Data)/g, "Bank Statements Data") ?? "'Bank Statements Data'!A1:Z200",
+      };
+    }
+    return m;
+  });
+
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
 export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -1137,7 +1150,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           if (serverData.sheetMappings && Array.isArray(serverData.sheetMappings)) {
             const existingIds = new Set(serverData.sheetMappings.map((m: SheetMappingConfig) => m.id));
             const missingDefaults = DEFAULT_MAPPINGS.filter(dm => !existingIds.has(dm.id));
-            const merged = [...serverData.sheetMappings, ...missingDefaults];
+            const merged = migrateMappings([...serverData.sheetMappings, ...missingDefaults]);
             setSheetMappings(merged);
             serverMappings = merged; // captured for Step 3.5 seed
           }
@@ -1200,7 +1213,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           // Config sheet has mappings — apply them (authoritative, cross-user)
           const existingIds = new Set(cfg.sheetMappings.map((m: SheetMappingConfig) => m.id));
           const missingDefaults = DEFAULT_MAPPINGS.filter(dm => !existingIds.has(dm.id));
-          setSheetMappings([...cfg.sheetMappings, ...missingDefaults]);
+          setSheetMappings(migrateMappings([...cfg.sheetMappings, ...missingDefaults]));
         } else if (serverMappings && serverMappings.length > 0) {
           // Config tab is empty (first deploy with this feature) — seed it now
           // from the server JSON mappings captured in Step 2. This is a one-time
