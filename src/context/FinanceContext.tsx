@@ -1008,6 +1008,14 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
   }, []);
 
+  // ── Render keep-alive: ping /api/health every 14 min so the free-tier server never sleeps ──
+  React.useEffect(() => {
+    const ping = () => fetch("/api/health").catch(() => {});
+    ping(); // immediate ping on mount
+    const id = setInterval(ping, 14 * 60 * 1000); // every 14 minutes
+    return () => clearInterval(id);
+  }, []);
+
   // ── Startup data load ────────────────────────────────────────────────────────
   //
   //  Order of operations:
@@ -1143,9 +1151,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       try {
         const serverData = await fetch("/api/data").then(r => r.json());
         if (serverData) {
-          // Config / server-only fields (always apply regardless of cache)
-          if (serverData.auditLog)   setAuditLogs(serverData.auditLog);
-          if (serverData.syncLogs)   setSyncLogs(serverData.syncLogs);
+          // auditLog and syncLogs live in the sheet — do NOT restore from JSON
           if (serverData.sheetMappings && Array.isArray(serverData.sheetMappings)) {
             const existingIds = new Set(serverData.sheetMappings.map((m: SheetMappingConfig) => m.id));
             const missingDefaults = DEFAULT_MAPPINGS.filter(dm => !existingIds.has(dm.id));
@@ -1658,13 +1664,21 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const addSyncLog = (entry: Omit<SyncLogEntry, "id">) => {
-    const newEntry: SyncLogEntry = {
-      ...entry,
-      id: `sync-${Date.now()}`
-    };
-    const nextLogs = [newEntry, ...syncLogs.slice(0, 49)];
-    setSyncLogs(nextLogs);
-    persistChanges({ syncLogs: nextLogs });
+    const newEntry: SyncLogEntry = { ...entry, id: `sync-${Date.now()}` };
+    // Keep last 50 in React state for the DataSync page display
+    setSyncLogs(prev => [newEntry, ...prev.slice(0, 49)]);
+    // Write to sheet's Sync Log tab (source of truth — not JSON)
+    const tok = getAccessToken();
+    if (tok) {
+      appendLogRow(tok, SHARED_LOGS_SHEET_ID, "Sync Log", [
+        entry.timestamp,
+        entry.direction,
+        entry.module,
+        entry.status,
+        entry.details || "",
+        String(entry.rowCount ?? ""),
+      ]).catch(() => {});
+    }
   };
 
   const updateSheetMapping = (id: string, updates: Partial<SheetMappingConfig>) => {

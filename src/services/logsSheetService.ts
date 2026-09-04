@@ -87,7 +87,7 @@ export async function createLogsSheet(accessToken: string): Promise<string> {
 export async function appendLogRow(
   accessToken: string,
   sheetId: string,
-  tab: "Login History" | "Activity Log",
+  tab: "Login History" | "Activity Log" | "Sync Log",
   row: string[]
 ): Promise<void> {
   await api(
