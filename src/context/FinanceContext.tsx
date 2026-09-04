@@ -604,8 +604,8 @@ const DEFAULT_MAPPINGS: SheetMappingConfig[] = [
     module: "statements",
     name: "Bank Statements Checklist",
     spreadsheetIdOrUrl: DEFAULT_SHEET_URL,
-    tabName: "Bank Statements",
-    range: "'Bank Statements'!A1:I50",
+    tabName: "Bank Statements Data",
+    range: "'Bank Statements Data'!A1:I200",
     status: "connected"
   },
   {
