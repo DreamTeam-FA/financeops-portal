@@ -620,18 +620,17 @@ const DEFAULT_MAPPINGS: SheetMappingConfig[] = [
   }
 ];
 
-/** One-time migration: fix stale tab names persisted before 2026-09 rename */
-const migrateMappings = (mappings: SheetMappingConfig[]): SheetMappingConfig[] =>
-  mappings.map(m => {
-    if (m.id === "map-statements") {
-      return {
-        ...m,
-        tabName: "Bank Statements Data",
-        range: m.range?.replace(/Bank Statements(?! Data)/g, "Bank Statements Data") ?? "'Bank Statements Data'!A1:Z200",
-      };
-    }
-    return m;
-  });
+/**
+ * Merge stored mappings with DEFAULT_MAPPINGS.
+ * Built-in mappings (map-ap, map-banks, etc.) always use the code definition —
+ * stored values are ignored so a code change is always authoritative.
+ * Only custom user-added mappings (id starts with "map-custom-") are kept from storage.
+ */
+const migrateMappings = (mappings: SheetMappingConfig[]): SheetMappingConfig[] => {
+  const builtInIds = new Set(DEFAULT_MAPPINGS.map(m => m.id));
+  const customOnly = mappings.filter(m => !builtInIds.has(m.id));
+  return [...DEFAULT_MAPPINGS, ...customOnly];
+};
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
