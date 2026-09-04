@@ -1,4 +1,4 @@
-﻿import express from "express";
+import express from "express";
 import path from "path";
 import fs from "fs";
 import * as XLSX from "xlsx";
@@ -3255,8 +3255,9 @@ app.post("/api/sheets/clone-blank", async (req, res) => {
  * Returns: { emails: [{ id, subject, from, date, snippet, attachments }] }
  */
 app.post("/api/email/scan-inbox", async (req, res) => {
-  const { accessToken, newerThan: newerThanRaw = "30d" } = req.body || {};
-  if (!accessToken) return res.status(401).json({ error: "accessToken required" });
+  const { accessToken: rawToken, newerThan: newerThanRaw = "30d" } = req.body || {};
+  const accessToken = getEffectiveDriveToken(rawToken);
+  if (!accessToken) return res.status(401).json({ error: "No active Google token available. Please connect inbox or sign in with Google." });
   // Validate newerThan to prevent query injection (e.g. "30d" is valid, anything else is rejected)
   const newerThan = /^\d{1,3}d$/.test(String(newerThanRaw)) ? String(newerThanRaw) : "30d";
 
@@ -3376,7 +3377,8 @@ app.post("/api/email/scan-inbox", async (req, res) => {
  */
 app.get("/api/email/attachment/:messageId/:attachmentId", async (req, res) => {
   const { messageId, attachmentId } = req.params;
-  const accessToken = req.query.accessToken as string;
+  const rawToken = req.query.accessToken as string;
+  const accessToken = getEffectiveDriveToken(rawToken);
 
   if (!accessToken) return res.status(401).json({ error: "accessToken required" });
   if (!messageId || !attachmentId) return res.status(400).json({ error: "messageId and attachmentId required" });

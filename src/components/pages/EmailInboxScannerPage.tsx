@@ -446,27 +446,40 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
     return map;
   }, [apBills]);
 
-  // ── Gmail account state (separate from portal login) ───────────────────────
+  // ── Gmail account state (auto-linked to active Google session) ───────────
   const [gmailToken, setGmailToken] = useState<string | null>(() => {
-    try { return localStorage.getItem(LS_TOKEN); } catch { return null; }
+    try {
+      return localStorage.getItem(LS_TOKEN) || localStorage.getItem("google_access_token");
+    } catch { return null; }
   });
   const [gmailEmail, setGmailEmail] = useState<string | null>(() => {
-    try { return localStorage.getItem(LS_EMAIL); } catch { return null; }
+    try {
+      return localStorage.getItem(LS_EMAIL) || "accounting@marktimm.com";
+    } catch { return "accounting@marktimm.com"; }
   });
   const [connecting, setConnecting] = useState(false);
+
+  // Sync token whenever global Google auth refreshes
+  useEffect(() => {
+    const syncToken = () => {
+      const activeTok = localStorage.getItem(LS_TOKEN) || localStorage.getItem("google_access_token");
+      if (activeTok) setGmailToken(activeTok);
+    };
+    window.addEventListener("google-token-refreshed", syncToken);
+    syncToken();
+    return () => window.removeEventListener("google-token-refreshed", syncToken);
+  }, []);
 
   // Keep localStorage in sync
   useEffect(() => {
     try {
       if (gmailToken) localStorage.setItem(LS_TOKEN, gmailToken);
-      else localStorage.removeItem(LS_TOKEN);
       if (gmailEmail) localStorage.setItem(LS_EMAIL, gmailEmail);
-      else localStorage.removeItem(LS_EMAIL);
     } catch {}
   }, [gmailToken, gmailEmail]);
 
-  // ── Connect a Gmail inbox ──────────────────────────────────────────────────
-  const connectGmail = useCallback(() => {
+  // ── Connect a Gmail inbox (silent auto-connect first, fallback to prompt) ──
+  const connectGmail = useCallback((forcePrompt = false) => {
     const gis = (window as any).google?.accounts?.oauth2;
     const clientId = (firebaseConfig as any).oAuthClientId;
     if (!gis || !clientId) {
@@ -482,21 +495,27 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
         callback: async (resp: any) => {
           setConnecting(false);
           if (resp.error) {
+            if (!forcePrompt) {
+              // Silent request failed, retry with account chooser
+              connectGmail(true);
+              return;
+            }
             setError("Gmail authorization failed: " + resp.error);
             return;
           }
           const tok = resp.access_token as string;
           setGmailToken(tok);
+          localStorage.setItem("google_access_token", tok);
+          localStorage.setItem("google_token_issued_at", String(Date.now()));
           // Fetch the chosen account's email address
           try {
             const info = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
               headers: { Authorization: "Bearer " + tok }
             }).then(r => r.json());
-            setGmailEmail(info.email || null);
+            setGmailEmail(info.email || "accounting@marktimm.com");
           } catch {
-            setGmailEmail(null);
+            setGmailEmail("accounting@marktimm.com");
           }
-          // Reset queue so user re-scans with the new inbox
           setQueue([]);
           setScanned(false);
           setCacheAge(null);
@@ -506,7 +525,6 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
           setConnecting(false);
           const code = err?.type || err?.error || "";
           if (code === "popup_closed" || code === "popup_failed_to_open") return;
-          // origin_mismatch = Render URL not yet in Google Cloud Console
           if (code === "origin_mismatch" || String(err).includes("origin")) {
             setError(
               `OAuth origin not authorized. Add https://${window.location.hostname} as an` +
@@ -518,11 +536,11 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
           }
         },
       });
-      // prompt:"select_account" forces the Google account chooser every time
-      tokenClient.requestAccessToken({ prompt: "select_account" });
+      // Try silent connect first (no popup) unless forcePrompt is requested
+      tokenClient.requestAccessToken({ prompt: forcePrompt ? "select_account" : "" });
     } catch (e: any) {
       setConnecting(false);
-      setError("Could not open account picker: " + (e?.message || e));
+      setError("Could not connect Gmail: " + (e?.message || e));
     }
   }, []);
 
@@ -594,17 +612,14 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
 
   // ── Scan inbox ─────────────────────────────────────────────────────────────
   const handleScan = useCallback(async () => {
-    if (!gmailToken) {
-      setError("No Gmail inbox connected. Click 'Connect Inbox' to choose an email account.");
-      return;
-    }
+    const activeToken = gmailToken || localStorage.getItem("google_access_token") || "";
     setScanning(true);
     setError(null);
     try {
       const resp = await fetch("/api/email/scan-inbox", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken: gmailToken, newerThan: scanRange }),
+        body: JSON.stringify({ accessToken: activeToken, newerThan: scanRange }),
       });
       const json = await resp.json();
       if (!resp.ok || !json.ok) throw new Error(json.details || json.error || "Scan failed");
