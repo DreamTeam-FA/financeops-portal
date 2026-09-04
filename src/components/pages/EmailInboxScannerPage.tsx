@@ -516,6 +516,8 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
         client_id: clientId,
         scope: GMAIL_SCOPE,
         ux_mode: "popup",
+        access_type: "offline",   // request refresh token
+        prompt: "consent",        // force consent screen so Google issues a new refresh token
         callback: async (resp: any) => {
           setConnecting(false);
           if (resp.error) {
