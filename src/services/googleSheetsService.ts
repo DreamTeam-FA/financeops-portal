@@ -1494,27 +1494,27 @@ export const appendARItem = async (
 };
 
 // Write a single bank statement to its exact sheet row.
+// Sheet column order: A=Period, B=Entity, C=BankName, D=Occurrence,
+//                     E=Remarks, F=StatementDate, G=RequestDate,
+//                     H=Downloaded, I=DownloadedAt
 export const writeSingleStatement = async (
   statement: BankStatement,
   mappingRange: string,
   spreadsheetId: string,
   accessToken: string
 ): Promise<void> => {
-  // BankStatement uses rowIndex (1-indexed within fetched range, including header at pos 0 of range)
   if (!statement.rowIndex) return;
-  const parts = (statement.remarks || "").split(" - ");
-  const cycleMonth = parts[0]?.trim() || "";
-  const purpose = parts.slice(1).join(" - ").trim();
-  const row: any[] = new Array(9).fill("");
-  row[0] = cycleMonth;
-  row[1] = statement.entity;
-  row[2] = statement.bankName;
-  row[3] = statement.occurrence;
-  row[4] = purpose;
-  row[5] = statement.period;
-  row[6] = statement.downloadedAt || "";
-  row[7] = statement.downloaded ? "TRUE" : "FALSE";
-  row[8] = (statement as any).reconciledDate || "";
+  const row: any[] = [
+    statement.period,
+    statement.entity,
+    statement.bankName,
+    statement.occurrence,
+    statement.remarks || "",
+    statement.statementDate || "",
+    statement.requestDate || "",
+    statement.downloaded ? "TRUE" : "FALSE",
+    statement.downloadedAt || "",
+  ];
   const range = computeSingleItemRange(mappingRange, statement.rowIndex, 9);
   if (!range) return;
   await updateSheetValues(spreadsheetId, range, [row], accessToken);
@@ -1529,19 +1529,17 @@ export const appendStatement = async (
 ): Promise<void> => {
   const bangIdx = mappingRange.indexOf("!");
   const tabPart = bangIdx !== -1 ? mappingRange.slice(0, bangIdx) : mappingRange;
-  const parts = (statement.remarks || "").split(" - ");
-  const cycleMonth = parts[0]?.trim() || "";
-  const purpose = parts.slice(1).join(" - ").trim();
-  const row: any[] = new Array(9).fill("");
-  row[0] = cycleMonth;
-  row[1] = statement.entity;
-  row[2] = statement.bankName;
-  row[3] = statement.occurrence;
-  row[4] = purpose;
-  row[5] = statement.period;
-  row[6] = statement.downloadedAt || "";
-  row[7] = statement.downloaded ? "TRUE" : "FALSE";
-  row[8] = (statement as any).reconciledDate || "";
+  const row: any[] = [
+    statement.period,
+    statement.entity,
+    statement.bankName,
+    statement.occurrence,
+    statement.remarks || "",
+    statement.statementDate || "",
+    statement.requestDate || "",
+    statement.downloaded ? "TRUE" : "FALSE",
+    statement.downloadedAt || "",
+  ];
   await appendSheetValues(spreadsheetId, `${tabPart}!A:A`, [row], accessToken);
 };
 
@@ -1619,26 +1617,22 @@ export const formatARSheetRows = (items: ARItem[]): any[][] => {
 };
 
 export const formatStatementSheetRows = (statements: BankStatement[]): any[][] => {
-  // Live reader column map:
-  //   col0=cycleMonth  col1=entity  col2=accountName  col3=occurrence
-  //   col4=purpose     col5=periodRange  col6=downloadDate  col7=isDownloaded  col8=reconciledDate
-  // remarks is derived by reader as `${cycleMonth} - ${purpose}`; split remarks to recover both.
-  return statements.map((s) => {
-    const row: any[] = new Array(9).fill("");
-    const parts = (s.remarks || "").split(" - ");
-    const cycleMonth = parts[0]?.trim() || "";
-    const purpose = parts.slice(1).join(" - ").trim();
-    row[0] = cycleMonth;                         // col 0: cycle month (e.g. "Jul 2026")
-    row[1] = s.entity;                           // col 1: entity name
-    row[2] = s.bankName;                         // col 2: account/bank name
-    row[3] = s.occurrence;                        // col 3: occurrence (e.g. "Monthly")
-    row[4] = purpose;                             // col 4: purpose text (used in reader remarks)
-    row[5] = s.period;                            // col 5: period range
-    row[6] = s.downloadedAt || "";               // col 6: download date (parseDateVal)
-    row[7] = s.downloaded ? "TRUE" : "FALSE";    // col 7: is-downloaded flag
-    row[8] = (s as any).reconciledDate || "";    // col 8: reconciled date (parseDateVal)
-    return row;
-  });
+  // Sheet column order: A=Period, B=Entity, C=BankName, D=Occurrence,
+  //                     E=Remarks, F=StatementDate, G=RequestDate,
+  //                     H=Downloaded, I=DownloadedAt
+  const header = ["Period", "Entity", "Bank Name", "Occurrence", "Remarks", "Statement Date", "Request Date", "Downloaded", "Downloaded Timestamp"];
+  const rows = statements.map((s) => [
+    s.period,
+    s.entity,
+    s.bankName,
+    s.occurrence,
+    s.remarks || "",
+    s.statementDate || "",
+    s.requestDate || "",
+    s.downloaded ? "TRUE" : "FALSE",
+    s.downloadedAt || "",
+  ]);
+  return [header, ...rows];
 };
 
 export const parsePayrollSheetRows = (rows: any[][]): PayrollPivot => {

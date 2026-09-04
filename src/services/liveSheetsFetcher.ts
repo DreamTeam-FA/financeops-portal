@@ -1110,42 +1110,49 @@ export async function fetchFullLiveDataset(accessToken?: string) {
   const statements: any[] = [];
   const rawStatementsTab = dataByTab["Bank Statements Data"] || [];
 
+  // Sheet column order for Bank Statements Data (A–I):
+  // A(0)=Period, B(1)=Entity, C(2)=Bank Name, D(3)=Occurrence,
+  // E(4)=Remarks, F(5)=Statement Date, G(6)=Request Date,
+  // H(7)=Downloaded, I(8)=Downloaded timestamp
   if (rawStatementsTab.length > 0) {
     rawStatementsTab.forEach((row, i) => {
       if (!row || row.length < 3) return;
-      const cycleMonth = String(row[0] || "Jul 2026").trim();
-      const entityRaw = String(row[1] || "").trim();
-      const accountName = String(row[2] || "").trim();
-      if (!accountName || accountName.toLowerCase().includes("account") || accountName.toLowerCase().includes("bank")) return;
+      const period     = String(row[0] || "").trim();
+      const entityRaw  = String(row[1] || "").trim();
+      const bankName   = String(row[2] || "").trim();
+      // Skip blank rows and the header row (header has col A = "Period")
+      if (!bankName || !entityRaw) return;
+      if (period.toLowerCase() === "period" || entityRaw.toLowerCase() === "entity") return;
 
-      const occurrence = String(row[3] || "Monthly").trim();
-      const purpose = String(row[4] || "").trim();
-      const periodRange = String(row[5] || "").trim();
-      const downloadDate = parseDateVal(row[6]);
-      const isDownloaded = row[7] === true || String(row[7]).toLowerCase() === "true" || String(row[7]).toLowerCase() === "yes" || String(row[7]).toLowerCase() === "ready";
-      const reconciledDate = parseDateVal(row[8]);
+      const occurrence     = String(row[3] || "Monthly").trim();
+      const remarks        = String(row[4] || "").trim();
+      const statementDate  = String(row[5] || "").trim();
+      const requestDate    = String(row[6] || "").trim();
+      const isDownloaded   = row[7] === true || /^(true|yes|ready)$/i.test(String(row[7] || ""));
+      const downloadedAt   = parseDateVal(row[8]) || "";
 
       let entity: EntityName = "TI";
       if (entityRaw.includes("MSDx")) entity = "MSDx";
       else if (entityRaw.includes("Ruby")) entity = "Ruby's";
       else if (entityRaw.includes("Curcumin")) entity = "CurcuminPro";
-      else if (entityRaw.includes("TI") || entityRaw.includes("E1") || entityRaw.includes("4G")) entity = "TI";
+      else if (/4YR/i.test(entityRaw)) entity = "4YR" as EntityName;
+      else if (/4G/i.test(entityRaw)) entity = "4G" as EntityName;
+      else if (/E1/i.test(entityRaw)) entity = "E1" as EntityName;
+      else if (/TI/i.test(entityRaw)) entity = "TI";
 
       statements.push({
         id: `stmt-bsd-${i + 1}`,
-        period: periodRange || cycleMonth,
+        period,
         entity,
-        bankName: accountName,
-        accountName,
+        bankName,
         occurrence,
-        statementDate: downloadDate || "2026-07-06",
-        requestDate: downloadDate || "2026-07-06",
+        remarks,
+        statementDate,
+        requestDate,
         downloaded: isDownloaded,
-        downloadedAt: downloadDate,
-        reconciledDate,
-        remarks: purpose ? `${cycleMonth} - ${purpose}` : cycleMonth,
-        rowIndex: i + 1
-      });
+        downloadedAt,
+        rowIndex: i + 1,
+      } as any);
     });
   }
 
