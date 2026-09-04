@@ -1964,6 +1964,8 @@ app.post("/api/drive/remap-all-bill-links", async (req, res) => {
 // =============================================================================
 
 const GEMINI_MODELS = [
+  { version: "v1beta", model: "gemini-2.5-flash" },
+  { version: "v1beta", model: "gemini-2.5-flash-lite" },
   { version: "v1beta", model: "gemini-2.0-flash" },
   { version: "v1beta", model: "gemini-1.5-flash" },
   { version: "v1beta", model: "gemini-1.5-pro"   },
@@ -1989,7 +1991,8 @@ async function callGemini(apiKey: string, prompt: string, imageBase64: string, m
       const status = errBody?.error?.status || "";
       lastError = errBody?.error?.message || `HTTP ${r.status}`;
       console.warn(`[Vision] Gemini ${model} → ${status || r.status}: ${lastError}`);
-      if (status !== "NOT_FOUND" && status !== "UNAVAILABLE" && r.status !== 404) return { ok: false, error: lastError };
+      // Always try next model — only hard-stop on auth errors
+      if (r.status === 401 || r.status === 403) return { ok: false, error: lastError };
     } catch (e: any) { lastError = e?.message || String(e); }
   }
   return { ok: false, error: lastError };
