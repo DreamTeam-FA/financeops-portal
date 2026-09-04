@@ -82,7 +82,7 @@ const GenerateMonthlyModal: React.FC<{ isOpen: boolean; onClose: () => void }> =
         requestDate:   remarks[i] !== "" ? requestDate : (entry.requestDate || requestDate),
         period:        `${selYear}-${String(selMonth + 1).padStart(2,"0")}`,
         downloaded:    false,
-        remarks:       remarks[i] || entry.remarks || defaultRemark,
+        remarks:       remarks[i] || entry.remarks || "",
       });
       // small delay to avoid hammering sheet API
       await new Promise(r => setTimeout(r, 80));
