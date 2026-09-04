@@ -454,8 +454,8 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
   });
   const [gmailEmail, setGmailEmail] = useState<string | null>(() => {
     try {
-      return localStorage.getItem(LS_EMAIL) || "accounting@marktimm.com";
-    } catch { return "accounting@marktimm.com"; }
+      return localStorage.getItem(LS_EMAIL) || null;
+    } catch { return null; }
   });
   const [connecting, setConnecting] = useState(false);
 
@@ -478,8 +478,8 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
     } catch {}
   }, [gmailToken, gmailEmail]);
 
-  // ── Connect a Gmail inbox (silent auto-connect first, fallback to prompt) ──
-  const connectGmail = useCallback((forcePrompt = false) => {
+  // ── Connect a Gmail inbox (opens account selector so user can pick ANY inbox) ──
+  const connectGmail = useCallback(() => {
     const gis = (window as any).google?.accounts?.oauth2;
     const clientId = (firebaseConfig as any).oAuthClientId;
     if (!gis || !clientId) {
@@ -495,27 +495,24 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
         callback: async (resp: any) => {
           setConnecting(false);
           if (resp.error) {
-            if (!forcePrompt) {
-              // Silent request failed, retry with account chooser
-              connectGmail(true);
-              return;
-            }
             setError("Gmail authorization failed: " + resp.error);
             return;
           }
           const tok = resp.access_token as string;
           setGmailToken(tok);
+          localStorage.setItem(LS_TOKEN, tok);
           localStorage.setItem("google_access_token", tok);
           localStorage.setItem("google_token_issued_at", String(Date.now()));
-          // Fetch the chosen account's email address
+          // Fetch the chosen account's actual email address
           try {
             const info = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
               headers: { Authorization: "Bearer " + tok }
             }).then(r => r.json());
-            setGmailEmail(info.email || "accounting@marktimm.com");
-          } catch {
-            setGmailEmail("accounting@marktimm.com");
-          }
+            if (info?.email) {
+              setGmailEmail(info.email);
+              localStorage.setItem(LS_EMAIL, info.email);
+            }
+          } catch {}
           setQueue([]);
           setScanned(false);
           setCacheAge(null);
@@ -536,8 +533,8 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
           }
         },
       });
-      // Try silent connect first (no popup) unless forcePrompt is requested
-      tokenClient.requestAccessToken({ prompt: forcePrompt ? "select_account" : "" });
+      // Force account selector so user can choose ANY email account
+      tokenClient.requestAccessToken({ prompt: "select_account" });
     } catch (e: any) {
       setConnecting(false);
       setError("Could not connect Gmail: " + (e?.message || e));
