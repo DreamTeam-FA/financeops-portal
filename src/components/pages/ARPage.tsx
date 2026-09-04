@@ -425,22 +425,22 @@ export const ARPage: React.FC = () => {
             </span>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-left text-xs border-collapse min-w-[900px]">
               <thead>
                 <tr className={`${isLight ? "bg-slate-100/70 border-slate-200 text-slate-600" : "bg-[#141414] border-[#1a2235] text-[#888]"} border-b font-semibold`}>
-                  <th className="p-3">Entity</th>
-                  <th className="p-3">Customer / Client</th>
-                  <th className="p-3">Description</th>
-                  <th className="p-3">Amount</th>
-                  <th className="p-3">Invoiced</th>
-                  <th className="p-3">Approved</th>
-                  <th className="p-3">Sent</th>
-                  <th className="p-3">Payment</th>
-                  <th className="p-3">Due Date</th>
-                  <th className="p-3">Aging / Status</th>
-                  <th className="p-3">Remarks</th>
-                  <th className="p-3">Edit</th>
+                  <th className="p-3 w-12 whitespace-nowrap">Entity</th>
+                  <th className="p-3 min-w-[120px] whitespace-nowrap">Customer / Client</th>
+                  <th className="p-3 min-w-[140px] whitespace-nowrap">Description</th>
+                  <th className="p-3 w-24 whitespace-nowrap">Amount</th>
+                  <th className="p-3 w-16 whitespace-nowrap">Invoiced</th>
+                  <th className="p-3 w-16 whitespace-nowrap">Approved</th>
+                  <th className="p-3 w-16 whitespace-nowrap">Sent</th>
+                  <th className="p-3 w-16 whitespace-nowrap">Payment</th>
+                  <th className="p-3 whitespace-nowrap">Due Date</th>
+                  <th className="p-3 whitespace-nowrap">Aging / Status</th>
+                  <th className="p-3 whitespace-nowrap">Remarks</th>
+                  <th className="p-3 whitespace-nowrap">Edit</th>
                 </tr>
               </thead>
               <tbody className={`divide-y ${isLight ? "divide-slate-200" : "divide-[#222]"}`}>

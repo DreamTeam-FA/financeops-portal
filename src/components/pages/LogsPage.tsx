@@ -43,16 +43,16 @@ const LoginTable: React.FC<{ rows: any[]; isLight: boolean }> = ({ rows, isLight
   const sub = isLight ? "text-slate-400" : "text-slate-500";
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-xs border-collapse">
+    <div className="overflow-x-auto w-full">
+      <table className="w-full text-xs border-collapse min-w-[520px]">
         <thead>
           <tr className={hdr}>
-            <th className="text-left px-4 py-2 font-semibold">#</th>
-            <th className="text-left px-4 py-2 font-semibold">Timestamp</th>
-            <th className="text-left px-4 py-2 font-semibold">User</th>
-            <th className="text-left px-4 py-2 font-semibold">Device</th>
-            <th className="text-left px-4 py-2 font-semibold">Location</th>
-            <th className="text-left px-4 py-2 font-semibold">IP</th>
+            <th className="text-left px-4 py-2 font-semibold whitespace-nowrap">#</th>
+            <th className="text-left px-4 py-2 font-semibold whitespace-nowrap">Timestamp</th>
+            <th className="text-left px-4 py-2 font-semibold whitespace-nowrap">User</th>
+            <th className="text-left px-4 py-2 font-semibold whitespace-nowrap hidden sm:table-cell">Device</th>
+            <th className="text-left px-4 py-2 font-semibold whitespace-nowrap">Location</th>
+            <th className="text-left px-4 py-2 font-semibold whitespace-nowrap hidden sm:table-cell">IP</th>
           </tr>
         </thead>
         <tbody>
@@ -61,9 +61,9 @@ const LoginTable: React.FC<{ rows: any[]; isLight: boolean }> = ({ rows, isLight
               <td className={`px-4 py-2.5 ${sub}`}>{i + 1}</td>
               <td className="px-4 py-2.5 whitespace-nowrap font-mono text-[11px]">{r.timestamp || "—"}</td>
               <td className="px-4 py-2.5 font-medium">{r.user || "—"}</td>
-              <td className="px-4 py-2.5">{r.device || "—"}</td>
+              <td className={`px-4 py-2.5 hidden sm:table-cell`}>{r.device || "—"}</td>
               <td className="px-4 py-2.5">{[r.city, r.region, r.country].filter(Boolean).join(", ") || r.location || <span className={sub}>—</span>}</td>
-              <td className={`px-4 py-2.5 font-mono ${sub}`}>{r.ip || "—"}</td>
+              <td className={`px-4 py-2.5 font-mono hidden sm:table-cell ${sub}`}>{r.ip || "—"}</td>
             </tr>
           ))}
         </tbody>
@@ -79,15 +79,15 @@ const ActivityTable: React.FC<{ rows: any[]; isLight: boolean }> = ({ rows, isLi
   const sub = isLight ? "text-slate-400" : "text-slate-500";
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-xs border-collapse">
+    <div className="overflow-x-auto w-full">
+      <table className="w-full text-xs border-collapse min-w-[480px]">
         <thead>
           <tr className={hdr}>
-            <th className="text-left px-4 py-2 font-semibold">#</th>
-            <th className="text-left px-4 py-2 font-semibold">Timestamp</th>
-            <th className="text-left px-4 py-2 font-semibold">User</th>
-            <th className="text-left px-4 py-2 font-semibold">Action</th>
-            <th className="text-left px-4 py-2 font-semibold">Details</th>
+            <th className="text-left px-4 py-2 font-semibold whitespace-nowrap">#</th>
+            <th className="text-left px-4 py-2 font-semibold whitespace-nowrap">Timestamp</th>
+            <th className="text-left px-4 py-2 font-semibold whitespace-nowrap">User</th>
+            <th className="text-left px-4 py-2 font-semibold whitespace-nowrap">Action</th>
+            <th className="text-left px-4 py-2 font-semibold whitespace-nowrap hidden sm:table-cell">Details</th>
           </tr>
         </thead>
         <tbody>
@@ -97,7 +97,7 @@ const ActivityTable: React.FC<{ rows: any[]; isLight: boolean }> = ({ rows, isLi
               <td className="px-4 py-2.5 whitespace-nowrap font-mono text-[11px]">{r.timestamp || "—"}</td>
               <td className={`px-4 py-2.5 ${sub}`}>{r.user || r.userEmail || "—"}</td>
               <td className="px-4 py-2.5">{badge(r.action || "—", actionColor(r.action || ""))}</td>
-              <td className={`px-4 py-2.5 ${sub}`}>{r.details || r.note || "—"}</td>
+              <td className={`px-4 py-2.5 hidden sm:table-cell ${sub}`}>{r.details || r.note || "—"}</td>
             </tr>
           ))}
         </tbody>

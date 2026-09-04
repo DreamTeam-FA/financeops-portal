@@ -203,19 +203,19 @@ export const BankStatementsPage: React.FC = () => {
             </span>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-left text-xs border-collapse min-w-[600px]">
               <thead>
                 <tr className={`${isLight ? "bg-slate-100/70 border-slate-200 text-slate-600" : "bg-[#141414] border-[#1a2235] text-[#888]"} border-b font-semibold`}>
-                  <th className="p-3">Entity</th>
-                  <th className="p-3">Bank Name</th>
-                  <th className="p-3">Statement Cycle</th>
-                  <th className="p-3">Remarks / Details</th>
-                  <th className="p-3">Statement Date</th>
-                  <th className="p-3">Request Date</th>
-                  <th className="p-3">Downloaded</th>
-                  <th className="p-3">Timestamp</th>
-                  <th className="p-3">Actions</th>
+                  <th className="p-3 whitespace-nowrap">Entity</th>
+                  <th className="p-3 whitespace-nowrap">Bank Name</th>
+                  <th className="p-3 whitespace-nowrap">Statement Cycle</th>
+                  <th className="p-3 whitespace-nowrap hidden sm:table-cell">Remarks / Details</th>
+                  <th className="p-3 whitespace-nowrap">Statement Date</th>
+                  <th className="p-3 whitespace-nowrap">Request Date</th>
+                  <th className="p-3 whitespace-nowrap">Downloaded</th>
+                  <th className="p-3 whitespace-nowrap hidden sm:table-cell">Timestamp</th>
+                  <th className="p-3 whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody className={`divide-y ${isLight ? "divide-slate-200" : "divide-[#222]"}`}>
@@ -228,7 +228,7 @@ export const BankStatementsPage: React.FC = () => {
                     </td>
                     <td className={`p-3 font-semibold ${isLight ? "text-slate-900" : "text-white"}`}>{cleanBankName(s.bankName, s.entity)}</td>
                     <td className={`p-3 ${isLight ? "text-slate-600" : "text-[#888]"}`}>{s.occurrence}</td>
-                    <td className={`p-3 ${isLight ? "text-slate-600" : "text-[#888]"}`}>{s.remarks}</td>
+                    <td className={`p-3 ${isLight ? "text-slate-600" : "text-[#888]"} hidden sm:table-cell`}>{s.remarks}</td>
                     <td className={`p-3 ${isLight ? "text-slate-600" : "text-[#888]"}`}>{s.statementDate}</td>
                     <td className={`p-3 ${isLight ? "text-slate-600" : "text-[#888]"}`}>{s.requestDate}</td>
                     <td className="p-3">
@@ -242,7 +242,7 @@ export const BankStatementsPage: React.FC = () => {
                         </span>
                       )}
                     </td>
-                    <td className={`p-3 ${isLight ? "text-slate-500" : "text-[#666]"} font-mono text-[10px]`}>
+                    <td className={`p-3 ${isLight ? "text-slate-500" : "text-[#666]"} font-mono text-[10px] hidden sm:table-cell`}>
                       {formatTimestampLocal(s.downloadedAt)}
                     </td>
                     <td className="p-3">

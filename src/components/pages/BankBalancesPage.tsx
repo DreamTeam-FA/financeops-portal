@@ -314,19 +314,19 @@ export const BankBalancesPage: React.FC = () => {
               </span>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
+            <div className="overflow-x-auto w-full">
+              <table className="w-full text-left text-xs border-collapse min-w-[600px]">
                 <thead>
                   <tr className={`${isLight ? "bg-slate-100/70 border-slate-200 text-slate-600" : "bg-[#141414] border-[#1a2235] text-[#888]"} border-b font-semibold`}>
-                    <th className="p-3">Entity</th>
-                    <th className="p-3">Bank Name</th>
-                    <th className="p-3">Account Type</th>
-                    <th className="p-3">Account #</th>
-                    <th className="p-3">Current Balance</th>
-                    <th className="p-3 hidden md:table-cell">Yesterday</th>
-                    <th className="p-3 hidden sm:table-cell">As Of</th>
-                    <th className="p-3 hidden md:table-cell">Trend</th>
-                    <th className="p-3">Actions</th>
+                    <th className="p-3 w-16 whitespace-nowrap">Entity</th>
+                    <th className="p-3 min-w-[100px] whitespace-nowrap">Bank Name</th>
+                    <th className="p-3 w-24 whitespace-nowrap">Account Type</th>
+                    <th className="p-3 min-w-[80px] whitespace-nowrap">Account #</th>
+                    <th className="p-3 w-32 whitespace-nowrap">Current Balance</th>
+                    <th className="p-3 hidden md:table-cell whitespace-nowrap">Yesterday</th>
+                    <th className="p-3 hidden sm:table-cell whitespace-nowrap">As Of</th>
+                    <th className="p-3 hidden md:table-cell whitespace-nowrap">Trend</th>
+                    <th className="p-3 w-20 whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody className={`divide-y ${isLight ? "divide-slate-200" : "divide-[#222]"}`}>

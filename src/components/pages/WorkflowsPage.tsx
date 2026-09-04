@@ -465,7 +465,7 @@ export const WorkflowsPage: React.FC = () => {
             ))}
           </div>
         ) : (
-          <div className="px-8 py-8 min-w-0">
+          <div className="px-8 py-8 min-w-0 break-words">
 
             {/* Partial-load notice */}
             {partial && (
