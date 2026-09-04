@@ -826,11 +826,15 @@ export async function fetchFullLiveDataset(accessToken?: string) {
   // Scan up to 10 rows to find the actual header row (handles blank rows 1-3 before header at row 4)
   const banks: any[] = [];
   const bankRows = dataByTab["Bank Balances"] || [];
-  const BANK_HEADER_KW = /entity|company|account|balance|bank|yesterday|updated/i;
+  // Require both an entity-like AND balance-like header in the same row to avoid
+  // matching a title row like "Bank Balances" which only contains one keyword.
   let bankHeaderIdx = 0;
   for (let h = 0; h < Math.min(bankRows.length, 10); h++) {
-    const rowStr = (bankRows[h] || []).map((c: any) => String(c || "")).join(" ");
-    if (BANK_HEADER_KW.test(rowStr) && rowStr.trim().length > 0) { bankHeaderIdx = h; break; }
+    const rowStr = (bankRows[h] || []).map((c: any) => String(c || "")).join("|");
+    const hasEntity  = /entity|company/i.test(rowStr);
+    const hasBal     = /bal|balance|amount/i.test(rowStr);
+    const hasAccount = /account|bank|institution/i.test(rowStr);
+    if ((hasEntity || hasAccount) && hasBal) { bankHeaderIdx = h; break; }
   }
   const bankHeaders = (bankRows[bankHeaderIdx] || []).map((h: any) => String(h || "").toLowerCase().trim());
   let bEntityIdx = bankHeaders.findIndex((h: string) => /^entity$/i.test(h));
