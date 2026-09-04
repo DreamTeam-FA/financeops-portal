@@ -380,7 +380,6 @@ export async function fetchFullLiveDataset(accessToken?: string) {
     "Credit Cards",
     "AR Dashboard Data",
     "Bank Statements Data",
-    "Bank Statements",
     "4YR Payroll",
     "Meeting Notes",
     "Quick Notes",
