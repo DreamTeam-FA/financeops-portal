@@ -1349,8 +1349,7 @@ export const computeSingleItemRange = (
 };
 
 // Write a single bank account to its exact sheet row (only touches that row).
-// Column layout must match formatBankSheetRows: col0=Entity, col1=Bank, col2=Balance, col3=Yesterday, col4=AsOf
-// mappingRange is from the user's SheetMappingConfig (e.g. "'Bank Balances'!A1:J100").
+// Sheet layout: col A=Entity, col B=Account, col C=Balance, col D=(blank), col E=Yesterday, col F=Last Updated
 export const writeSingleBankAccount = async (
   account: BankAccount,
   mappingRange: string,
@@ -1358,19 +1357,20 @@ export const writeSingleBankAccount = async (
   accessToken: string
 ): Promise<void> => {
   if (!account.row) return;
-  const row: any[] = new Array(5).fill("");
+  const row: any[] = new Array(6).fill("");
   row[0] = account.entity;            // col A: entity
   row[1] = account.bank;              // col B: bank/account name
   row[2] = account.balance;           // col C: current balance
-  row[3] = account.yesterday ?? "";   // col D: yesterday balance
-  row[4] = account.asOf;             // col E: last updated date
-  const range = computeSingleItemRange(mappingRange, account.row, 5);
+  row[3] = "";                        // col D: blank gap
+  row[4] = account.yesterday ?? "";   // col E: yesterday balance
+  row[5] = account.asOf;             // col F: last updated date
+  const range = computeSingleItemRange(mappingRange, account.row, 6);
   if (!range) return;
   await updateSheetValues(spreadsheetId, range, [row], accessToken);
 };
 
 // Append a new bank account row at the end of the sheet tab.
-// Column layout must match formatBankSheetRows: col0=Entity, col1=Bank, col2=Balance, col3=Yesterday, col4=AsOf
+// Sheet layout: col A=Entity, col B=Account, col C=Balance, col D=(blank), col E=Yesterday, col F=Last Updated
 export const appendBankAccount = async (
   account: BankAccount,
   mappingRange: string,
@@ -1379,12 +1379,13 @@ export const appendBankAccount = async (
 ): Promise<void> => {
   const bangIdx = mappingRange.indexOf("!");
   const tabPart = bangIdx !== -1 ? mappingRange.slice(0, bangIdx) : mappingRange;
-  const row: any[] = new Array(5).fill("");
+  const row: any[] = new Array(6).fill("");
   row[0] = account.entity;            // col A: entity
   row[1] = account.bank;              // col B: bank/account name
   row[2] = account.balance;           // col C: current balance
-  row[3] = account.yesterday ?? "";   // col D: yesterday balance
-  row[4] = account.asOf;             // col E: last updated date
+  row[3] = "";                        // col D: blank gap
+  row[4] = account.yesterday ?? "";   // col E: yesterday balance
+  row[5] = account.asOf;             // col F: last updated date
   await appendSheetValues(spreadsheetId, `${tabPart}!A:A`, [row], accessToken);
 };
 
@@ -1578,14 +1579,15 @@ export const getAPTabRange = (entity: string): string =>
   getAPColMap(entity).dataRange;
 
 export const formatBankSheetRows = (accounts: BankAccount[]): any[][] => {
-  // Sheet layout (new): col0=Entity, col1=Account, col2=Balance, col3=Yesterday, col4=Last Updated
+  // Sheet layout: col A=Entity, col B=Account, col C=Balance, col D=(blank), col E=Yesterday, col F=Last Updated
   return accounts.map((a) => {
-    const row: any[] = new Array(5).fill("");
-    row[0] = a.entity;              // col 0: entity
-    row[1] = a.bank;                // col 1: account/bank name
-    row[2] = a.balance;             // col 2: current balance
-    row[3] = a.yesterday ?? "";     // col 3: yesterday balance (preserve if available)
-    row[4] = a.asOf;                // col 4: last updated date
+    const row: any[] = new Array(6).fill("");
+    row[0] = a.entity;              // col A: entity
+    row[1] = a.bank;                // col B: account/bank name
+    row[2] = a.balance;             // col C: current balance
+    row[3] = "";                    // col D: blank (gap column in sheet)
+    row[4] = a.yesterday ?? "";     // col E: yesterday balance
+    row[5] = a.asOf;                // col F: last updated date
     return row;
   });
 };
