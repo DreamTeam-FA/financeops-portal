@@ -186,70 +186,73 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
             </button>
           )}
 
-          {/* ── MORE DROPDOWN ── theme + extras + sheet link */}
-          <div className="relative" ref={moreRef}>
-            <button
-              onClick={() => setMoreOpen(o => !o)}
-              className={`btn-3d btn-3d-ghost gap-1 ${moreOpen ? "bg-white/20" : ""}`}
-              title="More options"
-            >
-              <MoreHorizontal className="w-3.5 h-3.5" />
-              <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${moreOpen ? "rotate-180" : ""}`} />
-            </button>
+          {/* ── THEME TOGGLE — always visible ── */}
+          <button
+            onClick={toggleTheme}
+            className="btn-3d btn-3d-ghost gap-1.5"
+            title={theme === "dark" ? "Switch to Light Mode" : theme === "light" ? "Switch to Glass Mode" : "Switch to Dark Mode"}
+          >
+            {theme === "dark"
+              ? <Sun className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              : theme === "light"
+              ? <Sparkles className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+              : <Moon className="w-3.5 h-3.5 text-slate-300 shrink-0" />}
+            <span className="hidden sm:inline text-[12px]">
+              {theme === "dark" ? "Light" : theme === "light" ? "Glass" : "Dark"}
+            </span>
+          </button>
 
-            {moreOpen && (
-              <div
-                className={`ph-more-menu absolute right-0 top-full mt-2 z-50 min-w-[190px] rounded-xl border py-1.5 overflow-hidden ${
-                  isLight
-                    ? "bg-white border-slate-200 shadow-[0_8px_32px_rgba(0,0,0,.15)]"
-                    : "bg-[#0d111a] border-[#1a2235] shadow-[0_8px_32px_rgba(0,0,0,.6)]"
-                }`}
-                onClick={() => setMoreOpen(false)}
+          {/* ── MORE DROPDOWN ── extras + sheet link only ── */}
+          {hasMore && (
+            <div className="relative" ref={moreRef}>
+              <button
+                onClick={() => setMoreOpen(o => !o)}
+                className={`btn-3d btn-3d-ghost gap-1 ${moreOpen ? "bg-white/20" : ""}`}
+                title="More options"
               >
-                {/* Theme toggle */}
-                <button
-                  onClick={toggleTheme}
-                  className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] transition-colors ${
-                    isLight ? "text-slate-700 hover:bg-slate-100" : "text-[#c8d4e8] hover:bg-[#1a2235]"
+                <MoreHorizontal className="w-3.5 h-3.5" />
+                <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${moreOpen ? "rotate-180" : ""}`} />
+              </button>
+
+              {moreOpen && (
+                <div
+                  className={`ph-more-menu absolute right-0 top-full mt-2 z-50 min-w-[190px] rounded-xl border py-1.5 overflow-hidden ${
+                    isLight
+                      ? "bg-white border-slate-200 shadow-[0_8px_32px_rgba(0,0,0,.15)]"
+                      : "bg-[#0d111a] border-[#1a2235] shadow-[0_8px_32px_rgba(0,0,0,.6)]"
                   }`}
+                  onClick={() => setMoreOpen(false)}
                 >
-                  {theme === "dark"
-                    ? <Sun className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                    : theme === "light"
-                    ? <Sparkles className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                    : <Moon className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
-                  {theme === "dark" ? "Light Mode" : theme === "light" ? "Glass Mode" : "Dark Mode"}
-                </button>
+                  {/* Extra buttons (CSV, etc.) */}
+                  {extraButtons && (
+                    <div className="flex flex-col">
+                      {extraButtons}
+                    </div>
+                  )}
 
-                {/* Divider before page-specific extras */}
-                {(extraButtons || sheetUrl) && (
-                  <div className={`my-1 mx-3 border-t ${isLight ? "border-slate-200" : "border-[#1a2235]"}`} />
-                )}
+                  {/* Divider */}
+                  {extraButtons && sheetUrl && (
+                    <div className={`my-1 mx-3 border-t ${isLight ? "border-slate-200" : "border-[#1a2235]"}`} />
+                  )}
 
-                {/* Extra buttons (CSV, etc.) — passed as ReactNode; wrap in a context div */}
-                {extraButtons && (
-                  <div className="flex flex-col">
-                    {extraButtons}
-                  </div>
-                )}
-
-                {/* Open Source Sheet */}
-                {sheetUrl && (
-                  <a
-                    href={sheetUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] transition-colors no-underline ${
-                      isLight ? "text-slate-700 hover:bg-slate-100" : "text-[#c8d4e8] hover:bg-[#1a2235]"
-                    }`}
-                  >
-                    <ExternalLink className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                    Open Source Sheet
-                  </a>
-                )}
-              </div>
-            )}
-          </div>
+                  {/* Open Source Sheet */}
+                  {sheetUrl && (
+                    <a
+                      href={sheetUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-[13px] transition-colors no-underline ${
+                        isLight ? "text-slate-700 hover:bg-slate-100" : "text-[#c8d4e8] hover:bg-[#1a2235]"
+                      }`}
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                      Open Source Sheet
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
