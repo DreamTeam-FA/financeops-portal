@@ -313,3 +313,127 @@ html, body, #root {
   border-radius: 0 3px 3px 0;
   background: var(--c-accent);
 }
+
+/* ─── Glass Mode ──────────────────────────────────────────────────── */
+
+/* Animated orbs */
+@keyframes glass-float-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(60px, 80px) scale(1.08); }
+  66%  { transform: translate(-30px, 140px) scale(0.96); }
+}
+@keyframes glass-float-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(-80px, -60px) scale(1.06); }
+  66%  { transform: translate(50px, -100px) scale(1.02); }
+}
+@keyframes glass-float-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%  { transform: translate(40px, -50px) scale(0.94); }
+}
+
+.glass-orb {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(80px);
+  opacity: 0.45;
+}
+.glass-orb-1 {
+  width: 700px; height: 700px;
+  top: -200px; left: -180px;
+  background: radial-gradient(circle, rgba(56, 114, 255, 0.35) 0%, transparent 65%);
+  animation: glass-float-1 22s ease-in-out infinite;
+}
+.glass-orb-2 {
+  width: 600px; height: 600px;
+  bottom: -150px; right: -150px;
+  background: radial-gradient(circle, rgba(120, 60, 255, 0.28) 0%, transparent 65%);
+  animation: glass-float-2 28s ease-in-out infinite;
+}
+.glass-orb-3 {
+  width: 450px; height: 450px;
+  top: 40%; left: 40%;
+  background: radial-gradient(circle, rgba(0, 160, 220, 0.18) 0%, transparent 65%);
+  animation: glass-float-3 35s ease-in-out infinite;
+}
+
+/* Glass surface: covers every dark background panel / card */
+html.glass .bg-\[#0d111a\],
+html.glass .bg-\[#0a0e17\],
+html.glass .bg-\[#0f0f0f\],
+html.glass .bg-\[#141414\],
+html.glass .bg-\[#181c24\],
+html.glass .bg-\[#0f1520\],
+html.glass .bg-\[#0a1020\],
+html.glass .bg-\[#060a11\],
+html.glass .bg-\[#080d18\],
+html.glass .bg-\[#111827\],
+html.glass .bg-\[#1a2235\],
+html.glass .bg-\[#0a0a0a\],
+html.glass .bg-\[#0b0e14\],
+html.glass .bg-\[#131824\] {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(18px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(160%) !important;
+}
+
+/* Slightly more opaque for modal overlays */
+html.glass .bg-\[#181c24\] {
+  background-color: rgba(10, 20, 45, 0.75) !important;
+}
+
+/* Borders — lighten to a subtle white glow */
+html.glass .border-\[#1a2235\],
+html.glass .border-\[#1f1f1f\],
+html.glass .border-\[#222\],
+html.glass .border-\[#2a3140\],
+html.glass .border-\[#333\],
+html.glass .border-\[#262626\],
+html.glass .border-\[#3a4152\] {
+  border-color: rgba(255, 255, 255, 0.10) !important;
+}
+
+/* Hover states */
+html.glass .hover\:bg-\[#1a2235\]:hover,
+html.glass .hover\:bg-\[#0a1220\]:hover,
+html.glass .hover\:bg-white\/5:hover {
+  background-color: rgba(255, 255, 255, 0.09) !important;
+}
+
+/* Table headers and zebra rows */
+html.glass .bg-\[#0d111a\]\/50,
+html.glass .bg-\[#1a2235\]\/30 {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+}
+
+/* Card 3D glass override */
+html.glass .card-3d {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.07) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.07) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2) !important;
+  backdrop-filter: blur(18px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(160%) !important;
+}
+
+/* Scrollbar glass tint */
+html.glass ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+}
+html.glass ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* More dropdown glass */
+html.glass .ph-more-menu .btn-3d:hover,
+html.glass .ph-more-menu .btn-3d-ghost:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Gradient-to-b header in sidebar — make transparent in glass */
+html.glass .bg-gradient-to-b {
+  background-image: none !important;
+  background-color: transparent !important;
+}
