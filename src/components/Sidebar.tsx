@@ -146,7 +146,7 @@ export const Sidebar: React.FC = () => {
 
   const userInitial = userEmail ? userEmail.slice(0, 2).toUpperCase() : "MC";
   const isLight = theme === "light";
-  const isGlass = theme === "glass";
+
 
   // ── Nav badge counts ────────────────────────────────────────────────────────
   const navBadges = useMemo(() => {
@@ -236,13 +236,7 @@ export const Sidebar: React.FC = () => {
       } shrink-0 ${
         isLight ? "bg-white border-slate-200 text-slate-800" : "border-[#1a2235] text-[#c8d4e8]"
       } border-r flex flex-col h-screen overflow-y-auto overflow-x-hidden transition-all duration-200 ease-in-out`}
-      style={isLight ? {} : isGlass ? {
-        background: "rgba(6, 12, 28, 0.55)",
-        backdropFilter: "blur(28px) saturate(180%)",
-        WebkitBackdropFilter: "blur(28px) saturate(180%)",
-        borderRight: "1px solid rgba(255,255,255,0.07)",
-        boxShadow: "2px 0 24px rgba(0,0,0,0.5)"
-      } : {
+      style={isLight ? {} : {
         background: "linear-gradient(180deg, #080d18 0%, #060a11 40%, #060a11 100%)",
         boxShadow: "inset -1px 0 0 rgba(26,34,53,0.6), 2px 0 16px rgba(0,0,0,0.4)"
       }}
@@ -252,7 +246,7 @@ export const Sidebar: React.FC = () => {
         className={`flex items-center ${
           isSidebarFolded ? "justify-center p-3" : "justify-between p-4"
         } border-b ${isLight ? "border-slate-200" : "border-[#1a2235]"} shrink-0 ${
-          isLight ? "" : isGlass ? "" : "bg-gradient-to-b from-[#0a1020] to-[#060a11]"
+          isLight ? "" : "bg-gradient-to-b from-[#0a1020] to-[#060a11]"
         }`}
       >
         {!isSidebarFolded ? (

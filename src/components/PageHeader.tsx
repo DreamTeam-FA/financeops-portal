@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useFinance } from "../context/FinanceContext";
 import {
-  Plus, RefreshCw, CheckCircle2, AlertCircle, Sun, Moon, Sparkles,
+  Plus, RefreshCw, CheckCircle2, AlertCircle, Sun, Moon,
   RefreshCcw, ExternalLink, ChevronDown, MoreHorizontal
 } from "lucide-react";
 import { ScreenshotButton } from "./ScreenshotButton";
@@ -215,10 +215,8 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
                 >
                   {theme === "dark"
                     ? <Sun className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                    : theme === "light"
-                    ? <Sparkles className="w-3.5 h-3.5 text-sky-400 shrink-0" />
                     : <Moon className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
-                  {theme === "dark" ? "Light Mode" : theme === "light" ? "Glass Mode" : "Dark Mode"}
+                  {theme === "dark" ? "Light Mode" : "Dark Mode"}
                 </button>
 
                 {/* Divider before page-specific extras */}

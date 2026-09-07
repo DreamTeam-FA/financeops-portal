@@ -574,12 +574,7 @@ const PortalContent: React.FC = () => {
   return (
     <div
       className={`flex h-screen w-screen overflow-hidden ${theme === "light" ? "bg-slate-100 text-slate-900" : "text-white"}`}
-      style={theme === "glass"
-        ? { background: "linear-gradient(135deg,#040810 0%,#07111f 50%,#050c1a 100%)" }
-        : theme === "dark"
-        ? { background: "#0a0a0a" }
-        : {}
-      }
+      style={theme === "dark" ? { background: "#0a0a0a" } : {}}
     >
       {/* Desktop Sidebar */}
       <div className="hidden md:block">
@@ -671,14 +666,6 @@ const PortalContent: React.FC = () => {
         theme={theme}
       />
 
-      {/* Glass mode orbs — absolutely positioned, z-index:-1 stays behind all content */}
-      {theme === "glass" && (
-        <div aria-hidden="true" style={{ position: "absolute", inset: 0, zIndex: -1, overflow: "hidden", pointerEvents: "none" }}>
-          <div className="glass-orb glass-orb-1" />
-          <div className="glass-orb glass-orb-2" />
-          <div className="glass-orb glass-orb-3" />
-        </div>
-      )}
     </div>
   );
 };

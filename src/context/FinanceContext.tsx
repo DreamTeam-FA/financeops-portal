@@ -80,7 +80,7 @@ interface FinanceContextType {
   userEmail: string;
   setUserEmail: (email: string) => void;
   isLoading: boolean;
-  theme: "dark" | "light" | "glass";
+  theme: "dark" | "light";
   toggleTheme: () => void;
   isSidebarFolded: boolean;
   toggleSidebarFold: () => void;
@@ -647,22 +647,20 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return localStorage.getItem("financeops_user_email") || "accounting@marktimm.com";
   });
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [theme, setTheme] = useState<"dark" | "light" | "glass">(() => {
-    const saved = (localStorage.getItem("financeops_theme") as "dark" | "light" | "glass") || "dark";
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    const saved = localStorage.getItem("financeops_theme");
+    const resolved = saved === "light" ? "light" : "dark";
     document.documentElement.classList.remove("dark", "glass");
-    if (saved === "dark") document.documentElement.classList.add("dark");
-    else if (saved === "glass") document.documentElement.classList.add("glass");
-    return saved;
+    if (resolved === "dark") document.documentElement.classList.add("dark");
+    return resolved;
   });
 
-  // Cycle: dark → light → glass → dark
   const toggleTheme = () => {
     setTheme((prev) => {
-      const next = prev === "dark" ? "light" : prev === "light" ? "glass" : "dark";
+      const next = prev === "dark" ? "light" : "dark";
       localStorage.setItem("financeops_theme", next);
       document.documentElement.classList.remove("dark", "glass");
       if (next === "dark") document.documentElement.classList.add("dark");
-      else if (next === "glass") document.documentElement.classList.add("glass");
       return next;
     });
   };
