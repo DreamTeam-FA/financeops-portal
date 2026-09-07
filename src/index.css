@@ -358,52 +358,55 @@ html, body, #root {
   animation: glass-float-3 35s ease-in-out infinite;
 }
 
-/* Glass surface: covers every dark background panel / card */
-html.glass .bg-\[#0d111a\],
-html.glass .bg-\[#0a0e17\],
-html.glass .bg-\[#0f0f0f\],
-html.glass .bg-\[#141414\],
-html.glass .bg-\[#181c24\],
-html.glass .bg-\[#0f1520\],
-html.glass .bg-\[#0a1020\],
-html.glass .bg-\[#060a11\],
-html.glass .bg-\[#080d18\],
-html.glass .bg-\[#111827\],
-html.glass .bg-\[#1a2235\],
-html.glass .bg-\[#0a0a0a\],
-html.glass .bg-\[#0b0e14\],
-html.glass .bg-\[#131824\] {
+/* Glass surface: covers every dark background panel / card
+   NOTE: Tailwind v4 escapes # as \# in generated selectors */
+html.glass .bg-\[\#0d111a\],
+html.glass .bg-\[\#0a0e17\],
+html.glass .bg-\[\#0f0f0f\],
+html.glass .bg-\[\#141414\],
+html.glass .bg-\[\#181c24\],
+html.glass .bg-\[\#0f1520\],
+html.glass .bg-\[\#0a1020\],
+html.glass .bg-\[\#060a11\],
+html.glass .bg-\[\#080d18\],
+html.glass .bg-\[\#111827\],
+html.glass .bg-\[\#1a2235\],
+html.glass .bg-\[\#0a0a0a\],
+html.glass .bg-\[\#0b0e14\],
+html.glass .bg-\[\#131824\] {
   background-color: rgba(255, 255, 255, 0.05) !important;
-  backdrop-filter: blur(18px) saturate(160%) !important;
-  -webkit-backdrop-filter: blur(18px) saturate(160%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
 }
 
 /* Slightly more opaque for modal overlays */
-html.glass .bg-\[#181c24\] {
-  background-color: rgba(10, 20, 45, 0.75) !important;
+html.glass .bg-\[\#181c24\] {
+  background-color: rgba(10, 20, 45, 0.72) !important;
+  backdrop-filter: blur(28px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
 }
 
 /* Borders — lighten to a subtle white glow */
-html.glass .border-\[#1a2235\],
-html.glass .border-\[#1f1f1f\],
-html.glass .border-\[#222\],
-html.glass .border-\[#2a3140\],
-html.glass .border-\[#333\],
-html.glass .border-\[#262626\],
-html.glass .border-\[#3a4152\] {
+html.glass .border-\[\#1a2235\],
+html.glass .border-\[\#1f1f1f\],
+html.glass .border-\[\#222\],
+html.glass .border-\[\#2a3140\],
+html.glass .border-\[\#333\],
+html.glass .border-\[\#262626\],
+html.glass .border-\[\#3a4152\] {
   border-color: rgba(255, 255, 255, 0.10) !important;
 }
 
 /* Hover states */
-html.glass .hover\:bg-\[#1a2235\]:hover,
-html.glass .hover\:bg-\[#0a1220\]:hover,
+html.glass .hover\:bg-\[\#1a2235\]:hover,
+html.glass .hover\:bg-\[\#0a1220\]:hover,
 html.glass .hover\:bg-white\/5:hover {
   background-color: rgba(255, 255, 255, 0.09) !important;
 }
 
 /* Table headers and zebra rows */
-html.glass .bg-\[#0d111a\]\/50,
-html.glass .bg-\[#1a2235\]\/30 {
+html.glass .bg-\[\#0d111a\]\/50,
+html.glass .bg-\[\#1a2235\]\/30 {
   background-color: rgba(255, 255, 255, 0.03) !important;
 }
 
