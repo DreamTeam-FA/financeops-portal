@@ -318,14 +318,14 @@ export const BankBalancesPage: React.FC = () => {
               <table className="w-full text-left text-xs border-collapse min-w-[600px]">
                 <thead>
                   <tr className={`${isLight ? "bg-slate-100/70 border-slate-200 text-slate-600" : "bg-[#141414] border-[#1a2235] text-[#888]"} border-b font-semibold`}>
-                    <th className="p-3 w-16 whitespace-nowrap">Entity</th>
-                    <th className="p-3 min-w-[100px] whitespace-nowrap">Bank Name</th>
+                    <th className="p-3 w-28 whitespace-nowrap">Entity</th>
+                    <th className="p-3 w-36 whitespace-nowrap">Bank Name</th>
                     <th className="p-3 w-24 whitespace-nowrap">Account Type</th>
-                    <th className="p-3 min-w-[80px] whitespace-nowrap">Account #</th>
+                    <th className="p-3 w-36 whitespace-nowrap">Account #</th>
                     <th className="p-3 w-32 whitespace-nowrap">Current Balance</th>
-                    <th className="p-3 hidden md:table-cell whitespace-nowrap">Yesterday</th>
-                    <th className="p-3 hidden sm:table-cell whitespace-nowrap">As Of</th>
-                    <th className="p-3 hidden md:table-cell whitespace-nowrap">Trend</th>
+                    <th className="p-3 hidden md:table-cell w-28 whitespace-nowrap">Yesterday</th>
+                    <th className="p-3 hidden sm:table-cell w-24 whitespace-nowrap">As Of</th>
+                    <th className="p-3 hidden md:table-cell w-20 whitespace-nowrap">Trend</th>
                     <th className="p-3 w-20 whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
@@ -337,7 +337,7 @@ export const BankBalancesPage: React.FC = () => {
                     return (
                       <tr key={b.id} data-search-id={b.id} className={`${isLight ? "hover:bg-slate-50" : "hover:bg-white/5"} transition-colors`}>
                         <td className="p-3">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${getEntityBadge(b.entity)}`}>{b.entity}</span>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap ${getEntityBadge(b.entity)}`}>{b.entity}</span>
                         </td>
                         <td className={`p-3 font-semibold ${isLight ? "text-slate-900" : "text-white"}`}>{b.bank}</td>
                         <td className={`p-3 ${isLight ? "text-slate-600" : "text-[#888]"}`}>{b.type}</td>
