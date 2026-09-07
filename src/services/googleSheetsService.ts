@@ -590,7 +590,8 @@ export const parseBankSheetRows = (rows: any[][]): BankAccount[] => {
       asOf,
       status: "Active",
       trend: "up",
-      row: idx + 2 // 1-indexed within fetched range (row 1 = header, row 2 = first data row)
+      // Account for the header row position: headerRowIdx rows before header + 1 for header itself + idx data rows + 1 to be 1-indexed
+      row: headerRowIdx + idx + 2
     });
   });
 
@@ -1348,7 +1349,8 @@ export const computeSingleItemRange = (
 };
 
 // Write a single bank account to its exact sheet row (only touches that row).
-// mappingRange is from the user's SheetMappingConfig (e.g. "'Banks'!A1:D100").
+// Column layout must match formatBankSheetRows: col0=Entity, col1=Bank, col2=Balance, col3=Yesterday, col4=AsOf
+// mappingRange is from the user's SheetMappingConfig (e.g. "'Bank Balances'!A1:J100").
 export const writeSingleBankAccount = async (
   account: BankAccount,
   mappingRange: string,
@@ -1356,16 +1358,19 @@ export const writeSingleBankAccount = async (
   accessToken: string
 ): Promise<void> => {
   if (!account.row) return;
-  const row: any[] = new Array(4).fill("");
-  row[0] = account.bank;
-  row[1] = account.balance;
-  row[3] = account.asOf;
-  const range = computeSingleItemRange(mappingRange, account.row, 4);
+  const row: any[] = new Array(5).fill("");
+  row[0] = account.entity;            // col A: entity
+  row[1] = account.bank;              // col B: bank/account name
+  row[2] = account.balance;           // col C: current balance
+  row[3] = account.yesterday ?? "";   // col D: yesterday balance
+  row[4] = account.asOf;             // col E: last updated date
+  const range = computeSingleItemRange(mappingRange, account.row, 5);
   if (!range) return;
   await updateSheetValues(spreadsheetId, range, [row], accessToken);
 };
 
 // Append a new bank account row at the end of the sheet tab.
+// Column layout must match formatBankSheetRows: col0=Entity, col1=Bank, col2=Balance, col3=Yesterday, col4=AsOf
 export const appendBankAccount = async (
   account: BankAccount,
   mappingRange: string,
@@ -1374,10 +1379,12 @@ export const appendBankAccount = async (
 ): Promise<void> => {
   const bangIdx = mappingRange.indexOf("!");
   const tabPart = bangIdx !== -1 ? mappingRange.slice(0, bangIdx) : mappingRange;
-  const row: any[] = new Array(4).fill("");
-  row[0] = account.bank;
-  row[1] = account.balance;
-  row[3] = account.asOf;
+  const row: any[] = new Array(5).fill("");
+  row[0] = account.entity;            // col A: entity
+  row[1] = account.bank;              // col B: bank/account name
+  row[2] = account.balance;           // col C: current balance
+  row[3] = account.yesterday ?? "";   // col D: yesterday balance
+  row[4] = account.asOf;             // col E: last updated date
   await appendSheetValues(spreadsheetId, `${tabPart}!A:A`, [row], accessToken);
 };
 
