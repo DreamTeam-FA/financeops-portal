@@ -66,6 +66,7 @@ import {
   appendARItem,
   writeSingleStatement,
   appendStatement,
+  appendStatementsBatch,
   appendNoteToSheet,
   writeSingleNote,
   clearNoteRow
@@ -2759,7 +2760,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     pushSingleStatementToSheet(newSt, "append");
   };
 
-  /** Batch-add multiple statements at once — avoids stale-closure overwrite when called in a loop */
+  /** Batch-add multiple statements at once — avoids stale-closure overwrite when called in a loop.
+   *  Writes all rows to the sheet in ONE API call to avoid rate-limit failures from rapid concurrent appends. */
   const addBankStatementsBatch = (statementsData: Array<Omit<BankStatement, "id">>) => {
     if (!requireToken()) return;
     const now = Date.now();
@@ -2772,10 +2774,18 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       persistChanges({ statements: nextSt });
       return nextSt;
     });
-    newItems.forEach(st => {
-      logAction("Added Bank Statement Record", `${st.bankName} (${st.period})`);
-      pushSingleStatementToSheet(st, "append");
-    });
+    newItems.forEach(st => logAction("Added Bank Statement Record", `${st.bankName} (${st.period})`));
+    // Write all rows in ONE API call instead of N simultaneous calls
+    const token = getAccessToken();
+    if (!token) { setNeedsAuth(true); showToast("Connect Google Sheets to save statements.", "error", 5000); return; }
+    const mapping = sheetMappings.find((m) => m.module === "statements");
+    if (!mapping) return;
+    (async () => {
+      try {
+        await appendStatementsBatch(newItems, mapping.range, mapping.spreadsheetIdOrUrl, token);
+        showToast(`${newItems.length} statements saved to Google Sheets ✓`, "success", 3000);
+      } catch (err) { handleSheetPushError(err, "statements"); }
+    })();
   };
 
   const updateBankStatement = (updatedStatement: BankStatement) => {

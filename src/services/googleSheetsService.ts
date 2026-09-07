@@ -1551,6 +1551,31 @@ export const appendStatement = async (
   await appendSheetValues(spreadsheetId, `${tabPart}!A:A`, [row], accessToken);
 };
 
+// Append multiple statement rows in ONE API call (avoids rate-limit failures from
+// 19 simultaneous single-row appends when Generate Monthly is used).
+export const appendStatementsBatch = async (
+  statements: BankStatement[],
+  mappingRange: string,
+  spreadsheetId: string,
+  accessToken: string
+): Promise<void> => {
+  if (statements.length === 0) return;
+  const bangIdx = mappingRange.indexOf("!");
+  const tabPart = bangIdx !== -1 ? mappingRange.slice(0, bangIdx) : mappingRange;
+  const rows = statements.map(st => [
+    st.period,
+    st.entity,
+    st.bankName,
+    st.occurrence,
+    st.remarks || "",
+    st.statementDate || "",
+    st.requestDate || "",
+    st.downloaded ? "TRUE" : "FALSE",
+    st.downloadedAt || "",
+  ]);
+  await appendSheetValues(spreadsheetId, `${tabPart}!A:A`, rows, accessToken);
+};
+
 /**
  * Formats AP bills for a single entity tab into the correct sheet column layout.
  * Returns ONLY data rows (no header) — caller writes to the entity-specific range

@@ -1537,7 +1537,8 @@
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Auto-Debit",
-      "paymentInstructions": "https://mail.google.com/mail/u/2/#inbox/FMfcgzQhWBlfsQLqzrWTKdVQsVVjjKlc?projector=1&messagePartId=0.1"
+      "paymentInstructions": "https://mail.google.com/mail/u/2/#inbox/FMfcgzQhWBlfsQLqzrWTKdVQsVVjjKlc?projector=1&messagePartId=0.1",
+      "driveViewUrl": "https://drive.google.com/file/d/1cRaKSECfapEhD6G7LqeFMx03ULS8s3Oj/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-298",
@@ -2532,7 +2533,8 @@
       "category": "Marketing",
       "row": 386,
       "recurringType": "Recurring",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "driveViewUrl": "https://drive.google.com/file/d/1tPcJKUC2OSD1ikiwWkC0pimbIEOUhr48/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-391",
@@ -2775,7 +2777,8 @@
       "category": "Accounting",
       "row": 398,
       "recurringType": "Recurring",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "driveViewUrl": "https://drive.google.com/file/d/1iT_a56jxty4eYt8zAeRtZkihHrIXYATF/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-403",
@@ -4685,7 +4688,8 @@
       "category": "Computer System Expenses",
       "row": 605,
       "recurringType": "Recurring",
-      "paymentType": "Auto-Debit"
+      "paymentType": "Auto-Debit",
+      "driveViewUrl": "https://drive.google.com/file/d/1B45V-4J3U-7T6hndtbyszinl24USfjZ7/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-610",
@@ -6372,7 +6376,8 @@
       "description": "PCM Technologies",
       "row": 735,
       "recurringType": "Recurring",
-      "paymentType": "Auto-Debit"
+      "paymentType": "Auto-Debit",
+      "driveViewUrl": "https://drive.google.com/file/d/19D9km2MUjSZkq-xEqDWhlw06Ry89NPUj/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-740",
@@ -7515,7 +7520,8 @@
       "row": 874,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "driveViewUrl": "https://drive.google.com/file/d/1iP90qKnGxlyDk2FF96ye1tMzeIPcjRv5/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-879",
@@ -7789,7 +7795,8 @@
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual",
-      "paymentInstructions": "$8,250 - x7083\n$7,085.79 - x3002\n$680 - Zion's bank\nCC fees\n247.50 - x7083\n212.57 - x3002"
+      "paymentInstructions": "$8,250 - x7083\n$7,085.79 - x3002\n$680 - Zion's bank\nCC fees\n247.50 - x7083\n212.57 - x3002",
+      "driveViewUrl": "https://drive.google.com/file/d/14FFIGnn4lQvEbfpDPOAtNDK-CJZQ6xVb/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-895",
@@ -10629,7 +10636,8 @@
       "row": 1067,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "driveViewUrl": "https://drive.google.com/file/d/11OqXRcurveNy7qtWVJmNFEwAKXKvZOe7/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-1072",
@@ -10651,7 +10659,8 @@
       "row": 1068,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "driveViewUrl": "https://drive.google.com/file/d/11OqXRcurveNy7qtWVJmNFEwAKXKvZOe7/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-1073",
@@ -10673,7 +10682,8 @@
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual",
-      "paymentInstructions": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVXHZDBdQlhDdHXhcsnnGMJfq?projector=1&messagePartId=0.1"
+      "paymentInstructions": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVXHZDBdQlhDdHXhcsnnGMJfq?projector=1&messagePartId=0.1",
+      "driveViewUrl": "https://drive.google.com/file/d/11OqXRcurveNy7qtWVJmNFEwAKXKvZOe7/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-1074",
@@ -10694,7 +10704,8 @@
       "recurringType": "Recurring",
       "paymentType": "Manual",
       "category": "Utilities",
-      "costType": "Estimate"
+      "costType": "Estimate",
+      "driveViewUrl": "https://drive.google.com/file/d/1jpKaW2plMojV_qs9Hn9_6JBXrB0ZYWnq/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-1075",
@@ -10715,7 +10726,8 @@
       "row": 1071,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "driveViewUrl": "https://drive.google.com/file/d/1jpKaW2plMojV_qs9Hn9_6JBXrB0ZYWnq/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-1076",
@@ -10737,7 +10749,8 @@
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual",
-      "paidDate": "2026-08-24"
+      "paidDate": "2026-08-24",
+      "driveViewUrl": "https://drive.google.com/file/d/1B6gm9UTadNbh2PY5hJn1nuVrOpy9VkPr/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-1077",
@@ -10759,7 +10772,8 @@
       "row": 1073,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "driveViewUrl": "https://drive.google.com/file/d/11OqXRcurveNy7qtWVJmNFEwAKXKvZOe7/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-1078",
@@ -10781,7 +10795,8 @@
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual",
-      "paidDate": "2026-08-11"
+      "paidDate": "2026-08-11",
+      "driveViewUrl": "https://drive.google.com/file/d/11OqXRcurveNy7qtWVJmNFEwAKXKvZOe7/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-1079",
@@ -10803,7 +10818,8 @@
       "row": 1075,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "driveViewUrl": "https://drive.google.com/file/d/14BBtRtd7SOPukb88fN2IProdviouLW5k/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-1080",
@@ -10824,7 +10840,8 @@
       "row": 1076,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "driveViewUrl": "https://drive.google.com/file/d/14BBtRtd7SOPukb88fN2IProdviouLW5k/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-1081",
@@ -10846,7 +10863,8 @@
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual",
-      "paidDate": "2026-08-28"
+      "paidDate": "2026-08-28",
+      "driveViewUrl": "https://drive.google.com/file/d/1BfneidhoIb7lajTV-Y-JSuFZpvEu9WNX/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-1082",
@@ -10868,7 +10886,8 @@
       "row": 1078,
       "recurringType": "Recurring",
       "paymentType": "Manual",
-      "costType": "Estimate"
+      "costType": "Estimate",
+      "driveViewUrl": "https://drive.google.com/file/d/1PnTR6e6w9EO2Ib9hKLwWwErRrbOmJcdm/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-1083",
@@ -10889,7 +10908,8 @@
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual",
-      "paymentInstructions": "https://mail.google.com/mail/u/1/#search/square+one+printing/FMfcgzQhVhhQdkQFFpCXcfVxrkzgdlrS?projector=1&messagePartId=0.1"
+      "paymentInstructions": "https://mail.google.com/mail/u/1/#search/square+one+printing/FMfcgzQhVhhQdkQFFpCXcfVxrkzgdlrS?projector=1&messagePartId=0.1",
+      "driveViewUrl": "https://drive.google.com/file/d/1PnTR6e6w9EO2Ib9hKLwWwErRrbOmJcdm/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-1084",
@@ -10909,7 +10929,8 @@
       "row": 1080,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "driveViewUrl": "https://drive.google.com/file/d/1hSwKuOxutn8GziIw5Lsj6ilZEv9IUXAj/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-1085",
@@ -10931,7 +10952,8 @@
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual",
-      "description": "Cylinder Rent"
+      "description": "Cylinder Rent",
+      "driveViewUrl": "https://drive.google.com/file/d/1hSwKuOxutn8GziIw5Lsj6ilZEv9IUXAj/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-1086",
@@ -10954,7 +10976,8 @@
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual",
-      "paidDate": "2026-08-28"
+      "paidDate": "2026-08-28",
+      "driveViewUrl": "https://drive.google.com/file/d/1m0giat7s2RP_kgGooJAxFkWIqCe1lY1m/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-1087",
@@ -10977,7 +11000,8 @@
       "row": 1083,
       "recurringType": "Recurring",
       "paymentType": "Manual",
-      "costType": "Estimate"
+      "costType": "Estimate",
+      "driveViewUrl": "https://drive.google.com/file/d/1QFK4d1-zEoRCm3O_Kr4R54RuV4oHE04m/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-1088",
@@ -10999,7 +11023,8 @@
       "row": 1084,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "driveViewUrl": "https://drive.google.com/file/d/1QFK4d1-zEoRCm3O_Kr4R54RuV4oHE04m/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-1089",
@@ -11021,7 +11046,8 @@
       "row": 1085,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "driveViewUrl": "https://drive.google.com/file/d/17MgNtUORq-kvmrDbvAazfsnkeufOjPgX/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-1090",
@@ -11043,7 +11069,8 @@
       "row": 1086,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "driveViewUrl": "https://drive.google.com/file/d/1zV3pmPQcCaVTyfScBd6ZrmrYYXSvJ9B3/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-1091",
@@ -11065,7 +11092,8 @@
       "row": 1087,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "driveViewUrl": "https://drive.google.com/file/d/15D-OazYkHnSQ4adE4w5vsS85rrnUkDcP/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-1092",
@@ -11087,7 +11115,8 @@
       "row": 1088,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "driveViewUrl": "https://drive.google.com/file/d/1sweiavdQn8UVvOwCwXwCPcMngqDgYVzc/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-1093",
@@ -11109,7 +11138,8 @@
       "row": 1089,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "driveViewUrl": "https://drive.google.com/file/d/1--d-mtwNQqe05kJRHMmTqnbOPxVxqPSh/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-1094",
@@ -11131,7 +11161,8 @@
       "row": 1090,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "driveViewUrl": "https://drive.google.com/file/d/1QVUokrOZ6V45MW6o-8dvCBP3hA1MT_Pc/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-1095",
@@ -11152,7 +11183,8 @@
       "row": 1091,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "driveViewUrl": "https://drive.google.com/file/d/1jpKaW2plMojV_qs9Hn9_6JBXrB0ZYWnq/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-1096",
@@ -11173,7 +11205,8 @@
       "row": 1092,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "driveViewUrl": "https://drive.google.com/file/d/1jpKaW2plMojV_qs9Hn9_6JBXrB0ZYWnq/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-1097",
@@ -11194,7 +11227,8 @@
       "row": 1093,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "driveViewUrl": "https://drive.google.com/file/d/1FDqBakf1lUv3YTiy1IRH3-DoIaamZ_Hj/view?usp=drivesdk"
     },
     {
       "id": "ap-ruby-1098",
@@ -11215,7 +11249,8 @@
       "row": 1094,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "driveViewUrl": "https://drive.google.com/file/d/13JO8Wxgc6V3XyfW1ZgKuEqAUeIThVkhJ/view?usp=drivesdk"
     },
     {
       "id": "ap-ti-TIBills-110",
@@ -12322,7 +12357,8 @@
       "row": 224,
       "costType": "Estimate",
       "paymentType": "Manual",
-      "paidDate": "2026-09-02"
+      "paidDate": "2026-09-02",
+      "driveViewUrl": "https://drive.google.com/file/d/1FXkGVTlRr1jKE70vFzxoUrqcq53K_Tap/view?usp=drivesdk"
     },
     {
       "id": "ap-ti-TIBills-231",
@@ -12991,7 +13027,8 @@
       "invoiceNo": "8",
       "row": 261,
       "recurringType": "Recurring",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "driveViewUrl": "https://drive.google.com/file/d/15D-OazYkHnSQ4adE4w5vsS85rrnUkDcP/view?usp=drivesdk"
     },
     {
       "id": "ap-ti-TIBills-268",
@@ -15478,7 +15515,8 @@
       "remarks": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrHKKlVCXVfzCFzKlcDVdmxB",
       "row": 387,
       "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "driveViewUrl": "https://drive.google.com/file/d/1ExWen6VB6OEEPzCTy8c5gbkLmhcfC3hf/view?usp=drivesdk"
     },
     {
       "id": "ap-ti-TIBills-394",
@@ -15715,7 +15753,8 @@
       "remarks": "https://mail.google.com/mail/u/2/#inbox?projector=1",
       "row": 399,
       "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "driveViewUrl": "https://drive.google.com/file/d/1b0IwJmami0ZO7j_nzWOhe-tFOkDUoBps/view?usp=drivesdk"
     },
     {
       "id": "ap-ti-TIBills-406",
@@ -15734,7 +15773,8 @@
       "paidVia": "Manual",
       "row": 400,
       "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "driveViewUrl": "https://drive.google.com/file/d/1kFs2PklaYLi5So_gkxRlKvjaP7QfCGVk/view?usp=drivesdk"
     },
     {
       "id": "ap-ti-TIBills-407",
@@ -15793,7 +15833,8 @@
       "row": 403,
       "recurringType": "Recurring",
       "costType": "Estimate",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "driveViewUrl": "https://drive.google.com/file/d/1FLGBSFeqNdYzW2B-tbpgHZ8aN7XDrE-v/view?usp=drivesdk"
     },
     {
       "id": "ap-ti-TIBills-410",
@@ -15922,7 +15963,8 @@
       "invoiceNo": "",
       "row": 39,
       "recurringType": "Recurring",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "driveViewUrl": "https://drive.google.com/file/d/1-axgnLr8Gr82gBvCDJxTnVlqkHBT9GNr/view?usp=drivesdk"
     },
     {
       "id": "ap-msdx-45",
@@ -15993,7 +16035,8 @@
       "invoiceNo": "",
       "row": 43,
       "recurringType": "Recurring",
-      "paymentType": "Manual"
+      "paymentType": "Manual",
+      "driveViewUrl": "https://drive.google.com/file/d/1-axgnLr8Gr82gBvCDJxTnVlqkHBT9GNr/view?usp=drivesdk"
     },
     {
       "id": "ap-msdx-49",
@@ -16049,7 +16092,8 @@
       "row": 47,
       "recurringType": "Recurring",
       "paymentType": "Auto-Debit",
-      "paymentInstructions": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQfBQJFjWvxRlftDnVkknwccvzl?projector=1&messagePartId=0.1"
+      "paymentInstructions": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQfBQJFjWvxRlftDnVkknwccvzl?projector=1&messagePartId=0.1",
+      "driveViewUrl": "https://drive.google.com/file/d/1-axgnLr8Gr82gBvCDJxTnVlqkHBT9GNr/view?usp=drivesdk"
     },
     {
       "id": "ap-msdx-54",
@@ -16104,7 +16148,8 @@
       "row": 51,
       "recurringType": "Recurring",
       "paymentType": "Auto-Debit",
-      "paidDate": "2026-08-18"
+      "paidDate": "2026-08-18",
+      "driveViewUrl": "https://drive.google.com/file/d/1-axgnLr8Gr82gBvCDJxTnVlqkHBT9GNr/view?usp=drivesdk"
     },
     {
       "id": "ap-msdx-57",
@@ -16175,7 +16220,8 @@
       "invoiceNo": "INV-DF-US-VD3ECV9WJ394QAGMHV",
       "row": 55,
       "recurringType": "Recurring",
-      "paymentType": "Auto-Debit"
+      "paymentType": "Auto-Debit",
+      "driveViewUrl": "https://drive.google.com/file/d/1-axgnLr8Gr82gBvCDJxTnVlqkHBT9GNr/view?usp=drivesdk"
     },
     {
       "id": "ap-msdx-61",
@@ -18519,7 +18565,8 @@
       "row": 200,
       "recurringType": "Recurring",
       "paymentType": "Manual",
-      "paymentInstructions": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVhhRjttksBSrjShrPVxrmrJJ"
+      "paymentInstructions": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVhhRjttksBSrjShrPVxrmrJJ",
+      "driveViewUrl": "https://drive.google.com/file/d/1kTEDeGMBlaz5JBNKoFveAlQcyiHFvME1/view?usp=drivesdk"
     },
     {
       "id": "ap-msdx-206",
@@ -18696,7 +18743,8 @@
       "row": 210,
       "recurringType": "Recurring",
       "paymentType": "Auto-Debit",
-      "paymentInstructions": "https://mail.google.com/mail/u/2/#inbox?projector=1"
+      "paymentInstructions": "https://mail.google.com/mail/u/2/#inbox?projector=1",
+      "driveViewUrl": "https://drive.google.com/file/d/1a7XRCkxeMNpdgo0VjBDbQLkj5KkE2L8i/view?usp=drivesdk"
     },
     {
       "id": "ap-msdx-216",
@@ -19164,7 +19212,8 @@
       "recurringType": "Recurring",
       "costType": "Estimate",
       "paymentType": "Manual",
-      "invoiceDate": "2026-08-07"
+      "invoiceDate": "2026-08-07",
+      "driveViewUrl": "https://drive.google.com/file/d/1ExWen6VB6OEEPzCTy8c5gbkLmhcfC3hf/view?usp=drivesdk"
     },
     {
       "id": "ap-msdx-243",
@@ -19241,7 +19290,8 @@
       "costType": "Estimate",
       "paymentType": "Manual",
       "invoiceDate": "2026-08-07",
-      "paymentInstructions": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrHKKlVLfMPxZTrHXbKMMSfj"
+      "paymentInstructions": "https://mail.google.com/mail/u/1/#inbox/FMfcgzQhVrHKKlVLfMPxZTrHXbKMMSfj",
+      "driveViewUrl": "https://drive.google.com/file/d/1B8AlsSwea0tPs10iY54WQzeb9RFZjo33/view?usp=drivesdk"
     },
     {
       "id": "ap-msdx-247",
@@ -20003,7 +20053,7 @@
       "description": "Retainers",
       "amount": 4000,
       "dueDate": "2026-06-30",
-      "month": "June",
+      "month": "July",
       "occurrence": "Monthly",
       "invoice": true,
       "approval": true,
@@ -20115,7 +20165,7 @@
       "description": "Accounting",
       "amount": 2000,
       "dueDate": "2026-06-30",
-      "month": "June",
+      "month": "July",
       "occurrence": "Monthly",
       "invoice": true,
       "approval": true,
@@ -35072,7 +35122,7 @@
         "a_1781878749529"
       ],
       "urgency": "normal",
-      "done": false,
+      "done": true,
       "vendor": "Meeting with Ammar",
       "description": "Meeting with Ammar",
       "row": 538
@@ -37172,7 +37222,7 @@
         "a_1781878749529"
       ],
       "urgency": "normal",
-      "done": false,
+      "done": true,
       "vendor": "Finalize 4YR Payroll",
       "description": "Finalize 4YR Payroll",
       "row": 638
@@ -39335,7 +39385,7 @@
         "a_1781879713867"
       ],
       "urgency": "normal",
-      "done": false,
+      "done": true,
       "vendor": "Send Finalized 4YR Payroll",
       "description": "Send Finalized 4YR Payroll",
       "row": 741
@@ -52398,7 +52448,7 @@
         "a_1781879713867"
       ],
       "urgency": "normal",
-      "done": false,
+      "done": true,
       "vendor": "StandUp Meeting",
       "description": "StandUp Meeting",
       "row": 1362
@@ -64851,5 +64901,6 @@
       "action": "Synced All Modules",
       "details": "Live Google Sheets dataset pulled successfully."
     }
-  ]
+  ],
+  "lastSyncedAt": "2026-09-04T16:26:22.924Z"
 }
