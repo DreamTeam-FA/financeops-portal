@@ -59,7 +59,7 @@ const FAQ = [
   },
   {
     q: "How do I use the Payables Calendar?",
-    a: "The Payables Calendar (sidebar: Payables Calendar, under Accounts Payables) shows all AP bills spread across a 7-day Monday–Sunday grid for the selected week. Each bill appears as a card in the column matching its due date, with a colored left-accent bar and badge for Ruby's (pink), TI (blue), and MSDx (teal). Unpaid past-due bills are highlighted in red; paid bills are dimmed. Navigate weeks with the ← → arrows or jump back to the current week with 'This Week'. A day-total footer shows the unpaid subtotal per day, and the bottom bar breaks totals by entity. Use the entity filter pills in the page header (ALL / Ruby's / TI / MSDx) to narrow the view. The layout is screenshot-friendly for weekly review meetings.",
+    a: "The Payables Calendar (sidebar: Payables Calendar, under Accounts Payables) shows all AP bills spread across a 7-day Monday–Sunday grid for the selected week. Each bill appears as a card in the column matching its due date, with a colored left-accent bar and entity badge: Ruby's (pink), MSDx (teal), and TI sub-entities — 4G, 4YR, E1, Corner, or TI — in blue. Unpaid past-due bills are highlighted in red; paid bills are dimmed. Navigate weeks with the ← → arrows or jump back to the current week with 'This Week'. A day-total footer shows the unpaid subtotal per day, and the bottom bar breaks totals by entity. Use the entity filter pills in the page header (ALL / Ruby's / TI / MSDx) to narrow the view. The layout is screenshot-friendly for weekly review meetings.",
   },
   {
     q: "How does the AI Bill Scanner work?",
@@ -139,7 +139,15 @@ const FAQ = [
   },
   {
     q: "Are GAS dashboard URLs (CurcuminPRO, Ziglar, 4YR, MSDx) shared across all users?",
-    a: "Yes, as of the latest update. GAS dashboard URL changes are written to the shared '_config' tab in the portal logs sheet, so all users on all devices see the same URLs immediately. Previously, URL changes were stored only on the Render server (lost on deploy) and in browser localStorage (device-specific).",
+    a: "Yes. GAS dashboard URL changes are written to the shared '_config' tab in the portal logs sheet, so all users on all devices see the same URLs immediately. The portal merges config-sheet values with your browser's saved URLs — it only applies non-empty values from the config sheet, so a portal load never wipes a URL you already set. Previously, loading the portal could overwrite valid saved URLs with empty strings from the config sheet.",
+  },
+  {
+    q: "Why does my CC Expenses CSV upload show wrong data or no data?",
+    a: "Some banks and QuickBooks export CSV files with a UTF-8 BOM (byte-order mark) at the very start of the file. The portal now automatically strips the BOM before parsing, so uploads from these sources should work correctly. If you still see parsing issues, check that the file is saved as UTF-8 (not UTF-16 or ANSI) and that the first row is the header row.",
+  },
+  {
+    q: "Why do TI sub-entity bills (4G, 4YR, E1, Corner) appear in a separate 'TI Bills' bucket on the AP page?",
+    a: "They no longer should. A previous version routed any negative-amount TI bill to a separate 'TI Bills' bucket regardless of its sub-entity. This has been fixed — negative-amount bills (credits, refunds) now go to their correct sub-entity bucket (4G, 4YR, E1, Corner, or TI) just like any other bill.",
   },
   {
     q: "What does the Integration Test check?",
@@ -348,6 +356,10 @@ const BREAKAGE = [
   { symptom: "Other browser tab shows stale data", cause: "BroadcastChannel not supported (very old browser)", fix: "Manually click Sync / Refresh on the stale tab. BroadcastChannel is supported in all modern browsers (Chrome 54+, Firefox 38+, Safari 15.4+)." },
   { symptom: "'View Bill Copy' button missing after Pull All", cause: "Column AM (Ruby's) or AA (TI/MSDx) is blank or has a non-Drive URL in the sheet", fix: "Check the cell in the sheet. The URL must start with https://drive.google.com or https://docs.google.com. Uploading via the 📎 icon on the bill card writes the correct URL automatically." },
   { symptom: "Deleted bill copy link keeps reappearing", cause: "Old versions used a hardcoded KNOWN_DRIVE_FILES list and stale localStorage that re-applied deleted links — both have been removed", fix: "Hard-refresh the portal (Ctrl+Shift+R), sign in, then do a Pull All. If the link still appears, check that the cell in column AM/AA is truly empty (not just visually cleared) in the sheet." },
+  { symptom: "Payables Calendar shows 'TI' badge for all TI bills instead of 4G / 4YR / E1 / Corner", cause: "Calendar was reading bill.subcompany instead of bill.company — subcompany is always undefined; company is the correct TI sub-entity field", fix: "Fixed in commit 2a114bb — the calendar now reads bill.company and maps it to the correct display label via entityDisplayLabel()." },
+  { symptom: "GAS Dashboard URLs disappear after page reload or another user logs in", cause: "Config sheet sync was overwriting valid localStorage URLs with empty strings — any key missing from the config sheet was set to empty", fix: "Fixed in commit 77389e4 — sync now merges and only applies non-empty values from the config sheet, preserving previously saved URLs." },
+  { symptom: "CC Expenses CSV upload parses incorrectly or shows no rows", cause: "CSV file starts with a UTF-8 BOM (byte-order mark \\uFEFF) — common in QuickBooks and some bank exports — which breaks the header detection", fix: "Fixed in commit 1d8d157 — the portal now strips the BOM before parsing. If still broken, ensure the file is UTF-8 encoded and the first row is the header." },
+  { symptom: "Negative-amount TI bills (credits/refunds) appear in a separate 'TI Bills' bucket", cause: "getSubEntityKey() in APPage.tsx had a shortcut: if (b.amount < 0) return 'ti-bills' — this bypassed all sub-entity routing", fix: "Fixed in commit 9a88294 — that line was removed. Negative TI bills now route to their correct sub-entity bucket (4G, 4YR, E1, Corner, or TI) like any other bill." },
   { symptom: "Bill copy uploaded but 'View Bill Copy' never appears", cause: "Upload succeeded but the portal cache from before the upload is still showing", fix: "Click Pull All (⚙️ → Settings & Data Sync → Pull Live from Sheets). The Drive URL written to the sheet during upload will be read and the button will appear." },
 ];
 
@@ -1157,6 +1169,10 @@ const btnGhost = \`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-cente
                         "Shared config sheet (cross-user gasUrls, sheetMappings)",
                         "Invoice submission schedule (52 events 2026–2028) in Calendar Sheet",
                         "AR + AP calendar chips grouped per day; paid items auto-hidden",
+                        "Payables Calendar entity badges — TI sub-entities (4G, 4YR, E1, Corner) shown correctly",
+                        "GAS Dashboard URLs persist across page loads and multi-user sessions (merge-only config sync)",
+                        "CC Expenses CSV BOM stripping — QuickBooks/bank exports parse correctly",
+                        "Negative-amount TI bills route to their correct sub-entity bucket (no more rogue 'TI Bills' bucket)",
                       ].map(item => (
                         <div key={item} className={`flex items-start gap-1.5 text-[11px] py-0.5 ${td}`}>
                           <span className="text-emerald-500 mt-0.5 shrink-0">✓</span>
