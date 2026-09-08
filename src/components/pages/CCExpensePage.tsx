@@ -512,7 +512,9 @@ export const CCExpensePage: React.FC = () => {
       const isCSV = /\.csv$/i.test(file.name);
       if (isCSV) {
         // Parse CSV entirely in the browser — no server round-trip, no base64 encoding
-        const text = await file.text();
+        // Strip UTF-8 BOM (﻿) that many bank/QuickBooks exports prepend
+        const raw = await file.text();
+        const text = raw.charCodeAt(0) === 0xFEFF ? raw.slice(1) : raw;
         rows = parseCSVText(text);
       } else {
         // XLSX / XLS — send to server for parsing (requires XLSX library)
@@ -592,7 +594,7 @@ export const CCExpensePage: React.FC = () => {
     } finally {
       setUploading(false);
     }
-  }, [parsedUploadRows, uploadHeaderRow, showToast, pullFromSheet]);
+  }, [parsedUploadRows, uploadHeaderRow, showToast]);
 
   // ── Styling helpers ─────────────────────────────────────────────────────────
   const cardCls = isLight
