@@ -101,6 +101,14 @@ function getSunday(d: Date): Date {
   return copy;
 }
 
+/** Format a local Date as "YYYY-MM-DD" without UTC conversion (avoids off-by-one in UTC+ timezones). */
+function localDateKey(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 function fmtDate(d: Date): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
@@ -181,7 +189,7 @@ function groupIntoWeeks(rawRows: RawRow[]): WeekEntry[] {
     const d = parseDate(row.transactionDate);
     if (!d) continue;
     const sun = getSunday(d);
-    const key = sun.toISOString().slice(0, 10);
+    const key = localDateKey(sun);
     if (!byWeek.has(key)) byWeek.set(key, []);
     byWeek.get(key)!.push(row);
   }
@@ -386,7 +394,7 @@ export const CCExpensePage: React.FC = () => {
     // Refresh vendorModal rows to reflect the edit
     if (vendorModal) {
       const refreshed = updated.filter(r => (vendorMap[r.name] || r.name) === vendorModal.vendor
-        && (() => { const d = parseDate(r.transactionDate); if (!d) return false; return getSunday(d).toISOString().slice(0,10) === selectedWeek; })()
+        && (() => { const d = parseDate(r.transactionDate); if (!d) return false; return localDateKey(getSunday(d)) === selectedWeek; })()
       );
       setVendorModal({ ...vendorModal, rows: refreshed });
     }
