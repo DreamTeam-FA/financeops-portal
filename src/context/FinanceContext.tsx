@@ -1257,9 +1257,17 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           writeConfigKey(tok, "sheetMappings", serverMappings, userEmail).catch(() => {});
         }
         if (cfg.gasUrls && typeof cfg.gasUrls === "object") {
-          // Config sheet has gasUrls — apply them (cross-user)
-          setGasUrls(prev => ({ ...prev, ...cfg.gasUrls }));
-          localStorage.setItem("financeops_gas_urls", JSON.stringify({ ...cfg.gasUrls }));
+          // Config sheet has gasUrls — apply non-empty values only.
+          // Never let an empty string from the config sheet wipe out a
+          // valid URL the user already saved to localStorage.
+          setGasUrls(prev => {
+            const merged = { ...prev };
+            for (const [k, v] of Object.entries(cfg.gasUrls)) {
+              if (v) merged[k as keyof typeof merged] = v as string;
+            }
+            localStorage.setItem("financeops_gas_urls", JSON.stringify(merged));
+            return merged;
+          });
         } else if (serverGasUrls && Object.keys(serverGasUrls).length > 0) {
           // Seed gasUrls too on first run
           writeConfigKey(tok, "gasUrls", serverGasUrls, userEmail).catch(() => {});
