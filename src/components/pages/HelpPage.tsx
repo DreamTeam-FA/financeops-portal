@@ -146,6 +146,10 @@ const FAQ = [
     a: "Some banks and QuickBooks export CSV files with a UTF-8 BOM (byte-order mark) at the very start of the file. The portal now automatically strips the BOM before parsing, so uploads from these sources should work correctly. If you still see parsing issues, check that the file is saved as UTF-8 (not UTF-16 or ANSI) and that the first row is the header row.",
   },
   {
+    q: "How do I add or remove credit card accounts from the CC Expenses filter?",
+    a: "Click the 'Manage Cards' button in the top-right of the CC Expenses page. A panel expands showing all currently active account patterns as removable chips. To remove a card, click the × on its chip. To add a new card, enter a pattern (e.g. 'x5074' or 'AMEX') and an optional label, then click Add. Patterns match case-insensitively against the Account column in your CSV — only rows whose Account field contains a matching pattern are included in the CC Expenses view. The list is saved in your browser (localStorage) and changes take effect immediately without needing to re-upload data.",
+  },
+  {
     q: "Why do TI sub-entity bills (4G, 4YR, E1, Corner) appear in a separate 'TI Bills' bucket on the AP page?",
     a: "They no longer should. A previous version routed any negative-amount TI bill to a separate 'TI Bills' bucket regardless of its sub-entity. This has been fixed — negative-amount bills (credits, refunds) now go to their correct sub-entity bucket (4G, 4YR, E1, Corner, or TI) just like any other bill.",
   },
@@ -359,6 +363,7 @@ const BREAKAGE = [
   { symptom: "Payables Calendar shows 'TI' badge for all TI bills instead of 4G / 4YR / E1 / Corner", cause: "Calendar was reading bill.subcompany instead of bill.company — subcompany is always undefined; company is the correct TI sub-entity field", fix: "Fixed in commit 2a114bb — the calendar now reads bill.company and maps it to the correct display label via entityDisplayLabel()." },
   { symptom: "GAS Dashboard URLs disappear after page reload or another user logs in", cause: "Config sheet sync was overwriting valid localStorage URLs with empty strings — any key missing from the config sheet was set to empty", fix: "Fixed in commit 77389e4 — sync now merges and only applies non-empty values from the config sheet, preserving previously saved URLs." },
   { symptom: "CC Expenses CSV upload parses incorrectly or shows no rows", cause: "CSV file starts with a UTF-8 BOM (byte-order mark \\uFEFF) — common in QuickBooks and some bank exports — which breaks the header detection", fix: "Fixed in commit 1d8d157 — the portal now strips the BOM before parsing. If still broken, ensure the file is UTF-8 encoded and the first row is the header." },
+  { symptom: "CC Expenses shows transactions from unexpected accounts, or misses expected ones", cause: "CC account filter list was previously hardcoded in source code — required a code change to add/remove cards; new accounts not in the default list were invisible", fix: "Fixed — CC account patterns are now fully user-managed via 'Manage Cards' in the CC Expenses header. Add or remove any account pattern (last-4 digits, issuer name, etc.) without code changes. List is saved to localStorage per browser." },
   { symptom: "Negative-amount TI bills (credits/refunds) appear in a separate 'TI Bills' bucket", cause: "getSubEntityKey() in APPage.tsx had a shortcut: if (b.amount < 0) return 'ti-bills' — this bypassed all sub-entity routing", fix: "Fixed in commit 9a88294 — that line was removed. Negative TI bills now route to their correct sub-entity bucket (4G, 4YR, E1, Corner, or TI) like any other bill." },
   { symptom: "Bill copy uploaded but 'View Bill Copy' never appears", cause: "Upload succeeded but the portal cache from before the upload is still showing", fix: "Click Pull All (⚙️ → Settings & Data Sync → Pull Live from Sheets). The Drive URL written to the sheet during upload will be read and the button will appear." },
 ];
@@ -1172,6 +1177,7 @@ const btnGhost = \`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-cente
                         "Payables Calendar entity badges — TI sub-entities (4G, 4YR, E1, Corner) shown correctly",
                         "GAS Dashboard URLs persist across page loads and multi-user sessions (merge-only config sync)",
                         "CC Expenses CSV BOM stripping — QuickBooks/bank exports parse correctly",
+                        "CC Expenses 'Manage Cards' — fully user-managed account filter list (no hardcoded patterns), add/remove/edit via header panel, saved to localStorage",
                         "Negative-amount TI bills route to their correct sub-entity bucket (no more rogue 'TI Bills' bucket)",
                       ].map(item => (
                         <div key={item} className={`flex items-start gap-1.5 text-[11px] py-0.5 ${td}`}>

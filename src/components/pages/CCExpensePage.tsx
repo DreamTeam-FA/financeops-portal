@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   Upload, RefreshCw, ChevronDown, Eye, EyeOff, AlertCircle,
-  CheckCircle2, X, FileText, UploadCloud, CreditCard, Search
+  CheckCircle2, X, FileText, UploadCloud, CreditCard, Search, Settings, Plus, Trash2
 } from "lucide-react";
 import { useFinance } from "../../context/FinanceContext";
 import { getAccessToken } from "../../services/googleAuth";
@@ -167,38 +167,55 @@ function groupIntoWeeks(rawRows: RawRow[]): WeekEntry[] {
   return entries;
 }
 
-// Approved CC accounts — only these cards are tracked in this dashboard.
-// Matched against the Account field by last-4 digits or card name.
-const CC_ACCOUNT_PATTERNS = [
-  /x5074/i,            // Chase Visa SW
-  /x5004/i,            // AMEX
-  /x6002/i,            // AMEX
-  /x3002/i,            // AMEX
-  /x2004/i,            // Marriott AMEX
-  /x4024/i,            // Chase Visa Citi Costco
-  /x3678/i,            // AAdvantage Aviator MC Barclay
-  /x4418/i,            // Citi/AAdvantage
-  /x5082/i,            // Chase Visa SW Ann
-  /8782/i,             // 4 Grace (8782)
-  /x4011/i,            // Chase Marriott Bonvoy
-  /x0228/i,            // Citi AAdvantage
+// ── User-managed CC account filter list ──────────────────────────────────────
+// Nothing is hardcoded — the full list lives in localStorage and is editable
+// from the "Manage Cards" settings panel inside the page header.
+
+export interface CCAccount {
+  pattern: string;   // last-4 digits or any substring to match (case-insensitive)
+  label: string;     // human-readable name shown in the settings panel
+}
+
+const DEFAULT_CC_ACCOUNTS: CCAccount[] = [
+  { pattern: "x5074", label: "Chase Visa SW" },
+  { pattern: "x5004", label: "AMEX" },
+  { pattern: "x6002", label: "AMEX" },
+  { pattern: "x3002", label: "AMEX" },
+  { pattern: "x2004", label: "Marriott AMEX" },
+  { pattern: "x4024", label: "Chase Visa Citi Costco" },
+  { pattern: "x3678", label: "AAdvantage Aviator MC Barclay" },
+  { pattern: "x4418", label: "Citi/AAdvantage" },
+  { pattern: "x5082", label: "Chase Visa SW Ann" },
+  { pattern: "8782",  label: "4 Grace" },
+  { pattern: "x4011", label: "Chase Marriott Bonvoy" },
+  { pattern: "x0228", label: "Citi AAdvantage" },
 ];
 
-// User-approved accounts stored in localStorage (exact account strings)
-function loadApprovedAccounts(): Set<string> {
-  try { return new Set(JSON.parse(localStorage.getItem("cc_approved_accounts") || "[]")); }
-  catch { return new Set(); }
-}
-function saveApprovedAccounts(s: Set<string>) {
-  localStorage.setItem("cc_approved_accounts", JSON.stringify([...s]));
+const CC_LIST_KEY = "cc_account_list_v2";
+
+function loadCCList(): CCAccount[] {
+  try {
+    const stored = localStorage.getItem(CC_LIST_KEY);
+    if (stored) return JSON.parse(stored) as CCAccount[];
+  } catch { /* ignore */ }
+  // First run — seed with defaults
+  const defaults = DEFAULT_CC_ACCOUNTS;
+  try { localStorage.setItem(CC_LIST_KEY, JSON.stringify(defaults)); } catch { /* ignore */ }
+  return defaults;
 }
 
-// Module-level mutable set so isCCRow can access it without prop-drilling
-let _approvedAccounts: Set<string> = loadApprovedAccounts();
+function saveCCList(list: CCAccount[]) {
+  try { localStorage.setItem(CC_LIST_KEY, JSON.stringify(list)); } catch { /* ignore */ }
+}
+
+// Module-level list so isCCRow (called outside React) can access it without prop-drilling
+let _ccList: CCAccount[] = loadCCList();
 
 function isCCRow(row: RawRow): boolean {
-  return CC_ACCOUNT_PATTERNS.some(p => p.test(row.account))
-    || _approvedAccounts.has(row.account);
+  return _ccList.some(a => {
+    try { return new RegExp(a.pattern, "i").test(row.account); }
+    catch { return row.account.toLowerCase().includes(a.pattern.toLowerCase()); }
+  });
 }
 
 function buildWeekTable(rows: RawRow[], vendorMap: Record<string, string>): VendorWeekRow[] {
@@ -277,22 +294,52 @@ export const CCExpensePage: React.FC = () => {
     localStorage.setItem("cc_expense_remarks", JSON.stringify(updated));
   };
 
-  // User-approved extra card accounts (persisted in localStorage)
-  const [approvedAccounts, setApprovedAccounts] = useState<Set<string>>(loadApprovedAccounts);
+  // ── CC account list state (user-managed, replaces hardcoded patterns) ──────
+  const [ccList, setCCList] = useState<CCAccount[]>(loadCCList);
+  const [cardsOpen, setCardsOpen] = useState(false);
+  const [newPattern, setNewPattern] = useState("");
+  const [newLabel, setNewLabel] = useState("");
 
-  const approveAccount = (account: string) => {
-    _approvedAccounts.add(account);
-    const next = new Set(_approvedAccounts);
-    saveApprovedAccounts(next);
-    setApprovedAccounts(next);
-    // Re-group now that this account is approved
+  const saveCCListAndSync = (list: CCAccount[]) => {
+    _ccList = list;
+    saveCCList(list);
+    setCCList(list);
+    // Re-group so filter changes take effect immediately
     setRawRows(prev => {
       const grouped = groupIntoWeeks(prev);
       setWeeks(grouped);
       if (grouped.length > 0) setSelectedWeek(w => grouped.some(g => g.weekStart === w) ? w : grouped[0].weekStart);
       return prev;
     });
-    showToast(`Approved: ${account}`, "success", 2000);
+  };
+
+  const addCCAccount = () => {
+    const pat = newPattern.trim();
+    const lbl = newLabel.trim();
+    if (!pat) return;
+    const next = [...ccList, { pattern: pat, label: lbl || pat }];
+    saveCCListAndSync(next);
+    setNewPattern("");
+    setNewLabel("");
+    showToast(`Added: ${lbl || pat}`, "success", 2000);
+  };
+
+  const removeCCAccount = (idx: number) => {
+    const next = ccList.filter((_, i) => i !== idx);
+    saveCCListAndSync(next);
+  };
+
+  const approveAccount = (account: string) => {
+    // Extract last-4 from the account string (e.g. "Chase x5074" → "x5074")
+    const m = account.match(/x?\d{4}/i);
+    const pat = m ? m[0] : account;
+    if (ccList.some(a => a.pattern.toLowerCase() === pat.toLowerCase())) {
+      showToast("Account already in list", "info", 1500);
+      return;
+    }
+    const next = [...ccList, { pattern: pat, label: account }];
+    saveCCListAndSync(next);
+    showToast(`Added to card list: ${account}`, "success", 2000);
   };
 
   // UI state
@@ -653,6 +700,20 @@ export const CCExpensePage: React.FC = () => {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setCardsOpen(o => !o)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-[12px] font-medium transition-colors ${
+              cardsOpen
+                ? isLight ? "bg-[#1a73e8] text-white" : "bg-[#1a73e8] text-white"
+                : isLight ? "bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200" : "bg-[#1a2235] hover:bg-[#232f47] text-slate-300 border border-[#1e2d48]"
+            }`}
+          >
+            <Settings className="w-3.5 h-3.5" />
+            Manage Cards
+            <span className={`ml-0.5 px-1.5 py-0 rounded-full text-[10px] font-bold ${cardsOpen ? "bg-white/20 text-white" : isLight ? "bg-slate-200 text-slate-500" : "bg-[#0d1117] text-slate-400"}`}>
+              {ccList.length}
+            </span>
+          </button>
+          <button
             onClick={pullFromSheet}
             disabled={loading}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-[12px] font-medium transition-colors ${
@@ -666,6 +727,62 @@ export const CCExpensePage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* ── Manage Cards panel ── */}
+      {cardsOpen && (
+        <div className={`shrink-0 px-5 py-4 border-b ${isLight ? "bg-blue-50/60 border-slate-200" : "bg-[#0d1117] border-[#1e2535]"}`}>
+          <p className={`text-[11px] font-bold uppercase tracking-widest mb-3 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+            CC Account Filter List — only rows matching these patterns are included
+          </p>
+          {/* Current list */}
+          <div className="flex flex-wrap gap-2 mb-3">
+            {ccList.map((a, i) => (
+              <div key={i} className={`flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-lg border text-[11px] ${isLight ? "bg-white border-slate-200" : "bg-[#141920] border-[#1e2d48]"}`}>
+                <code className={`font-mono font-bold ${isLight ? "text-[#1a73e8]" : "text-[#4f9cf9]"}`}>{a.pattern}</code>
+                <span className={`${isLight ? "text-slate-500" : "text-slate-400"}`}>{a.label}</span>
+                <button
+                  onClick={() => removeCCAccount(i)}
+                  className={`ml-1 p-0.5 rounded hover:bg-red-100 hover:text-red-600 transition-colors ${isLight ? "text-slate-300" : "text-slate-600"}`}
+                  title="Remove this card"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+            {ccList.length === 0 && (
+              <p className={`text-[11px] italic ${isLight ? "text-slate-400" : "text-slate-500"}`}>No accounts — all transactions will be hidden.</p>
+            )}
+          </div>
+          {/* Add new account */}
+          <div className="flex items-center gap-2">
+            <input
+              value={newPattern}
+              onChange={e => setNewPattern(e.target.value)}
+              placeholder="Pattern (e.g. x5074)"
+              onKeyDown={e => e.key === "Enter" && addCCAccount()}
+              className={`w-36 rounded-lg border px-2.5 py-1.5 text-[12px] font-mono focus:outline-none focus:border-[#1a73e8] ${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#070b12] border-[#1e2535] text-white"}`}
+            />
+            <input
+              value={newLabel}
+              onChange={e => setNewLabel(e.target.value)}
+              placeholder="Label (e.g. Chase Visa SW)"
+              onKeyDown={e => e.key === "Enter" && addCCAccount()}
+              className={`w-52 rounded-lg border px-2.5 py-1.5 text-[12px] focus:outline-none focus:border-[#1a73e8] ${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#070b12] border-[#1e2535] text-white"}`}
+            />
+            <button
+              onClick={addCCAccount}
+              disabled={!newPattern.trim()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium bg-[#1a73e8] hover:bg-[#1557b0] text-white disabled:opacity-40 transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add
+            </button>
+          </div>
+          <p className={`text-[10px] mt-2 ${isLight ? "text-slate-400" : "text-slate-500"}`}>
+            Pattern matches case-insensitively against the Account column (e.g. "x5074", "AMEX", "Chase"). Changes take effect immediately and are saved in your browser.
+          </p>
+        </div>
+      )}
 
       {/* ── Upload bar ── */}
       <div className={`shrink-0 px-5 py-2.5 border-b ${isLight ? "bg-white border-slate-200" : "bg-[#0d1117] border-[#1e2535]"}`}>
