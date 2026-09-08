@@ -2853,11 +2853,17 @@ app.post("/api/cc-expense/upload", async (req, res) => {
   const base = "https://sheets.googleapis.com/v4/spreadsheets";
   const headers = { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
   try {
-    // First clear existing raw data rows (row 3 onwards)
-    await fetch(
-      `${base}/${getCCSheetId()}/values/'Raw Data'!A3:K?valueRenderOption=UNFORMATTED_VALUE`,
-      { method: "DELETE", headers }
+    // Clear existing raw data rows (row 3 onwards).
+    // Sheets API requires POST /{range}:clear — DELETE is not a valid method here.
+    const clearResp = await fetch(
+      `${base}/${getCCSheetId()}/values/'Raw Data'!A3:K:clear`,
+      { method: "POST", headers }
     );
+    if (!clearResp.ok) {
+      const err = await clearResp.text();
+      console.warn("[CC upload] clear step failed:", clearResp.status, err);
+      // Non-fatal — continue with write; worst case old trailing rows remain
+    }
     if (!rows.length) return res.json({ ok: true, updated: 0 });
     const body = JSON.stringify({
       range: "'Raw Data'!A3",
