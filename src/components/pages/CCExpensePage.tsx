@@ -133,15 +133,15 @@ function rawRowsFromUploadedRows(rows: any[][], headerRowIdx: number): RawRow[] 
       // exact match first
       let i = hdrRow.indexOf(needle);
       if (i >= 0) return i;
-      // partial: header contains candidate OR candidate contains header
-      i = hdrRow.findIndex(h => h.includes(needle) || needle.includes(h));
+      // partial: header contains candidate OR candidate contains header (skip empty cells)
+      i = hdrRow.findIndex(h => h !== "" && (h.includes(needle) || needle.includes(h)));
       if (i >= 0) return i;
     }
     return -1;
   };
   const C = {
     category:  colOf("category"),
-    date:      colOf("transaction date", "date"),
+    date:      colOf("transaction date", "date", "trans date"),
     type:      colOf("transaction type", "type"),
     num:       colOf("num", "number", "#"),
     name:      colOf("name", "payee", "vendor"),
@@ -521,11 +521,13 @@ export const CCExpensePage: React.FC = () => {
       }
 
       setParsedUploadRows(rows);
-      // Find header row (row that contains "Transaction Date" or "Name")
+      // Find header row — QB exports vary; look for any row with typical header words
       let hdr = 0;
-      for (let i = 0; i < Math.min(rows.length, 5); i++) {
+      for (let i = 0; i < Math.min(rows.length, 15); i++) {
         const row = rows[i];
-        if (row.some((c: any) => String(c).toLowerCase().includes("transaction date") || String(c).toLowerCase() === "name")) {
+        const lower = row.map((c: any) => String(c || "").toLowerCase().trim());
+        if (lower.some(c => c === "date" || c === "name" || c === "num" || c === "amount"
+          || c.includes("transaction date") || c.includes("transaction type"))) {
           hdr = i;
           break;
         }
