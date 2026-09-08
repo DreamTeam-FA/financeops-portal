@@ -2817,36 +2817,54 @@ app.post("/api/cc-expense/pull", async (req, res) => {
   if (!accessToken) return res.status(401).json({ error: "Missing access token" });
   const base = "https://sheets.googleapis.com/v4/spreadsheets";
   const headers = { Authorization: `Bearer ${accessToken}` };
+  const sheetId = getCCSheetId();
+  console.log(`[CC pull] starting — sheetId=${sheetId} token=${accessToken.slice(0,8)}...`);
   try {
-    // Fetch Raw Data only — frontend computes weekly/YTD summaries from raw rows.
-    // Fetching unused summary tabs (Weekly Summary, YTD Summary) was slowing the batchGet
-    // and causing it to fail if those tabs don't exist in the sheet.
-    const rawResp = await fetch(
-      `${base}/${getCCSheetId()}/values/${encodeURIComponent("'Raw Data'!A1:K10000")}?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING`,
-      { headers }
-    );
-    if (!rawResp.ok) {
-      const err = await rawResp.text();
-      return res.status(rawResp.status).json({ ok: false, error: err });
-    }
-    const rawData: any = await rawResp.json();
-    const rawRows: any[][] = rawData?.values || [];
+    // Server-side 25s timeout on the Google Sheets fetch — if Google hangs, we return
+    // a clear error immediately rather than waiting until the client's 120s limit fires.
+    const ctrl = new AbortController();
+    const fetchTimeout = setTimeout(() => ctrl.abort(), 25000);
 
-    // Vendor map is optional — if the tab doesn't exist the raw data still loads
+    let rawRows: any[][] = [];
     let vendorMapRows: any[][] = [];
     try {
-      const vmResp = await fetch(
-        `${base}/${getCCSheetId()}/values/${encodeURIComponent("'_Vendor Map'!A:B")}?valueRenderOption=UNFORMATTED_VALUE`,
-        { headers }
-      );
-      if (vmResp.ok) {
-        const vmData: any = await vmResp.json();
-        vendorMapRows = vmData?.values || [];
+      // Use batchGet so both ranges come back in one round-trip (faster than two fetches).
+      // Raw Data only — frontend computes weekly/YTD from raw rows; summary tabs may not exist.
+      const ranges = [
+        "'Raw Data'!A1:K5000",  // limit to 5000 rows — any larger is abnormally big for a CC export
+        "'_Vendor Map'!A:B",
+      ];
+      const query = ranges.map(r => `ranges=${encodeURIComponent(r)}`).join("&");
+      const url = `${base}/${sheetId}/values:batchGet?${query}&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING`;
+      console.log(`[CC pull] fetching batchGet...`);
+      const resp = await fetch(url, { headers, signal: ctrl.signal });
+      clearTimeout(fetchTimeout);
+
+      if (!resp.ok) {
+        const errText = await resp.text();
+        console.error(`[CC pull] Sheets API error ${resp.status}:`, errText.slice(0, 300));
+        return res.status(resp.status).json({ ok: false, error: `Sheets API ${resp.status}: ${errText.slice(0, 200)}` });
       }
-    } catch { /* vendor map tab optional */ }
+      const data: any = await resp.json();
+      const [rawDataRange, vendorMapRange] = data.valueRanges || [];
+      rawRows = rawDataRange?.values || [];
+      vendorMapRows = vendorMapRange?.values || [];
+      console.log(`[CC pull] ok — rawRows=${rawRows.length} vendorMapRows=${vendorMapRows.length}`);
+    } catch (fetchErr: any) {
+      clearTimeout(fetchTimeout);
+      const isAbort = fetchErr?.name === "AbortError";
+      console.error(`[CC pull] fetch failed (${isAbort ? "25s server timeout" : fetchErr?.message})`);
+      return res.status(504).json({
+        ok: false,
+        error: isAbort
+          ? "Google Sheets API did not respond within 25 seconds — try again"
+          : `Sheets fetch failed: ${fetchErr?.message}`,
+      });
+    }
 
     res.json({ ok: true, rawRows, vendorMapRows });
   } catch (e: any) {
+    console.error("[CC pull] unexpected error:", e?.message);
     res.status(500).json({ ok: false, error: e?.message || String(e) });
   }
 });

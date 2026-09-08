@@ -539,7 +539,7 @@ export const CCExpensePage: React.FC = () => {
       showToast(`Loaded ${rows.length} transactions from sheet`, "success");
     } catch (e: any) {
       const msg = e?.name === "AbortError"
-        ? "Sheet load timed out — upload a CSV to view data"
+        ? "Request timed out (120s) — server or Google API is unresponsive"
         : `Pull failed: ${e?.message || String(e)}`;
       showToast(msg, "error");
     } finally {
