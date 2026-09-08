@@ -223,9 +223,12 @@ const CC_LIST_KEY = "cc_account_list_v2";
 function loadCCList(): CCAccount[] {
   try {
     const stored = localStorage.getItem(CC_LIST_KEY);
-    if (stored) return JSON.parse(stored) as CCAccount[];
+    if (stored) {
+      const parsed = JSON.parse(stored) as CCAccount[];
+      if (parsed.length > 0) return parsed;  // only use stored if non-empty
+    }
   } catch { /* ignore */ }
-  // First run — seed with defaults
+  // First run or empty list — seed with defaults
   const defaults = DEFAULT_CC_ACCOUNTS;
   try { localStorage.setItem(CC_LIST_KEY, JSON.stringify(defaults)); } catch { /* ignore */ }
   return defaults;
@@ -239,6 +242,9 @@ function saveCCList(list: CCAccount[]) {
 let _ccList: CCAccount[] = loadCCList();
 
 function isCCRow(row: RawRow): boolean {
+  // If list is empty or account column is blank, include the row —
+  // the CC Expense sheet is CC-only, so rows without a recognisable account string are still CC.
+  if (_ccList.length === 0 || !row.account) return true;
   return _ccList.some(a => {
     try { return new RegExp(a.pattern, "i").test(row.account); }
     catch { return row.account.toLowerCase().includes(a.pattern.toLowerCase()); }
