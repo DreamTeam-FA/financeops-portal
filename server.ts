@@ -1431,17 +1431,17 @@ async function detectARMonthColumns(userAccessToken: string): Promise<{
       const full = MONTH_LOOKUP[raw.toLowerCase()] || MONTH_LOOKUP[prefix];
       if (full && !seen.has(full)) { seen.add(full); found.push({ name: full, col: ci }); }
     }
-    if (found.length < 2) continue;
+    if (found.length < 1) continue;
     found.sort((a, b) => a.col - b.col);
-    const ordered = found.every((f, i) =>
-      i === 0 || MONTH_ORDER.indexOf(f.name) > MONTH_ORDER.indexOf(found[i - 1].name)
-    );
-    if (!ordered) continue;
-    const blockSize = found[1].col - found[0].col;
-    if (found[0].name !== "March") {
-      const marchCol = found[0].col - blockSize;
-      if (marchCol >= 0) found.unshift({ name: "March", col: marchCol });
+    // With 2+ months verify chronological order; with only 1 month skip that check
+    if (found.length >= 2) {
+      const ordered = found.every((f, i) =>
+        i === 0 || MONTH_ORDER.indexOf(f.name) > MONTH_ORDER.indexOf(found[i - 1].name)
+      );
+      if (!ordered) continue;
     }
+    // Default block size: 11 cols (inv _ app _ sen _ pay _ rem due amt)
+    const blockSize = found.length >= 2 ? found[1].col - found[0].col : 11;
     return {
       headerRowIdx: ri,
       months: found.map((m, i, arr) => ({
@@ -1523,12 +1523,17 @@ app.post("/api/ar/add-item", async (req, res) => {
   let sheetRow = -1;
   for (let ri = headerRowIdx + 1; ri < rows.length; ri++) {
     const r = rows[ri];
-    const rowEntity   = String(r[0] || "").trim();
-    const rowCustomer = String(r[1] || "").trim();
+    const rowEntity      = String(r[0] || "").trim();
+    const rowCustomer    = String(r[1] || "").trim();
+    const rowDescription = String(r[2] || "").trim();
     const entityOk = !entity || !rowEntity ||
       rowEntity.toLowerCase().includes((entity || "").toLowerCase()) ||
       (entity || "").toLowerCase().includes(rowEntity.toLowerCase());
-    if (entityOk && rowCustomer.toLowerCase() === (customer || "").toLowerCase()) {
+    const customerOk = rowCustomer.toLowerCase() === (customer || "").toLowerCase();
+    // Match description too — different descriptions for the same customer are separate rows
+    const descOk = !description || !rowDescription ||
+      rowDescription.toLowerCase() === (description || "").toLowerCase();
+    if (entityOk && customerOk && descOk) {
       sheetRow = ri + 1; // 1-indexed sheet row
       break;
     }
