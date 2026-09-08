@@ -2818,28 +2818,34 @@ app.post("/api/cc-expense/pull", async (req, res) => {
   const base = "https://sheets.googleapis.com/v4/spreadsheets";
   const headers = { Authorization: `Bearer ${accessToken}` };
   try {
-    const ranges = [
-      "'Raw Data'!A1:K10000",   // bounded — avoids slow unbounded column fetch on large sheets
-      "'_Vendor Map'!A:B",
-      "'Weekly Summary'!A:Z",
-      "'YTD Summary'!A:Z",
-    ];
-    const query = ranges.map(r => `ranges=${encodeURIComponent(r)}`).join("&");
-    const resp = await fetch(
-      `${base}/${getCCSheetId()}/values:batchGet?${query}&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING`,
+    // Fetch Raw Data only — frontend computes weekly/YTD summaries from raw rows.
+    // Fetching unused summary tabs (Weekly Summary, YTD Summary) was slowing the batchGet
+    // and causing it to fail if those tabs don't exist in the sheet.
+    const rawResp = await fetch(
+      `${base}/${getCCSheetId()}/values/${encodeURIComponent("'Raw Data'!A1:K10000")}?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING`,
       { headers }
     );
-    if (!resp.ok) {
-      const err = await resp.text();
-      return res.status(resp.status).json({ ok: false, error: err });
+    if (!rawResp.ok) {
+      const err = await rawResp.text();
+      return res.status(rawResp.status).json({ ok: false, error: err });
     }
-    const data: any = await resp.json();
-    const [rawDataRange, vendorMapRange, weeklySummaryRange, ytdSummaryRange] = (data.valueRanges || []);
-    const rawRows: any[][] = rawDataRange?.values || [];
-    const vendorMapRows: any[][] = vendorMapRange?.values || [];
-    const weeklySummaryRows: any[][] = weeklySummaryRange?.values || [];
-    const ytdSummaryRows: any[][] = ytdSummaryRange?.values || [];
-    res.json({ ok: true, rawRows, vendorMapRows, weeklySummaryRows, ytdSummaryRows });
+    const rawData: any = await rawResp.json();
+    const rawRows: any[][] = rawData?.values || [];
+
+    // Vendor map is optional — if the tab doesn't exist the raw data still loads
+    let vendorMapRows: any[][] = [];
+    try {
+      const vmResp = await fetch(
+        `${base}/${getCCSheetId()}/values/${encodeURIComponent("'_Vendor Map'!A:B")}?valueRenderOption=UNFORMATTED_VALUE`,
+        { headers }
+      );
+      if (vmResp.ok) {
+        const vmData: any = await vmResp.json();
+        vendorMapRows = vmData?.values || [];
+      }
+    } catch { /* vendor map tab optional */ }
+
+    res.json({ ok: true, rawRows, vendorMapRows });
   } catch (e: any) {
     res.status(500).json({ ok: false, error: e?.message || String(e) });
   }
