@@ -2403,21 +2403,28 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     })();
   };
 
-  const pushSingleARToSheet = (item: ARItem, action: "write" | "append") => {
+  const pushSingleARToSheet = (item: ARItem, _action: "write" | "append") => {
+    // Route ALL AR writes through the server endpoint — it uses dynamic column detection
+    // from the actual sheet header, so it works even when item.row is unset (portal-created
+    // items) and even if the hardcoded AR_MONTH_COLS in googleSheetsService doesn't match
+    // the real sheet structure.
     const token = getAccessToken();
     if (!token) {
       setNeedsAuth(true);
       showToast("Connect Google Sheets to save AR changes to the sheet.", "error", 5000);
       return;
     }
-    const mapping = sheetMappings.find((m) => m.module === "ar");
-    if (!mapping) return;
     (async () => {
       try {
-        if (action === "append") await appendARItem(item, mapping.range, mapping.spreadsheetIdOrUrl, token);
-        else await writeSingleARItem(item, mapping.range, mapping.spreadsheetIdOrUrl, token);
-        showToast("Saved to Google Sheets ✓", "success", 2500);
-      } catch (err) { handleSheetPushError(err, "AR"); }
+        const resp = await fetch("/api/ar/add-item", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...item, userAccessToken: token }),
+        });
+        const result = await resp.json();
+        if (result.ok) showToast("Saved to Google Sheets ✓", "success", 2500);
+        else { console.warn("[pushSingleARToSheet] sheet write failed:", result.error); showToast("Sheet write failed — try Pull All to resync.", "error", 4000); }
+      } catch (err: any) { console.warn("[pushSingleARToSheet] error:", err?.message); handleSheetPushError(err, "AR"); }
     })();
   };
 
