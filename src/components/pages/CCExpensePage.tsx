@@ -1,7 +1,7 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import {
   Upload, RefreshCw, ChevronDown, Eye, EyeOff, AlertCircle,
-  CheckCircle2, X, FileText, UploadCloud, CreditCard, Search, Settings, Plus, Trash2
+  X, FileText, UploadCloud, CreditCard, Search, Settings, Plus, Trash2
 } from "lucide-react";
 import { useFinance } from "../../context/FinanceContext";
 import { getAccessToken } from "../../services/googleAuth";
@@ -122,22 +122,6 @@ function fmtMoneyRaw(n: number): string {
   return n.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 });
 }
 
-function rawRowsFromSheetRows(rows: any[][]): RawRow[] {
-  // rows is raw from sheets API; skip header rows (first 2 rows are headers)
-  return rows.slice(2).filter(r => r && r.length > 0 && (r[1] || r[4])).map(r => ({
-    category: String(r[0] || "").trim(),
-    transactionDate: String(r[1] || "").trim(),
-    transactionType: String(r[2] || "").trim(),
-    num: String(r[3] || "").trim(),
-    name: String(r[4] || "").trim(),
-    location: String(r[5] || "").trim(),
-    classCompany: String(r[6] || "").trim(),
-    description: String(r[7] || "").trim(),
-    account: String(r[8] || "").trim(),
-    amount: parseMoney(r[9]),
-    balance: parseMoney(r[10]),
-  }));
-}
 
 function rawRowsFromUploadedRows(rows: any[][], headerRowIdx: number): RawRow[] {
   // Detect column positions from the header row so we handle any column order
@@ -371,7 +355,6 @@ export const CCExpensePage: React.FC = () => {
   };
 
   // UI state
-  const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [hideZero, setHideZero] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -484,75 +467,7 @@ export const CCExpensePage: React.FC = () => {
     showToast(`Transferred ${fmtMoneyRaw(amount)} from ${fromCompany} → ${toCompany}`, "success", 3000);
   };
 
-  // ── Pull live data ──────────────────────────────────────────────────────────
-  const pullFromSheet = useCallback(async () => {
-    setLoading(true);
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 120000); // 120s — allows for Render cold start + Sheets API
-    try {
-      const accessToken = await getAccessToken();
-      if (!accessToken) {
-        showToast("Not signed in to Google — upload a CSV to view data", "error");
-        return;
-      }
-      // Ping health first to wake Render from sleep (free plan goes idle after inactivity).
-      // Health check is fast once the server is awake; if it takes >10s the server was sleeping.
-      try { await fetch("/api/health", { signal: controller.signal }); } catch { /* ignore */ }
-
-      const resp = await fetch("/api/cc-expense/pull", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken }),
-        signal: controller.signal,
-      });
-      const data = await resp.json();
-      if (!data.ok) throw new Error(data.error || "Unknown error");
-      const rows = rawRowsFromSheetRows(data.rawRows || []);
-      const vMap: Record<string, string> = {};
-      for (const r of (data.vendorMapRows || []).slice(1)) {
-        if (r[0]) vMap[String(r[0]).trim()] = String(r[1] || r[0]).trim();
-      }
-      setRawRows(rows);
-      setVendorMap(vMap);
-      const grouped = groupIntoWeeks(rows);
-      setWeeks(grouped);
-      if (grouped.length > 0) setSelectedWeek(grouped[0].weekStart);
-
-      // Also pull adjustments
-      try {
-        const adjResp = await fetch("/api/cc-expense/adjustments/pull", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ accessToken }),
-        });
-        const adjData = await adjResp.json();
-        if (adjData.ok && adjData.rows) {
-          setAdjustments(adjData.rows.map((r: any[]) => ({
-            weekStart: String(r[0] || ""),
-            vendor: String(r[1] || ""),
-            company: String(r[2] || ""),
-            delta: parseFloat(String(r[3] || "0")) || 0,
-          })));
-        }
-      } catch { /* adjustments tab may not exist yet */ }
-
-      showToast(`Loaded ${rows.length} transactions from sheet`, "success");
-    } catch (e: any) {
-      const msg = e?.name === "AbortError"
-        ? "Request timed out (120s) — server or Google API is unresponsive"
-        : `Pull failed: ${e?.message || String(e)}`;
-      showToast(msg, "error");
-    } finally {
-      clearTimeout(timeout);
-      setLoading(false);
-    }
-  }, [showToast]);
-
-  // Load on mount — only if Google auth is already cached (don't block with a slow sheet pull)
-  useEffect(() => {
-    const token = localStorage.getItem("google_access_token");
-    if (token) pullFromSheet();
-  }, []);
+  // Pull from sheet removed — use CSV upload to load data.
 
   // ── File selection ──────────────────────────────────────────────────────────
   /** Minimal RFC-4180 CSV parser — handles quoted fields with embedded commas/newlines. */
@@ -738,18 +653,6 @@ export const CCExpensePage: React.FC = () => {
             <span className={`ml-0.5 px-1.5 py-0 rounded-full text-[10px] font-bold ${cardsOpen ? "bg-white/20 text-white" : isLight ? "bg-slate-200 text-slate-500" : "bg-[#0d1117] text-slate-400"}`}>
               {ccList.length}
             </span>
-          </button>
-          <button
-            onClick={pullFromSheet}
-            disabled={loading}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-[12px] font-medium transition-colors ${
-              isLight
-                ? "bg-[#1a73e8] hover:bg-[#1557b0] text-white"
-                : "bg-[#1a73e8]/90 hover:bg-[#1a73e8] text-white"
-            } disabled:opacity-50`}
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-            {loading ? "Loading…" : "Pull from Sheet"}
           </button>
         </div>
       </div>
@@ -1183,7 +1086,7 @@ export const CCExpensePage: React.FC = () => {
 
       {/* ── Main table area ── */}
       <div className="flex-1 overflow-auto">
-        {rawRows.length === 0 && !loading ? (
+        {rawRows.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-3 text-center p-8">
             <CreditCard className={`w-10 h-10 ${isLight ? "text-slate-300" : "text-slate-600"}`} />
             <p className={`text-[14px] font-medium ${isLight ? "text-slate-500" : "text-slate-400"}`}>No data loaded</p>
