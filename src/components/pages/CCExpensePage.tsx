@@ -124,11 +124,17 @@ function fmtMoneyRaw(n: number): string {
 
 
 function rawRowsFromUploadedRows(rows: any[][], headerRowIdx: number): RawRow[] {
-  // Detect column positions from the header row so we handle any column order
+  // Detect column positions from the header row so we handle any column order.
+  // Uses partial matching so "Memo/Description" matches "memo", "Split" matches "split", etc.
   const hdrRow = (rows[headerRowIdx] || []).map((c: any) => String(c || "").trim().toLowerCase());
   const colOf = (...candidates: string[]) => {
     for (const name of candidates) {
-      const i = hdrRow.indexOf(name.toLowerCase());
+      const needle = name.toLowerCase();
+      // exact match first
+      let i = hdrRow.indexOf(needle);
+      if (i >= 0) return i;
+      // partial: header contains candidate OR candidate contains header
+      i = hdrRow.findIndex(h => h.includes(needle) || needle.includes(h));
       if (i >= 0) return i;
     }
     return -1;
@@ -141,8 +147,8 @@ function rawRowsFromUploadedRows(rows: any[][], headerRowIdx: number): RawRow[] 
     name:      colOf("name", "payee", "vendor"),
     location:  colOf("location"),
     classComp: colOf("class/company", "class", "company"),
-    desc:      colOf("description", "memo", "details"),
-    account:   colOf("account"),
+    desc:      colOf("description", "memo", "details", "memo/description"),
+    account:   colOf("account", "split"),   // QB exports use "Split" for the account/card column
     amount:    colOf("amount", "debit"),
     balance:   colOf("balance", "running balance"),
   };
