@@ -132,19 +132,46 @@ function rawRowsFromSheetRows(rows: any[][]): RawRow[] {
 }
 
 function rawRowsFromUploadedRows(rows: any[][], headerRowIdx: number): RawRow[] {
-  return rows.slice(headerRowIdx + 1).filter(r => r && r.length > 0 && (r[1] || r[4])).map(r => ({
-    category: String(r[0] || "").trim(),
-    transactionDate: String(r[1] || "").trim(),
-    transactionType: String(r[2] || "").trim(),
-    num: String(r[3] || "").trim(),
-    name: String(r[4] || "").trim(),
-    location: String(r[5] || "").trim(),
-    classCompany: String(r[6] || "").trim(),
-    description: String(r[7] || "").trim(),
-    account: String(r[8] || "").trim(),
-    amount: parseMoney(r[9]),
-    balance: parseMoney(r[10]),
-  }));
+  // Detect column positions from the header row so we handle any column order
+  const hdrRow = (rows[headerRowIdx] || []).map((c: any) => String(c || "").trim().toLowerCase());
+  const colOf = (...candidates: string[]) => {
+    for (const name of candidates) {
+      const i = hdrRow.indexOf(name.toLowerCase());
+      if (i >= 0) return i;
+    }
+    return -1;
+  };
+  const C = {
+    category:  colOf("category"),
+    date:      colOf("transaction date", "date"),
+    type:      colOf("transaction type", "type"),
+    num:       colOf("num", "number", "#"),
+    name:      colOf("name", "payee", "vendor"),
+    location:  colOf("location"),
+    classComp: colOf("class/company", "class", "company"),
+    desc:      colOf("description", "memo", "details"),
+    account:   colOf("account"),
+    amount:    colOf("amount", "debit"),
+    balance:   colOf("balance", "running balance"),
+  };
+  const str = (r: any[], i: number) => i >= 0 ? String(r[i] || "").trim() : "";
+  const mon = (r: any[], i: number) => i >= 0 ? parseMoney(r[i]) : 0;
+  return rows
+    .slice(headerRowIdx + 1)
+    .filter(r => r && r.length > 0 && (str(r, C.date) || str(r, C.name)))
+    .map(r => ({
+      category:        str(r, C.category),
+      transactionDate: str(r, C.date),
+      transactionType: str(r, C.type),
+      num:             str(r, C.num),
+      name:            str(r, C.name),
+      location:        str(r, C.location),
+      classCompany:    str(r, C.classComp),
+      description:     str(r, C.desc),
+      account:         str(r, C.account),
+      amount:          mon(r, C.amount),
+      balance:         mon(r, C.balance),
+    }));
 }
 
 function groupIntoWeeks(rawRows: RawRow[]): WeekEntry[] {
@@ -327,19 +354,6 @@ export const CCExpensePage: React.FC = () => {
   const removeCCAccount = (idx: number) => {
     const next = ccList.filter((_, i) => i !== idx);
     saveCCListAndSync(next);
-  };
-
-  const approveAccount = (account: string) => {
-    // Extract last-4 from the account string (e.g. "Chase x5074" → "x5074")
-    const m = account.match(/x?\d{4}/i);
-    const pat = m ? m[0] : account;
-    if (ccList.some(a => a.pattern.toLowerCase() === pat.toLowerCase())) {
-      showToast("Account already in list", "info", 1500);
-      return;
-    }
-    const next = [...ccList, { pattern: pat, label: account }];
-    saveCCListAndSync(next);
-    showToast(`Added to card list: ${account}`, "success", 2000);
   };
 
   // UI state
@@ -674,12 +688,6 @@ export const CCExpensePage: React.FC = () => {
           .some(v => v.toLowerCase().includes(sq))
       );
 
-  // Accounts present in raw data that don't match any CC pattern — shown as a warning
-  // so the user can approve them directly from the banner.
-  const unrecognizedAccounts = Array.from(
-    new Set(rawRows.filter(r => r.account && !isCCRow(r)).map(r => r.account))
-  ).sort();
-
   const columnTotals: Record<string, number> = {};
   for (const co of displayCompanies) {
     columnTotals[co] = displayTable.reduce((s, r) => s + (r.byCompany[co] || 0), 0);
@@ -962,32 +970,6 @@ export const CCExpensePage: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Unrecognized account warning ── */}
-      {unrecognizedAccounts.length > 0 && (
-        <div className={`shrink-0 px-5 py-2 border-b flex flex-wrap items-center gap-2 ${isLight ? "bg-amber-50 border-amber-200" : "bg-amber-900/10 border-amber-700/20"}`}>
-          <span className={`text-[11px] font-semibold shrink-0 ${isLight ? "text-amber-700" : "text-amber-400"}`}>
-            ⚠ Unrecognized card accounts (hidden from weekly/YTD):
-          </span>
-          {unrecognizedAccounts.map(acct => (
-            <span key={acct} className="flex items-center gap-1">
-              <code className={`text-[11px] px-2 py-0.5 rounded font-mono ${isLight ? "bg-amber-100 text-amber-800" : "bg-amber-900/30 text-amber-300"}`}>
-                {acct}
-              </code>
-              <button
-                onClick={() => approveAccount(acct)}
-                className={`text-[10px] px-1.5 py-0.5 rounded font-medium transition-colors ${
-                  isLight
-                    ? "bg-green-100 text-green-700 hover:bg-green-200 border border-green-300"
-                    : "bg-green-900/30 text-green-400 hover:bg-green-900/50 border border-green-700/40"
-                }`}
-                title="Approve this card — its transactions will appear in Weekly/YTD views"
-              >
-                ✓ Approve
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
 
       {/* ── Summary pills ── */}
       {(activeTab === "weekly" || activeTab === "ytd") && (
