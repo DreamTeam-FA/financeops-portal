@@ -433,7 +433,7 @@ export const ARPage: React.FC = () => {
             <table className="w-full text-left text-xs border-collapse min-w-[900px]">
               <thead>
                 <tr className={`${isLight ? "bg-slate-100/70 border-slate-200 text-slate-600" : "bg-[#141414] border-[#1a2235] text-[#888]"} border-b font-semibold`}>
-                  <th className="p-3 w-12 whitespace-nowrap">Entity</th>
+                  <th className="p-3 w-20 whitespace-nowrap">Entity</th>
                   <th className="p-3 min-w-[120px] whitespace-nowrap">Customer / Client</th>
                   <th className="p-3 min-w-[140px] whitespace-nowrap">Description</th>
                   <th className="p-3 w-24 whitespace-nowrap">Amount</th>
@@ -454,7 +454,7 @@ export const ARPage: React.FC = () => {
                   return (
                     <tr key={a.id} data-search-id={a.id} className="hover:bg-white/5 transition-colors">
                       <td className="p-3">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${getEntityBadge(a.entity)}`}>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap ${getEntityBadge(a.entity)}`}>
                           {a.entity}
                         </span>
                       </td>
