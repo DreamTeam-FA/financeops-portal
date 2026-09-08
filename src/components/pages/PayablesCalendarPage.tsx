@@ -43,6 +43,18 @@ function entityColor(entity: string) {
   return ENTITY_COLORS[entity] ?? ENTITY_COLORS["default"];
 }
 
+/** Returns the display label for a bill's entity badge, showing TI sub-entities. */
+function entityDisplayLabel(entity: string, company?: string): string {
+  if (entity !== "TI") return entity;
+  const c = (company || "").trim().toLowerCase();
+  if (c === "4g") return "4G";
+  if (c === "4yr" || c === "4 yr") return "4YR";
+  if (c.includes("corner")) return "Corner";
+  if (c === "e1" || c === "e-1") return "E1";
+  if (!c || c === "ti") return "TI";
+  return (company || "TI").trim();
+}
+
 /* ── Bill card (day columns) ───────────────────────────────────────────────── */
 const BillCard: React.FC<{
   bill: any;
@@ -65,12 +77,9 @@ const BillCard: React.FC<{
       <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg" style={{ background: ec.bar }} />
       <div className="pl-3 pr-2 py-2">
         <div className="flex items-center gap-1 mb-1">
-          <span className={`px-1.5 py-0 rounded text-[10px] font-bold ${ec.bg} ${ec.text}`}>{bill.entity}</span>
-          {bill.subcompany && (
-            <span className={`text-[10px] truncate max-w-[80px] ${isLight ? "text-slate-400" : "text-[#666]"}`}>
-              {bill.subcompany}
-            </span>
-          )}
+          <span className={`px-1.5 py-0 rounded text-[10px] font-bold ${ec.bg} ${ec.text}`}>
+            {entityDisplayLabel(bill.entity, bill.company)}
+          </span>
           {isPastDue && <AlertTriangle className="w-3 h-3 text-red-500 shrink-0 ml-auto" />}
         </div>
         <div className={`font-semibold truncate leading-tight ${isLight ? "text-slate-800" : "text-white"}`}>{bill.vendor}</div>
@@ -111,10 +120,9 @@ const VendorGroupRow: React.FC<{
       <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg" style={{ background: ec.bar }} />
       <div className="pl-3 pr-2 py-1.5">
         <div className="flex items-center gap-1 mb-0.5">
-          <span className={`px-1.5 py-0 rounded text-[10px] font-bold shrink-0 ${ec.bg} ${ec.text}`}>{group.entity}</span>
-          {group.subcompany && (
-            <span className={`text-[10px] truncate ${isLight ? "text-slate-400" : "text-[#666]"}`}>{group.subcompany}</span>
-          )}
+          <span className={`px-1.5 py-0 rounded text-[10px] font-bold shrink-0 ${ec.bg} ${ec.text}`}>
+            {entityDisplayLabel(group.entity, group.subcompany)}
+          </span>
           {group.count > 1 && (
             <span className={`ml-auto text-[9px] shrink-0 ${isLastWeek ? "text-amber-500" : "text-red-500"}`}>×{group.count}</span>
           )}
@@ -187,7 +195,7 @@ const SummaryColumn: React.FC<{
       return (a.vendor || "").localeCompare(b.vendor || "");
     })
     .forEach(b => {
-      const key = `${b.entity}||${b.subcompany || ""}||${b.vendor || ""}`;
+      const key = `${b.entity}||${b.company || ""}||${b.vendor || ""}`;
       const existing = groupMap.get(key);
       if (existing) {
         existing.totalAmount += b.amount || 0;
@@ -196,7 +204,7 @@ const SummaryColumn: React.FC<{
       } else {
         groupMap.set(key, {
           entity: b.entity,
-          subcompany: b.subcompany || "",
+          subcompany: b.company || "",
           vendor: b.vendor || "",
           totalAmount: b.amount || 0,
           count: 1,
@@ -276,10 +284,10 @@ function groupBillsByVendor(bills: any[]): VendorGroup[] {
       return (a.vendor || "").localeCompare(b.vendor || "");
     })
     .forEach(b => {
-      const key = `${b.entity}||${b.subcompany || ""}||${b.vendor || ""}`;
+      const key = `${b.entity}||${b.company || ""}||${b.vendor || ""}`;
       const ex = map.get(key);
       if (ex) { ex.totalAmount += b.amount || 0; ex.count++; ex.bills.push(b); }
-      else map.set(key, { entity: b.entity, subcompany: b.subcompany || "", vendor: b.vendor || "", totalAmount: b.amount || 0, count: 1, bills: [b] });
+      else map.set(key, { entity: b.entity, subcompany: b.company || "", vendor: b.vendor || "", totalAmount: b.amount || 0, count: 1, bills: [b] });
     });
   return Array.from(map.values());
 }
@@ -363,8 +371,9 @@ const MobileListView: React.FC<{
                   <div className="pl-4 pr-3 py-2.5 flex items-center gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-                        <span className={`px-1.5 py-0 rounded text-[10px] font-bold shrink-0 ${ec.bg} ${ec.text}`}>{g.entity}</span>
-                        {g.subcompany && <span className={`text-[10px] truncate ${isLight ? "text-slate-400" : "text-[#666]"}`}>{g.subcompany}</span>}
+                        <span className={`px-1.5 py-0 rounded text-[10px] font-bold shrink-0 ${ec.bg} ${ec.text}`}>
+                          {entityDisplayLabel(g.entity, g.subcompany)}
+                        </span>
                         {g.count > 1 && <span className={`ml-auto text-[10px] font-bold shrink-0 ${sec.overdueStyle ? "text-red-500" : sec.lastWeekStyle ? "text-amber-500" : "text-[#1a73e8]"}`}>×{g.count}</span>}
                       </div>
                       <div className={`font-semibold text-sm leading-tight truncate ${isLight ? "text-slate-800" : "text-white"}`}>{g.vendor || "—"}</div>
