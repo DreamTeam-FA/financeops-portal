@@ -488,13 +488,17 @@ export const CCExpensePage: React.FC = () => {
   const pullFromSheet = useCallback(async () => {
     setLoading(true);
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 60000); // 60s timeout
+    const timeout = setTimeout(() => controller.abort(), 120000); // 120s — allows for Render cold start + Sheets API
     try {
       const accessToken = await getAccessToken();
       if (!accessToken) {
         showToast("Not signed in to Google — upload a CSV to view data", "error");
         return;
       }
+      // Ping health first to wake Render from sleep (free plan goes idle after inactivity).
+      // Health check is fast once the server is awake; if it takes >10s the server was sleeping.
+      try { await fetch("/api/health", { signal: controller.signal }); } catch { /* ignore */ }
+
       const resp = await fetch("/api/cc-expense/pull", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
