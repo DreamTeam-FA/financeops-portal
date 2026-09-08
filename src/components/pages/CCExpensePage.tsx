@@ -4,7 +4,7 @@ import {
   X, FileText, UploadCloud, CreditCard, Search, Settings, Plus, Trash2
 } from "lucide-react";
 import { useFinance } from "../../context/FinanceContext";
-import { getAccessToken } from "../../services/googleAuth";
+
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const COMPANIES = [
@@ -287,22 +287,8 @@ export const CCExpensePage: React.FC = () => {
     return rawVal + delta;
   };
 
-  const pushAdjustment = async (adj: Adjustment) => {
+  const pushAdjustment = (adj: Adjustment) => {
     setAdjustments(prev => [...prev, adj]);
-    try {
-      const accessToken = await getAccessToken();
-      if (!accessToken) { showToast("Not signed in to Google", "error"); return; }
-      await fetch("/api/cc-expense/adjustments/push", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          accessToken,
-          rows: [[adj.weekStart, adj.vendor, adj.company, adj.delta]],
-        }),
-      });
-    } catch {
-      showToast("Adjustment saved locally but failed to sync to sheet", "error");
-    }
   };
 
   // Remarks: keyed by `${weekStart}||${vendor}`, persisted in localStorage
@@ -355,7 +341,6 @@ export const CCExpensePage: React.FC = () => {
   };
 
   // UI state
-  const [uploading, setUploading] = useState(false);
   const [hideZero, setHideZero] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -433,7 +418,7 @@ export const CCExpensePage: React.FC = () => {
     setEditingCell(null);
     setEditingValue("");
     if (delta === 0) return;
-    await pushAdjustment({ weekStart: selectedWeek, vendor, company, delta });
+    pushAdjustment({ weekStart: selectedWeek, vendor, company, delta });
     showToast(`Updated ${vendor} / ${company}`, "success", 2000);
   };
 
@@ -462,8 +447,8 @@ export const CCExpensePage: React.FC = () => {
     const { vendor, fromCompany, toCompany, amount } = transferModal;
     setTransferModal(null);
     // Debit source, credit target
-    await pushAdjustment({ weekStart: selectedWeek, vendor, company: fromCompany, delta: -amount });
-    await pushAdjustment({ weekStart: selectedWeek, vendor, company: toCompany, delta: amount });
+    pushAdjustment({ weekStart: selectedWeek, vendor, company: fromCompany, delta: -amount });
+    pushAdjustment({ weekStart: selectedWeek, vendor, company: toCompany, delta: amount });
     showToast(`Transferred ${fmtMoneyRaw(amount)} from ${fromCompany} → ${toCompany}`, "success", 3000);
   };
 
@@ -554,40 +539,18 @@ export const CCExpensePage: React.FC = () => {
 
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
 
-  // ── Confirm upload → write to sheet ────────────────────────────────────────
-  const handleConfirmUpload = useCallback(async () => {
+  // ── Confirm upload → load data locally (no sheet write) ───────────────────
+  const handleConfirmUpload = useCallback(() => {
     if (!parsedUploadRows) return;
-    setUploading(true);
-    try {
-      const accessToken = await getAccessToken();
-      if (!accessToken) { showToast("Not signed in to Google", "error"); return; }
-      // Build rows to write (skip header, include all data rows)
-      const dataRows = parsedUploadRows.slice(uploadHeaderRow + 1).filter(r => r.some(c => c !== ""));
-      const resp = await fetch("/api/cc-expense/upload", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken, rows: dataRows }),
-      });
-      const data = await resp.json();
-      if (!data.ok) throw new Error(data.error || "Upload failed");
-      showToast(`Saved ${data.updated} rows to Raw Data tab`, "success");
-
-      // Load directly from the parsed CSV rows — no sheet round-trip needed.
-      // This avoids any sheet row-limit issues and makes the view update instantly.
-      const csvRows = rawRowsFromUploadedRows(parsedUploadRows, uploadHeaderRow);
-      setRawRows(csvRows);
-      const grouped = groupIntoWeeks(csvRows);
-      setWeeks(grouped);
-      if (grouped.length > 0) setSelectedWeek(grouped[0].weekStart);
-
-      setUploadFile(null);
-      setParsedUploadRows(null);
-      setUploadPreviewOpen(false);
-    } catch (e: any) {
-      showToast(`Upload failed: ${e?.message || String(e)}`, "error");
-    } finally {
-      setUploading(false);
-    }
+    const csvRows = rawRowsFromUploadedRows(parsedUploadRows, uploadHeaderRow);
+    setRawRows(csvRows);
+    const grouped = groupIntoWeeks(csvRows);
+    setWeeks(grouped);
+    if (grouped.length > 0) setSelectedWeek(grouped[0].weekStart);
+    setUploadFile(null);
+    setParsedUploadRows(null);
+    setUploadPreviewOpen(false);
+    showToast(`Loaded ${csvRows.length} transactions`, "success");
   }, [parsedUploadRows, uploadHeaderRow, showToast]);
 
   // ── Styling helpers ─────────────────────────────────────────────────────────
@@ -772,7 +735,7 @@ export const CCExpensePage: React.FC = () => {
                 Preview — {parsedUploadRows.length - uploadHeaderRow - 1} data rows from {uploadFile?.name}
               </p>
               <p className={`text-[11px] mt-0.5 ${isLight ? "text-amber-700" : "text-amber-400"}`}>
-                Confirming will overwrite the Raw Data tab in the Google Sheet.
+                Data loads locally in your browser — nothing is written to any sheet.
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -784,11 +747,10 @@ export const CCExpensePage: React.FC = () => {
               </button>
               <button
                 onClick={handleConfirmUpload}
-                disabled={uploading}
-                className="px-3 py-1.5 rounded text-[12px] font-medium bg-[#1a73e8] text-white hover:bg-[#1557b0] disabled:opacity-50 flex items-center gap-1.5"
+                className="px-3 py-1.5 rounded text-[12px] font-medium bg-[#1a73e8] text-white hover:bg-[#1557b0] flex items-center gap-1.5"
               >
-                {uploading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                {uploading ? "Saving…" : "Confirm & Save to Sheet"}
+                <Upload className="w-3.5 h-3.5" />
+                Load Data
               </button>
             </div>
           </div>
