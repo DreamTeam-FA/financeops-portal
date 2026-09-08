@@ -2819,7 +2819,7 @@ app.post("/api/cc-expense/pull", async (req, res) => {
   const headers = { Authorization: `Bearer ${accessToken}` };
   try {
     const ranges = [
-      "'Raw Data'!A:K",
+      "'Raw Data'!A1:K10000",   // bounded — avoids slow unbounded column fetch on large sheets
       "'_Vendor Map'!A:B",
       "'Weekly Summary'!A:Z",
       "'YTD Summary'!A:Z",

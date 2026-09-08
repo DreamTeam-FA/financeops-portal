@@ -480,7 +480,7 @@ export const CCExpensePage: React.FC = () => {
   const pullFromSheet = useCallback(async () => {
     setLoading(true);
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20000); // 20s hard timeout
+    const timeout = setTimeout(() => controller.abort(), 60000); // 60s timeout
     try {
       const accessToken = await getAccessToken();
       if (!accessToken) {
