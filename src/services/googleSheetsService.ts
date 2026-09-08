@@ -562,8 +562,21 @@ export const parseBankSheetRows = (rows: any[][]): BankAccount[] => {
   const accounts: BankAccount[] = [];
   const dataRows = rows.slice(headerRowIdx + 1);
 
+  // Track bank names we've already seen so we can detect and skip summary/lookup rows.
+  // Summary rows typically repeat a bank name that already appeared in a real data row.
+  const seenBankKeys = new Set<string>();
+
+  // Stop parsing at the first blank row — sheets often separate data from summary sections
+  // with an empty row. Any row after the first blank is a summary/total, not real data.
+  let hitBlank = false;
+
   dataRows.forEach((row, idx) => {
-    if (!row || row.length === 0 || row.every((c) => !c || String(c).trim() === "")) return;
+    if (!row || row.length === 0 || row.every((c) => !c || String(c).trim() === "")) {
+      hitBlank = true;
+      return;
+    }
+    // Stop importing rows after the first blank separator row
+    if (hitBlank) return;
 
     // If the sheet has an explicit Entity column, use it verbatim (trimmed).
     // Only run normalizeEntityName as a fallback when there is no entity column.
@@ -579,8 +592,21 @@ export const parseBankSheetRows = (rows: any[][]): BankAccount[] => {
     const yesterdayStr = yesterdayIdx !== -1 ? String(row[yesterdayIdx] || "").replace(/[^0-9.-]+/g, "") : "";
     const yesterday = yesterdayStr ? parseFloat(yesterdayStr) : undefined;
 
+    // Skip summary/lookup rows: these have a bank name that looks like a full
+    // "Entity - BankName" label (i.e. contains " - ") AND the same balance appeared
+    // before, meaning this row is a VLOOKUP result rather than a real account entry.
+    const bankKey = `${entity}|${bank}`.toLowerCase();
+    if (seenBankKeys.has(bankKey)) return; // duplicate — skip summary row
+    seenBankKeys.add(bankKey);
+
+    // Use a stable ID based on entity+bank+sheet-row-number so the ID never
+    // changes across refreshes. (Previously used Date.now() which generated a
+    // new ID on every sync, causing the JSON cache to silently overwrite itself
+    // and balances to appear "reset" after every refresh.)
+    const stableId = `b-gs-r${headerRowIdx + idx + 2}-${entity.replace(/\s+/g, "")}-${bank.replace(/\s+/g, "").slice(0, 12)}`;
+
     accounts.push({
-      id: `b-gs-${idx + 1}-${Date.now()}`,
+      id: stableId,
       entity,
       bank,
       type,
