@@ -177,7 +177,6 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
     if (normE === "MSDx") return "msdx";
     if (normE === "CurcuminPro") return "curcumin";
     if (normE === "Ziglar") return "ziglar";
-    if (b.amount < 0) return "ti-bills";
     if (normE === "TI") {
       const comp = (b.company || "").trim();
       const cl = comp.toLowerCase();
