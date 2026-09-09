@@ -143,8 +143,13 @@ function apBillStableKey(b: any): string {
   return `${n(b.entity)}_${n(b.vendor)}_${n(b.invoiceNo || "")}_${b.dueDate || ""}`;
 }
 
-function mergeDatasets(liveList: any[], currentList: any[], idKey = "id") {
-  if (!liveList || liveList.length === 0) return currentList || [];
+function mergeDatasets(liveList: any[] | null | undefined, currentList: any[], idKey = "id") {
+  // null/undefined = live fetch genuinely failed → fall back to stored data
+  if (liveList === null || liveList === undefined) return currentList || [];
+  // Empty array = sheet returned 0 items. Fall back to stored ONLY if stored is non-empty
+  // AND this looks like a failed parse (< threshold). This prevents wiping all AP on GViz failures.
+  // Rule #1: Sheet is always truth — if live returned items, trust it; if 0, be conservative.
+  if (liveList.length === 0) return currentList || [];
   if (!currentList || currentList.length === 0) return liveList;
 
   // For AP bills: IDs are random on every sheet fetch, so also build a stable-key map
@@ -269,12 +274,21 @@ async function syncLiveDataFromSheets(accessToken?: string) {
     const method = accessToken ? "Sheets API v4 (FORMATTED_VALUE)" : "GViz public API";
     console.log(`[GoogleSheetSync] Pulling live data from Google Sheets via ${method}...`);
     const liveData = await fetchFullLiveDataset(accessToken);
-    console.log(`[GoogleSheetSync] liveData.ap count: ${liveData.ap?.length || 0} (token: ${accessToken ? "yes" : "no"})`);
+    const liveApCount = liveData.ap?.length || 0;
+    const liveBanksCount = liveData.banks?.length || 0;
+    console.log(`[GoogleSheetSync] liveData.ap count: ${liveApCount} (token: ${accessToken ? "yes" : "no"})`);
+    if (liveApCount === 0) {
+      console.warn(`[GoogleSheetSync] WARNING: Live AP fetch returned 0 items. Stored AP data will be preserved.`
+        + ` If this is unexpected, sign in via the portal and run Pull All to force a fresh authenticated fetch.`);
+    }
     const current = getStoredData();
     // mergeDatasets spreads currentItem first then liveItem on top, so:
     // - live sheet fields (row indices, formula-evaluated invoice numbers, amounts, status) win ✓
     // - portal-only fields NOT in the sheet (driveViewUrl, driveFileName) survive from stored data ✓
-    // Previously, authenticated syncs replaced AP outright with liveData.ap, losing saved bill copies.
+    // Rule #1 (Sheet = truth): When live fetch returns items, merge correctly DROPS bills deleted from
+    // the sheet (merged = liveList.map() only; JSON-only ap- items are excluded). This is why Pull All
+    // with a valid OAuth token always reflects the current sheet state for AP bills.
+    // When live returns 0 items (GViz failure, no token), mergeDatasets falls back to stored data.
     const updated = {
       ...current,
       ap: mergeDatasets(liveData.ap, current.ap, "id"),
@@ -2349,6 +2363,38 @@ Example output:
   } catch (e: any) {
     res.status(500).json({ error: e?.message || String(e) });
   }
+});
+
+// POST /api/ap/remove-from-cache — emergency: remove a specific bill from the server JSON cache.
+// Use when a bill was deleted from the sheet but is still showing in the portal because the
+// OAuth token expired before Pull All could fetch fresh data (Rule #1: sheet is source of truth).
+// Body: { vendor, entity, dueDate? } — vendor+entity (case-insensitive) is the primary match.
+app.post("/api/ap/remove-from-cache", (req, res) => {
+  const { vendor, entity, dueDate } = req.body || {};
+  if (!vendor) return res.status(400).json({ error: "vendor is required" });
+  const n = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const nv = n(vendor);
+  const ne = entity ? n(entity) : null;
+  const nd = dueDate || null;
+  const data = getStoredData();
+  const before = (data.ap || []).length;
+  data.ap = (data.ap || []).filter((bill: any) => {
+    const billNv = n(bill.vendor || "");
+    const billNe = n(bill.entity || "");
+    const vendorMatch = billNv === nv || billNv.includes(nv) || nv.includes(billNv);
+    const entityMatch = !ne || billNe === ne || billNe.includes(ne);
+    const dateMatch = !nd || bill.dueDate === nd;
+    // Remove bill if vendor matches and (no entity filter OR entity matches) and (no date filter OR date matches)
+    if (vendorMatch && entityMatch && dateMatch) {
+      console.log(`[AP Cache Purge] Removing bill from JSON cache: vendor="${bill.vendor}" entity="${bill.entity}" dueDate="${bill.dueDate}" id="${bill.id}"`);
+      return false; // exclude from result
+    }
+    return true; // keep
+  });
+  const removed = before - (data.ap || []).length;
+  saveStoredData(data);
+  console.log(`[AP Cache Purge] Removed ${removed} bill(s) matching vendor="${vendor}" entity="${entity || "(any)"}"`);
+  res.json({ ok: true, removed, remaining: (data.ap || []).length });
 });
 
 // POST /api/ap/add-scanned-bill — save an AI-scanned bill to AP data
