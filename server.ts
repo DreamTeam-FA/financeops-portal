@@ -960,7 +960,42 @@ async function runEODBankCopy(manual = false): Promise<{ ok?: boolean; skipped?:
   }
 
   eodCopyLastRun = todayStr;
-  console.log(`[EOD Bank Copy] Complete — ${written} written, ${failed} failed. PHT date: ${todayStr}`);
+
+  const summary = `${written} account(s) copied balance→yesterday (col C→D), ${failed} failed. PHT date: ${todayStr}.`;
+  console.log(`[EOD Bank Copy] Complete — ${summary}`);
+
+  // 1. Write to portal audit log (visible in ⚙️ → Portal Logs)
+  try {
+    const freshData = getStoredData();
+    const logEntry = {
+      timestamp: new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }),
+      user: "server-cron",
+      action: "Bank EOD Copy",
+      details: summary
+    };
+    freshData.auditLog = [logEntry, ...(freshData.auditLog || []).slice(0, 499)];
+    saveStoredData(freshData);
+  } catch (e) {
+    console.warn("[EOD Bank Copy] Could not write to portal audit log:", e);
+  }
+
+  // 2. Append to the shared Activity Log Google Sheet tab
+  // Tab: "Activity Log" | Columns: Timestamp, User/Email, Action, Details
+  const SHARED_LOGS_SHEET_ID = "19ColN3UOnuGbk1CkHtZswxPZf7oj7Zs2pKaqmGlN4m8";
+  const logTs = new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" });
+  const logRow = [logTs, "server-cron (EOD)", "Bank EOD Copy", summary];
+  fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${SHARED_LOGS_SHEET_ID}/values/${encodeURIComponent("Activity Log")}!A1:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ values: [logRow] })
+    }
+  ).then(r => {
+    if (!r.ok) r.text().then(t => console.warn("[EOD Bank Copy] Activity Log sheet write failed:", t));
+    else console.log("[EOD Bank Copy] Activity Log row appended to sheet.");
+  }).catch(e => console.warn("[EOD Bank Copy] Activity Log sheet error:", e?.message));
+
   return { ok: true, written, failed, date: todayStr };
 }
 
