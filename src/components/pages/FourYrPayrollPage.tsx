@@ -1268,7 +1268,7 @@ export function FourYrPayrollPage() {
           <span className="text-white font-bold text-[15px] tracking-tight whitespace-nowrap">Payroll Dashboard</span>
         </div>
         {selectedWeeks.length > 0 && (
-          <span className="text-[11px] text-white/90 px-2.5 py-1 rounded-full font-semibold" style={{ background:"rgba(255,255,255,.18)" }}>
+          <span className="text-[11px] text-white/90 px-2.5 py-1 rounded-full font-semibold whitespace-nowrap hidden sm:inline" style={{ background:"rgba(255,255,255,.18)" }}>
             {weekLabel}
           </span>
         )}
@@ -1367,7 +1367,7 @@ export function FourYrPayrollPage() {
             {t.l}
           </button>
         ))}
-        <span className="ml-auto text-[9px] font-light tracking-wide pr-1" style={{ color:"rgba(255,255,255,.35)" }}>® Made by Finance Team</span>
+        <span className="ml-auto text-[9px] font-light tracking-wide pr-1 whitespace-nowrap hidden sm:inline" style={{ color:"rgba(255,255,255,.35)" }}>® Made by Finance Team</span>
       </div>
 
       {/* ── Filter bar (GAS: .filter-bar) ── */}

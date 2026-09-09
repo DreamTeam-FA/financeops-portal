@@ -958,7 +958,7 @@ export const CalendarPage: React.FC = () => {
               <div className={`p-0.5 rounded-lg border flex items-center gap-0.5 ${isLight ? "bg-slate-100 border-slate-200" : "bg-[#0d111a] border-[#282828]"}`}>
                 <button
                   onClick={() => setCalendarView("week")}
-                  className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${
+                  className={`px-3 py-1 rounded-md text-xs font-bold transition-all whitespace-nowrap ${
                     calendarView === "week"
                       ? "bg-[#0d9488] text-white shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
                       : isLight ? "text-slate-600 hover:text-slate-900" : "text-[#aaa] hover:text-white"
@@ -968,7 +968,7 @@ export const CalendarPage: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setCalendarView("month")}
-                  className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${
+                  className={`px-3 py-1 rounded-md text-xs font-bold transition-all whitespace-nowrap ${
                     calendarView === "month"
                       ? "bg-[#0d9488] text-white shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
                       : isLight ? "text-slate-600 hover:text-slate-900" : "text-[#aaa] hover:text-white"
@@ -987,7 +987,7 @@ export const CalendarPage: React.FC = () => {
                   {googleUser && !hasGoogleToken ? "Token expired — Reconnect" : "Connect Google"}
                 </button>
               ) : (
-                <span className={`text-[11px] ${isLight ? "text-slate-600" : "text-[#888]"} flex items-center gap-1 font-semibold`}>
+                <span className={`text-[11px] ${isLight ? "text-slate-600" : "text-[#888]"} flex items-center gap-1 font-semibold whitespace-nowrap hidden sm:flex`}>
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
                   {loadingGoogleCal ? "Loading..." : googleUser.email.split("@")[0]}
                 </span>
@@ -995,7 +995,7 @@ export const CalendarPage: React.FC = () => {
 
               <button
                 onClick={() => setShowModal(true)}
-                className="px-3.5 py-1.5 rounded-lg bg-[#10b981] hover:bg-[#059669] text-white text-xs font-bold flex items-center gap-1.5 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] transition-colors cursor-pointer"
+                className="px-3.5 py-1.5 rounded-lg bg-[#10b981] hover:bg-[#059669] text-white text-xs font-bold flex items-center gap-1.5 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] transition-colors cursor-pointer whitespace-nowrap"
               >
                 <Plus className="w-4 h-4" /> Add Event / Task
               </button>

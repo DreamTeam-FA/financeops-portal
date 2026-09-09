@@ -286,9 +286,9 @@ export const BankBalancesPage: React.FC = () => {
             </div>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={accountChartData} margin={{ top: 10, right: 10, left: 0, bottom: 25 }}>
+                <BarChart data={accountChartData} margin={{ top: 10, right: 10, left: 0, bottom: 60 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={isLight ? "#e2e8f0" : "#222"} />
-                  <XAxis dataKey="name" stroke={isLight ? "#64748b" : "#888"} fontSize={10} tickLine={false} interval={0} angle={-15} textAnchor="end" />
+                  <XAxis dataKey="name" stroke={isLight ? "#64748b" : "#888"} fontSize={9} tickLine={false} interval={0} angle={-45} textAnchor="end" dy={5} />
                   <YAxis stroke={isLight ? "#64748b" : "#888"} fontSize={10} tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`} />
                   <Tooltip content={<CustomBarTooltip />} />
                   <Bar dataKey="balance" radius={[4, 4, 0, 0]}>
@@ -351,7 +351,7 @@ export const BankBalancesPage: React.FC = () => {
                               const warn = getBankBalanceWarning(b.balance);
                               if (!warn) return null;
                               return (
-                                <span className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-extrabold border ${warn.badgeClass} w-max`}>
+                                <span className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-extrabold border whitespace-nowrap ${warn.badgeClass} w-max`}>
                                   <AlertTriangle className="w-3 h-3 shrink-0" />
                                   {warn.label}
                                 </span>
