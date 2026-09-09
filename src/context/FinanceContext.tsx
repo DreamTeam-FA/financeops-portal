@@ -1060,7 +1060,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   //  This eliminates the stale flash and the "token not ready" silent-fail that
   //  previously caused the portal to show old data until the user clicked Sync.
   useEffect(() => {
-    const CACHE_KEY = "financeops_data_cache_v2";
+    const CACHE_KEY = "financeops_data_cache_v3"; // bumped: forces cache drop after paid-bills parse fix
     const CACHE_TTL = 20 * 60 * 1000; // 20 min — fresh enough; pull-live always replaces anyway
 
     // ── Cache helpers ────────────────────────────────────────────────────
@@ -1353,12 +1353,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
                       setBankAccounts(parsed);
                       // Save corrected bank data to localStorage cache so hard refreshes show correct values
                       try {
-                        const cachedRaw = localStorage.getItem("financeops_data_cache_v2");
+                        const cachedRaw = localStorage.getItem("financeops_data_cache_v3");
                         if (cachedRaw) {
                           const cached = JSON.parse(cachedRaw);
                           if (cached?.data) {
                             cached.data.banks = parsed;
-                            localStorage.setItem("financeops_data_cache_v2", JSON.stringify(cached));
+                            localStorage.setItem("financeops_data_cache_v3", JSON.stringify(cached));
                           }
                         }
                       } catch {}
@@ -2081,7 +2081,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
             calendarLocalEvents: live.calendarLocalEvents,
             quickNotes: live.quickNotes, lastSyncedAt: live.lastSyncedAt,
           };
-          localStorage.setItem("financeops_data_cache_v2", JSON.stringify({ ts: Date.now(), data: slim }));
+          localStorage.setItem("financeops_data_cache_v3", JSON.stringify({ ts: Date.now(), data: slim }));
         } catch { /* non-fatal */ }
 
         // Correct bank data using frontend GViz parser — server bank column mapping is stale until Oct 1 redeploy
@@ -2098,12 +2098,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
                   setBankAccounts(parsed);
                   // Overwrite the cache entry for banks with the correct values
                   try {
-                    const cachedRaw = localStorage.getItem("financeops_data_cache_v2");
+                    const cachedRaw = localStorage.getItem("financeops_data_cache_v3");
                     if (cachedRaw) {
                       const cached = JSON.parse(cachedRaw);
                       if (cached?.data) {
                         cached.data.banks = parsed;
-                        localStorage.setItem("financeops_data_cache_v2", JSON.stringify(cached));
+                        localStorage.setItem("financeops_data_cache_v3", JSON.stringify(cached));
                       }
                     }
                   } catch {}
