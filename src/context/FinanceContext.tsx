@@ -2582,17 +2582,19 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const markBillPartial = (id: string, amountPaid: number, paidDate: string) => {
     if (!requireToken()) return;
+    // Always guarantee a date — fall back to today (PHT-aware local date) if picker was cleared
+    const effectiveDate = paidDate || new Date().toLocaleDateString("en-CA"); // en-CA gives YYYY-MM-DD
     let updatedBill: APBill | undefined;
     const nextBills = apBills.map((b) => {
       if (b.id === id) {
-        updatedBill = { ...b, partialPaid: amountPaid, paidDate, status: "unpaid" };
+        updatedBill = { ...b, partialPaid: amountPaid, paidDate: effectiveDate, status: "unpaid" };
         return updatedBill;
       }
       return b;
     });
     setApBills(nextBills);
     persistChanges({ ap: nextBills });
-    logAction("Partial Payment", `Bill ID ${id}: $${amountPaid.toFixed(2)} partial payment recorded`);
+    logAction("Partial Payment", `Bill ID ${id}: $${amountPaid.toFixed(2)} partial payment on ${effectiveDate}`);
     if (updatedBill) pushSingleAPBillToSheet(updatedBill, "write");
   };
 
