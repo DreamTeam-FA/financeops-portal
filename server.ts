@@ -283,8 +283,11 @@ async function syncLiveDataFromSheets(accessToken?: string) {
     // Rule #1: Sheet is ALWAYS source of truth.
     // When the sheet is fetched and returns items, use it DIRECTLY — no merge with stored cache.
     // This ensures bills deleted from the sheet immediately disappear from the portal on Pull All.
-    // Portal-only fields (driveViewUrl, partialPaid, paidDate) are re-applied where the bill still exists.
-    type StoredPortalFields = { url?: string; name?: string; partialPaid?: number; paidDate?: string; storedAmount?: number };
+    // Portal-only fields (driveViewUrl, partialPaid, paidDate, originalAmount) are re-applied where
+    // the bill still exists in the sheet.
+    // originalAmount anchors the true pre-payment amount so accumulated partials stay correct even
+    // after Pull All sets b.amount to the sheet's evaluated formula value (e.g. 4000 not 5000).
+    type StoredPortalFields = { url?: string; name?: string; partialPaid?: number; paidDate?: string; originalAmount?: number };
     const portalFieldsMap = new Map<string, StoredPortalFields>();
     (current.ap || []).forEach((b: any) => {
       if (b.driveViewUrl || b.partialPaid) {
@@ -294,27 +297,25 @@ async function syncLiveDataFromSheets(accessToken?: string) {
           name: b.driveFileName,
           partialPaid: b.partialPaid,
           paidDate: b.paidDate,
-          storedAmount: b.amount,  // used to detect if sheet formula already deducted the partial
+          originalAmount: b.originalAmount,  // portal-only anchor for accumulated partial display
         });
       }
     });
 
     // AP: replace entirely from sheet. Re-apply portal-only fields where stable key matches.
-    // partialPaid is only re-applied if the sheet amount hasn't changed — i.e. the partial formula
-    // hasn't been evaluated yet (amount still = original). Once the formula runs (amount reduced),
-    // partialPaid is no longer needed (the amount itself is already the remaining balance).
+    // partialPaid and originalAmount are always re-applied (no amountUnchanged guard needed —
+    // all amount math uses originalAmount as the base, so Pull All changing b.amount is fine).
     // If live returned 0 items (token expired / GViz failure), preserve stored to avoid wipe.
     const freshAP = liveApCount > 0
       ? (liveData.ap || []).map((b: any) => {
           const sk = apBillStableKey(b);
           const pf = portalFieldsMap.get(sk);
           if (!pf) return b;
-          const amountUnchanged = pf.storedAmount !== undefined && Math.abs(b.amount - pf.storedAmount) < 0.01;
           return {
             ...b,
             ...(pf.url ? { driveViewUrl: pf.url, driveFileName: pf.name } : {}),
-            // Only keep partialPaid if the sheet amount hasn't been reduced yet by the formula
-            ...(pf.partialPaid && amountUnchanged ? { partialPaid: pf.partialPaid, paidDate: pf.paidDate } : {}),
+            ...(pf.partialPaid ? { partialPaid: pf.partialPaid, paidDate: pf.paidDate } : {}),
+            ...(pf.originalAmount ? { originalAmount: pf.originalAmount } : {}),
           };
         })
       : current.ap;

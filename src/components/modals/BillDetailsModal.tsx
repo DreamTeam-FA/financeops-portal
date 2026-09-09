@@ -169,12 +169,12 @@ const BillDetail: React.FC<{
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-black" style={{ color: accentColor }}>
               {bill.partialPaid && bill.partialPaid > 0 && bill.status !== "paid"
-                ? fmt(bill.amount - bill.partialPaid)
+                ? fmt((bill.originalAmount ?? bill.amount) - bill.partialPaid)
                 : fmt(bill.amount)}
             </span>
             {bill.partialPaid && bill.partialPaid > 0 && bill.status !== "paid" && (
               <span className={`text-[11px] font-medium line-through ${isLight ? "text-slate-400" : "text-[#666]"}`}>
-                {fmt(bill.amount)}
+                {fmt(bill.originalAmount ?? bill.amount)}
               </span>
             )}
           </div>
@@ -461,11 +461,11 @@ const AccordionItem: React.FC<{
         {/* Amount (show remaining if partial) */}
         <span className="text-[14px] font-black shrink-0" style={{ color: accentColor }}>
           {bill.partialPaid && bill.partialPaid > 0 && bill.status !== "paid"
-            ? fmt(bill.amount - bill.partialPaid)
+            ? fmt((bill.originalAmount ?? bill.amount) - bill.partialPaid)
             : fmt(bill.amount)}
         </span>
         {bill.partialPaid && bill.partialPaid > 0 && bill.status !== "paid" && (
-          <span className="text-[10px] text-slate-400 shrink-0 line-through">{fmt(bill.amount)}</span>
+          <span className="text-[10px] text-slate-400 shrink-0 line-through">{fmt(bill.originalAmount ?? bill.amount)}</span>
         )}
 
         {/* Status badge */}

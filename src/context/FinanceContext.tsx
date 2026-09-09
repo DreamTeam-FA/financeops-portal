@@ -2587,14 +2587,24 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     let updatedBill: APBill | undefined;
     const nextBills = apBills.map((b) => {
       if (b.id === id) {
-        updatedBill = { ...b, partialPaid: amountPaid, paidDate: effectiveDate, status: "unpaid" };
+        // originalAmount anchors the true full bill amount regardless of how many partials are logged
+        const origAmt = b.originalAmount ?? b.amount;
+        // Accumulate — each new partial adds to the running total
+        const newPartialTotal = (b.partialPaid ?? 0) + amountPaid;
+        updatedBill = {
+          ...b,
+          originalAmount: origAmt,
+          partialPaid: newPartialTotal,
+          paidDate: effectiveDate,
+          status: "unpaid",
+        };
         return updatedBill;
       }
       return b;
     });
     setApBills(nextBills);
     persistChanges({ ap: nextBills });
-    logAction("Partial Payment", `Bill ID ${id}: $${amountPaid.toFixed(2)} partial payment on ${effectiveDate}`);
+    logAction("Partial Payment", `Bill ID ${id}: $${amountPaid.toFixed(2)} partial payment on ${effectiveDate} (total partial: $${(nextBills.find(b => b.id === id)?.partialPaid ?? amountPaid).toFixed(2)})`);
     if (updatedBill) pushSingleAPBillToSheet(updatedBill, "write");
   };
 

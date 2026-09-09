@@ -288,6 +288,14 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
   const onHoldBills = filteredBills.filter((b) => b.status === "hold" || b.bucket === "on-hold");
   const paidBills = filteredBills.filter((b) => b.status === "paid");
 
+  // For unpaid/on-hold bills, deduct accumulated partial payments to show true remaining balance.
+  // Uses originalAmount so the math is correct even after Pull All (which sets b.amount to the
+  // sheet's evaluated formula value, e.g. 4000, rather than the original 5000).
+  const effectiveAmt = (b: APBill) =>
+    b.partialPaid && b.partialPaid > 0 && b.status !== "paid"
+      ? (b.originalAmount ?? b.amount) - b.partialPaid
+      : b.amount;
+
   const pastDueBills     = unpaidBills.filter((b) => b.bucket === "past-due");
   const thisWeekBills    = unpaidBills.filter((b) => b.bucket === "this-week");
   const nextWeekBills    = unpaidBills.filter((b) => b.bucket === "next-week");
@@ -409,7 +417,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                         const dA = a.dueDate || "", dB = b.dueDate || "";
                         return dB.localeCompare(dA); // due date DESC
                       });
-                      const vTotal = vBills.reduce((s, b) => s + b.amount, 0);
+                      const vTotal = vBills.reduce((s, b) => s + effectiveAmt(b), 0);
 
                       // Most recent due/paid date for this vendor
                       const pickDate = (bill: APBill) => (isPaidTab ? bill.paidDate || bill.dueDate : bill.dueDate) || "";
@@ -637,18 +645,18 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
               </div>
               <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-3 sm:p-4 flex flex-col justify-between border-l-4 border-l-red-500 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]`}>
                 <div className="text-[10px] sm:text-[11px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">UNPAID</div>
-                <div className="text-base sm:text-3xl font-extrabold text-red-600 dark:text-red-400 mt-1 whitespace-nowrap overflow-hidden text-ellipsis">{formatCurrency(unpaidBills.reduce((s, b) => s + b.amount, 0))}</div>
+                <div className="text-base sm:text-3xl font-extrabold text-red-600 dark:text-red-400 mt-1 whitespace-nowrap overflow-hidden text-ellipsis">{formatCurrency(unpaidBills.reduce((s, b) => s + effectiveAmt(b), 0))}</div>
               </div>
               <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-3 sm:p-4 flex flex-col justify-between border-l-4 border-l-amber-500 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]`}>
                 <div className="text-[10px] sm:text-[11px] font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider">ON HOLD</div>
-                <div className="text-base sm:text-3xl font-extrabold text-amber-600 dark:text-amber-400 mt-1 whitespace-nowrap overflow-hidden text-ellipsis">{formatCurrency(onHoldBills.reduce((s, b) => s + b.amount, 0))}</div>
+                <div className="text-base sm:text-3xl font-extrabold text-amber-600 dark:text-amber-400 mt-1 whitespace-nowrap overflow-hidden text-ellipsis">{formatCurrency(onHoldBills.reduce((s, b) => s + effectiveAmt(b), 0))}</div>
               </div>
             </div>
 
             {/* 4-column bucket grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {bucketsConfig.map((bk) => {
-                const bTotal = bk.bills.reduce((s, b) => s + b.amount, 0);
+                const bTotal = bk.bills.reduce((s, b) => s + effectiveAmt(b), 0);
                 return (
                   <div key={bk.key} className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl overflow-hidden flex flex-col shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]`}>
                     <div className={`${bk.bg} px-3 py-2 flex items-center justify-between text-white font-bold`}>
@@ -668,7 +676,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
               <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]`}>
                 <div className="bg-[#5c6bc0] px-3 py-2 flex items-center justify-between text-white font-bold">
                   <span className="text-xs uppercase tracking-wider">Rest of Year</span>
-                  <span className="text-sm">{formatCurrency(restOfYearBills.reduce((s, b) => s + b.amount, 0))}</span>
+                  <span className="text-sm">{formatCurrency(restOfYearBills.reduce((s, b) => s + effectiveAmt(b), 0))}</span>
                 </div>
                 <div className="p-2">
                   {renderBucketSubentityTable(restOfYearBills, "rest-of-year")}
@@ -682,7 +690,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                 <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
                   <PauseCircle className="w-4 h-4" /> Bills On Hold ({onHoldBills.length})
                 </span>
-                <span className="text-sm font-extrabold">{formatCurrency(onHoldBills.reduce((s, b) => s + b.amount, 0))}</span>
+                <span className="text-sm font-extrabold">{formatCurrency(onHoldBills.reduce((s, b) => s + effectiveAmt(b), 0))}</span>
               </div>
               <div className="p-3">
                 {renderBucketSubentityTable(onHoldBills, "on-hold-sec")}
@@ -713,21 +721,21 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
               <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-4`}>
                 <div className={`text-[11px] font-semibold ${isLight ? "text-slate-500" : "text-[#888]"} uppercase`}>Total Outstanding</div>
                 <div className={`text-2xl font-bold ${isLight ? "text-slate-900" : "text-white"} mt-1`}>
-                  {formatCurrency(unpaidBills.reduce((s, b) => s + b.amount, 0))}
+                  {formatCurrency(unpaidBills.reduce((s, b) => s + effectiveAmt(b), 0))}
                 </div>
                 <div className={`text-[11px] ${isLight ? "text-slate-500" : "text-[#888]"} mt-1`}>Across filtered entities</div>
               </div>
               <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-4`}>
                 <div className={`text-[11px] font-semibold ${isLight ? "text-slate-500" : "text-[#888]"} uppercase`}>Past Due</div>
                 <div className="text-2xl font-bold text-[#f87171] mt-1">
-                  {formatCurrency(pastDueBills.reduce((s, b) => s + b.amount, 0))}
+                  {formatCurrency(pastDueBills.reduce((s, b) => s + effectiveAmt(b), 0))}
                 </div>
                 <div className="text-[11px] text-[#f87171] mt-1">Urgent action required</div>
               </div>
               <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-4`}>
                 <div className={`text-[11px] font-semibold ${isLight ? "text-slate-500" : "text-[#888]"} uppercase`}>On Hold</div>
                 <div className="text-2xl font-bold text-[#fb923c] mt-1">
-                  {formatCurrency(onHoldBills.reduce((s, b) => s + b.amount, 0))}
+                  {formatCurrency(onHoldBills.reduce((s, b) => s + effectiveAmt(b), 0))}
                 </div>
                 <div className={`text-[11px] ${isLight ? "text-slate-500" : "text-[#888]"} mt-1`}>Pending approval or dispute</div>
               </div>
@@ -1057,7 +1065,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                     {group.map((bill) => (
                       <div key={bill.id} data-search-id={bill.id} className={`grid grid-cols-12 items-center px-3 py-2 text-[11px] border-b last:border-0 ${isLight ? "border-slate-100 text-slate-800" : "border-[#222] text-gray-200"}`}>
                         <div className="col-span-3 truncate font-semibold">{bill.vendor || "—"}</div>
-                        <div className="col-span-2 text-right font-bold text-blue-500">{formatCurrency(bill.amount)}</div>
+                        <div className="col-span-2 text-right font-bold text-blue-500">{formatCurrency(effectiveAmt(bill))}</div>
                         <div className={`col-span-2 text-center ${isLight ? "text-slate-500" : "text-gray-400"}`}>{formatDateStr(bill.dueDate)}</div>
                         <div className={`col-span-2 text-center font-mono text-[10px] truncate ${isLight ? "text-slate-600" : "text-gray-400"}`}>{bill.invoiceNo || "—"}</div>
                         <div className="col-span-1 text-center">

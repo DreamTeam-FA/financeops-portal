@@ -40,7 +40,8 @@ export interface APBill {
   costType?: "Fixed" | "Estimate";
   driveViewUrl?: string;   // Google Drive view URL for attached bill file
   driveFileName?: string;  // Original filename of the attached bill
-  partialPaid?: number;    // Amount already partially paid; remaining = amount - partialPaid
+  partialPaid?: number;    // Accumulated amount already partially paid; remaining = originalAmount - partialPaid
+  originalAmount?: number; // The original full amount before any partial payments (portal-only field)
 }
 
 export interface BankAccount {

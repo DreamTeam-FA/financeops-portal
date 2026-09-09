@@ -1113,10 +1113,12 @@ export const buildAPBillRow = (b: APBill, entity: string): any[] => {
   if (b.invoiceDate) row[map.invoiceDateCol] = b.invoiceDate; // skip col H when empty to preserve existing sheet value
   row[map.dueDate]        = b.dueDate;
   // Amount: if there's a partial payment, write as formula so the sheet shows the remaining balance.
-  // e.g. =5000-3000 → sheet displays 2000. USER_ENTERED (already used by updateSheetValues) evaluates it.
-  // Full amount is preserved in the formula, remaining balance is visible directly in the sheet.
+  // Uses originalAmount (the true pre-payment amount) as the base so accumulated partials work correctly:
+  // e.g. pay $1k then $2k → =5000-3000 → sheet displays 2000.
+  // USER_ENTERED (already used by updateSheetValues) evaluates the formula.
   if (b.partialPaid && b.partialPaid > 0 && b.status !== "paid") {
-    row[map.amount] = `=${b.amount}-${b.partialPaid}`;
+    const base = b.originalAmount ?? b.amount;
+    row[map.amount] = `=${base}-${b.partialPaid}`;
   } else {
     row[map.amount] = b.amount;
   }
