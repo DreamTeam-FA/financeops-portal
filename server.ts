@@ -287,7 +287,7 @@ async function syncLiveDataFromSheets(accessToken?: string) {
     // the bill still exists in the sheet.
     // originalAmount anchors the true pre-payment amount so accumulated partials stay correct even
     // after Pull All sets b.amount to the sheet's evaluated formula value (e.g. 4000 not 5000).
-    type StoredPortalFields = { url?: string; name?: string; partialPaid?: number; paidDate?: string; originalAmount?: number };
+    type StoredPortalFields = { url?: string; name?: string; partialPaid?: number; paidDate?: string; originalAmount?: number; partialPayments?: { amount: number; date: string }[] };
     const portalFieldsMap = new Map<string, StoredPortalFields>();
     (current.ap || []).forEach((b: any) => {
       if (b.driveViewUrl || b.partialPaid) {
@@ -297,7 +297,8 @@ async function syncLiveDataFromSheets(accessToken?: string) {
           name: b.driveFileName,
           partialPaid: b.partialPaid,
           paidDate: b.paidDate,
-          originalAmount: b.originalAmount,  // portal-only anchor for accumulated partial display
+          originalAmount: b.originalAmount,
+          partialPayments: b.partialPayments,  // individual payment history
         });
       }
     });
@@ -316,6 +317,7 @@ async function syncLiveDataFromSheets(accessToken?: string) {
             ...(pf.url ? { driveViewUrl: pf.url, driveFileName: pf.name } : {}),
             ...(pf.partialPaid ? { partialPaid: pf.partialPaid, paidDate: pf.paidDate } : {}),
             ...(pf.originalAmount ? { originalAmount: pf.originalAmount } : {}),
+            ...(pf.partialPayments ? { partialPayments: pf.partialPayments } : {}),
           };
         })
       : current.ap;

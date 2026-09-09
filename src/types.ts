@@ -42,6 +42,7 @@ export interface APBill {
   driveFileName?: string;  // Original filename of the attached bill
   partialPaid?: number;    // Accumulated amount already partially paid; remaining = originalAmount - partialPaid
   originalAmount?: number; // The original full amount before any partial payments (portal-only field)
+  partialPayments?: { amount: number; date: string }[]; // Individual payment history (portal-only)
 }
 
 export interface BankAccount {

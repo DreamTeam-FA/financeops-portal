@@ -1118,7 +1118,14 @@ export const buildAPBillRow = (b: APBill, entity: string): any[] => {
   // USER_ENTERED (already used by updateSheetValues) evaluates the formula.
   if (b.partialPaid && b.partialPaid > 0 && b.status !== "paid") {
     const base = b.originalAmount ?? b.amount;
-    row[map.amount] = `=${base}-${b.partialPaid}`;
+    if (b.partialPayments && b.partialPayments.length > 0) {
+      // Show each payment as a separate deduction: =25637.71-10000-5000
+      const deductions = b.partialPayments.map(p => p.amount).join("-");
+      row[map.amount] = `=${base}-${deductions}`;
+    } else {
+      // Fallback for older records without payment history
+      row[map.amount] = `=${base}-${b.partialPaid}`;
+    }
   } else {
     row[map.amount] = b.amount;
   }
@@ -1148,19 +1155,32 @@ export const buildAPBillRow = (b: APBill, entity: string): any[] => {
     const instr = (b.paymentInstructions || b.remarks || b.notes || "").replace(/^\[[^\]]+\]\s*/, "").trim();
     if (instr) row[map.remarksCol] = instr;
     // status1Col shares col L with paidDate — only write status1 when the bill is not paid
-    // Partial payment: override status1 with partial-payment text + date (takes priority over plain status1)
+    // Partial payment: override status1 with per-payment history (takes priority over plain status1)
     if (b.status !== "paid") {
-      const partialText = b.partialPaid && b.partialPaid > 0
-        ? `Partial: $${b.partialPaid.toFixed(2)} paid${b.paidDate ? ` ${b.paidDate}` : ""}`
-        : null;
+      let partialText: string | null = null;
+      if (b.partialPaid && b.partialPaid > 0) {
+        if (b.partialPayments && b.partialPayments.length > 0) {
+          // Show each individual payment: "$10,000.00 on 2026-08-27; $5,000.00 on 2026-09-01"
+          const entries = b.partialPayments.map(p => `$${p.amount.toFixed(2)} on ${p.date}`).join("; ");
+          partialText = `Partial: ${entries}`;
+        } else {
+          // Fallback for bills with no partialPayments history (older records)
+          partialText = `Partial: $${b.partialPaid.toFixed(2)} paid${b.paidDate ? ` ${b.paidDate}` : ""}`;
+        }
+      }
       const s1 = partialText || b.status1 || "";
       if (s1) row[map.status1Col] = s1;
     }
   }
 
-  // TI: if partial payment, also write partial text (with date) to methodCol (Payment Via col M)
+  // TI: if partial payment, also write partial history to methodCol (Payment Via col M)
   if (entity === "TI" && b.partialPaid && b.partialPaid > 0 && b.status !== "paid" && map.methodCol !== null) {
-    row[map.methodCol] = `Partial: $${b.partialPaid.toFixed(2)} paid${b.paidDate ? ` ${b.paidDate}` : ""}`;
+    if (b.partialPayments && b.partialPayments.length > 0) {
+      const entries = b.partialPayments.map(p => `$${p.amount.toFixed(2)} on ${p.date}`).join("; ");
+      row[map.methodCol] = `Partial: ${entries}`;
+    } else {
+      row[map.methodCol] = `Partial: $${b.partialPaid.toFixed(2)} paid${b.paidDate ? ` ${b.paidDate}` : ""}`;
+    }
   }
 
   return row;
