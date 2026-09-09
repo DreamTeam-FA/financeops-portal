@@ -312,14 +312,17 @@ async function syncLiveDataFromSheets(accessToken?: string) {
           const sk = apBillStableKey(b);
           const pf = portalFieldsMap.get(sk);
           if (!pf) return b;
-          // If sheet amount matches the stored originalAmount, the sheet was reset — clear partial tracking
-          const sheetWasReset = pf.originalAmount && Math.abs(b.amount - pf.originalAmount) < 0.01;
+          // Rule #1: Sheet is source of truth.
+          // Only re-apply partial tracking when the sheet amount is still LESS than originalAmount
+          // (i.e. the sheet still has partial deductions). If sheet amount >= originalAmount,
+          // the sheet was reset/cleared — discard stored partial tracking entirely.
+          const sheetStillHasPartials = pf.originalAmount && b.amount < pf.originalAmount - 0.001;
           return {
             ...b,
             ...(pf.url ? { driveViewUrl: pf.url, driveFileName: pf.name } : {}),
-            ...(!sheetWasReset && pf.partialPaid ? { partialPaid: pf.partialPaid, paidDate: pf.paidDate } : {}),
-            ...(!sheetWasReset && pf.originalAmount ? { originalAmount: pf.originalAmount } : {}),
-            ...(!sheetWasReset && pf.partialPayments ? { partialPayments: pf.partialPayments } : {}),
+            ...(sheetStillHasPartials && pf.partialPaid ? { partialPaid: pf.partialPaid, paidDate: pf.paidDate } : {}),
+            ...(sheetStillHasPartials && pf.originalAmount ? { originalAmount: pf.originalAmount } : {}),
+            ...(sheetStillHasPartials && pf.partialPayments ? { partialPayments: pf.partialPayments } : {}),
           };
         })
       : current.ap;
