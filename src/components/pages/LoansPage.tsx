@@ -172,10 +172,10 @@ export const LoansPage: React.FC = () => {
               Payment Urgency Breakdown
             </div>
             <div className="flex items-center gap-2 mt-1">
-              <span className={`text-sm font-bold px-2 py-0.5 rounded bg-red-500/15 ${isLight ? "text-red-600" : "text-red-400"} border border-red-500/30`}>
+              <span className={`text-sm font-bold px-2 py-0.5 rounded whitespace-nowrap bg-red-500/15 ${isLight ? "text-red-600" : "text-red-400"} border border-red-500/30`}>
                 {dueSoonCount} Due Soon
               </span>
-              <span className={`text-sm font-bold px-2 py-0.5 rounded bg-amber-500/15 ${isLight ? "text-amber-600" : "text-amber-400"} border border-amber-500/30`}>
+              <span className={`text-sm font-bold px-2 py-0.5 rounded whitespace-nowrap bg-amber-500/15 ${isLight ? "text-amber-600" : "text-amber-400"} border border-amber-500/30`}>
                 {nearDueCount} Near Due
               </span>
             </div>
@@ -296,14 +296,14 @@ export const LoansPage: React.FC = () => {
                         <div>
                           <div className="flex items-center justify-between mb-1 gap-1 flex-wrap">
                             <div className="flex items-center gap-1">
-                              <span className={`px-1 py-0.5 rounded text-[8px] font-bold ${getEntityBadge(l.entity)}`}>
+                              <span className={`px-1 py-0.5 rounded text-[8px] font-bold whitespace-nowrap ${getEntityBadge(l.entity)}`}>
                                 {l.entity}
                               </span>
                               <span className={`px-1 py-0.5 rounded text-[8px] font-bold whitespace-nowrap ${isCreditCard(l) ? "bg-purple-500/20 text-purple-600 dark:text-purple-400" : "bg-blue-500/20 text-blue-600 dark:text-blue-400"}`}>
                                 {cardType}
                               </span>
                             </div>
-                            <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold ${urgency.badge}`}>
+                            <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold whitespace-nowrap shrink-0 ${urgency.badge}`}>
                               {urgency.icon}
                               {urgency.days > 0 ? `${urgency.days}d left` : urgency.days === 0 ? "Due today" : `${Math.abs(urgency.days)}d overdue`}
                             </span>
@@ -370,7 +370,7 @@ export const LoansPage: React.FC = () => {
                         return (
                           <tr key={l.id} data-search-id={l.id} className={`${isLight ? "hover:bg-slate-50" : "hover:bg-white/5"} transition-colors`}>
                             <td className="px-4 py-3">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${getEntityBadge(l.entity)}`}>{l.entity}</span>
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap ${getEntityBadge(l.entity)}`}>{l.entity}</span>
                             </td>
                             <td className="px-4 py-3">
                               <span className={`px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap ${isCreditCard(l) ? "bg-purple-500/20 text-purple-600 dark:text-purple-400" : "bg-blue-500/20 text-blue-600 dark:text-blue-400"}`}>
@@ -386,7 +386,7 @@ export const LoansPage: React.FC = () => {
                               </span>
                             </td>
                             <td className="px-4 py-3">
-                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${urgency.badge}`}>
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap ${urgency.badge}`}>
                                 {urgency.icon}
                                 {urgency.days > 0 ? `${urgency.days}d remaining` : urgency.days === 0 ? "Due today" : `${Math.abs(urgency.days)}d overdue`}
                               </span>

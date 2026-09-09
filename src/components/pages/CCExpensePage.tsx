@@ -606,7 +606,7 @@ export const CCExpensePage: React.FC = () => {
         <div className="flex items-center gap-2.5">
           <CreditCard className={`w-5 h-5 ${isLight ? "text-[#1a73e8]" : "text-[#4f9cf9]"}`} />
           <h1 className="text-[15px] font-semibold">CC Expenses</h1>
-          <span className={`text-[11px] px-1.5 py-0.5 rounded ${isLight ? "bg-slate-100 text-slate-500" : "bg-[#1a2235] text-slate-400"}`}>
+          <span className={`text-[11px] px-1.5 py-0.5 rounded whitespace-nowrap hidden sm:inline ${isLight ? "bg-slate-100 text-slate-500" : "bg-[#1a2235] text-slate-400"}`}>
             4Grace_CC_Expense
           </span>
         </div>
@@ -654,7 +654,7 @@ export const CCExpensePage: React.FC = () => {
             )}
           </div>
           {/* Add new account */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <input
               value={newPattern}
               onChange={e => setNewPattern(e.target.value)}

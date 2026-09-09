@@ -475,7 +475,7 @@ export const BankStatementsPage: React.FC = () => {
             <h3 className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-slate-800" : "text-white"} flex items-center gap-2`}>
               <FileText className="w-4 h-4 text-[#9ca3af]" /> Bank Statements Audit & Log
             </h3>
-            <span className={`text-[11px] ${isLight ? "text-slate-500" : "text-[#888]"}`}>
+            <span className={`text-[11px] hidden sm:inline ${isLight ? "text-slate-500" : "text-[#888]"}`}>
               Click button to toggle downloaded status and sync with Google Sheets
             </span>
           </div>
