@@ -348,25 +348,27 @@ const BillDetail: React.FC<{
                 <p className={`text-[11px] leading-relaxed whitespace-pre-wrap ${isLight ? "text-slate-600" : "text-[#bbb]"}`}>{remarksText}</p>
               </div>
             )}
-            {payInstText && (
+            {(payInstText || payHistoryLines || status1Text) && (
               <div>
-                <span className={`text-[9px] font-bold uppercase tracking-wider block mb-0.5 ${isLight ? "text-slate-400" : "text-[#666]"}`}>Payment Instructions</span>
-                {payInstText.startsWith("http") ? (
-                  <a href={payInstText} target="_blank" rel="noreferrer"
-                    className="flex items-center gap-1 text-[11px] font-medium truncate hover:underline"
-                    style={{ color: accentColor }}>
-                    <ExternalLink className="w-3 h-3 shrink-0" />
-                    <span className="truncate">{payInstText}</span>
-                  </a>
-                ) : (
-                  <p className={`text-[11px] leading-relaxed whitespace-pre-wrap ${isLight ? "text-slate-600" : "text-[#bbb]"}`}>{payInstText}</p>
+                <span className={`text-[9px] font-bold uppercase tracking-wider block mb-0.5 ${isLight ? "text-slate-400" : "text-[#666]"}`}>Payment Instructions / Status</span>
+                {payInstText && (
+                  payInstText.startsWith("http") ? (
+                    <a href={payInstText} target="_blank" rel="noreferrer"
+                      className="flex items-center gap-1 text-[11px] font-medium truncate hover:underline mb-1"
+                      style={{ color: accentColor }}>
+                      <ExternalLink className="w-3 h-3 shrink-0" />
+                      <span className="truncate">{payInstText}</span>
+                    </a>
+                  ) : (
+                    <p className={`text-[11px] leading-relaxed whitespace-pre-wrap ${isLight ? "text-slate-600" : "text-[#bbb]"} ${(payHistoryLines || status1Text) ? "mb-1" : ""}`}>{payInstText}</p>
+                  )
                 )}
-              </div>
-            )}
-            {(payHistoryLines || status1Text) && (
-              <div>
-                <span className={`text-[9px] font-bold uppercase tracking-wider block mb-0.5 ${isLight ? "text-slate-400" : "text-[#666]"}`}>Payment History</span>
-                <p className={`text-[11px] leading-relaxed whitespace-pre-wrap font-mono ${isLight ? "text-slate-600" : "text-[#bbb]"}`}>{payHistoryLines || status1Text}</p>
+                {(payHistoryLines || status1Text) && (payInstText) && (
+                  <div className={`border-t my-1 ${isLight ? "border-slate-200" : "border-[#333]"}`} />
+                )}
+                {(payHistoryLines || status1Text) && (
+                  <p className={`text-[11px] leading-relaxed whitespace-pre-wrap font-mono ${isLight ? "text-slate-600" : "text-[#bbb]"}`}>{payHistoryLines || status1Text}</p>
+                )}
               </div>
             )}
             {paidViaText && (
