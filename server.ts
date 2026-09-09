@@ -312,12 +312,14 @@ async function syncLiveDataFromSheets(accessToken?: string) {
           const sk = apBillStableKey(b);
           const pf = portalFieldsMap.get(sk);
           if (!pf) return b;
+          // If sheet amount matches the stored originalAmount, the sheet was reset — clear partial tracking
+          const sheetWasReset = pf.originalAmount && Math.abs(b.amount - pf.originalAmount) < 0.01;
           return {
             ...b,
             ...(pf.url ? { driveViewUrl: pf.url, driveFileName: pf.name } : {}),
-            ...(pf.partialPaid ? { partialPaid: pf.partialPaid, paidDate: pf.paidDate } : {}),
-            ...(pf.originalAmount ? { originalAmount: pf.originalAmount } : {}),
-            ...(pf.partialPayments ? { partialPayments: pf.partialPayments } : {}),
+            ...(!sheetWasReset && pf.partialPaid ? { partialPaid: pf.partialPaid, paidDate: pf.paidDate } : {}),
+            ...(!sheetWasReset && pf.originalAmount ? { originalAmount: pf.originalAmount } : {}),
+            ...(!sheetWasReset && pf.partialPayments ? { partialPayments: pf.partialPayments } : {}),
           };
         })
       : current.ap;
