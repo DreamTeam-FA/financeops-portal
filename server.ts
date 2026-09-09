@@ -283,21 +283,39 @@ async function syncLiveDataFromSheets(accessToken?: string) {
     // Rule #1: Sheet is ALWAYS source of truth.
     // When the sheet is fetched and returns items, use it DIRECTLY — no merge with stored cache.
     // This ensures bills deleted from the sheet immediately disappear from the portal on Pull All.
-    // The only portal-only field not in the sheet is driveViewUrl — re-apply from stored data.
-    const driveUrlMap = new Map<string, { url: string; name?: string }>();
+    // Portal-only fields (driveViewUrl, partialPaid, paidDate) are re-applied where the bill still exists.
+    type StoredPortalFields = { url?: string; name?: string; partialPaid?: number; paidDate?: string; storedAmount?: number };
+    const portalFieldsMap = new Map<string, StoredPortalFields>();
     (current.ap || []).forEach((b: any) => {
-      if (b.driveViewUrl) {
+      if (b.driveViewUrl || b.partialPaid) {
         const sk = apBillStableKey(b);
-        driveUrlMap.set(sk, { url: b.driveViewUrl, name: b.driveFileName });
+        portalFieldsMap.set(sk, {
+          url: b.driveViewUrl,
+          name: b.driveFileName,
+          partialPaid: b.partialPaid,
+          paidDate: b.paidDate,
+          storedAmount: b.amount,  // used to detect if sheet formula already deducted the partial
+        });
       }
     });
 
-    // AP: replace entirely from sheet. Re-apply portal-only driveViewUrls where stable key matches.
+    // AP: replace entirely from sheet. Re-apply portal-only fields where stable key matches.
+    // partialPaid is only re-applied if the sheet amount hasn't changed — i.e. the partial formula
+    // hasn't been evaluated yet (amount still = original). Once the formula runs (amount reduced),
+    // partialPaid is no longer needed (the amount itself is already the remaining balance).
     // If live returned 0 items (token expired / GViz failure), preserve stored to avoid wipe.
     const freshAP = liveApCount > 0
       ? (liveData.ap || []).map((b: any) => {
-          const stored = driveUrlMap.get(apBillStableKey(b));
-          return stored ? { ...b, driveViewUrl: stored.url, driveFileName: stored.name } : b;
+          const sk = apBillStableKey(b);
+          const pf = portalFieldsMap.get(sk);
+          if (!pf) return b;
+          const amountUnchanged = pf.storedAmount !== undefined && Math.abs(b.amount - pf.storedAmount) < 0.01;
+          return {
+            ...b,
+            ...(pf.url ? { driveViewUrl: pf.url, driveFileName: pf.name } : {}),
+            // Only keep partialPaid if the sheet amount hasn't been reduced yet by the formula
+            ...(pf.partialPaid && amountUnchanged ? { partialPaid: pf.partialPaid, paidDate: pf.paidDate } : {}),
+          };
         })
       : current.ap;
 
