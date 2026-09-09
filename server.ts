@@ -182,7 +182,9 @@ function mergeDatasets(liveList: any[] | null | undefined, currentList: any[], i
       // IMPORTANT: Ruby's/MSDx liveItem has "paymentInstructions" not "remarks".
       // If liveItem doesn't have a given field, we still must set it to undefined in the
       // merge so the spread overwrites any stale value from currentItem.
-      const ANNOTATION_FIELDS = ["remarks", "paymentInstructions", "status1", "paidVia"] as const;
+      // description, category, invoiceNo: must also come from live sheet.
+      // If the sheet cell is empty, these must be cleared — never let stale JSON values survive.
+      const ANNOTATION_FIELDS = ["remarks", "paymentInstructions", "status1", "paidVia", "description", "category", "invoiceNo"] as const;
       const liveItemDefined = Object.fromEntries(
         Object.entries(liveItem).filter(([_k, v]) => v !== undefined && v !== null && v !== "")
       );
