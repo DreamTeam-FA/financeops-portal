@@ -367,14 +367,14 @@ export const WorkflowsPage: React.FC = () => {
   const partial = workflows.length > 0 && workflows.length < TOTAL;
 
   return (
-    <div className={`flex h-full overflow-hidden ${isLight ? "bg-[#f8fafc]" : "bg-[#050c18]"}`}>
+    <div className={`flex flex-col md:flex-row h-full overflow-hidden ${isLight ? "bg-[#f8fafc]" : "bg-[#050c18]"}`}>
 
       {/* ── Left Sidebar ── */}
-      <aside className={`w-[220px] shrink-0 flex flex-col border-r ${
+      <aside className={`md:w-[220px] shrink-0 flex flex-col md:border-r border-b md:border-b-0 ${
         isLight ? "bg-white border-slate-200" : "bg-[#070d1c] border-[#132035]"
       }`}>
-        {/* Header */}
-        <div className={`px-4 pt-5 pb-4 border-b ${isLight ? "border-slate-100" : "border-[#132035]"}`}>
+        {/* Header — hidden on mobile to save space */}
+        <div className={`hidden md:block px-4 pt-5 pb-4 border-b ${isLight ? "border-slate-100" : "border-[#132035]"}`}>
           <div className="flex items-center gap-2.5">
             <div className="p-1.5 rounded-lg" style={{ background: isLight ? "#eff6ff" : "#0d1f3c" }}>
               <BookOpen className="w-3.5 h-3.5" style={{ color: "#3b82f6" }} />
@@ -390,8 +390,8 @@ export const WorkflowsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Nav list */}
-        <nav className="flex-1 overflow-y-auto py-2.5 px-2">
+        {/* Nav list — horizontal scroll on mobile, vertical on desktop */}
+        <nav className="flex-1 overflow-x-auto md:overflow-x-hidden overflow-y-hidden md:overflow-y-auto py-2 md:py-2.5 px-2 flex flex-row md:flex-col gap-0">
           {loading && !workflows.length
             ? Array.from({ length: 9 }).map((_, i) => (
                 <div key={i} className={`h-8 rounded-xl mb-1.5 animate-pulse ${isLight ? "bg-slate-100" : "bg-[#132035]/60"}`} />
@@ -401,7 +401,7 @@ export const WorkflowsPage: React.FC = () => {
                 const isActive = wf.id === activeId;
                 return (
                   <button key={wf.id} onClick={() => setActiveId(wf.id)}
-                    className={`w-full text-left px-2.5 py-2 flex items-center gap-2.5 rounded-xl mb-px text-[12px] font-medium transition-all ${
+                    className={`shrink-0 md:w-full text-left px-2.5 py-2 flex items-center gap-2 md:gap-2.5 rounded-xl mb-px text-[12px] font-medium transition-all whitespace-nowrap md:whitespace-normal ${
                       isActive
                         ? isLight ? "text-blue-700 font-semibold" : "text-blue-300 font-semibold"
                         : isLight ? "text-slate-500 hover:bg-slate-50 hover:text-slate-700" : "text-slate-600 hover:bg-[#0d1525] hover:text-slate-400"
@@ -418,8 +418,8 @@ export const WorkflowsPage: React.FC = () => {
           }
         </nav>
 
-        {/* Refresh footer */}
-        <div className={`px-3 py-3 border-t ${isLight ? "border-slate-100" : "border-[#132035]"}`}>
+        {/* Refresh footer — hidden on mobile */}
+        <div className={`hidden md:block px-3 py-3 border-t ${isLight ? "border-slate-100" : "border-[#132035]"}`}>
           <button onClick={() => load(true)} disabled={loading}
             className={`w-full flex items-center justify-center gap-1.5 text-[11px] font-medium py-1.5 rounded-lg transition-all ${
               isLight ? "text-slate-400 hover:text-blue-600 hover:bg-blue-50" : "text-slate-600 hover:text-blue-400 hover:bg-[#0d1f3c]/50"
@@ -465,7 +465,7 @@ export const WorkflowsPage: React.FC = () => {
             ))}
           </div>
         ) : (
-          <div className="px-8 py-8 min-w-0 break-words">
+          <div className="px-4 py-4 md:px-8 md:py-8 min-w-0 break-words">
 
             {/* Partial-load notice */}
             {partial && (

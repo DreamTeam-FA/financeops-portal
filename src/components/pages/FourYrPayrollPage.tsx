@@ -1371,7 +1371,8 @@ export function FourYrPayrollPage() {
       </div>
 
       {/* ── Filter bar (GAS: .filter-bar) ── */}
-      <div className={`shrink-0 flex flex-wrap items-end gap-2.5 px-5 py-2.5 border-b ${bdr}`} style={{ background:isLight?"#fff":"#0f0f0f" }}>
+      <div className={`shrink-0 overflow-x-auto border-b ${bdr}`} style={{ background:isLight?"#fff":"#0f0f0f" }}>
+      <div className="flex items-end gap-2.5 px-5 py-2.5 min-w-max">
         {/* Year */}
         <div className="flex flex-col gap-0.5">
           <label className={`text-[10px] font-bold uppercase tracking-widest ${txt2}`}>Year</label>
@@ -1490,23 +1491,24 @@ export function FourYrPayrollPage() {
             {startingWeek ? "⏳" : "🗓️"}
           </button>
         </div>
-      </div>
+      </div>{/* end min-w-max */}
+      </div>{/* end overflow-x-auto */}
 
       {weekDropOpen && <div className="fixed inset-0 z-40" onClick={() => setWeekDropOpen(false)} />}
       {ssMenuOpen   && <div className="fixed inset-0 z-[599]" onClick={() => setSsMenuOpen(false)} />}
 
       {/* ── KPI Strip (GAS: .kpi-row) ── */}
-      <div className={`shrink-0 flex flex-wrap gap-3 px-5 py-3 border-b ${bdr}`} style={{ background:isLight?"#f4f7f5":"#0f0f0f" }}>
+      <div className={`shrink-0 grid grid-cols-2 md:flex md:flex-wrap gap-2 md:gap-3 px-4 md:px-5 py-2 md:py-3 border-b ${bdr}`} style={{ background:isLight?"#f4f7f5":"#0f0f0f" }}>
         {[
           { label:"Total Hours",  val:fmtHrs(totals.hours),  sub:"Logged hrs",    c:isLight?"#1a6b36":"#52b788" },
           { label:"Total Amount", val:fmtAmt(totals.amount), sub:"Gross payroll", c:isLight?"#1a6b36":"#52b788" },
           { label:"Entries",      val:String(rows.length),   sub:"Time records",  c:"#7c3aed" },
           { label:"Workers",      val:String(kpiWorkers),    sub:"Unique names",  c:"#d97706" },
         ].map(k => (
-          <div key={k.label} className={`rounded-lg border ${bdr} px-4 py-3`} style={{ background:isLight?"#fff":"#22262f", boxShadow:"0 2px 8px rgba(0,0,0,.08)", minWidth:130 }}>
-            <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${txt2}`}>{k.label}</p>
-            <p className="text-[22px] font-bold tabular-nums leading-tight" style={{ color:k.c }}>{k.val}</p>
-            <p className={`text-[10px] mt-0.5 ${txt2}`}>{k.sub}</p>
+          <div key={k.label} className={`rounded-lg border ${bdr} px-3 md:px-4 py-2 md:py-3`} style={{ background:isLight?"#fff":"#22262f", boxShadow:"0 2px 8px rgba(0,0,0,.08)", minWidth:0 }}>
+            <p className={`text-[9px] md:text-[10px] font-bold uppercase tracking-widest mb-0.5 md:mb-1 ${txt2}`}>{k.label}</p>
+            <p className="text-[18px] md:text-[22px] font-bold tabular-nums leading-tight" style={{ color:k.c }}>{k.val}</p>
+            <p className={`text-[9px] md:text-[10px] mt-0.5 ${txt2}`}>{k.sub}</p>
           </div>
         ))}
       </div>
@@ -1515,10 +1517,10 @@ export function FourYrPayrollPage() {
       {mainTab === "payroll" ? (
         <>
           {/* Inner tabs (GAS: .tabs / .tab) */}
-          <div className={`shrink-0 flex items-center gap-0.5 px-5 pt-3 border-b ${bdr}`}>
+          <div className={`shrink-0 flex items-center gap-0.5 px-2 md:px-5 pt-2 md:pt-3 border-b ${bdr} overflow-x-auto`}>
             {([{id:"grouped",l:"🗂️ Weekly Summary"},{id:"pivot",l:"📅 Summary by Date"},{id:"detail",l:"📋 Detail Log"}] as {id:Tab;l:string}[]).map(t => (
               <button key={t.id} onClick={() => setActiveTab(t.id)}
-                className={`px-4 py-2 text-xs font-semibold rounded-t transition-all -mb-px border border-b-0`}
+                className={`px-3 md:px-4 py-1.5 md:py-2 text-xs font-semibold rounded-t transition-all -mb-px border border-b-0 whitespace-nowrap shrink-0`}
                 style={{
                   background: activeTab===t.id ? (isLight?"#fff":"#22262f") : isLight?"#e8f2eb":"#1a1a1a",
                   color: activeTab===t.id ? (isLight?"#1a6b36":"#52b788") : isLight?"#6b8f71":"#8b96ab",
@@ -1529,8 +1531,8 @@ export function FourYrPayrollPage() {
             ))}
           </div>
           {/* Tab body (GAS: .tab-body) */}
-          <div className={`flex-1 min-h-0 overflow-hidden flex flex-col px-5 py-4 border ${bdr} rounded-bl rounded-br`}
-            style={{ background:isLight?"#fff":"#22262f", margin:"0 8px 8px 8px" }}>
+          <div className={`flex-1 min-h-0 overflow-hidden flex flex-col px-2 py-2 md:px-5 md:py-4 border ${bdr} rounded-bl rounded-br`}
+            style={{ background:isLight?"#fff":"#22262f", margin:"0 4px 4px 4px" }}>
             {activeTab==="grouped" && renderGrouped()}
             {activeTab==="pivot"   && renderPivot()}
             {activeTab==="detail"  && renderDetail()}

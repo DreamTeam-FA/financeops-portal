@@ -299,7 +299,7 @@ export const LoansPage: React.FC = () => {
                               <span className={`px-1 py-0.5 rounded text-[8px] font-bold ${getEntityBadge(l.entity)}`}>
                                 {l.entity}
                               </span>
-                              <span className={`px-1 py-0.5 rounded text-[8px] font-bold ${isCreditCard(l) ? "bg-purple-500/20 text-purple-600 dark:text-purple-400" : "bg-blue-500/20 text-blue-600 dark:text-blue-400"}`}>
+                              <span className={`px-1 py-0.5 rounded text-[8px] font-bold whitespace-nowrap ${isCreditCard(l) ? "bg-purple-500/20 text-purple-600 dark:text-purple-400" : "bg-blue-500/20 text-blue-600 dark:text-blue-400"}`}>
                                 {cardType}
                               </span>
                             </div>
@@ -373,7 +373,7 @@ export const LoansPage: React.FC = () => {
                               <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${getEntityBadge(l.entity)}`}>{l.entity}</span>
                             </td>
                             <td className="px-4 py-3">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${isCreditCard(l) ? "bg-purple-500/20 text-purple-600 dark:text-purple-400" : "bg-blue-500/20 text-blue-600 dark:text-blue-400"}`}>
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap ${isCreditCard(l) ? "bg-purple-500/20 text-purple-600 dark:text-purple-400" : "bg-blue-500/20 text-blue-600 dark:text-blue-400"}`}>
                                 {isCreditCard(l) ? "Credit Card" : "Term Loan"}
                               </span>
                             </td>

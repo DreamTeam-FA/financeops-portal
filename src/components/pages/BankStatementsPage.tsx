@@ -28,6 +28,21 @@ const FALLBACK_BANKS = [
   { entity: "4G",     bank: "Chase 4011",             cycle: "Monthly", remarks: "", statementDate: "", requestDate: "", downloaded: false },
 ];
 
+/** Format a raw statementDate value (may be "YYYY-MM-DD|YYYY-MM-DD" pipe range, ISO, or plain text). */
+function formatStmtDate(raw: string): string {
+  if (!raw) return "";
+  if (raw.includes("|")) {
+    const [start, end] = raw.split("|");
+    const fmt = (iso: string) => {
+      const d = new Date(iso + "T00:00:00");
+      return isNaN(d.getTime()) ? iso : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    };
+    return `${fmt(start)} – ${fmt(end)}`;
+  }
+  const d = new Date(raw + (raw.includes("T") ? "" : "T00:00:00"));
+  return isNaN(d.getTime()) ? raw : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
 /* ── Generate Monthly Entries Modal ────────────────────────────────────────── */
 const GenerateMonthlyModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
   const { addBankStatementsBatch, theme, statementTemplates } = useFinance() as any;
@@ -491,8 +506,8 @@ export const BankStatementsPage: React.FC = () => {
                     <td className={`p-3 font-semibold ${isLight ? "text-slate-900" : "text-white"}`}>{cleanBankName(s.bankName, s.entity)}</td>
                     <td className={`p-3 ${isLight ? "text-slate-600" : "text-[#888]"}`}>{s.occurrence}</td>
                     <td className={`p-3 ${isLight ? "text-slate-600" : "text-[#888]"} hidden sm:table-cell`}>{s.remarks}</td>
-                    <td className={`p-3 ${isLight ? "text-slate-600" : "text-[#888]"}`}>{s.statementDate}</td>
-                    <td className={`p-3 ${isLight ? "text-slate-600" : "text-[#888]"}`}>{s.requestDate}</td>
+                    <td className={`p-3 ${isLight ? "text-slate-600" : "text-[#888]"}`}>{formatStmtDate(s.statementDate)}</td>
+                    <td className={`p-3 ${isLight ? "text-slate-600" : "text-[#888]"}`}>{formatStmtDate(s.requestDate)}</td>
                     <td className="p-3">
                       {s.downloaded ? (
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold bg-[#16a34a]/20 ${isLight ? "text-emerald-600" : "text-[#4ade80]"}`}>
