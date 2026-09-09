@@ -156,6 +156,7 @@ export const CalendarPage: React.FC = () => {
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [calendarView, setCalendarView] = useState<"week" | "month">("month");
+  const [selectedMobileDay, setSelectedMobileDay] = useState<string | null>(null);
   const [googleEvents, setGoogleEvents] = useState<GoogleCalendarEvent[]>([]);
   const [loadingGoogleCal, setLoadingGoogleCal] = useState(false);
   const [hasGoogleToken, setHasGoogleToken] = useState(() => !!getAccessToken());
@@ -1353,7 +1354,9 @@ export const CalendarPage: React.FC = () => {
                   return (
                     <div
                       key={`day-${dayNum}`}
-                      className={`min-h-[100px] p-1.5 text-xs transition-colors group relative ${
+                      onClick={() => setSelectedMobileDay(prev => prev === dateKey ? null : dateKey)}
+                      className={`min-h-[100px] p-1.5 text-xs transition-colors group relative cursor-pointer ${
+                        selectedMobileDay === dateKey ? (isLight ? "bg-teal-50 ring-1 ring-[#0d9488]" : "bg-[#0d9488]/10 ring-1 ring-[#0d9488]") :
                         isToday ? "bg-[#0d9488]/10 border border-[#0d9488]" : isLight ? "hover:bg-slate-50" : "hover:bg-white/5"
                       }`}
                     >
@@ -1513,6 +1516,112 @@ export const CalendarPage: React.FC = () => {
         </div>
 
       </div>
+
+      {/* Mobile Day Agenda Panel — shown on small screens when a day is tapped in month view */}
+      {selectedMobileDay && calendarView === "month" && (() => {
+        const dayEvents = eventsByDate[selectedMobileDay] || [];
+        const dayApBills = apBillsByDate[selectedMobileDay] || [];
+        const dayArItems = arByDate[selectedMobileDay] || [];
+        const [y, m, d] = selectedMobileDay.split("-").map(Number);
+        const dayLabel = new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+        const totalApAmt = dayApBills.reduce((sum, b) => sum + b.amount, 0);
+        const totalArAmt = dayArItems.reduce((sum, a) => sum + a.amount, 0);
+        const hasAnything = dayEvents.length > 0 || (showApBillsFilter && dayApBills.length > 0) || (showArFilter && dayArItems.length > 0);
+        return (
+          <div className={`sm:hidden mx-3 mb-3 rounded-2xl border overflow-hidden ${isLight ? "bg-white border-slate-200" : "bg-[#0d1525] border-[#1e3457]"}`}>
+            {/* Header */}
+            <div className={`flex items-center justify-between px-4 py-3 border-b ${isLight ? "border-slate-100 bg-slate-50" : "border-[#132035] bg-[#0a1220]"}`}>
+              <span className={`text-[13px] font-bold ${isLight ? "text-slate-800" : "text-white"}`}>{dayLabel}</span>
+              <button
+                onClick={() => setSelectedMobileDay(null)}
+                className={`w-6 h-6 flex items-center justify-center rounded-lg text-base leading-none ${isLight ? "text-slate-400 hover:bg-slate-200" : "text-slate-500 hover:bg-white/10"}`}
+              >×</button>
+            </div>
+            {/* Event List */}
+            <div className="px-3 py-2 space-y-1.5 max-h-72 overflow-y-auto">
+              {!hasAnything && (
+                <p className={`text-[12px] py-2 text-center ${isLight ? "text-slate-400" : "text-slate-500"}`}>No events on this day</p>
+              )}
+              {/* AP Bills */}
+              {showApBillsFilter && dayApBills.map((b, bi) => {
+                const apColor = getApDueDateColor(selectedMobileDay, [b]);
+                if (!apColor) return null;
+                return (
+                  <div key={`ap-${bi}`}
+                    onClick={() => setSelectedEvent({ title: `${b.company || "AP"}: ${b.vendor}`, type: "AP BILLS", date: selectedMobileDay, amount: b.amount, description: `${b.company || "AP"} · ${b.vendor} · $${(Number(b.amount)||0).toFixed(2)} [${b.status||"Unpaid"}]` })}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl cursor-pointer ${apColor.bg} transition-opacity hover:opacity-90`}
+                  >
+                    <span className="text-base shrink-0">📋</span>
+                    <div className="min-w-0">
+                      <p className={`text-[12px] font-bold leading-tight ${apColor.text} truncate`}>{b.vendor}</p>
+                      <p className={`text-[11px] ${apColor.text} opacity-70`}>{b.company || "AP"} · ${(Number(b.amount)||0).toLocaleString("en-US",{minimumFractionDigits:2})} · {b.status||"Unpaid"}</p>
+                    </div>
+                  </div>
+                );
+              })}
+              {/* AR Items */}
+              {showArFilter && dayArItems.map((a, ai) => (
+                <div key={`ar-${ai}`}
+                  onClick={() => setSelectedEvent({ title: `AR: ${a.customer}`, type: "AR", date: selectedMobileDay, amount: a.amount, description: `${a.customer}${a.amount > 0 ? ` · $${a.amount.toFixed(2)}` : ""} [Open]` })}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl cursor-pointer bg-orange-500/15 transition-opacity hover:opacity-90"
+                >
+                  <span className="text-base shrink-0">🧾</span>
+                  <div className="min-w-0">
+                    <p className="text-[12px] font-bold leading-tight text-orange-700 dark:text-orange-300 truncate">{a.customer}</p>
+                    {a.amount > 0 && <p className="text-[11px] text-orange-600 dark:text-orange-400 opacity-80">${a.amount.toLocaleString("en-US",{minimumFractionDigits:2})} · Open</p>}
+                  </div>
+                </div>
+              ))}
+              {/* Calendar Events */}
+              {dayEvents.map((ev, idx) => {
+                const style = getChipStyle(ev.type, ev.category, ev.urgency);
+                const icon = getEventIcon(ev.type, ev.category);
+                const cleanLabel = ev.label.replace(/^\[[^\]]+\]\s*/, "");
+                return (
+                  <div key={idx}
+                    onClick={() => {
+                      const sel = {
+                        title: ev.label, type: ev.type, date: selectedMobileDay,
+                        time: ev.time, endTime: ev.endTime, description: ev.description || "",
+                        id: ev.id, isLocalTask: ev.isLocalTask, urgency: ev.urgency,
+                        assignee: ev.assignee, assigneeColor: ev.assigneeColor, assigneeIds: ev.assigneeIds,
+                        done: ev.done, sheetRow: ev.sheetRow, category: ev.category, entity: (ev as any).entity || "",
+                      };
+                      setSelectedEvent(sel);
+                      setEditTitle(cleanLabel);
+                      setEditDate(sel.date);
+                      setEditTime(sel.time || "");
+                      setEditCategory((sel.category as any) || "task");
+                      setEditUrgency((sel.urgency as any) || "normal");
+                      setEditAssignee(sel.assignee || "");
+                      setEditDesc(sel.description || "");
+                      setIsEditingEvent(false);
+                    }}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl cursor-pointer ${style.bg} ${ev.done ? "opacity-50" : ""} transition-opacity hover:opacity-90`}
+                  >
+                    {icon && <span className="text-base shrink-0 leading-none">{icon}</span>}
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-[12px] font-bold leading-tight ${style.text} ${ev.done ? "line-through" : ""}`}>{cleanLabel}</p>
+                      {(ev.time || ev.assignee) && (
+                        <p className={`text-[11px] ${style.text} opacity-70`}>
+                          {ev.time ? to12h(ev.time) : ""}{ev.time && ev.assignee ? " · " : ""}{ev.assignee || ""}
+                        </p>
+                      )}
+                    </div>
+                    {ev.urgency && ev.urgency !== "normal" && (
+                      <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                        ev.urgency === "critical" ? "bg-red-500/20 text-red-400" :
+                        ev.urgency === "high" ? "bg-amber-500/20 text-amber-400" :
+                        "bg-slate-500/20 text-slate-400"
+                      }`}>{ev.urgency}</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Selected Event Details Modal */}
       {selectedEvent && !selectedEvent.billsList && !selectedEvent.arList && (() => {

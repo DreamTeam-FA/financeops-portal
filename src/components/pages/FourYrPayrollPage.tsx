@@ -1262,10 +1262,10 @@ export function FourYrPayrollPage() {
         {/* Logo on white pill — same pattern as GAS .topbar-logo-fallback */}
         <div className="flex items-center gap-2.5 shrink-0">
           <div style={{ height:38, display:"flex", alignItems:"center", padding:"2px 10px", background:"#fff", borderRadius:5, flexShrink:0 }}>
-            <img src="/logos/4yr.png" alt="4YouPros" style={{ maxHeight:30, maxWidth:130, objectFit:"contain", display:"block" }} />
+            <img src="/logos/4yr.png" alt="4YouPros" style={{ maxHeight:30, maxWidth:100, objectFit:"contain", display:"block" }} />
           </div>
-          <div className="w-px h-7" style={{ background:"rgba(255,255,255,.25)" }} />
-          <span className="text-white font-bold text-[15px] tracking-tight whitespace-nowrap">Payroll Dashboard</span>
+          <div className="w-px h-7 hidden sm:block" style={{ background:"rgba(255,255,255,.25)" }} />
+          <span className="text-white font-bold text-[15px] tracking-tight whitespace-nowrap hidden sm:inline">Payroll Dashboard</span>
         </div>
         {selectedWeeks.length > 0 && (
           <span className="text-[11px] text-white/90 px-2.5 py-1 rounded-full font-semibold whitespace-nowrap hidden sm:inline" style={{ background:"rgba(255,255,255,.18)" }}>

@@ -92,7 +92,52 @@ const WorkflowDiagram: React.FC<{ rows: string[][]; isLight: boolean; accent: st
   const dataRows = rows.slice(1);
   return (
     <div className="mb-8 mt-2">
-      <div className="overflow-x-auto pb-3">
+      {/* Mobile: vertical stack */}
+      <div className="flex flex-col gap-0 md:hidden">
+        {headers.map((header, i) => {
+          const persons = dataRows.map(r => (r[i] || "").trim()).filter(Boolean);
+          return (
+            <React.Fragment key={i}>
+              <div className={`relative flex flex-col rounded-2xl overflow-hidden border transition-all duration-200 ${
+                isLight
+                  ? "bg-white border-slate-200"
+                  : "bg-[#0d1a2e] border-[#1e3457]"
+              }`} style={{ boxShadow: isLight ? "0 2px 8px rgba(0,0,0,0.06)" : "0 2px 12px rgba(0,0,0,0.3)" }}>
+                <div className="h-[3px] w-full" style={{ background: accent }} />
+                <div className={`px-3.5 pt-3 pb-2 border-b ${isLight ? "border-slate-100" : "border-[#1e3457]"}`}>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
+                      style={{ background: accent }}>{i + 1}</span>
+                    <span className={`text-[9px] font-extrabold uppercase tracking-[0.12em] leading-tight ${
+                      isLight ? "text-slate-400" : "text-slate-500"
+                    }`}>{header}</span>
+                  </div>
+                </div>
+                <div className="px-3.5 py-3 flex flex-row flex-wrap gap-2">
+                  {persons.length > 0
+                    ? persons.map((p, pi) => (
+                        <span key={pi} className={`text-[14px] font-bold leading-tight ${
+                          isLight ? "text-slate-800" : "text-white"
+                        }`}>{renderMd(p)}</span>
+                      ))
+                    : <span className={`text-[12px] ${isLight ? "text-slate-300" : "text-[#334]"}`}>—</span>
+                  }
+                </div>
+              </div>
+              {i < headers.length - 1 && (
+                <div className="flex flex-col items-center py-1.5">
+                  <div className="w-px h-4" style={{ background: isLight ? "#cbd5e1" : "#1e3457" }} />
+                  <svg width="10" height="6" viewBox="0 0 10 6" fill="none" style={{ marginTop:-2 }}>
+                    <path d="M1 1l4 4 4-4" stroke={isLight ? "#94a3b8" : "#1e3457"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div>
+      {/* Desktop: horizontal flow */}
+      <div className="hidden md:block overflow-x-auto pb-3">
         <div className="flex items-stretch gap-0 min-w-max">
           {headers.map((header, i) => {
             const persons = dataRows.map(r => (r[i] || "").trim()).filter(Boolean);
@@ -103,9 +148,7 @@ const WorkflowDiagram: React.FC<{ rows: string[][]; isLight: boolean; accent: st
                     ? "bg-white border-slate-200 hover:border-slate-300 hover:shadow-md"
                     : "bg-[#0d1a2e] border-[#1e3457] hover:border-[#2a4a7f]"
                 }`} style={{ boxShadow: isLight ? "0 2px 8px rgba(0,0,0,0.06)" : "0 2px 12px rgba(0,0,0,0.3)" }}>
-                  {/* Accent top bar */}
                   <div className="h-[3px] w-full" style={{ background: accent }} />
-                  {/* Header */}
                   <div className={`px-3.5 pt-3 pb-2 border-b ${isLight ? "border-slate-100" : "border-[#1e3457]"}`}>
                     <div className="flex items-center gap-2 mb-1.5">
                       <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
@@ -115,7 +158,6 @@ const WorkflowDiagram: React.FC<{ rows: string[][]; isLight: boolean; accent: st
                       }`}>{header}</span>
                     </div>
                   </div>
-                  {/* Person */}
                   <div className="px-3.5 py-4 flex-1 flex flex-col items-center justify-center text-center gap-1">
                     {persons.length > 0
                       ? persons.map((p, pi) => (
@@ -390,8 +432,25 @@ export const WorkflowsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Nav list — horizontal scroll on mobile, vertical on desktop */}
-        <nav className="flex-1 overflow-x-auto md:overflow-x-hidden overflow-y-hidden md:overflow-y-auto py-2 md:py-2.5 px-2 flex flex-row md:flex-col gap-0">
+        {/* Mobile: dropdown selector */}
+        {!loading && workflows.length > 0 && (
+          <div className={`md:hidden px-3 py-2.5 border-b ${isLight ? "border-slate-200" : "border-[#132035]"}`}>
+            <select
+              value={activeId || ""}
+              onChange={e => setActiveId(e.target.value)}
+              className={`w-full rounded-xl border px-3 py-2.5 text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${
+                isLight ? "bg-white border-slate-200 text-slate-700" : "bg-[#0d1525] border-[#1e3457] text-slate-200"
+              }`}
+            >
+              {workflows.map(wf => (
+                <option key={wf.id} value={wf.id}>{wf.title}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Desktop: vertical nav list */}
+        <nav className="hidden md:flex flex-1 overflow-x-hidden overflow-y-auto py-2.5 px-2 flex-col gap-0">
           {loading && !workflows.length
             ? Array.from({ length: 9 }).map((_, i) => (
                 <div key={i} className={`h-8 rounded-xl mb-1.5 animate-pulse ${isLight ? "bg-slate-100" : "bg-[#132035]/60"}`} />
@@ -401,7 +460,7 @@ export const WorkflowsPage: React.FC = () => {
                 const isActive = wf.id === activeId;
                 return (
                   <button key={wf.id} onClick={() => setActiveId(wf.id)}
-                    className={`shrink-0 md:w-full text-left px-2.5 py-2 flex items-center gap-2 md:gap-2.5 rounded-xl mb-px text-[12px] font-medium transition-all whitespace-nowrap md:whitespace-normal ${
+                    className={`w-full text-left px-2.5 py-2 flex items-center gap-2.5 rounded-xl mb-px text-[12px] font-medium transition-all ${
                       isActive
                         ? isLight ? "text-blue-700 font-semibold" : "text-blue-300 font-semibold"
                         : isLight ? "text-slate-500 hover:bg-slate-50 hover:text-slate-700" : "text-slate-600 hover:bg-[#0d1525] hover:text-slate-400"
