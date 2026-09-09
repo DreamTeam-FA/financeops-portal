@@ -152,12 +152,15 @@ const BillDetail: React.FC<{
   const payInstText    = bill.paymentInstructions || "";
   const status1Text    = bill.status1 || "";
   const paidViaText    = bill.paidVia || "";
+  // If paidVia contains payment history lines (YYYY.MM.DD - $amt), treat it as history (TI uses this col)
+  const paidViaIsHistory = /^\d{4}\.\d{2}\.\d{2}\s*-\s*\$/.test(paidViaText);
   const fmtPartialDate = (d: string) => d.replace(/-/g, ".");
   const fmtPartialAmt  = (n: number) => `$${n % 1 === 0 ? n.toLocaleString("en-US") : n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const payHistoryLines = bill.partialPayments && bill.partialPayments.length > 0
     ? bill.partialPayments.map(p => `${fmtPartialDate(p.date)} - ${fmtPartialAmt(p.amount)}`).join("\n")
     : null;
-  const hasAnyNote     = !!(remarksText || payInstText || status1Text || paidViaText || payHistoryLines);
+  const historyText = payHistoryLines || status1Text || (paidViaIsHistory ? paidViaText : null);
+  const hasAnyNote  = !!(remarksText || payInstText || historyText || (!paidViaIsHistory && paidViaText));
 
   // Legacy merged value used only for the Drive "View Bill" link detection
   const remarks = payInstText || remarksText;
@@ -348,7 +351,7 @@ const BillDetail: React.FC<{
                 <p className={`text-[11px] leading-relaxed whitespace-pre-wrap ${isLight ? "text-slate-600" : "text-[#bbb]"}`}>{remarksText}</p>
               </div>
             )}
-            {(payInstText || payHistoryLines || status1Text) && (
+            {(payInstText || historyText) && (
               <div>
                 <span className={`text-[9px] font-bold uppercase tracking-wider block mb-0.5 ${isLight ? "text-slate-400" : "text-[#666]"}`}>Payment Instructions / Status</span>
                 {payInstText && (
@@ -360,18 +363,18 @@ const BillDetail: React.FC<{
                       <span className="truncate">{payInstText}</span>
                     </a>
                   ) : (
-                    <p className={`text-[11px] leading-relaxed whitespace-pre-wrap ${isLight ? "text-slate-600" : "text-[#bbb]"} ${(payHistoryLines || status1Text) ? "mb-1" : ""}`}>{payInstText}</p>
+                    <p className={`text-[11px] leading-relaxed whitespace-pre-wrap ${isLight ? "text-slate-600" : "text-[#bbb]"} ${historyText ? "mb-1" : ""}`}>{payInstText}</p>
                   )
                 )}
-                {(payHistoryLines || status1Text) && (payInstText) && (
+                {historyText && payInstText && (
                   <div className={`border-t my-1 ${isLight ? "border-slate-200" : "border-[#333]"}`} />
                 )}
-                {(payHistoryLines || status1Text) && (
-                  <p className={`text-[11px] leading-relaxed whitespace-pre-wrap font-mono ${isLight ? "text-slate-600" : "text-[#bbb]"}`}>{payHistoryLines || status1Text}</p>
+                {historyText && (
+                  <p className={`text-[11px] leading-relaxed whitespace-pre-wrap font-mono ${isLight ? "text-slate-600" : "text-[#bbb]"}`}>{historyText}</p>
                 )}
               </div>
             )}
-            {paidViaText && (
+            {!paidViaIsHistory && paidViaText && (
               <div>
                 <span className={`text-[9px] font-bold uppercase tracking-wider block mb-0.5 ${isLight ? "text-slate-400" : "text-[#666]"}`}>Paid Via</span>
                 <p className={`text-[11px] leading-relaxed whitespace-pre-wrap ${isLight ? "text-slate-600" : "text-[#bbb]"}`}>{paidViaText}</p>
