@@ -287,42 +287,50 @@ async function syncLiveDataFromSheets(accessToken?: string) {
     // the bill still exists in the sheet.
     // originalAmount anchors the true pre-payment amount so accumulated partials stay correct even
     // after Pull All sets b.amount to the sheet's evaluated formula value (e.g. 4000 not 5000).
-    type StoredPortalFields = { url?: string; name?: string; partialPaid?: number; paidDate?: string; originalAmount?: number; partialPayments?: { amount: number; date: string }[] };
+    // Parse partial payment history from status1/paidVia text (YYYY.MM.DD - $amount lines).
+    // Sheet is source of truth — derive partialPayments, partialPaid, originalAmount from sheet data.
+    function parsePartialFromSheet(status1: string | undefined, paidVia: string | undefined, remainingAmount: number) {
+      const text = status1 || paidVia || "";
+      if (!text) return null;
+      const lines = text.split("\n").map((l: string) => l.trim()).filter(Boolean);
+      const lineRe = /^(\d{4}\.\d{2}\.\d{2})\s*-\s*\$([0-9,]+(?:\.\d+)?)$/;
+      const payments: { amount: number; date: string }[] = [];
+      for (const line of lines) {
+        const m = line.match(lineRe);
+        if (!m) return null;
+        const date = m[1].replace(/\./g, "-");
+        const amount = parseFloat(m[2].replace(/,/g, ""));
+        if (isNaN(amount) || amount <= 0) return null;
+        payments.push({ amount, date });
+      }
+      if (payments.length === 0) return null;
+      const partialPaid = payments.reduce((s: number, p: { amount: number }) => s + p.amount, 0);
+      const originalAmount = partialPaid + remainingAmount;
+      return { partialPayments: payments, partialPaid, originalAmount };
+    }
+
+    // Only store driveViewUrl in JSON — partial tracking comes entirely from the sheet now.
+    type StoredPortalFields = { url?: string; name?: string };
     const portalFieldsMap = new Map<string, StoredPortalFields>();
     (current.ap || []).forEach((b: any) => {
-      if (b.driveViewUrl || b.partialPaid) {
+      if (b.driveViewUrl) {
         const sk = apBillStableKey(b);
-        portalFieldsMap.set(sk, {
-          url: b.driveViewUrl,
-          name: b.driveFileName,
-          partialPaid: b.partialPaid,
-          paidDate: b.paidDate,
-          originalAmount: b.originalAmount,
-          partialPayments: b.partialPayments,  // individual payment history
-        });
+        portalFieldsMap.set(sk, { url: b.driveViewUrl, name: b.driveFileName });
       }
     });
 
-    // AP: replace entirely from sheet. Re-apply portal-only fields where stable key matches.
-    // partialPaid and originalAmount are always re-applied (no amountUnchanged guard needed —
-    // all amount math uses originalAmount as the base, so Pull All changing b.amount is fine).
+    // AP: replace entirely from sheet. Re-apply driveViewUrl only. Partial tracking derived from sheet.
     // If live returned 0 items (token expired / GViz failure), preserve stored to avoid wipe.
     const freshAP = liveApCount > 0
       ? (liveData.ap || []).map((b: any) => {
           const sk = apBillStableKey(b);
           const pf = portalFieldsMap.get(sk);
-          if (!pf) return b;
-          // Rule #1: Sheet is source of truth.
-          // Only re-apply partial tracking when the sheet amount is still LESS than originalAmount
-          // (i.e. the sheet still has partial deductions). If sheet amount >= originalAmount,
-          // the sheet was reset/cleared — discard stored partial tracking entirely.
-          const sheetStillHasPartials = pf.originalAmount && b.amount < pf.originalAmount - 0.001;
+          // Derive partial tracking from sheet status1/paidVia — no JSON dependency
+          const parsed = b.status !== "paid" ? parsePartialFromSheet(b.status1, b.paidVia, b.amount) : null;
           return {
             ...b,
-            ...(pf.url ? { driveViewUrl: pf.url, driveFileName: pf.name } : {}),
-            ...(sheetStillHasPartials && pf.partialPaid ? { partialPaid: pf.partialPaid, paidDate: pf.paidDate } : {}),
-            ...(sheetStillHasPartials && pf.originalAmount ? { originalAmount: pf.originalAmount } : {}),
-            ...(sheetStillHasPartials && pf.partialPayments ? { partialPayments: pf.partialPayments } : {}),
+            ...(pf?.url ? { driveViewUrl: pf.url, driveFileName: pf.name } : {}),
+            ...(parsed ? { partialPayments: parsed.partialPayments, partialPaid: parsed.partialPaid, originalAmount: parsed.originalAmount } : {}),
           };
         })
       : current.ap;
