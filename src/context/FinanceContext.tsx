@@ -2599,12 +2599,17 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
             : [];
         const newPayments = [...existingPayments, { amount: amountPaid, date: effectiveDate }];
         const newPartialTotal = newPayments.reduce((s, p) => s + p.amount, 0);
+        // Build status1 string immediately so modal shows history without needing a Pull All
+        const _fmtAmt = (n: number) => `$${n % 1 === 0 ? n.toLocaleString("en-US") : n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const _fmtDate = (d: string) => d.replace(/-/g, ".");
+        const newStatus1 = newPayments.map(p => `${_fmtDate(p.date)} - ${_fmtAmt(p.amount)}`).join("\n");
         updatedBill = {
           ...b,
           originalAmount: origAmt,
           partialPaid: newPartialTotal,
           paidDate: effectiveDate,
           partialPayments: newPayments,
+          status1: newStatus1,
           status: "unpaid",
         };
         return updatedBill;
