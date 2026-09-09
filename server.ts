@@ -275,25 +275,40 @@ async function syncLiveDataFromSheets(accessToken?: string) {
     console.log(`[GoogleSheetSync] Pulling live data from Google Sheets via ${method}...`);
     const liveData = await fetchFullLiveDataset(accessToken);
     const liveApCount = liveData.ap?.length || 0;
-    const liveBanksCount = liveData.banks?.length || 0;
     console.log(`[GoogleSheetSync] liveData.ap count: ${liveApCount} (token: ${accessToken ? "yes" : "no"})`);
-    if (liveApCount === 0) {
-      console.warn(`[GoogleSheetSync] WARNING: Live AP fetch returned 0 items. Stored AP data will be preserved.`
-        + ` If this is unexpected, sign in via the portal and run Pull All to force a fresh authenticated fetch.`);
-    }
     const current = getStoredData();
-    // mergeDatasets spreads currentItem first then liveItem on top, so:
-    // - live sheet fields (row indices, formula-evaluated invoice numbers, amounts, status) win ✓
-    // - portal-only fields NOT in the sheet (driveViewUrl, driveFileName) survive from stored data ✓
-    // Rule #1 (Sheet = truth): When live fetch returns items, merge correctly DROPS bills deleted from
-    // the sheet (merged = liveList.map() only; JSON-only ap- items are excluded). This is why Pull All
-    // with a valid OAuth token always reflects the current sheet state for AP bills.
-    // When live returns 0 items (GViz failure, no token), mergeDatasets falls back to stored data.
+
+    // Rule #1: Sheet is ALWAYS source of truth.
+    // When the sheet is fetched and returns items, use it DIRECTLY — no merge with stored cache.
+    // This ensures bills deleted from the sheet immediately disappear from the portal on Pull All.
+    // The only portal-only field not in the sheet is driveViewUrl — re-apply from stored data.
+    const driveUrlMap = new Map<string, { url: string; name?: string }>();
+    (current.ap || []).forEach((b: any) => {
+      if (b.driveViewUrl) {
+        const sk = apBillStableKey(b);
+        driveUrlMap.set(sk, { url: b.driveViewUrl, name: b.driveFileName });
+      }
+    });
+
+    // AP: replace entirely from sheet. Re-apply portal-only driveViewUrls where stable key matches.
+    // If live returned 0 items (token expired / GViz failure), preserve stored to avoid wipe.
+    const freshAP = liveApCount > 0
+      ? (liveData.ap || []).map((b: any) => {
+          const stored = driveUrlMap.get(apBillStableKey(b));
+          return stored ? { ...b, driveViewUrl: stored.url, driveFileName: stored.name } : b;
+        })
+      : current.ap;
+
+    if (liveApCount === 0) {
+      console.warn(`[GoogleSheetSync] WARNING: Live AP fetch returned 0 items — preserving stored AP to avoid data loss.`
+        + ` Sign in via the portal and run Pull All for a fresh authenticated fetch.`);
+    }
+
     const updated = {
       ...current,
-      ap: mergeDatasets(liveData.ap, current.ap, "id"),
-      banks: mergeDatasets(liveData.banks, current.banks, "id"),
-      loans: mergeDatasets(liveData.loans, current.loans, "id"),
+      ap: freshAP,
+      banks: liveData.banks && liveData.banks.length > 0 ? liveData.banks : current.banks,
+      loans: liveData.loans && liveData.loans.length > 0 ? liveData.loans : current.loans,
       ar: mergeDatasets(liveData.ar, current.ar, "id"),
       statements: mergeDatasets(liveData.statements, current.statements, "id"),
       quickNotes: mergeNotes(liveData.quickNotes, current.quickNotes),
