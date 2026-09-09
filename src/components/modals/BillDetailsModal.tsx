@@ -399,7 +399,7 @@ const AccordionItem: React.FC<{
 
   // Partial payment inline flow state
   const [payMode, setPayMode] = useState<"choose" | "partial-input" | null>(null);
-  const [partialAmt, setPartialAmt] = useState(String(bill.amount));
+  const [partialAmt, setPartialAmt] = useState("");
   const [partialDate, setPartialDate] = useState(new Date().toISOString().split("T")[0]);
 
   const handleMarkPaid = () => {
@@ -528,7 +528,7 @@ const AccordionItem: React.FC<{
                   <button onClick={handleFullPayment} className="flex-1 py-2 rounded-lg text-[12px] font-bold text-white transition-all hover:opacity-90" style={{ backgroundColor: accentColor }}>
                     ✅ Full Payment
                   </button>
-                  <button onClick={() => { setPartialAmt(String(bill.partialPaid || bill.amount)); setPayMode("partial-input"); }} className={`flex-1 py-2 rounded-lg text-[12px] font-bold transition-all border ${isLight ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100" : "bg-amber-900/20 text-amber-400 border-amber-700/40 hover:bg-amber-900/30"}`}>
+                  <button onClick={() => { setPartialAmt(""); setPayMode("partial-input"); }} className={`flex-1 py-2 rounded-lg text-[12px] font-bold transition-all border ${isLight ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100" : "bg-amber-900/20 text-amber-400 border-amber-700/40 hover:bg-amber-900/30"}`}>
                     ⬤ Partial
                   </button>
                   <button onClick={() => setPayMode(null)} className={`px-3 py-2 rounded-lg text-[12px] transition-all ${isLight ? "text-slate-500 hover:bg-slate-100" : "text-slate-500 hover:bg-[#222]"}`}>✕</button>
@@ -537,7 +537,14 @@ const AccordionItem: React.FC<{
             )}
             {payMode === "partial-input" && (
               <div className={`rounded-xl border p-3 flex flex-col gap-2.5 ${isLight ? "bg-white border-amber-200" : "bg-[#161616] border-amber-700/40"}`}>
-                <p className={`text-[11px] font-semibold ${isLight ? "text-slate-600" : "text-slate-400"}`}>Partial payment — <span className="font-bold">{bill.vendor}</span> (original: {fmt(bill.amount)})</p>
+                <p className={`text-[11px] font-semibold ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                  {bill.partialPaid && bill.partialPaid > 0 ? "Additional payment" : "Partial payment"} — <span className="font-bold">{bill.vendor}</span> (original: {fmt(bill.originalAmount ?? bill.amount)})
+                </p>
+                {bill.partialPaid && bill.partialPaid > 0 && (
+                  <p className={`text-[11px] font-semibold ${isLight ? "text-amber-700" : "text-amber-400"}`}>
+                    Already paid: {fmt(bill.partialPaid)} · Current remaining: {fmt((bill.originalAmount ?? bill.amount) - bill.partialPaid)}
+                  </p>
+                )}
                 <div className="flex gap-2 items-center">
                   <span className={`text-[12px] font-bold shrink-0 ${isLight ? "text-slate-600" : "text-slate-400"}`}>$</span>
                   <input
@@ -545,13 +552,15 @@ const AccordionItem: React.FC<{
                     value={partialAmt}
                     onChange={e => setPartialAmt(e.target.value)}
                     className={`flex-1 px-3 py-1.5 rounded-lg border text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/30 ${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#0d0d0d] border-[#333] text-white"}`}
-                    placeholder="Amount paid"
+                    placeholder="Amount paid now"
                     min="0.01"
                     step="0.01"
                   />
                 </div>
-                {parseFloat(partialAmt) > 0 && parseFloat(partialAmt) < bill.amount && (
-                  <p className="text-[11px] text-amber-500 font-semibold">Remaining: {fmt(bill.amount - parseFloat(partialAmt))}</p>
+                {parseFloat(partialAmt) > 0 && (
+                  <p className="text-[11px] text-amber-500 font-semibold">
+                    After this payment — Total paid: {fmt((bill.partialPaid ?? 0) + parseFloat(partialAmt))} · Remaining: {fmt((bill.originalAmount ?? bill.amount) - (bill.partialPaid ?? 0) - parseFloat(partialAmt))}
+                  </p>
                 )}
                 <div className="flex gap-2 items-center">
                   <input
@@ -669,7 +678,7 @@ export const BillDetailsModal: React.FC<BillDetailsModalProps> = ({
       toggleBillStatus(singleBill.id, "unpaid");
       return;
     }
-    setSinglePartialAmt(String(singleBill.partialPaid || singleBill.amount));
+    setSinglePartialAmt("");
     setSinglePayMode("choose");
   };
 
@@ -779,7 +788,14 @@ export const BillDetailsModal: React.FC<BillDetailsModalProps> = ({
               )}
               {singlePayMode === "partial-input" && (
                 <div className={`rounded-xl border p-3 flex flex-col gap-2.5 ${isLight ? "bg-white border-amber-200" : "bg-[#161616] border-amber-700/40"}`}>
-                  <p className={`text-[11px] font-semibold ${isLight ? "text-slate-600" : "text-slate-400"}`}>Partial payment — <span className="font-bold">{singleBill.vendor}</span> (original: {fmt(singleBill.amount)})</p>
+                  <p className={`text-[11px] font-semibold ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                    {singleBill.partialPaid && singleBill.partialPaid > 0 ? "Additional payment" : "Partial payment"} — <span className="font-bold">{singleBill.vendor}</span> (original: {fmt(singleBill.originalAmount ?? singleBill.amount)})
+                  </p>
+                  {singleBill.partialPaid && singleBill.partialPaid > 0 && (
+                    <p className={`text-[11px] font-semibold ${isLight ? "text-amber-700" : "text-amber-400"}`}>
+                      Already paid: {fmt(singleBill.partialPaid)} · Current remaining: {fmt((singleBill.originalAmount ?? singleBill.amount) - singleBill.partialPaid)}
+                    </p>
+                  )}
                   <div className="flex gap-2 items-center">
                     <span className={`text-[12px] font-bold shrink-0 ${isLight ? "text-slate-600" : "text-slate-400"}`}>$</span>
                     <input
@@ -787,13 +803,15 @@ export const BillDetailsModal: React.FC<BillDetailsModalProps> = ({
                       value={singlePartialAmt}
                       onChange={e => setSinglePartialAmt(e.target.value)}
                       className={`flex-1 px-3 py-1.5 rounded-lg border text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/30 ${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#0d0d0d] border-[#333] text-white"}`}
-                      placeholder="Amount paid"
+                      placeholder="Amount paid now"
                       min="0.01"
                       step="0.01"
                     />
                   </div>
-                  {parseFloat(singlePartialAmt) > 0 && parseFloat(singlePartialAmt) < singleBill.amount && (
-                    <p className="text-[11px] text-amber-500 font-semibold">Remaining: {fmt(singleBill.amount - parseFloat(singlePartialAmt))}</p>
+                  {parseFloat(singlePartialAmt) > 0 && (
+                    <p className="text-[11px] text-amber-500 font-semibold">
+                      After this payment — Total paid: {fmt((singleBill.partialPaid ?? 0) + parseFloat(singlePartialAmt))} · Remaining: {fmt((singleBill.originalAmount ?? singleBill.amount) - (singleBill.partialPaid ?? 0) - parseFloat(singlePartialAmt))}
+                    </p>
                   )}
                   <input
                     type="date"
