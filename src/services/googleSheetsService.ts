@@ -391,12 +391,21 @@ export const parseAPSheetRows = (
       dueDate = parseDateVal(row[8]) || parseDateVal(row[7]) || parseDateVal(row[11]) || parseDateVal("", row[0], row[1], row[19]) || dueDate;
     }
 
-    // Status Detection
-    const statusVal = statusCol !== -1 && row[statusCol] ? String(row[statusCol]).toLowerCase() : "";
-    const extra1 = String(row[11] || "");
-    const extra2 = String(row[12] || "");
-    const isOnHold = row[18] === true || String(row[18]).toLowerCase() === "true" || row[22] === true || String(row[22]).toLowerCase() === "true";
-    
+    // Status Detection — use AP_COL_MAPS for the correct column per entity
+    const colMap = getAPColMap(entity);
+    // Primary: use the dynamically-found statusCol; fallback to the known status col from AP_COL_MAPS
+    const resolvedStatusCol = statusCol !== -1 ? statusCol : colMap.status;
+    const statusVal = row[resolvedStatusCol] ? String(row[resolvedStatusCol]).toLowerCase() : "";
+    // Also read paidDate col (status1Col for Ruby's/MSDx, paidDateCol for TI) as extra signal
+    const extra1 = String(row[colMap.paidDateCol] || "");
+    // For Ruby's/MSDx paidDateCol === status1Col (col L=11); for TI paidDateCol is col K=10 — include status1Col separately for TI
+    const extra2 = entity === "TI" ? String(row[colMap.status1Col] || "") : "";
+    // On-hold: use the known onHold col per entity (Ruby's/MSDx=18, TI=22)
+    const onHoldCol = colMap.onHold ?? 18;
+    const isOnHold = String(row[onHoldCol] || "").toLowerCase().includes("hold") ||
+                     String(row[18] || "").toLowerCase().includes("hold") ||
+                     String(row[22] || "").toLowerCase().includes("hold");
+
     const combined = `${statusVal} ${extra1} ${extra2}`.toLowerCase().trim();
     if (isOnHold || combined.includes("hold")) {
       status = "hold";
