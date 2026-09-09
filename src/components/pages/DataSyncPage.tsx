@@ -603,8 +603,8 @@ export const DataSyncPage: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <h2 className={`text-sm font-bold ${heading}`}>Google Workspace</h2>
                   {googleUser
-                    ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/20">Connected</span>
-                    : <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500 border border-amber-500/20">Not connected</span>
+                    ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/20 whitespace-nowrap">Connected</span>
+                    : <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500 border border-amber-500/20 whitespace-nowrap">Not connected</span>
                   }
                 </div>
                 <p className={`text-xs mt-0.5 ${sub}`}>
@@ -710,7 +710,7 @@ export const DataSyncPage: React.FC = () => {
                 <div key={cfg.id} className={`px-6 py-4 space-y-3 transition-colors ${isLight ? "hover:bg-slate-50" : "hover:bg-white/[.02]"}`}>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2.5">
-                      <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-md uppercase tracking-wide ${isLight ? "bg-[#1a73e8]/10 text-[#1a73e8]" : "bg-[#1a73e8]/15 text-[#60a5fa]"}`}>
+                      <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-md uppercase tracking-wide whitespace-nowrap ${isLight ? "bg-[#1a73e8]/10 text-[#1a73e8]" : "bg-[#1a73e8]/15 text-[#60a5fa]"}`}>
                         {cfg.name}
                       </span>
                       {cfg.lastSyncedAt && (
@@ -811,7 +811,7 @@ export const DataSyncPage: React.FC = () => {
             </div>
             <div className="flex items-center gap-3">
               {testResult && (
-                <span className={`text-[11px] font-bold px-2.5 py-1 rounded-lg ${testResult.ok ? "bg-emerald-500/15 text-emerald-500 border border-emerald-500/20" : "bg-red-500/15 text-red-400 border border-red-500/20"}`}>
+                <span className={`text-[11px] font-bold px-2.5 py-1 rounded-lg whitespace-nowrap ${testResult.ok ? "bg-emerald-500/15 text-emerald-500 border border-emerald-500/20" : "bg-red-500/15 text-red-400 border border-red-500/20"}`}>
                   {testResult.ok ? `✓ All ${testResult.total} passed` : `✗ ${testResult.failed}/${testResult.total} failed`}
                 </span>
               )}
@@ -1046,7 +1046,7 @@ export const DataSyncPage: React.FC = () => {
                       <span className={`truncate ${row.matchedBill ? (isLight ? "text-slate-700" : "text-slate-200") : muted}`}>
                         {row.matchedBill ? `${row.matchedBill.entity} / ${row.matchedBill.vendor} (row ${row.matchedBill.row})` : "—"}
                       </span>
-                      <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${row.matchedBill ? "bg-emerald-500/15 text-emerald-500" : "bg-amber-500/15 text-amber-500"}`}>
+                      <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${row.matchedBill ? "bg-emerald-500/15 text-emerald-500" : "bg-amber-500/15 text-amber-500"}`}>
                         {row.matchedBill ? "matched" : "no match"}
                       </span>
                     </div>

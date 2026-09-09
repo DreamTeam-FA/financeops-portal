@@ -1120,8 +1120,133 @@ export const CalendarPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Calendar Main Grid */}
-          <div className={`${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-2 sm:p-4 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]`}>
+          {/* ── MOBILE: Per-day card agenda list (month view only, hidden on sm+) ── */}
+          {calendarView === "month" && (
+            <div className={`sm:hidden rounded-xl border overflow-hidden ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"}`}>
+              {/* Month label */}
+              <div className={`px-4 py-2.5 border-b text-[12px] font-bold ${isLight ? "bg-slate-50 border-slate-200 text-slate-600" : "bg-[#0a1220] border-[#1e3457] text-slate-400"}`}>
+                {new Date(calYear, calMonth).toLocaleDateString("en-US", { month: "long", year: "numeric" })} — tap any event to view details
+              </div>
+              <div className="divide-y max-h-[65vh] overflow-y-auto" style={{ divideColor: isLight ? "#e2e8f0" : "#1e3457" }}>
+                {Array.from({ length: daysInMonth }).map((_, i) => {
+                  const dayNum = i + 1;
+                  const monthStr = String(calMonth + 1).padStart(2, "0");
+                  const dayStr = String(dayNum).padStart(2, "0");
+                  const dateKey = `${calYear}-${monthStr}-${dayStr}`;
+                  const isToday = dateKey === todayStr;
+                  const dayEvents = eventsByDate[dateKey] || [];
+                  const dayApBills = apBillsByDate[dateKey] || [];
+                  const dayArItems = arByDate[dateKey] || [];
+                  const totalApAmt = dayApBills.reduce((sum, b) => sum + b.amount, 0);
+                  const apColor = dayApBills.length > 0 ? getApDueDateColor(dateKey, dayApBills) : null;
+
+                  const hasAP = showApBillsFilter && dayApBills.length > 0 && apColor;
+                  const hasAR = showArFilter && dayArItems.length > 0;
+                  const hasEvents = dayEvents.length > 0;
+                  if (!hasAP && !hasAR && !hasEvents) return null;
+
+                  const dowName = new Date(calYear, calMonth, dayNum).toLocaleDateString("en-US", { weekday: "short" });
+                  return (
+                    <div key={dateKey} className={`${isLight ? "hover:bg-slate-50" : "hover:bg-white/[0.02]"}`}>
+                      {/* Day header */}
+                      <div className={`flex items-center gap-2 px-4 py-2 border-b ${isLight ? "border-slate-100 bg-slate-50/70" : "border-[#132035] bg-[#0a1220]/60"}`}>
+                        <span className={`w-7 h-7 rounded-full flex items-center justify-center text-[13px] font-extrabold shrink-0 ${isToday ? "bg-[#0d9488] text-white" : isLight ? "bg-slate-200 text-slate-800" : "bg-[#1e3457] text-slate-200"}`}>
+                          {dayNum}
+                        </span>
+                        <span className={`text-[12px] font-bold ${isLight ? "text-slate-600" : "text-slate-400"}`}>{dowName}</span>
+                        {isToday && <span className="text-[10px] font-bold text-[#0d9488] uppercase tracking-wide">Today</span>}
+                        <span className={`ml-auto text-[10px] ${isLight ? "text-slate-400" : "text-slate-600"}`}>
+                          {[hasAP && dayApBills.length, hasAR && dayArItems.length, hasEvents && dayEvents.length].filter(Boolean).reduce((a: number, b) => a + (b as number), 0)} events
+                        </span>
+                      </div>
+                      {/* Events */}
+                      <div className="px-3 py-2 space-y-1.5">
+                        {/* AP Bills */}
+                        {hasAP && dayApBills.map((b, bi) => {
+                          const bc = getApDueDateColor(dateKey, [b]);
+                          if (!bc) return null;
+                          return (
+                            <div key={`ap-${bi}`}
+                              onClick={() => setSelectedEvent({ title: `${b.company || "AP"}: ${b.vendor}`, type: "AP BILLS", date: dateKey, amount: b.amount, description: `${b.company || "AP"} · ${b.vendor} · $${(Number(b.amount)||0).toFixed(2)} [${(b as any).status||"Unpaid"}]` })}
+                              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer ${bc.bg} hover:opacity-90 transition-opacity`}
+                            >
+                              <span className="shrink-0">📋</span>
+                              <div className="min-w-0">
+                                <p className={`text-[13px] font-bold leading-tight ${bc.text}`}>{b.vendor}</p>
+                                <p className={`text-[11px] ${bc.text} opacity-70`}>{b.company || "AP"} · ${(Number(b.amount)||0).toLocaleString("en-US",{minimumFractionDigits:2})}</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {/* AR Items */}
+                        {hasAR && dayArItems.map((a, ai) => (
+                          <div key={`ar-${ai}`}
+                            onClick={() => setSelectedEvent({ title: `AR: ${a.customer}`, type: "AR", date: dateKey, amount: a.amount, description: `${a.customer}${a.amount > 0 ? ` · $${a.amount.toFixed(2)}` : ""} [Open]` })}
+                            className="flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer bg-orange-500/15 hover:opacity-90 transition-opacity"
+                          >
+                            <span className="shrink-0">🧾</span>
+                            <div className="min-w-0">
+                              <p className="text-[13px] font-bold leading-tight text-orange-700 dark:text-orange-300 truncate">{a.customer}</p>
+                              {a.amount > 0 && <p className="text-[11px] text-orange-600 dark:text-orange-400 opacity-80">${a.amount.toLocaleString("en-US",{minimumFractionDigits:2})} · Open</p>}
+                            </div>
+                          </div>
+                        ))}
+                        {/* Calendar Events */}
+                        {dayEvents.map((ev, idx) => {
+                          const style = getChipStyle(ev.type, ev.category, ev.urgency);
+                          const icon = getEventIcon(ev.type, ev.category);
+                          const cleanLabel = ev.label.replace(/^\[[^\]]+\]\s*/, "");
+                          return (
+                            <div key={idx}
+                              onClick={() => {
+                                const sel = {
+                                  title: ev.label, type: ev.type, date: dateKey,
+                                  time: ev.time, endTime: ev.endTime, description: ev.description || "",
+                                  id: ev.id, isLocalTask: ev.isLocalTask, urgency: ev.urgency,
+                                  assignee: ev.assignee, assigneeColor: ev.assigneeColor, assigneeIds: ev.assigneeIds,
+                                  done: ev.done, sheetRow: ev.sheetRow, category: ev.category, entity: (ev as any).entity || "",
+                                };
+                                setSelectedEvent(sel);
+                                setEditTitle(cleanLabel);
+                                setEditDate(sel.date);
+                                setEditTime(sel.time || "");
+                                setEditCategory((sel.category as any) || "task");
+                                setEditUrgency((sel.urgency as any) || "normal");
+                                setEditAssignee(sel.assignee || "");
+                                setEditDesc(sel.description || "");
+                                setIsEditingEvent(false);
+                              }}
+                              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer ${style.bg} ${ev.done ? "opacity-50" : ""} hover:opacity-90 transition-opacity`}
+                            >
+                              {icon && <span className="shrink-0 text-base leading-none">{icon}</span>}
+                              <div className="min-w-0 flex-1">
+                                <p className={`text-[13px] font-bold leading-tight ${style.text} ${ev.done ? "line-through" : ""}`}>{cleanLabel}</p>
+                                {(ev.time || ev.assignee) && (
+                                  <p className={`text-[11px] ${style.text} opacity-70`}>
+                                    {ev.time ? to12h(ev.time) : ""}{ev.time && ev.assignee ? " · " : ""}{ev.assignee || ""}
+                                  </p>
+                                )}
+                              </div>
+                              {ev.urgency && ev.urgency !== "normal" && (
+                                <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap ${
+                                  ev.urgency === "critical" ? "bg-red-500/20 text-red-400" :
+                                  ev.urgency === "high" ? "bg-amber-500/20 text-amber-400" :
+                                  "bg-slate-500/20 text-slate-400"
+                                }`}>{ev.urgency}</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ── DESKTOP: 7-column grid (hidden on mobile) ── */}
+          <div className={`hidden sm:block ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl p-4 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]`}>
             {/* Day Headers */}
             <div className={`border ${isLight ? "border-slate-200" : "border-[#1a2235]"} rounded-lg overflow-hidden overflow-x-auto`}>
               <div className={`grid grid-cols-7 ${isLight ? "bg-slate-100 border-slate-200 text-slate-700" : "bg-[#0d111a] border-[#222] text-slate-300"} border-b text-center text-xs font-bold py-2`}>
@@ -1517,7 +1642,7 @@ export const CalendarPage: React.FC = () => {
             )}
           </div>
             </div>
-          </div>
+          </div>{/* end hidden sm:block desktop grid */}
 
         </div>
 

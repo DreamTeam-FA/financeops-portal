@@ -898,7 +898,7 @@ export const ARPage: React.FC = () => {
                       return (
                         <tr key={a.id} data-search-id={a.id} className={`transition-colors ${isLight ? "hover:bg-red-50/50" : "hover:bg-red-950/10"}`}>
                           <td className="px-4 py-3">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${getEntityBadge(a.entity)}`}>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap ${getEntityBadge(a.entity)}`}>
                               {a.entity}
                             </span>
                           </td>
