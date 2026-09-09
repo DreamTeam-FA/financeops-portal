@@ -152,7 +152,12 @@ const BillDetail: React.FC<{
   const payInstText    = bill.paymentInstructions || "";
   const status1Text    = bill.status1 || "";
   const paidViaText    = bill.paidVia || "";
-  const hasAnyNote     = !!(remarksText || payInstText || status1Text || paidViaText);
+  const fmtPartialDate = (d: string) => d.replace(/-/g, ".");
+  const fmtPartialAmt  = (n: number) => `$${n % 1 === 0 ? n.toLocaleString("en-US") : n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const payHistoryLines = bill.partialPayments && bill.partialPayments.length > 0
+    ? bill.partialPayments.map(p => `${fmtPartialDate(p.date)} - ${fmtPartialAmt(p.amount)}`).join("\n")
+    : null;
+  const hasAnyNote     = !!(remarksText || payInstText || status1Text || paidViaText || payHistoryLines);
 
   // Legacy merged value used only for the Drive "View Bill" link detection
   const remarks = payInstText || remarksText;
@@ -358,10 +363,10 @@ const BillDetail: React.FC<{
                 )}
               </div>
             )}
-            {status1Text && (
+            {(payHistoryLines || status1Text) && (
               <div>
-                <span className={`text-[9px] font-bold uppercase tracking-wider block mb-0.5 ${isLight ? "text-slate-400" : "text-[#666]"}`}>Status 1</span>
-                <p className={`text-[11px] leading-relaxed whitespace-pre-wrap ${isLight ? "text-slate-600" : "text-[#bbb]"}`}>{status1Text}</p>
+                <span className={`text-[9px] font-bold uppercase tracking-wider block mb-0.5 ${isLight ? "text-slate-400" : "text-[#666]"}`}>Payment History</span>
+                <p className={`text-[11px] leading-relaxed whitespace-pre-wrap font-mono ${isLight ? "text-slate-600" : "text-[#bbb]"}`}>{payHistoryLines || status1Text}</p>
               </div>
             )}
             {paidViaText && (
