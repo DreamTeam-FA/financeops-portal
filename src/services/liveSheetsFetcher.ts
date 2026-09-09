@@ -730,10 +730,9 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       if (company.toLowerCase().includes("ruby")) entity = "Ruby's";
       else if (company.toLowerCase().includes("msdx")) entity = "MSDx";
 
-      // col M (index 12) = Payment Via; col O (index 14) = Remarks; col R (index 17) = Status 1
+      // col M (index 12) = Payment Via; col O (index 14) = Remarks
       const paidViaTI  = String(row[12] || "").trim() || undefined;
       const remarksTI  = String(row[14] || "").trim() || undefined;
-      const status1TI  = String(row[17] || "").trim() || undefined;
 
       const driveUrlTI = String(row[26] || "").trim();
       ap.push({
@@ -753,7 +752,6 @@ export async function fetchFullLiveDataset(accessToken?: string) {
         invoiceNo,
         paidVia: paidViaTI,
         remarks: remarksTI,
-        status1: status1TI,
         driveViewUrl: sanitizeDriveUrl(driveUrlTI), // col AA (index 26) — strips KNOWN_BAD_DRIVE_URLS
         row: i - 5 // dataStart=7: row 1 = sheet row 7, so bill.row = i+1-(dataStart-1) = i-5
       });
