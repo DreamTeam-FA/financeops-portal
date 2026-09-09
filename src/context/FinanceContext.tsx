@@ -2576,7 +2576,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
     setApBills(nextBills);
     persistChanges({ ap: nextBills });
-    logAction("Updated Bill Status", `Bill ID ${id} marked as ${newStatus}`);
+    const b = updatedBill;
+    const billDesc = b ? `${b.vendor} (${b.entity}) — $${b.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}${b.invoiceNo ? ` · Inv# ${b.invoiceNo}` : ""}${b.dueDate ? ` · Due ${b.dueDate}` : ""}` : id;
+    logAction("Updated Bill Status", `${billDesc} → marked as ${newStatus}`);
     if (updatedBill) pushSingleAPBillToSheet(updatedBill, "write");
   };
 
@@ -2607,7 +2609,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
     setApBills(nextBills);
     persistChanges({ ap: nextBills });
-    logAction("Partial Payment", `Bill ID ${id}: $${amountPaid.toFixed(2)} partial payment on ${effectiveDate} (total partial: $${(nextBills.find(b => b.id === id)?.partialPaid ?? amountPaid).toFixed(2)})`);
+    const pb = updatedBill;
+    const billDescP = pb ? `${pb.vendor} (${pb.entity})${pb.invoiceNo ? ` Inv# ${pb.invoiceNo}` : ""}${pb.dueDate ? ` Due ${pb.dueDate}` : ""} — orig $${(pb.originalAmount ?? pb.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}` : id;
+    logAction("Partial Payment", `${billDescP}: $${amountPaid.toFixed(2)} paid on ${effectiveDate} · Total paid: $${(pb?.partialPaid ?? amountPaid).toFixed(2)} · Remaining: $${((pb?.originalAmount ?? pb?.amount ?? 0) - (pb?.partialPaid ?? amountPaid)).toFixed(2)}`);
     if (updatedBill) pushSingleAPBillToSheet(updatedBill, "write");
   };
 
@@ -2617,7 +2621,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const nextBills = apBills.filter((b) => b.id !== id);
     setApBills(nextBills);
     persistChanges({ ap: nextBills });
-    logAction("Deleted Bill", `Bill ID ${id} deleted`);
+    const delDesc = billToDelete ? `${billToDelete.vendor} (${billToDelete.entity}) — $${billToDelete.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}${billToDelete.invoiceNo ? ` · Inv# ${billToDelete.invoiceNo}` : ""}${billToDelete.dueDate ? ` · Due ${billToDelete.dueDate}` : ""}` : id;
+    logAction("Deleted Bill", delDesc);
     if (billToDelete) pushSingleAPBillToSheet(billToDelete, "clear");
   };
 
