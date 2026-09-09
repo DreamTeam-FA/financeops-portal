@@ -1154,35 +1154,37 @@ export const buildAPBillRow = (b: APBill, entity: string): any[] => {
     // Layout A (Ruby's/MSDx): paymentInstructions → col K (remarksCol=10); status1 → col L (status1Col=11)
     const instr = (b.paymentInstructions || b.remarks || b.notes || "").replace(/^\[[^\]]+\]\s*/, "").trim();
     if (instr) row[map.remarksCol] = instr;
-    // status1Col shares col L with paidDate — only write status1 when the bill is not paid
-    // Partial payment: override status1 with per-payment history (takes priority over plain status1)
-    if (b.status !== "paid") {
-      let partialText: string | null = null;
-      if (b.partialPaid && b.partialPaid > 0) {
-        if (b.partialPayments && b.partialPayments.length > 0) {
-          // Each payment on its own line in the cell:
-          // Partial:
-          // $10,000.00 on 2026-08-27
-          // $5,000.00 on 2026-09-01
-          const entries = b.partialPayments.map(p => `$${p.amount.toFixed(2)} on ${p.date}`).join("\n");
-          partialText = `Partial:\n${entries}`;
-        } else {
-          // Fallback for bills with no partialPayments history (older records)
-          partialText = `Partial: $${b.partialPaid.toFixed(2)} paid${b.paidDate ? ` ${b.paidDate}` : ""}`;
-        }
+    // status1Col: write partial payment history regardless of paid/unpaid status
+    // Format: YYYY.MM.DD - $amount (one line per payment, stacked)
+    const fmtPartialAmt = (n: number) => `$${n % 1 === 0 ? n.toLocaleString("en-US") : n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const fmtPartialDate = (d: string) => d.replace(/-/g, ".");
+    if (b.partialPaid && b.partialPaid > 0) {
+      let partialText: string;
+      if (b.partialPayments && b.partialPayments.length > 0) {
+        // Each payment: YYYY.MM.DD - $amount
+        partialText = b.partialPayments.map(p => `${fmtPartialDate(p.date)} - ${fmtPartialAmt(p.amount)}`).join("\n");
+      } else {
+        // Fallback for bills with no partialPayments history (older records)
+        const dateStr = b.paidDate ? fmtPartialDate(b.paidDate) : "";
+        partialText = `${dateStr} - ${fmtPartialAmt(b.partialPaid)}`.trim();
       }
-      const s1 = partialText || b.status1 || "";
+      row[map.status1Col] = partialText;
+    } else if (b.status !== "paid") {
+      const s1 = b.status1 || "";
       if (s1) row[map.status1Col] = s1;
     }
   }
 
   // TI: if partial payment, also write partial history to methodCol (Payment Via col M)
-  if (entity === "TI" && b.partialPaid && b.partialPaid > 0 && b.status !== "paid" && map.methodCol !== null) {
+  // Reuse same helpers defined above in the status1 block
+  const _fmtAmt2 = (n: number) => `$${n % 1 === 0 ? n.toLocaleString("en-US") : n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const _fmtDate2 = (d: string) => d.replace(/-/g, ".");
+  if (entity === "TI" && b.partialPaid && b.partialPaid > 0 && map.methodCol !== null) {
     if (b.partialPayments && b.partialPayments.length > 0) {
-      const entries = b.partialPayments.map(p => `$${p.amount.toFixed(2)} on ${p.date}`).join("\n");
-      row[map.methodCol] = `Partial:\n${entries}`;
+      row[map.methodCol] = b.partialPayments.map(p => `${_fmtDate2(p.date)} - ${_fmtAmt2(p.amount)}`).join("\n");
     } else {
-      row[map.methodCol] = `Partial: $${b.partialPaid.toFixed(2)} paid${b.paidDate ? ` ${b.paidDate}` : ""}`;
+      const dateStr = b.paidDate ? _fmtDate2(b.paidDate) : "";
+      row[map.methodCol] = `${dateStr} - ${_fmtAmt2(b.partialPaid)}`.trim();
     }
   }
 

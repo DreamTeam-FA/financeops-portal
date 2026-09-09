@@ -53,6 +53,9 @@ export default defineConfig(() => {
           categories: ['finance', 'business', 'productivity'],
         },
         workbox: {
+          // Force new SW to activate immediately on deploy — no waiting for tab close
+          skipWaiting: true,
+          clientsClaim: true,
           // Cache app shell + static assets; never cache Google Sheets API calls
           maximumFileSizeToCacheInBytes: 4 * 1024 * 1024, // allow up to 4 MiB (bundle grew with PDF engine)
           globPatterns: ['**/*.{js,css,html,svg,woff2}'],

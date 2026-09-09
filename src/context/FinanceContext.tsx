@@ -2591,8 +2591,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (b.id === id) {
         // originalAmount anchors the true full bill amount regardless of how many partials are logged
         const origAmt = b.originalAmount ?? b.amount;
-        // Append new entry to payment history; derive running total from the history
-        const existingPayments = b.partialPayments || [];
+        // Seed history from legacy partialPaid when no history exists yet (migration from old code)
+        const existingPayments = b.partialPayments && b.partialPayments.length > 0
+          ? b.partialPayments
+          : b.partialPaid && b.partialPaid > 0
+            ? [{ amount: b.partialPaid, date: b.paidDate || effectiveDate }]
+            : [];
         const newPayments = [...existingPayments, { amount: amountPaid, date: effectiveDate }];
         const newPartialTotal = newPayments.reduce((s, p) => s + p.amount, 0);
         updatedBill = {
