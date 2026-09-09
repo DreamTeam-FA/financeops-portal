@@ -46,8 +46,15 @@ const StatusBadge: React.FC<{ status: string; dueDate?: string; partialPaid?: nu
     );
   if (partialPaid && partialPaid > 0)
     return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-700 border border-blue-200">
-        ⬤ Partial
+      <span className="inline-flex items-center gap-1.5 flex-wrap">
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-700 border border-blue-200">
+          ⬤ Partial
+        </span>
+        {overdue && (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-red-100 text-red-700 border border-red-200">
+            Overdue
+          </span>
+        )}
       </span>
     );
   return (
@@ -664,7 +671,13 @@ export const BillDetailsModal: React.FC<BillDetailsModalProps> = ({
 
   const multi = vendorBills.length > 1;
   const accentColor = getEntityColor(vendorBills[0].entity);
-  const total = vendorBills.reduce((s, b) => s + b.amount, 0);
+  // Total should reflect remaining balance for partial-paid bills, not the original amount
+  const total = vendorBills.reduce((s, b) => {
+    const effAmt = b.partialPaid && b.partialPaid > 0 && b.status !== "paid"
+      ? (b.originalAmount ?? b.amount) - b.partialPaid
+      : b.amount;
+    return s + effAmt;
+  }, 0);
   const vendor = vendorBills[0].vendor;
 
   // Single-bill helpers (used in footer when multi=false)
