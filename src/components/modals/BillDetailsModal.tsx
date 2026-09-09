@@ -164,11 +164,20 @@ const BillDetail: React.FC<{
       }`}>
         <p className={`text-[9px] font-bold uppercase tracking-wider mb-1 ${
           isLight ? "text-slate-400" : "text-[#666]"
-        }`}>Total Payable Amount</p>
+        }`}>{bill.partialPaid && bill.partialPaid > 0 && bill.status !== "paid" ? "Remaining Balance" : "Total Payable Amount"}</p>
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <span className="text-2xl font-black" style={{ color: accentColor }}>
-            {fmt(bill.amount)}
-          </span>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-black" style={{ color: accentColor }}>
+              {bill.partialPaid && bill.partialPaid > 0 && bill.status !== "paid"
+                ? fmt(bill.amount - bill.partialPaid)
+                : fmt(bill.amount)}
+            </span>
+            {bill.partialPaid && bill.partialPaid > 0 && bill.status !== "paid" && (
+              <span className={`text-[11px] font-medium line-through ${isLight ? "text-slate-400" : "text-[#666]"}`}>
+                {fmt(bill.amount)}
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-2 flex-wrap">
             {/* View Bill — prefers uploaded Drive copy; falls back to pasted link in remarks */}
             {billViewUrl && (

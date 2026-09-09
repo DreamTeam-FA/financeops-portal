@@ -1112,7 +1112,14 @@ export const buildAPBillRow = (b: APBill, entity: string): any[] => {
   if (b.invoiceNo) row[map.invoiceNo] = b.invoiceNo;       // skip col G when empty (writeSingleAPBill handles split)
   if (b.invoiceDate) row[map.invoiceDateCol] = b.invoiceDate; // skip col H when empty to preserve existing sheet value
   row[map.dueDate]        = b.dueDate;
-  row[map.amount]         = b.amount;
+  // Amount: if there's a partial payment, write as formula so the sheet shows the remaining balance.
+  // e.g. =5000-3000 → sheet displays 2000. USER_ENTERED (already used by updateSheetValues) evaluates it.
+  // Full amount is preserved in the formula, remaining balance is visible directly in the sheet.
+  if (b.partialPaid && b.partialPaid > 0 && b.status !== "paid") {
+    row[map.amount] = `=${b.amount}-${b.partialPaid}`;
+  } else {
+    row[map.amount] = b.amount;
+  }
   row[map.paidDateCol]    = b.paidDate || "";
   if (map.methodCol !== null) row[map.methodCol] = b.method || "";
   // paytypeCol (Manual/Aut.) is formula-driven in the sheet — do not write
@@ -1139,19 +1146,19 @@ export const buildAPBillRow = (b: APBill, entity: string): any[] => {
     const instr = (b.paymentInstructions || b.remarks || b.notes || "").replace(/^\[[^\]]+\]\s*/, "").trim();
     if (instr) row[map.remarksCol] = instr;
     // status1Col shares col L with paidDate — only write status1 when the bill is not paid
-    // Partial payment: override status1 with partial-payment text (takes priority over plain status1)
+    // Partial payment: override status1 with partial-payment text + date (takes priority over plain status1)
     if (b.status !== "paid") {
       const partialText = b.partialPaid && b.partialPaid > 0
-        ? `Partial: $${b.partialPaid.toFixed(2)} paid`
+        ? `Partial: $${b.partialPaid.toFixed(2)} paid${b.paidDate ? ` ${b.paidDate}` : ""}`
         : null;
       const s1 = partialText || b.status1 || "";
       if (s1) row[map.status1Col] = s1;
     }
   }
 
-  // TI: if partial payment, also write partial text to methodCol (Payment Via col M)
+  // TI: if partial payment, also write partial text (with date) to methodCol (Payment Via col M)
   if (entity === "TI" && b.partialPaid && b.partialPaid > 0 && b.status !== "paid" && map.methodCol !== null) {
-    row[map.methodCol] = `Partial: $${b.partialPaid.toFixed(2)} paid`;
+    row[map.methodCol] = `Partial: $${b.partialPaid.toFixed(2)} paid${b.paidDate ? ` ${b.paidDate}` : ""}`;
   }
 
   return row;
