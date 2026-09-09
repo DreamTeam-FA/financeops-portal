@@ -239,7 +239,7 @@ export const PayrollPage: React.FC = () => {
                     <span className={`font-bold ${isLight ? "text-slate-900" : "text-white"}`}>{w.weekNum}: {w.label}</span>
                     <span className={`ml-2 text-[11px] ${isLight ? "text-slate-500" : "text-[#888]"}`}>({w.sheetName})</span>
                   </div>
-                  <span className="px-2 py-0.5 rounded bg-[#16a34a]/20 text-[#16a34a] dark:text-[#4ade80] text-[10px] font-bold flex items-center gap-1">
+                  <span className="px-2 py-0.5 rounded bg-[#16a34a]/20 text-[#16a34a] dark:text-[#4ade80] text-[10px] font-bold flex items-center gap-1 whitespace-nowrap shrink-0">
                     <CheckCircle2 className="w-3 h-3" /> Processed
                   </span>
                 </div>

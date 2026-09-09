@@ -438,7 +438,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                             </div>
                             {/* Bill count */}
                             <div className="col-span-2 sm:col-span-2 text-center">
-                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isLight ? "bg-slate-100 text-slate-600" : "bg-white/10 text-gray-300"}`}>
+                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap ${isLight ? "bg-slate-100 text-slate-600" : "bg-white/10 text-gray-300"}`}>
                                 {vBills.length}
                               </span>
                             </div>

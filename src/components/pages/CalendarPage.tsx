@@ -1008,10 +1008,10 @@ export const CalendarPage: React.FC = () => {
             <div className="space-y-1">
               <span className={`text-[10px] font-extrabold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-[#888]"}`}>Urgency Level</span>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30">🔴 Critical</span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">🟠 High</span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">🔵 Normal</span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">🟢 Low</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30 whitespace-nowrap">🔴 Critical</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 whitespace-nowrap">🟠 High</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30 whitespace-nowrap">🔵 Normal</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 whitespace-nowrap">🟢 Low</span>
               </div>
             </div>
 
@@ -1058,7 +1058,7 @@ export const CalendarPage: React.FC = () => {
             <div className="flex flex-wrap items-center gap-1.5 font-bold text-[11px]">
               <button
                 onClick={() => setShowApBillsFilter(!showApBillsFilter)}
-                className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
+                className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
                   showApBillsFilter
                     ? "bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400 font-extrabold"
                     : isLight ? "bg-slate-100 text-slate-400 border-slate-200" : "bg-[#0d111a] text-[#4a5568] border-[#1a2235]"
@@ -1068,7 +1068,7 @@ export const CalendarPage: React.FC = () => {
               </button>
               <button
                 onClick={() => setShowLoansFilter(!showLoansFilter)}
-                className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
+                className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
                   showLoansFilter
                     ? "bg-purple-500/10 border-purple-500/30 text-purple-600 dark:text-purple-400 font-extrabold"
                     : isLight ? "bg-slate-100 text-slate-400 border-slate-200" : "bg-[#0d111a] text-[#4a5568] border-[#1a2235]"
@@ -1078,7 +1078,7 @@ export const CalendarPage: React.FC = () => {
               </button>
               <button
                 onClick={() => setShowArFilter(!showArFilter)}
-                className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
+                className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
                   showArFilter
                     ? "bg-orange-500/10 border-orange-500/30 text-orange-600 dark:text-orange-400 font-extrabold"
                     : isLight ? "bg-slate-100 text-slate-400 border-slate-200" : "bg-[#0d111a] text-[#4a5568] border-[#1a2235]"
@@ -1088,7 +1088,7 @@ export const CalendarPage: React.FC = () => {
               </button>
               <button
                 onClick={() => setShowPayrollFilter(!showPayrollFilter)}
-                className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
+                className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
                   showPayrollFilter
                     ? "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 font-extrabold"
                     : isLight ? "bg-slate-100 text-slate-400 border-slate-200" : "bg-[#0d111a] text-[#4a5568] border-[#1a2235]"
@@ -1098,7 +1098,7 @@ export const CalendarPage: React.FC = () => {
               </button>
               <button
                 onClick={() => setShowGoogleCalFilter(!showGoogleCalFilter)}
-                className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
+                className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
                   showGoogleCalFilter
                     ? "bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400 font-extrabold"
                     : isLight ? "bg-slate-100 text-slate-400 border-slate-200" : "bg-[#0d111a] text-[#4a5568] border-[#1a2235]"
@@ -1108,7 +1108,7 @@ export const CalendarPage: React.FC = () => {
               </button>
               <button
                 onClick={() => setShowTasksFilter(!showTasksFilter)}
-                className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
+                className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
                   showTasksFilter
                     ? "bg-teal-500/10 border-teal-500/30 text-teal-600 dark:text-teal-400 font-extrabold"
                     : isLight ? "bg-slate-100 text-slate-400 border-slate-200" : "bg-[#0d111a] text-[#4a5568] border-[#1a2235]"

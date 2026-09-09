@@ -77,7 +77,7 @@ const BillCard: React.FC<{
       <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg" style={{ background: ec.bar }} />
       <div className="pl-3 pr-2 py-2">
         <div className="flex items-center gap-1 mb-1">
-          <span className={`px-1.5 py-0 rounded text-[10px] font-bold ${ec.bg} ${ec.text}`}>
+          <span className={`px-1.5 py-0 rounded text-[10px] font-bold whitespace-nowrap ${ec.bg} ${ec.text}`}>
             {entityDisplayLabel(bill.entity, bill.company)}
           </span>
           {isPastDue && <AlertTriangle className="w-3 h-3 text-red-500 shrink-0 ml-auto" />}
@@ -120,7 +120,7 @@ const VendorGroupRow: React.FC<{
       <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg" style={{ background: ec.bar }} />
       <div className="pl-3 pr-2 py-1.5">
         <div className="flex items-center gap-1 mb-0.5">
-          <span className={`px-1.5 py-0 rounded text-[10px] font-bold shrink-0 ${ec.bg} ${ec.text}`}>
+          <span className={`px-1.5 py-0 rounded text-[10px] font-bold shrink-0 whitespace-nowrap ${ec.bg} ${ec.text}`}>
             {entityDisplayLabel(group.entity, group.subcompany)}
           </span>
           {group.count > 1 && (
@@ -371,7 +371,7 @@ const MobileListView: React.FC<{
                   <div className="pl-4 pr-3 py-2.5 flex items-center gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-                        <span className={`px-1.5 py-0 rounded text-[10px] font-bold shrink-0 ${ec.bg} ${ec.text}`}>
+                        <span className={`px-1.5 py-0 rounded text-[10px] font-bold shrink-0 whitespace-nowrap ${ec.bg} ${ec.text}`}>
                           {entityDisplayLabel(g.entity, g.subcompany)}
                         </span>
                         {g.count > 1 && <span className={`ml-auto text-[10px] font-bold shrink-0 ${sec.overdueStyle ? "text-red-500" : sec.lastWeekStyle ? "text-amber-500" : "text-[#1a73e8]"}`}>×{g.count}</span>}

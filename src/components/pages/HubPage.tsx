@@ -401,7 +401,7 @@ export const HubPage: React.FC = () => {
                 {topVendors.map(b => (
                   <span
                     key={b.id}
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border whitespace-nowrap ${
                       isLight ? "bg-red-100 border-red-200 text-red-700" : "bg-red-500/10 border-red-500/20 text-red-400"
                     }`}
                   >
