@@ -1160,9 +1160,12 @@ export const buildAPBillRow = (b: APBill, entity: string): any[] => {
       let partialText: string | null = null;
       if (b.partialPaid && b.partialPaid > 0) {
         if (b.partialPayments && b.partialPayments.length > 0) {
-          // Show each individual payment: "$10,000.00 on 2026-08-27; $5,000.00 on 2026-09-01"
-          const entries = b.partialPayments.map(p => `$${p.amount.toFixed(2)} on ${p.date}`).join("; ");
-          partialText = `Partial: ${entries}`;
+          // Each payment on its own line in the cell:
+          // Partial:
+          // $10,000.00 on 2026-08-27
+          // $5,000.00 on 2026-09-01
+          const entries = b.partialPayments.map(p => `$${p.amount.toFixed(2)} on ${p.date}`).join("\n");
+          partialText = `Partial:\n${entries}`;
         } else {
           // Fallback for bills with no partialPayments history (older records)
           partialText = `Partial: $${b.partialPaid.toFixed(2)} paid${b.paidDate ? ` ${b.paidDate}` : ""}`;
@@ -1176,8 +1179,8 @@ export const buildAPBillRow = (b: APBill, entity: string): any[] => {
   // TI: if partial payment, also write partial history to methodCol (Payment Via col M)
   if (entity === "TI" && b.partialPaid && b.partialPaid > 0 && b.status !== "paid" && map.methodCol !== null) {
     if (b.partialPayments && b.partialPayments.length > 0) {
-      const entries = b.partialPayments.map(p => `$${p.amount.toFixed(2)} on ${p.date}`).join("; ");
-      row[map.methodCol] = `Partial: ${entries}`;
+      const entries = b.partialPayments.map(p => `$${p.amount.toFixed(2)} on ${p.date}`).join("\n");
+      row[map.methodCol] = `Partial:\n${entries}`;
     } else {
       row[map.methodCol] = `Partial: $${b.partialPaid.toFixed(2)} paid${b.paidDate ? ` ${b.paidDate}` : ""}`;
     }
