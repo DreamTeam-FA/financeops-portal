@@ -208,7 +208,7 @@ const HOWTOS = [
       "A popup modal appears showing the current balance — enter the new balance and click 'Save Balance' (or press Enter).",
       "The change writes immediately to the Google Sheet and the portal updates in real-time.",
       "The Yesterday column shows the balance before the last update.",
-      "Every day at 6pm Philippine Standard Time, the portal automatically copies all current balances into the Yesterday column in the sheet — no manual step needed.",
+      "Every day at 6:00pm Philippine Standard Time (10:00 UTC), the SERVER automatically copies all current balances (col C) into the Yesterday column (col D) in the sheet — no browser needs to be open. A timestamped snapshot of the pre-copy state is saved server-side for 7 days as a safety fallback.",
     ],
   },
   {

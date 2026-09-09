@@ -4,7 +4,7 @@ import fs from "fs";
 import * as XLSX from "xlsx";
 import { createServer as createViteServer } from "vite";
 import { fetchFullLiveDataset } from "./src/services/liveSheetsFetcher";
-import { writeSingleAPBill, writeBillDriveUrl } from "./src/services/googleSheetsService";
+import { writeSingleAPBill, writeBillDriveUrl, writeSingleBankAccount } from "./src/services/googleSheetsService";
 import {
   getRawData as fourYrGetRawData,
   getMasterListWeeks as fourYrGetWeeks,
@@ -865,6 +865,117 @@ const BILLS_ROOT_FOLDER_ID = "1AzwpWEMdyp1SEeNtXrie5171cSk5L7Za";
 
 // Main AP spreadsheet — driveViewUrl is written here permanently so it survives server deploys
 const AP_SPREADSHEET_ID = "15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs";
+
+// ── Bank EOD Copy ─────────────────────────────────────────────────────────────
+// Runs daily at 10:00 UTC = 6:00pm PHT.
+// Copies current balance (col C) → yesterday (col D) for every bank account,
+// then writes all rows back to the sheet.
+// SAFETY: a snapshot of the pre-copy bank state is saved to disk first so you
+//         can inspect or restore it if the copy ever goes wrong.
+//
+// Sheet layout (confirmed):
+//   col A = Entity | col B = Bank/Account | col C = Balance | col D = Yesterday | col E = Updated
+
+const BANK_EOD_SPREADSHEET_ID = "15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs";
+const BANK_EOD_RANGE          = "'Bank Balances'!A1:E50";
+
+// Tracks the last PHT date the EOD copy ran — prevents double-firing on restart.
+let eodCopyLastRun = "";
+
+// Directory for pre-copy snapshots (one file per day, kept for 7 days)
+const EOD_SNAPSHOT_DIR = process.env.VERCEL
+  ? "/tmp"
+  : path.join(process.cwd(), "bank_eod_snapshots");
+
+function ensureSnapshotDir() {
+  try { if (!fs.existsSync(EOD_SNAPSHOT_DIR)) fs.mkdirSync(EOD_SNAPSHOT_DIR, { recursive: true }); }
+  catch {}
+}
+
+function saveBankSnapshot(todayStr: string, banks: any[]) {
+  ensureSnapshotDir();
+  const file = path.join(EOD_SNAPSHOT_DIR, `bank_eod_snapshot_${todayStr}.json`);
+  try {
+    fs.writeFileSync(file, JSON.stringify({ date: todayStr, capturedAt: new Date().toISOString(), banks }, null, 2));
+    console.log(`[EOD Bank Copy] Snapshot saved → ${file}`);
+    // Clean snapshots older than 7 days
+    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const files = fs.readdirSync(EOD_SNAPSHOT_DIR).filter(f => f.startsWith("bank_eod_snapshot_"));
+    for (const f of files) {
+      const full = path.join(EOD_SNAPSHOT_DIR, f);
+      try { if (fs.statSync(full).mtimeMs < cutoff) fs.unlinkSync(full); } catch {}
+    }
+  } catch (e) {
+    console.warn("[EOD Bank Copy] Could not save snapshot:", e);
+  }
+}
+
+async function runEODBankCopy(manual = false): Promise<{ ok?: boolean; skipped?: boolean; reason?: string; written?: number; failed?: number; date?: string; error?: string }> {
+  // Compute today in PHT (UTC+8)
+  const nowPHT = new Date(Date.now() + 8 * 60 * 60 * 1000);
+  const todayStr = nowPHT.toISOString().slice(0, 10); // "YYYY-MM-DD"
+
+  if (!manual && eodCopyLastRun === todayStr) {
+    console.log(`[EOD Bank Copy] Already ran today (${todayStr}), skipping.`);
+    return { skipped: true, reason: "already ran today" };
+  }
+
+  const token = getEffectiveDriveToken();
+  if (!token) {
+    console.warn("[EOD Bank Copy] No cached OAuth token — skipping. User must sign in first.");
+    return { skipped: true, reason: "no oauth token — user must sign in" };
+  }
+
+  const data = getStoredData();
+  const banks: any[] = (data.banks || []).filter((a: any) => a.row);
+  if (banks.length === 0) {
+    console.warn("[EOD Bank Copy] No bank accounts with row numbers in stored data.");
+    return { skipped: true, reason: "no banks with row numbers" };
+  }
+
+  // SAFETY: snapshot the current state BEFORE any writes
+  saveBankSnapshot(todayStr, banks);
+
+  // Copy balance → yesterday, update asOf
+  const updatedBanks = (data.banks || []).map((acc: any) => ({
+    ...acc,
+    yesterday: acc.balance,
+    asOf: todayStr,
+  }));
+
+  // Persist updated state to server JSON first
+  saveStoredData({ ...data, banks: updatedBanks });
+
+  // Write each account row to the sheet
+  let written = 0, failed = 0;
+  for (const acc of updatedBanks) {
+    if (!acc.row) continue; // no row = not in sheet, skip silently
+    try {
+      await writeSingleBankAccount(acc, BANK_EOD_RANGE, BANK_EOD_SPREADSHEET_ID, token);
+      written++;
+    } catch (e: any) {
+      console.warn(`[EOD Bank Copy] Sheet write failed for "${acc.bank}" (row ${acc.row}):`, e?.message);
+      failed++;
+    }
+  }
+
+  eodCopyLastRun = todayStr;
+  console.log(`[EOD Bank Copy] Complete — ${written} written, ${failed} failed. PHT date: ${todayStr}`);
+  return { ok: true, written, failed, date: todayStr };
+}
+
+// Check every 60s — fire when UTC clock is exactly 10:00 (= 6pm PHT)
+function scheduleEODBankCopy() {
+  setInterval(() => {
+    const now = new Date();
+    if (now.getUTCHours() === 10 && now.getUTCMinutes() === 0) {
+      console.log("[EOD Bank Copy] Scheduled trigger at 10:00 UTC (6:00pm PHT)");
+      runEODBankCopy(false).catch((e: any) => console.error("[EOD Bank Copy] Unexpected error:", e));
+    }
+  }, 60_000);
+  console.log("[EOD Bank Copy] Scheduler started — fires daily at 10:00 UTC (6:00pm PHT)");
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 /** Ensure the full path exists under the bills root folder, return the leaf folder ID. */
 async function ensurePath(drive: any, segments: string[]): Promise<string> {
@@ -4139,6 +4250,31 @@ app.get("/api/integration-test", (_req, res) => {
   });
 });
 
+// POST /api/bank/eod-copy — manual trigger (also used for testing)
+// Body: { force?: boolean } — set force:true to re-run even if it already ran today
+app.post("/api/bank/eod-copy", async (req, res) => {
+  const force = req.body?.force === true;
+  try {
+    const result = await runEODBankCopy(force);
+    res.json(result);
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || "Unexpected error" });
+  }
+});
+
+// GET /api/bank/eod-snapshot/:date — retrieve a saved snapshot (YYYY-MM-DD)
+app.get("/api/bank/eod-snapshot/:date", (req, res) => {
+  const { date } = req.params;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ ok: false, error: "Invalid date format — use YYYY-MM-DD" });
+  const file = path.join(EOD_SNAPSHOT_DIR, `bank_eod_snapshot_${date}.json`);
+  if (!fs.existsSync(file)) return res.status(404).json({ ok: false, error: `No snapshot found for ${date}` });
+  try {
+    res.json(JSON.parse(fs.readFileSync(file, "utf-8")));
+  } catch {
+    res.status(500).json({ ok: false, error: "Could not read snapshot file" });
+  }
+});
+
 // 404 handler for any unmatched /api routes — prevents Vite or static server from serving index.html HTML
 app.all("/api/*", (_req, res) => {
   res.status(404).json({ ok: false, error: "API route not found" });
@@ -4163,6 +4299,8 @@ async function startServer() {
     console.log(`FinanceOps Hub running on http://0.0.0.0:${PORT}`);
     // Auto-fetch live data from Google Sheets on boot
     syncLiveDataFromSheets();
+    // Start the daily 6pm PHT bank balance EOD copy scheduler
+    scheduleEODBankCopy();
   });
 }
 
