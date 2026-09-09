@@ -30,7 +30,7 @@ const isOverdue = (dueDate?: string) => {
 };
 
 /* ── Status badge ─────────────────────────────────────────── */
-const StatusBadge: React.FC<{ status: string; dueDate?: string }> = ({ status, dueDate }) => {
+const StatusBadge: React.FC<{ status: string; dueDate?: string; partialPaid?: number }> = ({ status, dueDate, partialPaid }) => {
   const overdue = status === "unpaid" && isOverdue(dueDate);
   if (status === "paid")
     return (
@@ -42,6 +42,12 @@ const StatusBadge: React.FC<{ status: string; dueDate?: string }> = ({ status, d
     return (
       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-700 border border-amber-200">
         <PauseCircle className="w-3 h-3" /> On Hold
+      </span>
+    );
+  if (partialPaid && partialPaid > 0)
+    return (
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-700 border border-blue-200">
+        ⬤ Partial
       </span>
     );
   return (
@@ -375,25 +381,41 @@ const AccordionItem: React.FC<{
   onEdit: () => void;
   onClose: () => void;
 }> = ({ bill, index, isOpen, onToggle, isLight, onEdit, onClose }) => {
-  const { toggleBillStatus, deleteBill, showConfirm, showDatePicker } = useFinance() as any;
+  const { toggleBillStatus, markBillPartial, deleteBill, showConfirm, showDatePicker } = useFinance() as any;
   const accentColor = getEntityColor(bill.entity);
   const overdue = bill.status === "unpaid" && isOverdue(bill.dueDate);
   // For view-bill link detection (same logic as BillDetail)
   const remarks = (bill as any).paymentInstructions || bill.remarks || bill.notes || "";
   const isLink = remarks.startsWith("http");
 
+  // Partial payment inline flow state
+  const [payMode, setPayMode] = useState<"choose" | "partial-input" | null>(null);
+  const [partialAmt, setPartialAmt] = useState(String(bill.amount));
+  const [partialDate, setPartialDate] = useState(new Date().toISOString().split("T")[0]);
+
   const handleMarkPaid = () => {
     if (bill.status === "paid") {
-      // Unmark — no date needed
       toggleBillStatus(bill.id, "unpaid");
-    } else {
-      const today = new Date().toISOString().split("T")[0];
-      showDatePicker(
-        `Enter payment date for ${bill.vendor}:`,
-        bill.paidDate || today,
-        (date: string) => toggleBillStatus(bill.id, "paid", date)
-      );
+      return;
     }
+    setPayMode("choose");
+  };
+
+  const handleFullPayment = () => {
+    setPayMode(null);
+    const today = new Date().toISOString().split("T")[0];
+    showDatePicker(
+      `Enter payment date for ${bill.vendor}:`,
+      bill.paidDate || today,
+      (date: string) => toggleBillStatus(bill.id, "paid", date)
+    );
+  };
+
+  const handlePartialConfirm = () => {
+    const amt = parseFloat(partialAmt);
+    if (isNaN(amt) || amt <= 0) return;
+    markBillPartial(bill.id, amt, partialDate);
+    setPayMode(null);
   };
 
   const handleHold = () =>
@@ -427,13 +449,18 @@ const AccordionItem: React.FC<{
           {index + 1}
         </span>
 
-        {/* Amount */}
+        {/* Amount (show remaining if partial) */}
         <span className="text-[14px] font-black shrink-0" style={{ color: accentColor }}>
-          {fmt(bill.amount)}
+          {bill.partialPaid && bill.partialPaid > 0 && bill.status !== "paid"
+            ? fmt(bill.amount - bill.partialPaid)
+            : fmt(bill.amount)}
         </span>
+        {bill.partialPaid && bill.partialPaid > 0 && bill.status !== "paid" && (
+          <span className="text-[10px] text-slate-400 shrink-0 line-through">{fmt(bill.amount)}</span>
+        )}
 
         {/* Status badge */}
-        <StatusBadge status={bill.status} dueDate={bill.dueDate} />
+        <StatusBadge status={bill.status} dueDate={bill.dueDate} partialPaid={bill.partialPaid} />
 
         {/* Spacer */}
         <span className="flex-1" />
@@ -481,9 +508,59 @@ const AccordionItem: React.FC<{
           </div>
 
           {/* Action buttons inside each expanded accordion item */}
-          <div className={`px-4 py-3 border-t flex items-center gap-2 flex-wrap ${
+          <div className={`px-4 py-3 border-t flex flex-col gap-2 ${
             isLight ? "border-slate-100 bg-slate-50" : "border-[#222] bg-[#0d0d0d]"
           }`}>
+            {/* Payment choice / partial input panel */}
+            {payMode === "choose" && (
+              <div className={`rounded-xl border p-3 flex flex-col gap-2 ${isLight ? "bg-white border-slate-200" : "bg-[#161616] border-[#2a2a2a]"}`}>
+                <p className={`text-[11px] font-semibold ${isLight ? "text-slate-600" : "text-slate-400"}`}>Payment type for <span className="font-bold">{bill.vendor}</span>:</p>
+                <div className="flex gap-2">
+                  <button onClick={handleFullPayment} className="flex-1 py-2 rounded-lg text-[12px] font-bold text-white transition-all hover:opacity-90" style={{ backgroundColor: accentColor }}>
+                    ✅ Full Payment
+                  </button>
+                  <button onClick={() => { setPartialAmt(String(bill.partialPaid || bill.amount)); setPayMode("partial-input"); }} className={`flex-1 py-2 rounded-lg text-[12px] font-bold transition-all border ${isLight ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100" : "bg-amber-900/20 text-amber-400 border-amber-700/40 hover:bg-amber-900/30"}`}>
+                    ⬤ Partial
+                  </button>
+                  <button onClick={() => setPayMode(null)} className={`px-3 py-2 rounded-lg text-[12px] transition-all ${isLight ? "text-slate-500 hover:bg-slate-100" : "text-slate-500 hover:bg-[#222]"}`}>✕</button>
+                </div>
+              </div>
+            )}
+            {payMode === "partial-input" && (
+              <div className={`rounded-xl border p-3 flex flex-col gap-2.5 ${isLight ? "bg-white border-amber-200" : "bg-[#161616] border-amber-700/40"}`}>
+                <p className={`text-[11px] font-semibold ${isLight ? "text-slate-600" : "text-slate-400"}`}>Partial payment — <span className="font-bold">{bill.vendor}</span> (original: {fmt(bill.amount)})</p>
+                <div className="flex gap-2 items-center">
+                  <span className={`text-[12px] font-bold shrink-0 ${isLight ? "text-slate-600" : "text-slate-400"}`}>$</span>
+                  <input
+                    type="number"
+                    value={partialAmt}
+                    onChange={e => setPartialAmt(e.target.value)}
+                    className={`flex-1 px-3 py-1.5 rounded-lg border text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/30 ${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#0d0d0d] border-[#333] text-white"}`}
+                    placeholder="Amount paid"
+                    min="0.01"
+                    step="0.01"
+                  />
+                </div>
+                {parseFloat(partialAmt) > 0 && parseFloat(partialAmt) < bill.amount && (
+                  <p className="text-[11px] text-amber-500 font-semibold">Remaining: {fmt(bill.amount - parseFloat(partialAmt))}</p>
+                )}
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="date"
+                    value={partialDate}
+                    onChange={e => setPartialDate(e.target.value)}
+                    className={`flex-1 px-3 py-1.5 rounded-lg border text-[12px] focus:outline-none focus:ring-2 focus:ring-amber-500/30 ${isLight ? "bg-white border-slate-200 text-slate-700" : "bg-[#0d0d0d] border-[#333] text-slate-300"}`}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={handlePartialConfirm} disabled={!partialAmt || parseFloat(partialAmt) <= 0} className="flex-1 py-2 rounded-lg text-[12px] font-bold text-white bg-amber-500 hover:bg-amber-600 transition-all disabled:opacity-40">
+                    Record Partial Payment
+                  </button>
+                  <button onClick={() => setPayMode("choose")} className={`px-3 py-2 rounded-lg text-[12px] transition-all ${isLight ? "text-slate-500 hover:bg-slate-100" : "text-slate-500 hover:bg-[#222]"}`}>← Back</button>
+                </div>
+              </div>
+            )}
+            <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={handleMarkPaid}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold text-white transition-all hover:opacity-90 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
@@ -541,7 +618,8 @@ const AccordionItem: React.FC<{
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
             </Tooltip>
-          </div>
+            </div>{/* end flex items-center gap-2 flex-wrap */}
+          </div>{/* end action bar flex-col */}
         </>
       )}
     </div>
@@ -555,10 +633,14 @@ export const BillDetailsModal: React.FC<BillDetailsModalProps> = ({
   onClose,
   onEdit,
 }) => {
-  const { theme, toggleBillStatus, deleteBill, showConfirm, showDatePicker } = useFinance() as any;
+  const { theme, toggleBillStatus, markBillPartial, deleteBill, showConfirm, showDatePicker } = useFinance() as any;
   const isLight = theme === "light";
   // For multi-bill: which accordion item is open (-1 = none, auto-open first)
   const [expandedIdx, setExpandedIdx] = useState<number>(-1);
+  // Single-bill partial payment flow
+  const [singlePayMode, setSinglePayMode] = useState<"choose" | "partial-input" | null>(null);
+  const [singlePartialAmt, setSinglePartialAmt] = useState("");
+  const [singlePartialDate, setSinglePartialDate] = useState(new Date().toISOString().split("T")[0]);
 
   if (!isOpen || vendorBills.length === 0) return null;
 
@@ -576,14 +658,27 @@ export const BillDetailsModal: React.FC<BillDetailsModalProps> = ({
   const handleSingleMarkPaid = () => {
     if (singleBill.status === "paid") {
       toggleBillStatus(singleBill.id, "unpaid");
-    } else {
-      const today = new Date().toISOString().split("T")[0];
-      showDatePicker(
-        `Enter payment date for ${singleBill.vendor}:`,
-        singleBill.paidDate || today,
-        (date: string) => toggleBillStatus(singleBill.id, "paid", date)
-      );
+      return;
     }
+    setSinglePartialAmt(String(singleBill.partialPaid || singleBill.amount));
+    setSinglePayMode("choose");
+  };
+
+  const handleSingleFullPayment = () => {
+    setSinglePayMode(null);
+    const today = new Date().toISOString().split("T")[0];
+    showDatePicker(
+      `Enter payment date for ${singleBill.vendor}:`,
+      singleBill.paidDate || today,
+      (date: string) => toggleBillStatus(singleBill.id, "paid", date)
+    );
+  };
+
+  const handleSinglePartialConfirm = () => {
+    const amt = parseFloat(singlePartialAmt);
+    if (isNaN(amt) || amt <= 0) return;
+    markBillPartial(singleBill.id, amt, singlePartialDate);
+    setSinglePayMode(null);
   };
   const handleSingleHold = () =>
     toggleBillStatus(singleBill.id, singleBill.status === "hold" ? "unpaid" : "hold");
@@ -655,9 +750,57 @@ export const BillDetailsModal: React.FC<BillDetailsModalProps> = ({
                 onClose={onClose}
               />
             </div>
-            <div className={`px-5 py-3 border-t flex items-center gap-2 flex-wrap ${
+            <div className={`px-5 py-3 border-t flex flex-col gap-2 ${
               isLight ? "border-slate-100 bg-slate-50" : "border-[#222] bg-[#0d0d0d]"
             }`}>
+              {/* Payment choice panel */}
+              {singlePayMode === "choose" && (
+                <div className={`rounded-xl border p-3 flex flex-col gap-2 ${isLight ? "bg-white border-slate-200" : "bg-[#161616] border-[#2a2a2a]"}`}>
+                  <p className={`text-[11px] font-semibold ${isLight ? "text-slate-600" : "text-slate-400"}`}>Payment type for <span className="font-bold">{singleBill.vendor}</span>:</p>
+                  <div className="flex gap-2">
+                    <button onClick={handleSingleFullPayment} className="flex-1 py-2 rounded-lg text-[12px] font-bold text-white transition-all hover:opacity-90" style={{ backgroundColor: accentColor }}>
+                      ✅ Full Payment
+                    </button>
+                    <button onClick={() => setSinglePayMode("partial-input")} className={`flex-1 py-2 rounded-lg text-[12px] font-bold transition-all border ${isLight ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100" : "bg-amber-900/20 text-amber-400 border-amber-700/40 hover:bg-amber-900/30"}`}>
+                      ⬤ Partial
+                    </button>
+                    <button onClick={() => setSinglePayMode(null)} className={`px-3 py-2 rounded-lg text-[12px] transition-all ${isLight ? "text-slate-500 hover:bg-slate-100" : "text-slate-500 hover:bg-[#222]"}`}>✕</button>
+                  </div>
+                </div>
+              )}
+              {singlePayMode === "partial-input" && (
+                <div className={`rounded-xl border p-3 flex flex-col gap-2.5 ${isLight ? "bg-white border-amber-200" : "bg-[#161616] border-amber-700/40"}`}>
+                  <p className={`text-[11px] font-semibold ${isLight ? "text-slate-600" : "text-slate-400"}`}>Partial payment — <span className="font-bold">{singleBill.vendor}</span> (original: {fmt(singleBill.amount)})</p>
+                  <div className="flex gap-2 items-center">
+                    <span className={`text-[12px] font-bold shrink-0 ${isLight ? "text-slate-600" : "text-slate-400"}`}>$</span>
+                    <input
+                      type="number"
+                      value={singlePartialAmt}
+                      onChange={e => setSinglePartialAmt(e.target.value)}
+                      className={`flex-1 px-3 py-1.5 rounded-lg border text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/30 ${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#0d0d0d] border-[#333] text-white"}`}
+                      placeholder="Amount paid"
+                      min="0.01"
+                      step="0.01"
+                    />
+                  </div>
+                  {parseFloat(singlePartialAmt) > 0 && parseFloat(singlePartialAmt) < singleBill.amount && (
+                    <p className="text-[11px] text-amber-500 font-semibold">Remaining: {fmt(singleBill.amount - parseFloat(singlePartialAmt))}</p>
+                  )}
+                  <input
+                    type="date"
+                    value={singlePartialDate}
+                    onChange={e => setSinglePartialDate(e.target.value)}
+                    className={`px-3 py-1.5 rounded-lg border text-[12px] focus:outline-none focus:ring-2 focus:ring-amber-500/30 ${isLight ? "bg-white border-slate-200 text-slate-700" : "bg-[#0d0d0d] border-[#333] text-slate-300"}`}
+                  />
+                  <div className="flex gap-2">
+                    <button onClick={handleSinglePartialConfirm} disabled={!singlePartialAmt || parseFloat(singlePartialAmt) <= 0} className="flex-1 py-2 rounded-lg text-[12px] font-bold text-white bg-amber-500 hover:bg-amber-600 transition-all disabled:opacity-40">
+                      Record Partial Payment
+                    </button>
+                    <button onClick={() => setSinglePayMode("choose")} className={`px-3 py-2 rounded-lg text-[12px] transition-all ${isLight ? "text-slate-500 hover:bg-slate-100" : "text-slate-500 hover:bg-[#222]"}`}>← Back</button>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={handleSingleMarkPaid}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold text-white transition-all hover:opacity-90 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)]"
@@ -702,7 +845,8 @@ export const BillDetailsModal: React.FC<BillDetailsModalProps> = ({
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </Tooltip>
-            </div>
+              </div>{/* end flex items-center gap-2 flex-wrap */}
+            </div>{/* end action bar flex-col */}
           </>
         )}
       </div>

@@ -1133,6 +1133,12 @@ export const CalendarPage: React.FC = () => {
                 <div>FRI</div>
                 <div>SAT</div>
               </div>
+              {/* Mobile tap hint — only in month view */}
+              {calendarView === "month" && (
+                <div className={`sm:hidden col-span-7 flex items-center justify-center gap-1.5 py-1.5 text-[10px] font-semibold border-b ${isLight ? "bg-teal-50 text-teal-600 border-slate-200" : "bg-[#0d9488]/10 text-teal-400 border-[#1e3457]"}`}>
+                  <span>👆</span> Tap a day to see full event list below
+                </div>
+              )}
 
               <div className={`grid grid-cols-7 divide-x divide-y ${isLight ? "divide-slate-200 bg-white" : "divide-[#222] bg-[#0d111a]"}`}>
                 {calendarView === "week" ? (

@@ -1069,7 +1069,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                             {bill.status || "unpaid"}
                           </span>
                         </div>
-                        <div className="col-span-2 flex items-center justify-end gap-1.5">
+                        <div className="col-span-2 flex items-center justify-end gap-1.5 overflow-visible">
                           {/* View bill: Drive attachment first, fall back to link in remarks/instructions */}
                           {(() => {
                             const b = bill as any;
@@ -1097,16 +1097,16 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                           </Tooltip>
                           {/* Delete */}
                           {deleteConfirmId === bill.id ? (
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1 shrink-0">
                               <button
                                 onClick={() => { deleteBill(bill.id); setDeleteConfirmId(null); showToast("Bill deleted", "success", 2500); }}
-                                className="px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-bold hover:bg-red-600 transition-colors"
+                                className="px-1.5 py-0.5 rounded bg-red-500 text-white text-[10px] font-bold hover:bg-red-600 transition-colors whitespace-nowrap"
                               >
                                 Confirm
                               </button>
                               <button
                                 onClick={() => setDeleteConfirmId(null)}
-                                className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition-colors ${isLight ? "bg-slate-200 text-slate-700 hover:bg-slate-300" : "bg-white/10 text-gray-300 hover:bg-white/20"}`}
+                                className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition-colors whitespace-nowrap ${isLight ? "bg-slate-200 text-slate-700 hover:bg-slate-300" : "bg-white/10 text-gray-300 hover:bg-white/20"}`}
                               >
                                 Cancel
                               </button>

@@ -1130,8 +1130,21 @@ export const buildAPBillRow = (b: APBill, entity: string): any[] => {
     const instr = (b.paymentInstructions || b.remarks || b.notes || "").replace(/^\[[^\]]+\]\s*/, "").trim();
     if (instr) row[map.remarksCol] = instr;
     // status1Col shares col L with paidDate — only write status1 when the bill is not paid
-    if (b.status1 && b.status !== "paid") row[map.status1Col] = b.status1;
+    // Partial payment: override status1 with partial-payment text (takes priority over plain status1)
+    if (b.status !== "paid") {
+      const partialText = b.partialPaid && b.partialPaid > 0
+        ? `Partial: $${b.partialPaid.toFixed(2)} paid`
+        : null;
+      const s1 = partialText || b.status1 || "";
+      if (s1) row[map.status1Col] = s1;
+    }
   }
+
+  // TI: if partial payment, also write partial text to methodCol (Payment Via col M)
+  if (entity === "TI" && b.partialPaid && b.partialPaid > 0 && b.status !== "paid" && map.methodCol !== null) {
+    row[map.methodCol] = `Partial: $${b.partialPaid.toFixed(2)} paid`;
+  }
+
   return row;
 };
 

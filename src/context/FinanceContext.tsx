@@ -131,6 +131,7 @@ interface FinanceContextType {
   addBill: (bill: Omit<APBill, "id">) => APBill;
   updateBill: (bill: APBill) => void;
   toggleBillStatus: (id: string, status: "unpaid" | "paid" | "hold", paidDate?: string) => void;
+  markBillPartial: (id: string, amountPaid: number, paidDate: string) => void;
   deleteBill: (id: string) => void;
   
   addBankAccount: (acc: Omit<BankAccount, "id">) => void;
@@ -2579,6 +2580,22 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (updatedBill) pushSingleAPBillToSheet(updatedBill, "write");
   };
 
+  const markBillPartial = (id: string, amountPaid: number, paidDate: string) => {
+    if (!requireToken()) return;
+    let updatedBill: APBill | undefined;
+    const nextBills = apBills.map((b) => {
+      if (b.id === id) {
+        updatedBill = { ...b, partialPaid: amountPaid, paidDate, status: "unpaid" };
+        return updatedBill;
+      }
+      return b;
+    });
+    setApBills(nextBills);
+    persistChanges({ ap: nextBills });
+    logAction("Partial Payment", `Bill ID ${id}: $${amountPaid.toFixed(2)} partial payment recorded`);
+    if (updatedBill) pushSingleAPBillToSheet(updatedBill, "write");
+  };
+
   const deleteBill = (id: string) => {
     if (!requireToken()) return;
     const billToDelete = apBills.find((b) => b.id === id);
@@ -2909,6 +2926,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         addBill,
         updateBill,
         toggleBillStatus,
+        markBillPartial,
         deleteBill,
         addBankAccount,
         updateBankAccount,

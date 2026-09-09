@@ -40,6 +40,7 @@ export interface APBill {
   costType?: "Fixed" | "Estimate";
   driveViewUrl?: string;   // Google Drive view URL for attached bill file
   driveFileName?: string;  // Original filename of the attached bill
+  partialPaid?: number;    // Amount already partially paid; remaining = amount - partialPaid
 }
 
 export interface BankAccount {
