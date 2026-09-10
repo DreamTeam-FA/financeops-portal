@@ -390,13 +390,14 @@ export const BankStatementsPage: React.FC = () => {
       }
     }
 
-    // Legacy entries: try statementDate (use end part of pipe range), then requestDate, then period
+    // Legacy entries: requestDate drives the month (when it was requested/actioned),
+    // then fall back to statementDate end, then period
     const candidates: string[] = [];
+    if (s.requestDate) candidates.push(s.requestDate);
     if (s.statementDate) {
       candidates.push(s.statementDate.includes("|") ? s.statementDate.split("|")[1] : s.statementDate);
     }
-    if (s.requestDate) candidates.push(s.requestDate);
-    if (s.period)      candidates.push(s.period);
+    if (s.period) candidates.push(s.period);
 
     for (const raw of candidates) {
       const str = String(raw).trim();
