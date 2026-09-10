@@ -3642,6 +3642,17 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
     ];
     const weekListLen = weekListVals.length;
 
+    // ── Expand Dashboard to 26 cols before writing (original sheet may have only 6) ──
+    await fetch(`${base}/${spreadsheetId}:batchUpdate`, {
+      method: "POST", headers: hdr,
+      body: JSON.stringify({ requests: [
+        { updateSheetProperties: {
+          properties: { sheetId: dashId, gridProperties: { columnCount: 26, rowCount: 5000 } },
+          fields: "gridProperties.columnCount,gridProperties.rowCount",
+        }},
+      ]})
+    });
+
     // ── Write all values ──────────────────────────────────────────────────────
     await fetch(`${base}/${spreadsheetId}/values:batchUpdate`, {
       method: "POST", headers: hdr,
@@ -3837,7 +3848,6 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
     requests.push({ addBanding: { bandedRange: {
       range: R(weeklyId, 1, Math.min(wkValues.length, 4999), 0, nc),
       rowProperties: {
-        headerColor: BLUE,
         firstBandColor: { red: 1, green: 1, blue: 1 },
         secondBandColor: { red: 0.976, green: 0.980, blue: 0.996 },
       },
