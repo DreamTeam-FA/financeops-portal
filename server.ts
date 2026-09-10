@@ -3701,9 +3701,9 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
       left: solidBorder({ red: 0.7, green: 0.7, blue: 0.75 }),
       right: solidBorder({ red: 0.7, green: 0.7, blue: 0.75 }),
     }});
-    // Data Validation: dropdown sourced from helper col M (avoids ONE_OF_LIST 500-item cap)
+    // Data Validation: dropdown on I3 (col 8, 0-idx) — formulas read $I$3 for week filter
     requests.push({ setDataValidation: {
-      range: R(dashId, 2, 3, 7, 8),
+      range: R(dashId, 2, 3, 8, 9),
       rule: {
         condition: {
           type: "ONE_OF_RANGE",
