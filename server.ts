@@ -3634,11 +3634,35 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
     const rawVals = [[...(rawHeaders || [])], ...(rawData || [])];
 
     // ── Week list for Dashboard filter dropdown (deduplicated, hidden helper col M) ─
-    // weeklyRows is one row per vendor per week — must deduplicate week labels
-    const uniqueWeekLabels = [...new Set((weeklyRows || []).map((r: any) => String(r.weekLabel)))];
+    // Fill ALL calendar weeks between min and max weekStart — no gaps even if a week has $0
+    const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const weekStartDates = (weeklyRows || []).map((r: any) => r.weekStart).filter(Boolean);
+    const existingLabelByStart: Record<string, string> = {};
+    (weeklyRows || []).forEach((r: any) => {
+      if (r.weekStart && r.weekLabel) existingLabelByStart[r.weekStart] = r.weekLabel;
+    });
+    let allWeekLabels: string[] = [];
+    if (weekStartDates.length) {
+      const ts = weekStartDates.map((s: string) => new Date(s).getTime()).filter(Number.isFinite);
+      const minTs = Math.min(...ts), maxTs = Math.max(...ts);
+      // iterate newest-first (col M order) filling every 7-day slot
+      for (let t = maxTs; t >= minTs; t -= 7 * 86400000) {
+        const d = new Date(t);
+        const iso = d.toISOString().split("T")[0];
+        if (existingLabelByStart[iso]) {
+          allWeekLabels.push(existingLabelByStart[iso]);
+        } else {
+          // generate label for gap week
+          const end = new Date(d); end.setDate(end.getDate() + 6);
+          allWeekLabels.push(`${MONTHS[d.getMonth()]} ${d.getDate()} – ${MONTHS[end.getMonth()]} ${end.getDate()}, ${end.getFullYear()}`);
+        }
+      }
+    } else {
+      allWeekLabels = [...new Set((weeklyRows || []).map((r: any) => String(r.weekLabel)))];
+    }
     const weekListVals: any[][] = [
       ["All Weeks"],
-      ...uniqueWeekLabels.map(w => [w]),
+      ...allWeekLabels.map(w => [w]),
     ];
     const weekListLen = weekListVals.length;
 
