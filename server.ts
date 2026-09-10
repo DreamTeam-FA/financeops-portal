@@ -3633,6 +3633,13 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
     // ── Build Raw Data values ─────────────────────────────────────────────────
     const rawVals = [[...(rawHeaders || [])], ...(rawData || [])];
 
+    // ── Week list for Dashboard filter dropdown (hidden helper col M = index 12) ─
+    const weekListVals: any[][] = [
+      ["All Weeks"],
+      ...(weeklyRows || []).map((r: any) => [String(r.weekLabel)]),
+    ];
+    const weekListLen = weekListVals.length;
+
     // ── Write all values ──────────────────────────────────────────────────────
     await fetch(`${base}/${spreadsheetId}/values:batchUpdate`, {
       method: "POST", headers: hdr,
@@ -3640,6 +3647,7 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
         valueInputOption: "USER_ENTERED",
         data: [
           { range: "Dashboard!A1",        values: dashValues  },
+          { range: `Dashboard!M1:M${weekListLen}`, values: weekListVals },
           { range: "Weekly Breakdown!A1", values: wkValues    },
           { range: "YTD Summary!A1",      values: ytdValues   },
           { range: "Raw Data!A1",         values: rawVals     },
@@ -3680,20 +3688,23 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
       left: solidBorder({ red: 0.7, green: 0.7, blue: 0.75 }),
       right: solidBorder({ red: 0.7, green: 0.7, blue: 0.75 }),
     }});
-    // Data Validation: dropdown with "All Weeks" + each week label
+    // Data Validation: dropdown sourced from helper col M (avoids ONE_OF_LIST 500-item cap)
     requests.push({ setDataValidation: {
       range: R(dashId, 2, 3, 7, 9),
       rule: {
         condition: {
-          type: "ONE_OF_LIST",
-          values: [
-            { userEnteredValue: "All Weeks" },
-            ...(weeklyRows || []).map((r: any) => ({ userEnteredValue: String(r.weekLabel) })),
-          ],
+          type: "ONE_OF_RANGE",
+          values: [{ userEnteredValue: `='Dashboard'!$M$1:$M$${weekListLen}` }],
         },
         showCustomUi: true,
         strict: false,
       },
+    }});
+    // Hide helper col M (make it 1px wide so it's invisible)
+    requests.push({ updateDimensionProperties: {
+      range: { sheetId: dashId, dimension: "COLUMNS", startIndex: 12, endIndex: 13 },
+      properties: { pixelSize: 1, hiddenByUser: true },
+      fields: "pixelSize,hiddenByUser",
     }});
 
     // KPI boxes (rows 4-6) — three side-by-side cards
