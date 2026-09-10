@@ -694,35 +694,31 @@ export const CCExpensePage: React.FC = () => {
           </span>
         </div>
         <div className="flex items-center gap-2">
-          {(rawRows.length > 0 || exportSheet?.linked) && (
-            <div className="flex items-center gap-1">
-              {exportSheet?.linked && exportSheet.url && (
-                <a
-                  href={exportSheet.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title="Open report sheet"
-                  className={`flex items-center justify-center w-7 h-7 rounded transition-colors ${
-                    isLight ? "bg-slate-100 hover:bg-slate-200 text-emerald-600 border border-slate-200" : "bg-[#1a2235] hover:bg-[#232f47] text-emerald-400 border border-[#1e2d48]"
-                  }`}
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
-              )}
-              {rawRows.length > 0 && (
-                <button
-                  onClick={handleSaveToSheet}
-                  disabled={saving}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-[12px] font-medium transition-colors disabled:opacity-50 ${
-                    isLight ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-emerald-700 hover:bg-emerald-600 text-white"
-                  }`}
-                  title={exportSheet?.linked ? "Sync current data to the report sheet" : "Create report sheet in Google Drive"}
-                >
-                  {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
-                  {saving ? (exportSheet?.linked ? "Syncing…" : "Creating…") : (exportSheet?.linked ? "Sync to Sheet" : "Save to Sheet")}
-                </button>
-              )}
-            </div>
+          {exportSheet?.linked && exportSheet.url && (
+            <a
+              href={exportSheet.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-[12px] font-medium transition-colors ${
+                isLight ? "bg-slate-100 hover:bg-slate-200 text-emerald-700 border border-slate-200" : "bg-[#1a2235] hover:bg-[#232f47] text-emerald-400 border border-[#1e2d48]"
+              }`}
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              Open Sheet
+            </a>
+          )}
+          {rawRows.length > 0 && (
+            <button
+              onClick={handleSaveToSheet}
+              disabled={saving}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-[12px] font-medium transition-colors disabled:opacity-50 ${
+                isLight ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-emerald-700 hover:bg-emerald-600 text-white"
+              }`}
+              title={exportSheet?.linked ? "Sync current data to the report sheet" : "Create report sheet in Google Drive"}
+            >
+              {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
+              {saving ? (exportSheet?.linked ? "Syncing…" : "Creating…") : (exportSheet?.linked ? "Sync to Sheet" : "Save to Sheet")}
+            </button>
           )}
           <button
             onClick={() => setCardsOpen(o => !o)}
