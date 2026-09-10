@@ -3703,7 +3703,7 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
     }});
     // Data Validation: dropdown sourced from helper col M (avoids ONE_OF_LIST 500-item cap)
     requests.push({ setDataValidation: {
-      range: R(dashId, 2, 3, 7, 9),
+      range: R(dashId, 2, 3, 7, 8),
       rule: {
         condition: {
           type: "ONE_OF_RANGE",
@@ -3713,7 +3713,12 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
         strict: false,
       },
     }});
-    // Note: col M (index 12) holds the week list for the dropdown — left visible but off to the right
+    // Hide col M (index 12) — week list helper for dropdown, must not be visible
+    requests.push({ updateDimensionProperties: {
+      range: { sheetId: dashId, dimension: "COLUMNS", startIndex: 12, endIndex: 13 },
+      properties: { hiddenByUser: true },
+      fields: "hiddenByUser",
+    }});
 
     // KPI boxes (rows 4-6) — three side-by-side cards
     // Box 1: cols 0-2 (Total Expenses) → blue
