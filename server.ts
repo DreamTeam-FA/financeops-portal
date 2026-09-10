@@ -3569,17 +3569,17 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
       ["CC EXPENSE SUMMARY", ...E(W - 1)],
       // Row 1: blank
       E(W),
-      // Row 2: meta + week filter (H3 is the dropdown cell)
-      ["Last Updated", lastUpdated, "", "Date Range", dateRange || "", "", "Filter Week:", "All Weeks", ...E(W - 8)],
+      // Row 2: meta + week filter (I3 is the dropdown cell)
+      ["Last Updated", lastUpdated, "", "Date Range", dateRange || "", "", "Filter Week:", "", "All Weeks", ...E(W - 9)],
       // Row 3: blank
       E(W),
       // Row 4: KPI labels
       ["TOTAL CC EXPENSES", "", "", "", "TOTAL TRANSACTIONS", "", "", "", "ACTIVE COMPANIES", "", ""],
-      // Row 5: KPI values — filter-aware (H3 is the week dropdown, L col is Week in Raw Data)
+      // Row 5: KPI values — filter-aware (I3 is the week dropdown, L col is Week in Raw Data)
       [
-        `=IF($H$3="All Weeks",SUM('Raw Data'!J2:J),SUMIF('Raw Data'!L:L,$H$3,'Raw Data'!J:J))`,
+        `=IF($I$3="All Weeks",SUM('Raw Data'!J2:J),SUMIF('Raw Data'!L:L,$I$3,'Raw Data'!J:J))`,
         "", "", "",
-        `=IF($H$3="All Weeks",COUNTA('Raw Data'!B2:B),COUNTIF('Raw Data'!L:L,$H$3))`,
+        `=IF($I$3="All Weeks",COUNTA('Raw Data'!B2:B),COUNTIF('Raw Data'!L:L,$I$3))`,
         "", "", "",
         String(N), "", "",
       ],
@@ -3592,13 +3592,13 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
       // Row 9: column headers
       ["Company", "Amount", "% of Total", ...E(W - 3)],
     ];
-    // Company rows — SUMIFS filters by week when H3 ≠ "All Weeks" (L col = Week in Raw Data)
+    // Company rows — SUMIFS filters by week when I3 ≠ "All Weeks" (L col = Week in Raw Data)
     for (let i = 0; i < N; i++) {
       const co = COLS[i];
       const rowNum = 11 + i; // 1-indexed
       dashValues.push([
         co,
-        `=IF($H$3="All Weeks",SUMIF('Raw Data'!G:G,"${co}",'Raw Data'!J:J),SUMIFS('Raw Data'!J:J,'Raw Data'!G:G,"${co}",'Raw Data'!L:L,$H$3))`,
+        `=IF($I$3="All Weeks",SUMIF('Raw Data'!G:G,"${co}",'Raw Data'!J:J),SUMIFS('Raw Data'!J:J,'Raw Data'!G:G,"${co}",'Raw Data'!L:L,$I$3))`,
         `=IF(B$${totalSheetRow}=0,0,B${rowNum}/B$${totalSheetRow})`,
         ...E(W - 3),
       ]);
@@ -3718,18 +3718,18 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
     requests.push({ repeatCell: { range: R(dashId, 2, 3, 3, 4), cell: { userEnteredFormat: { textFormat: { bold: true, fontSize: 10, foregroundColor: GRAY_TEXT } } }, fields: "userEnteredFormat(textFormat)" } });
     // "Filter Week:" label (col 6 = G) — bold gray
     requests.push({ repeatCell: { range: R(dashId, 2, 3, 6, 7), cell: { userEnteredFormat: { textFormat: { bold: true, fontSize: 10, foregroundColor: GRAY_TEXT }, horizontalAlignment: "RIGHT" } }, fields: "userEnteredFormat(textFormat,horizontalAlignment)" } });
-    // Dropdown cell (col 7 = H) — light border; also clear any leftover I3 (col 8) validation
-    requests.push({ updateBorders: { range: R(dashId, 2, 3, 7, 8),
+    // Dropdown cell (col 8 = I) — light border; also clear any leftover H3 (col 7) validation
+    requests.push({ updateBorders: { range: R(dashId, 2, 3, 8, 9),
       top: solidBorder({ red: 0.7, green: 0.7, blue: 0.75 }),
       bottom: solidBorder({ red: 0.7, green: 0.7, blue: 0.75 }),
       left: solidBorder({ red: 0.7, green: 0.7, blue: 0.75 }),
       right: solidBorder({ red: 0.7, green: 0.7, blue: 0.75 }),
     }});
-    // Explicitly clear any leftover validation on I3 (col 8) — only H3 should have the dropdown
-    requests.push({ setDataValidation: { range: R(dashId, 2, 3, 8, 9) } });
-    // Data Validation: dropdown on H3 (col 7, 0-idx) — formulas read $H$3 for week filter
+    // Explicitly clear any leftover validation on H3 (col 7) — only I3 should have the dropdown
+    requests.push({ setDataValidation: { range: R(dashId, 2, 3, 7, 8) } });
+    // Data Validation: dropdown on I3 (col 8, 0-idx) — formulas read $I$3 for week filter
     requests.push({ setDataValidation: {
-      range: R(dashId, 2, 3, 7, 8),
+      range: R(dashId, 2, 3, 8, 9),
       rule: {
         condition: {
           type: "ONE_OF_RANGE",

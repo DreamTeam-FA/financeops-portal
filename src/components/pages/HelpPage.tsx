@@ -151,7 +151,7 @@ const FAQ = [
   },
   {
     q: "How does the 'Filter Week:' dropdown on the CC Expense Dashboard work?",
-    a: "The Dashboard tab has a 'Filter Week:' dropdown in cell H3 (top row, after the date range). Selecting a week filters all KPIs (Total Expenses, Transactions) and the per-company amounts to show only that week's CC transactions. The dropdown lists every week between the oldest and newest transaction, including weeks with $0 activity. Select 'All Weeks' to return to the full YTD view. The filter works by matching the selected week label against column L (Week) in the Raw Data tab — column L is populated automatically when you sync the sheet from the portal.",
+    a: "The Dashboard tab has a 'Filter Week:' dropdown in cell I3 (top row, after the date range). Selecting a week filters all KPIs (Total Expenses, Transactions) and the per-company amounts to show only that week's CC transactions. The dropdown lists every week between the oldest and newest transaction, including weeks with $0 activity. Select 'All Weeks' to return to the full YTD view. The filter works by matching the selected week label against column L (Week) in the Raw Data tab — column L is populated automatically when you sync the sheet from the portal.",
   },
   {
     q: "Why do TI sub-entity bills (4G, 4YR, E1, Corner) appear in a separate 'TI Bills' bucket on the AP page?",
