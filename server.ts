@@ -3633,10 +3633,12 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
     // ── Build Raw Data values ─────────────────────────────────────────────────
     const rawVals = [[...(rawHeaders || [])], ...(rawData || [])];
 
-    // ── Week list for Dashboard filter dropdown (hidden helper col M = index 12) ─
+    // ── Week list for Dashboard filter dropdown (deduplicated, hidden helper col M) ─
+    // weeklyRows is one row per vendor per week — must deduplicate week labels
+    const uniqueWeekLabels = [...new Set((weeklyRows || []).map((r: any) => String(r.weekLabel)))];
     const weekListVals: any[][] = [
       ["All Weeks"],
-      ...(weeklyRows || []).map((r: any) => [String(r.weekLabel)]),
+      ...uniqueWeekLabels.map(w => [w]),
     ];
     const weekListLen = weekListVals.length;
 
