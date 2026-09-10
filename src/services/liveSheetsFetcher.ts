@@ -338,7 +338,7 @@ function fetchSheetsV4Tab(
     const a1Name = "'" + sheetName.replace(/'/g, "''") + "'";
     const isBearerAuth = "bearerToken" in auth;
     const keyParam = isBearerAuth ? "" : `&key=${encodeURIComponent((auth as any).apiKey)}`;
-    const reqPath = `/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(a1Name)}?valueRenderOption=UNFORMATTED_VALUE&majorDimension=ROWS${keyParam}`;
+    const reqPath = `/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(a1Name)}?valueRenderOption=FORMATTED_VALUE&majorDimension=ROWS${keyParam}`;
     const headers: Record<string, string> = {};
     if (isBearerAuth) headers["Authorization"] = `Bearer ${(auth as any).bearerToken}`;
     const req = https.request({
