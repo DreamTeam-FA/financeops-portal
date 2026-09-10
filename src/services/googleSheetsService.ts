@@ -48,11 +48,17 @@ export const parseDateVal = (val: any, year?: any, month?: any, dayStr?: any): s
     if (/^\d{4}\.\d{2}\.\d{2}$/.test(str)) return str.replace(/\./g, "-");
     const slashParts = str.split("/");
     if (slashParts.length === 3) {
-      const m = String(parseInt(slashParts[0])).padStart(2, "0");
-      const d = String(parseInt(slashParts[1])).padStart(2, "0");
-      let y = parseInt(slashParts[2]);
-      if (y < 100) y += 2000;
-      if (!isNaN(y) && y >= 2000 && y <= 2030) return `${y}-${m}-${d}`;
+      // If the year part contains "," or ":" it's a locale datetime string like "9/8/2026, 2:30 PM"
+      // — skip simple date-only extraction and let new Date() below handle it with time preserved
+      const yearPart = slashParts[2];
+      const hasTimeInSlash = /[,:]/.test(yearPart);
+      if (!hasTimeInSlash) {
+        const m = String(parseInt(slashParts[0])).padStart(2, "0");
+        const d = String(parseInt(slashParts[1])).padStart(2, "0");
+        let y = parseInt(yearPart);
+        if (y < 100) y += 2000;
+        if (!isNaN(y) && y >= 2000 && y <= 2030) return `${y}-${m}-${d}`;
+      }
     }
   }
   if (val && typeof val !== "object") {
