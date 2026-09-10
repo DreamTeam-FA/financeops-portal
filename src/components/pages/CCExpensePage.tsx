@@ -56,7 +56,7 @@ interface RawRow {
 }
 
 interface WeekEntry {
-  weekLabel: string;       // e.g. "Week of Aug 18, 2024"
+  weekLabel: string;       // e.g. "Aug 18 – Aug 24, 2024"
   weekStart: string;       // ISO "YYYY-MM-DD" (Sunday)
   rows: RawRow[];
 }
@@ -186,8 +186,12 @@ function groupIntoWeeks(rawRows: RawRow[]): WeekEntry[] {
   }
   const entries: WeekEntry[] = [];
   for (const [key, rows] of byWeek.entries()) {
-    const d = new Date(key + "T00:00:00");
-    entries.push({ weekLabel: `Week of ${fmtDate(d)}`, weekStart: key, rows });
+    const start = new Date(key + "T00:00:00");
+    const end = new Date(start); end.setDate(start.getDate() + 6);
+    const fmtShort = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const fmtFull  = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    const weekLabel = `${fmtShort(start)} – ${fmtFull(end)}`;
+    entries.push({ weekLabel, weekStart: key, rows });
   }
   entries.sort((a, b) => b.weekStart.localeCompare(a.weekStart));
   return entries;
