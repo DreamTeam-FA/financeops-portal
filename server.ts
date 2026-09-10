@@ -3494,10 +3494,10 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
         body: JSON.stringify({
           properties: { title: title || "CC Expense Report" },
           sheets: [
-            { properties: { title: "Dashboard",        sheetId: 200, index: 0, gridProperties: { columnCount: 6 } } },
-            { properties: { title: "Weekly Breakdown",  sheetId: 201, index: 1 } },
-            { properties: { title: "YTD Summary",       sheetId: 202, index: 2 } },
-            { properties: { title: "Raw Data",          sheetId: 203, index: 3 } },
+            { properties: { title: "Dashboard",        sheetId: 200, index: 0, gridProperties: { rowCount: 5000, columnCount: 26 } } },
+            { properties: { title: "Weekly Breakdown",  sheetId: 201, index: 1, gridProperties: { rowCount: 5000, columnCount: 26 } } },
+            { properties: { title: "YTD Summary",       sheetId: 202, index: 2, gridProperties: { rowCount: 5000, columnCount: 26 } } },
+            { properties: { title: "Raw Data",          sheetId: 203, index: 3, gridProperties: { rowCount: 5000, columnCount: 26 } } },
           ]
         })
       }).then(r => r.json());
@@ -3519,9 +3519,9 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
     if (isSync) {
       const toDelete = [weeklyId, ytdId, rawId].filter(id => id >= 0);
       const addRequests = [
-        { addSheet: { properties: { title: "Weekly Breakdown" } } },
-        { addSheet: { properties: { title: "YTD Summary"      } } },
-        { addSheet: { properties: { title: "Raw Data"          } } },
+        { addSheet: { properties: { title: "Weekly Breakdown", gridProperties: { rowCount: 5000, columnCount: 26 } } } },
+        { addSheet: { properties: { title: "YTD Summary",      gridProperties: { rowCount: 5000, columnCount: 26 } } } },
+        { addSheet: { properties: { title: "Raw Data",         gridProperties: { rowCount: 5000, columnCount: 26 } } } },
       ];
       const syncResp: any = await fetch(`${base}/${spreadsheetId}:batchUpdate`, {
         method: "POST", headers: hdr,
@@ -3833,12 +3833,15 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
     if (nc > 2) {
       requests.push({ repeatCell: { range: R(weeklyId, 1, wkValues.length, 2, nc), cell: { userEnteredFormat: { numberFormat: CURR_FMT, horizontalAlignment: "RIGHT" } }, fields: "userEnteredFormat(numberFormat,horizontalAlignment)" } });
     }
-    // Alternating row colors on data rows
-    for (let i = 1; i < wkValues.length; i++) {
-      if (i % 2 === 0) {
-        requests.push({ repeatCell: { range: R(weeklyId, i, i + 1, 0, nc), cell: { userEnteredFormat: { backgroundColor: { red: 0.976, green: 0.980, blue: 0.996 } } }, fields: "userEnteredFormat.backgroundColor" } });
-      }
-    }
+    // Alternating row colors via banding (avoids per-row requests that exceed sheet row limits)
+    requests.push({ addBanding: { bandedRange: {
+      range: R(weeklyId, 1, Math.min(wkValues.length, 4999), 0, nc),
+      rowProperties: {
+        headerColor: BLUE,
+        firstBandColor: { red: 1, green: 1, blue: 1 },
+        secondBandColor: { red: 0.976, green: 0.980, blue: 0.996 },
+      },
+    }}});
     // Auto-filter on Weekly Breakdown
     requests.push({ setBasicFilter: { filter: { range: R(weeklyId, 0, wkValues.length, 0, nc) } } });
     // Auto-resize Weekly Breakdown
