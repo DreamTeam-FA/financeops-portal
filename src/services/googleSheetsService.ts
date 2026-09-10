@@ -923,7 +923,18 @@ export const parseStatementSheetRows = (rows: any[][]): BankStatement[] => {
       const dlRaw = String(row[dlIdx]).toLowerCase();
       downloaded = dlRaw.includes("true") || dlRaw.includes("yes") || dlRaw.includes("done") || row[dlIdx] === 1 || row[dlIdx] === true;
     }
-    if (dlAtIdx !== -1 && row[dlAtIdx]) downloadedAt = parseDateVal(row[dlAtIdx]);
+    if (dlAtIdx !== -1 && row[dlAtIdx]) {
+      const rawDlAt = row[dlAtIdx];
+      // Read downloadedAt as-is from the sheet — preserve the full value (time included).
+      // If it's a Google Sheets serial number, convert to ISO. Otherwise keep the raw string.
+      if (typeof rawDlAt === "number" && rawDlAt > 30000 && rawDlAt < 80000) {
+        const ms = (rawDlAt - 25569) * 86400 * 1000;
+        const d = new Date(ms);
+        downloadedAt = !isNaN(d.getTime()) ? d.toISOString() : "";
+      } else {
+        downloadedAt = String(rawDlAt).trim();
+      }
+    }
     if (remarksIdx !== -1 && row[remarksIdx]) remarks = String(row[remarksIdx]).trim();
 
     // Secondary scan across row cells if required fields missing
