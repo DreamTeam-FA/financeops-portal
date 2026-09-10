@@ -3794,9 +3794,9 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
     requests.push({ updateDimensionProperties: { range: { sheetId: dashId, dimension: "ROWS", startIndex: 4, endIndex: 5 }, properties: { pixelSize: 22 }, fields: "pixelSize" } });
     requests.push({ updateDimensionProperties: { range: { sheetId: dashId, dimension: "ROWS", startIndex: 5, endIndex: 7 }, properties: { pixelSize: 40 }, fields: "pixelSize" } });
 
-    // Row 8: section header "EXPENSES BY COMPANY" — merged cols 0-3, blue
-    requests.push({ mergeCells: { range: R(dashId, 8, 9, 0, 4), mergeType: "MERGE_ALL" } });
-    requests.push({ repeatCell: { range: R(dashId, 8, 9, 0, 4), cell: { userEnteredFormat: {
+    // Row 8: section header "EXPENSES BY COMPANY" — merged cols 0-2 (A-C only), blue
+    requests.push({ mergeCells: { range: R(dashId, 8, 9, 0, 3), mergeType: "MERGE_ALL" } });
+    requests.push({ repeatCell: { range: R(dashId, 8, 9, 0, 3), cell: { userEnteredFormat: {
       backgroundColor: BLUE, textFormat: { bold: true, foregroundColor: WHITE, fontSize: 11 },
       horizontalAlignment: "LEFT", verticalAlignment: "MIDDLE",
       padding: { top: 0, bottom: 0, left: 8, right: 0 },
