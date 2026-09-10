@@ -284,16 +284,6 @@ const DEFAULT_EXTERNAL_LINKS: ExternalLinkItem[] = [
     subType: "sheet",
     description: "Payroll details, pivot data, and weekly breakdown tabs"
   },
-  {
-    id: "tool-big3-sheet",
-    name: "Weekly Big 3 Sheet",
-    url: "https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit",
-    iconType: "sheet",
-    color: "#059669",
-    category: "tools",
-    subType: "sheet",
-    description: "Weekly Big 3 Goals for Stand Up Meeting Discussion"
-  },
   // ── TOOLS TAB → PORTALS ─────────────────────────────────────────────────────
   {
     id: "portal-zions-bank",
