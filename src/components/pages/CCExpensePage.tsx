@@ -289,6 +289,50 @@ function buildYTDTable(allRows: RawRow[], vendorMap: Record<string, string>): Ve
   return buildWeekTable(allRows.filter(isCCRow), vendorMap);
 }
 
+// ── CSV parser (module-level so it can be used outside the component) ─────────
+/** Minimal RFC-4180 CSV parser — handles quoted fields with embedded commas/newlines. */
+function parseCSVText(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = "";
+  let inQuote = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    const next = text[i + 1];
+    if (inQuote) {
+      if (ch === '"' && next === '"') { field += '"'; i++; }
+      else if (ch === '"')            { inQuote = false; }
+      else                            { field += ch; }
+    } else {
+      if      (ch === '"')                        { inQuote = true; }
+      else if (ch === ',')                        { row.push(field); field = ""; }
+      else if (ch === '\r' && next === '\n')      { row.push(field); field = ""; rows.push(row); row = []; i++; }
+      else if (ch === '\n' || ch === '\r')        { row.push(field); field = ""; rows.push(row); row = []; }
+      else                                        { field += ch; }
+    }
+  }
+  if (field || row.length) { row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(c => c.trim() !== ""));
+}
+
+const CC_CSV_KEY = "cc_expense_csv";
+
+function loadPersistedCCRows(): { rows: RawRow[]; weeks: WeekEntry[]; firstWeek: string } {
+  try {
+    const csv = localStorage.getItem(CC_CSV_KEY);
+    if (!csv) return { rows: [], weeks: [], firstWeek: "" };
+    const parsed = parseCSVText(csv);
+    // Find header row (same logic as handleFileSelect)
+    let hdr = 0;
+    for (let i = 0; i < Math.min(15, parsed.length); i++) {
+      if (parsed[i].some(c => /date/i.test(c) || /amount/i.test(c))) { hdr = i; break; }
+    }
+    const rows = rawRowsFromUploadedRows(parsed, hdr);
+    const weeks = groupIntoWeeks(rows);
+    return { rows, weeks, firstWeek: weeks[0]?.weekStart ?? "" };
+  } catch { return { rows: [], weeks: [], firstWeek: "" }; }
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 export const CCExpensePage: React.FC = () => {
   const { theme, showToast } = useFinance();
@@ -303,11 +347,14 @@ export const CCExpensePage: React.FC = () => {
       .catch(() => setExportSheet({ linked: false }));
   }, []);
 
-  // Data state
-  const [rawRows, setRawRows] = useState<RawRow[]>([]);
+  // Data state — raw CSV text persisted in localStorage so data survives page navigation/reload
+  const _persisted = loadPersistedCCRows();
+  const [rawRows, setRawRows] = useState<RawRow[]>(_persisted.rows);
   const [vendorMap, setVendorMap] = useState<Record<string, string>>({});
-  const [weeks, setWeeks] = useState<WeekEntry[]>([]);
-  const [selectedWeek, setSelectedWeek] = useState<string>("");
+  const [weeks, setWeeks] = useState<WeekEntry[]>(_persisted.weeks);
+  const [selectedWeek, setSelectedWeek] = useState<string>(_persisted.firstWeek);
+  // Ref to hold raw CSV text during file select so we can persist it on confirm
+  const pendingCsvTextRef = React.useRef<string | null>(null);
   const [activeTab, setActiveTab] = useState<"weekly" | "ytd" | "raw">("weekly");
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
 
@@ -487,31 +534,6 @@ export const CCExpensePage: React.FC = () => {
   // Pull from sheet removed — use CSV upload to load data.
 
   // ── File selection ──────────────────────────────────────────────────────────
-  /** Minimal RFC-4180 CSV parser — handles quoted fields with embedded commas/newlines. */
-  const parseCSVText = (text: string): string[][] => {
-    const rows: string[][] = [];
-    let row: string[] = [];
-    let field = "";
-    let inQuote = false;
-    for (let i = 0; i < text.length; i++) {
-      const ch = text[i];
-      const next = text[i + 1];
-      if (inQuote) {
-        if (ch === '"' && next === '"') { field += '"'; i++; }        // escaped quote
-        else if (ch === '"')            { inQuote = false; }          // close quote
-        else                            { field += ch; }
-      } else {
-        if      (ch === '"')                        { inQuote = true; }
-        else if (ch === ',')                        { row.push(field); field = ""; }
-        else if (ch === '\r' && next === '\n')      { row.push(field); field = ""; rows.push(row); row = []; i++; }
-        else if (ch === '\n' || ch === '\r')        { row.push(field); field = ""; rows.push(row); row = []; }
-        else                                        { field += ch; }
-      }
-    }
-    if (field || row.length) { row.push(field); rows.push(row); }
-    return rows.filter(r => r.some(c => c.trim() !== ""));
-  };
-
   const handleFileSelect = useCallback(async (file: File) => {
     setUploadFile(file);
     setParseError(null);
@@ -526,6 +548,7 @@ export const CCExpensePage: React.FC = () => {
         // Strip UTF-8 BOM (﻿) that many bank/QuickBooks exports prepend
         const raw = await file.text();
         const text = raw.charCodeAt(0) === 0xFEFF ? raw.slice(1) : raw;
+        pendingCsvTextRef.current = text; // capture for localStorage on confirm
         rows = parseCSVText(text);
       } else {
         // XLSX / XLS — send to server for parsing (requires XLSX library)
@@ -578,6 +601,11 @@ export const CCExpensePage: React.FC = () => {
     if (!parsedUploadRows) return;
     const csvRows = rawRowsFromUploadedRows(parsedUploadRows, uploadHeaderRow);
     setRawRows(csvRows);
+    // Persist raw CSV text (not parsed objects) so page reload restores data without JSON bloat
+    if (pendingCsvTextRef.current) {
+      try { localStorage.setItem(CC_CSV_KEY, pendingCsvTextRef.current); } catch { /* quota exceeded */ }
+      pendingCsvTextRef.current = null;
+    }
     const grouped = groupIntoWeeks(csvRows);
     setWeeks(grouped);
     if (grouped.length > 0) setSelectedWeek(grouped[0].weekStart);
