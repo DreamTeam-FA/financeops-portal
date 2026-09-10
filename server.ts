@@ -3470,15 +3470,26 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
     let spreadsheetId: string | undefined = stored.sheetIdOverrides?.ccExport;
     let isSync = false;
     let dashId = 0, weeklyId = 0, ytdId = 0, rawId = 0;
+    const existingChartDeletes: any[] = [];
 
     if (spreadsheetId) {
       // Verify sheet still exists
-      const chk = await fetch(`${base}/${spreadsheetId}?fields=spreadsheetId,sheets.properties`, { headers: hdr });
+      const chk = await fetch(`${base}/${spreadsheetId}?fields=spreadsheetId,sheets.properties,sheets.charts`, { headers: hdr });
       if (chk.ok) {
         isSync = true;
         const meta: any = await chk.json();
         const sid = (name: string) => meta.sheets?.find((s: any) => s.properties.title === name)?.properties?.sheetId ?? -1;
         dashId   = sid("Dashboard");
+        // Collect existing chart IDs on Dashboard tab so we can delete them before re-adding
+        const dashSheet = meta.sheets?.find((s: any) => s.properties.title === "Dashboard");
+        if (dashSheet?.charts?.length) {
+          for (const ch of dashSheet.charts) {
+            if (ch.chartId != null) {
+              // Prepend delete so they run before addChart in the same batchUpdate
+              (existingChartDeletes as any[]).push({ deleteEmbeddedObject: { objectId: ch.chartId } });
+            }
+          }
+        }
         weeklyId = sid("Weekly Breakdown");
         ytdId    = sid("YTD Summary");
         rawId    = sid("Raw Data");
@@ -3759,6 +3770,11 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
     colWidths.forEach((px, ci) => {
       requests.push({ updateDimensionProperties: { range: { sheetId: dashId, dimension: "COLUMNS", startIndex: ci, endIndex: ci + 1 }, properties: { pixelSize: px }, fields: "pixelSize" } });
     });
+
+    // Remove any existing charts on Dashboard before adding the new one (prevents duplicates on sync)
+    if (existingChartDeletes.length) {
+      requests.push(...existingChartDeletes);
+    }
 
     // Embedded bar chart — company expenses, anchored at col D (idx 3), row 8
     requests.push({ addChart: { chart: {
