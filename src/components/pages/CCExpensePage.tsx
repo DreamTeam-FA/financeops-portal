@@ -278,6 +278,15 @@ export const CCExpensePage: React.FC = () => {
   const { theme, showToast } = useFinance();
   const isLight = theme === "light";
 
+  // Linked export sheet info (fetched on mount)
+  const [exportSheet, setExportSheet] = useState<{ linked: boolean; url?: string } | null>(null);
+  React.useEffect(() => {
+    fetch("/api/cc-expense/export-sheet-info")
+      .then(r => r.json())
+      .then(d => setExportSheet(d))
+      .catch(() => setExportSheet({ linked: false }));
+  }, []);
+
   // Data state
   const [rawRows, setRawRows] = useState<RawRow[]>([]);
   const [vendorMap, setVendorMap] = useState<Record<string, string>>({});
@@ -571,57 +580,63 @@ export const CCExpensePage: React.FC = () => {
     if (rawRows.length === 0) { showToast("No data to export — upload a file first", "error"); return; }
     setSaving(true);
     try {
-      // Build per-week tables with adjustments applied
-      const weeksData = weeks.map(week => {
+      // ── Flat weekly rows: one entry per vendor per week, adjustments applied ──
+      const weeklyRows: any[] = [];
+      for (const week of weeks) {
         const rawTable = buildWeekTable(week.rows, vendorMap);
-        const adjRows = rawTable.map(r => {
+        for (const r of rawTable) {
           const byCompany: Record<string, number> = {};
           for (const co of COMPANIES) {
             byCompany[co] = getAdjustedValue(week.weekStart, r.vendor, co, r.byCompany[co] || 0);
           }
           const grandTotal = Object.values(byCompany).reduce((s, v) => s + v, 0);
-          return { vendor: r.vendor, byCompany, grandTotal };
-        }).filter(r => r.grandTotal !== 0);
-        const activeComps = [...COMPANIES].filter(co => adjRows.some(r => (r.byCompany[co] || 0) !== 0));
-        const totals: Record<string, number> = {};
-        for (const co of activeComps) totals[co] = adjRows.reduce((s, r) => s + (r.byCompany[co] || 0), 0);
-        return { weekLabel: week.weekLabel, companies: activeComps, rows: adjRows, totals, total: adjRows.reduce((s, r) => s + r.grandTotal, 0) };
-      });
+          if (grandTotal !== 0) weeklyRows.push({ weekLabel: week.weekLabel, weekStart: week.weekStart, vendor: r.vendor, byCompany, grandTotal });
+        }
+      }
 
-      // YTD
-      const ytdRows2 = ytdTable.map(r => ({ vendor: r.vendor, byCompany: { ...r.byCompany }, grandTotal: r.grandTotal })).filter(r => r.grandTotal !== 0);
-      const ytdComps = [...COMPANIES].filter(co => ytdRows2.some(r => (r.byCompany[co] || 0) !== 0));
+      // ── YTD ──────────────────────────────────────────────────────────────────
+      const ytdRows2 = ytdTable
+        .map(r => ({ vendor: r.vendor, byCompany: { ...r.byCompany }, grandTotal: r.grandTotal }))
+        .filter(r => r.grandTotal !== 0);
+      const activeComps = [...COMPANIES].filter(co => ytdRows2.some(r => (r.byCompany[co] || 0) !== 0));
       const ytdTotals: Record<string, number> = {};
-      for (const co of ytdComps) ytdTotals[co] = ytdRows2.reduce((s, r) => s + (r.byCompany[co] || 0), 0);
+      for (const co of activeComps) ytdTotals[co] = ytdRows2.reduce((s, r) => s + (r.byCompany[co] || 0), 0);
 
-      // Raw 2D array
+      // ── Raw 2D array ──────────────────────────────────────────────────────────
       const rawData2D = rawRows.map(r => [
         r.category, r.transactionDate, r.transactionType, r.num,
         r.name, r.location, r.classCompany, r.description, r.account,
-        r.amount, r.balance
+        r.amount, r.balance,
       ]);
 
-      // Sheet title from date range
+      // ── Date range label ──────────────────────────────────────────────────────
       const sorted = [...weeks].sort((a, b) => a.weekStart.localeCompare(b.weekStart));
       const oldest = sorted[0]?.weekLabel || "";
       const newest = sorted[sorted.length - 1]?.weekLabel || "";
-      const sheetTitle = oldest === newest ? `CC Expenses – ${oldest}` : `CC Expenses – ${oldest} → ${newest}`;
+      const dateRange = oldest === newest ? oldest : `${oldest} → ${newest}`;
 
-      const resp = await fetch("/api/cc-expense/create-export-sheet", {
+      const resp = await fetch("/api/cc-expense/export-sheet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          accessToken: tok, title: sheetTitle,
-          weeks: weeksData,
-          ytd: { companies: ytdComps, rows: ytdRows2, totals: ytdTotals, total: ytdRows2.reduce((s, r) => s + r.grandTotal, 0) },
+          accessToken: tok,
+          title: "CC Expense Report – 4Grace",
+          dateRange,
+          companies: activeComps,
+          weeklyRows,
+          ytdRows: ytdRows2,
+          ytdTotals,
+          ytdTotal: ytdRows2.reduce((s, r) => s + r.grandTotal, 0),
           rawHeaders: RAW_HEADERS,
           rawData: rawData2D,
         })
       });
       const result = await resp.json();
       if (!result.ok) throw new Error(result.error || "Export failed");
-      showToast("Sheet created — opening…", "success");
-      window.open(result.url, "_blank");
+      const wasSync = result.isSync;
+      showToast(wasSync ? "Sheet synced!" : "Sheet created!", "success");
+      setExportSheet({ linked: true, url: result.url });
+      if (!wasSync) window.open(result.url, "_blank");
     } catch (e: any) {
       showToast(e?.message || "Export failed", "error");
     } finally {
@@ -679,18 +694,35 @@ export const CCExpensePage: React.FC = () => {
           </span>
         </div>
         <div className="flex items-center gap-2">
-          {rawRows.length > 0 && (
-            <button
-              onClick={handleSaveToSheet}
-              disabled={saving}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-[12px] font-medium transition-colors disabled:opacity-50 ${
-                isLight ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-emerald-700 hover:bg-emerald-600 text-white"
-              }`}
-              title="Create a new Google Sheet with the current summary"
-            >
-              {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
-              {saving ? "Creating…" : "Save to Sheet"}
-            </button>
+          {(rawRows.length > 0 || exportSheet?.linked) && (
+            <div className="flex items-center gap-1">
+              {exportSheet?.linked && exportSheet.url && (
+                <a
+                  href={exportSheet.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Open report sheet"
+                  className={`flex items-center justify-center w-7 h-7 rounded transition-colors ${
+                    isLight ? "bg-slate-100 hover:bg-slate-200 text-emerald-600 border border-slate-200" : "bg-[#1a2235] hover:bg-[#232f47] text-emerald-400 border border-[#1e2d48]"
+                  }`}
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              )}
+              {rawRows.length > 0 && (
+                <button
+                  onClick={handleSaveToSheet}
+                  disabled={saving}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-[12px] font-medium transition-colors disabled:opacity-50 ${
+                    isLight ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-emerald-700 hover:bg-emerald-600 text-white"
+                  }`}
+                  title={exportSheet?.linked ? "Sync current data to the report sheet" : "Create report sheet in Google Drive"}
+                >
+                  {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
+                  {saving ? (exportSheet?.linked ? "Syncing…" : "Creating…") : (exportSheet?.linked ? "Sync to Sheet" : "Save to Sheet")}
+                </button>
+              )}
+            </div>
           )}
           <button
             onClick={() => setCardsOpen(o => !o)}

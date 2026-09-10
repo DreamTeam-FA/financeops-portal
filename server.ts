@@ -3420,156 +3420,275 @@ app.post("/api/cc-expense/adjustments/push", async (req, res) => {
   }
 });
 
-// ── CC Export: create a new Google Sheet with Weekly Summary / YTD / Raw Data ──
-// Creates a fresh spreadsheet in the user's Drive — never touches the source CC sheet.
-app.post("/api/cc-expense/create-export-sheet", async (req, res) => {
-  const { accessToken, title, weeks, ytd, rawHeaders, rawData } = req.body || {};
+// ── CC Export: persistent report sheet — create once, sync forever ────────────
+// On first call: creates a new spreadsheet with Dashboard + 3 content tabs,
+// stores the spreadsheetId in sheetIdOverrides.ccExport.
+// On subsequent calls: clears and rewrites the 3 content tabs, updates
+// Dashboard timestamp. Dashboard formulas auto-recalculate from Raw Data.
+// Never touches the source CC sheet.
+
+// GET /api/cc-expense/export-sheet-info — return saved spreadsheet info
+app.get("/api/cc-expense/export-sheet-info", (_req, res) => {
+  const data = getStoredData();
+  const sid: string | undefined = data.sheetIdOverrides?.ccExport;
+  if (!sid) return res.json({ linked: false });
+  res.json({ linked: true, spreadsheetId: sid, url: `https://docs.google.com/spreadsheets/d/${sid}/edit` });
+});
+
+// POST /api/cc-expense/export-sheet — create or sync the report sheet
+app.post("/api/cc-expense/export-sheet", async (req, res) => {
+  const { accessToken, title, dateRange, companies, weeklyRows, ytdRows, ytdTotals, ytdTotal, rawHeaders, rawData } = req.body || {};
   if (!accessToken) return res.status(401).json({ ok: false, error: "No access token" });
 
   const base = "https://sheets.googleapis.com/v4/spreadsheets";
-  const hdr = { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
+  const hdr  = { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
+  const COLS: string[] = companies || [];
+
+  // ── Formatting palette ──────────────────────────────────────────────────────
+  const BLUE       = { red: 0.102, green: 0.451, blue: 0.910 };
+  const DARK_BLUE  = { red: 0.071, green: 0.278, blue: 0.647 };
+  const LIGHT_BLUE = { red: 0.910, green: 0.941, blue: 0.996 };
+  const LIGHT_GRAY = { red: 0.953, green: 0.957, blue: 0.961 };
+  const GREEN      = { red: 0.204, green: 0.659, blue: 0.325 };
+  const WHITE      = { red: 1, green: 1, blue: 1 };
+  const CURR_FMT   = { type: "CURRENCY", pattern: '"$"#,##0.00' };
+
+  const cell = (bg: any, bold: boolean, fg: any, align: string, fmt?: any): any => ({
+    userEnteredFormat: {
+      backgroundColor: bg,
+      textFormat: { bold, foregroundColor: fg },
+      horizontalAlignment: align,
+      ...(fmt ? { numberFormat: fmt } : {}),
+    }
+  });
+  const fields = (hasFmt: boolean) =>
+    `userEnteredFormat(backgroundColor,textFormat,horizontalAlignment${hasFmt ? ",numberFormat" : ""})`;
 
   try {
-    // 1. Create spreadsheet with 3 tabs
-    const createResp = await fetch(base, {
-      method: "POST", headers: hdr,
-      body: JSON.stringify({
-        properties: { title: title || "CC Expense Summary" },
-        sheets: [
-          { properties: { title: "Weekly Summary", sheetId: 100, index: 0 } },
-          { properties: { title: "YTD Summary",    sheetId: 101, index: 1 } },
-          { properties: { title: "Raw Data",        sheetId: 102, index: 2 } },
-        ]
-      })
-    });
-    const ss: any = await createResp.json();
-    if (!ss.spreadsheetId) throw new Error(ss.error?.message || "Failed to create spreadsheet");
-    const spreadsheetId: string = ss.spreadsheetId;
-    const getSheetId = (name: string): number =>
-      ss.sheets.find((s: any) => s.properties.title === name)?.properties.sheetId ?? 0;
-    const weeklyId = getSheetId("Weekly Summary");
-    const ytdId    = getSheetId("YTD Summary");
-    const rawId    = getSheetId("Raw Data");
+    // ── Determine if we're creating or syncing ────────────────────────────────
+    const stored   = getStoredData();
+    let spreadsheetId: string | undefined = stored.sheetIdOverrides?.ccExport;
+    let isSync = false;
+    let dashId = 0, weeklyId = 0, ytdId = 0, rawId = 0;
 
-    // ── Helpers ──
-    interface SummarySection {
-      label: string; companies: string[];
-      rows: { vendor: string; byCompany: Record<string, number>; grandTotal: number }[];
-      totals: Record<string, number>; total: number;
-    }
-    type RowMeta = { type: "title"|"header"|"data"|"total"|"blank"; rowIdx: number; numCols: number };
-
-    const buildBlock = (sections: SummarySection[]) => {
-      const values: any[][] = [];
-      const meta: RowMeta[] = [];
-      let r = 0;
-      for (const sec of sections) {
-        const cols = sec.companies;
-        const nc = cols.length + 2; // Vendor + companies + Total
-        values.push([sec.label, ...Array(nc - 1).fill("")]);
-        meta.push({ type: "title", rowIdx: r++, numCols: nc });
-        values.push(["Vendor", ...cols, "Total"]);
-        meta.push({ type: "header", rowIdx: r++, numCols: nc });
-        for (const row of sec.rows) {
-          values.push([row.vendor, ...cols.map(co => row.byCompany[co] ?? 0), row.grandTotal]);
-          meta.push({ type: "data", rowIdx: r++, numCols: nc });
-        }
-        values.push(["TOTAL", ...cols.map(co => sec.totals[co] ?? 0), sec.total]);
-        meta.push({ type: "total", rowIdx: r++, numCols: nc });
-        values.push([]); meta.push({ type: "blank", rowIdx: r++, numCols: 0 });
+    if (spreadsheetId) {
+      // Verify sheet still exists
+      const chk = await fetch(`${base}/${spreadsheetId}?fields=spreadsheetId,sheets.properties`, { headers: hdr });
+      if (chk.ok) {
+        isSync = true;
+        const meta: any = await chk.json();
+        const sid = (name: string) => meta.sheets?.find((s: any) => s.properties.title === name)?.properties?.sheetId ?? -1;
+        dashId   = sid("Dashboard");
+        weeklyId = sid("Weekly Breakdown");
+        ytdId    = sid("YTD Summary");
+        rawId    = sid("Raw Data");
+      } else {
+        spreadsheetId = undefined; // sheet deleted — create fresh
       }
-      return { values, meta };
-    };
+    }
 
-    const weekly  = buildBlock((weeks || []) as SummarySection[]);
-    const ytdBlk  = buildBlock([{ label: "Year to Date", companies: ytd?.companies || [], rows: ytd?.rows || [], totals: ytd?.totals || {}, total: ytd?.total || 0 }]);
+    if (!spreadsheetId) {
+      // ── CREATE: new spreadsheet with 4 tabs ──────────────────────────────────
+      const cr: any = await fetch(base, {
+        method: "POST", headers: hdr,
+        body: JSON.stringify({
+          properties: { title: title || "CC Expense Report" },
+          sheets: [
+            { properties: { title: "Dashboard",        sheetId: 200, index: 0, gridProperties: { columnCount: 6 } } },
+            { properties: { title: "Weekly Breakdown",  sheetId: 201, index: 1 } },
+            { properties: { title: "YTD Summary",       sheetId: 202, index: 2 } },
+            { properties: { title: "Raw Data",          sheetId: 203, index: 3 } },
+          ]
+        })
+      }).then(r => r.json());
+      if (!cr.spreadsheetId) throw new Error(cr.error?.message || "Failed to create spreadsheet");
+      spreadsheetId = cr.spreadsheetId;
+      const sid = (name: string) => cr.sheets?.find((s: any) => s.properties.title === name)?.properties?.sheetId ?? 0;
+      dashId   = sid("Dashboard");
+      weeklyId = sid("Weekly Breakdown");
+      ytdId    = sid("YTD Summary");
+      rawId    = sid("Raw Data");
+
+      // Save spreadsheet ID
+      if (!stored.sheetIdOverrides) stored.sheetIdOverrides = {};
+      stored.sheetIdOverrides.ccExport = spreadsheetId;
+      saveStoredData(stored);
+    }
+
+    // ── If syncing: delete and re-add the 3 content tabs ─────────────────────
+    if (isSync) {
+      const toDelete = [weeklyId, ytdId, rawId].filter(id => id >= 0);
+      const addRequests = [
+        { addSheet: { properties: { title: "Weekly Breakdown" } } },
+        { addSheet: { properties: { title: "YTD Summary"      } } },
+        { addSheet: { properties: { title: "Raw Data"          } } },
+      ];
+      const syncResp: any = await fetch(`${base}/${spreadsheetId}:batchUpdate`, {
+        method: "POST", headers: hdr,
+        body: JSON.stringify({ requests: [
+          ...toDelete.map(id => ({ deleteSheet: { sheetId: id } })),
+          ...addRequests,
+        ]})
+      }).then(r => r.json());
+      const addReplies = (syncResp.replies || []).filter((r: any) => r.addSheet);
+      weeklyId = addReplies[0]?.addSheet?.properties?.sheetId ?? 201;
+      ytdId    = addReplies[1]?.addSheet?.properties?.sheetId ?? 202;
+      rawId    = addReplies[2]?.addSheet?.properties?.sheetId ?? 203;
+    }
+
+    // ── Build Dashboard values ────────────────────────────────────────────────
+    const lastUpdated = new Date().toLocaleString("en-US", { month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+    const dashValues: any[][] = [
+      ["CC EXPENSE SUMMARY", "", "", "", "", ""],
+      [""],
+      ["Last Updated", lastUpdated, "", "", "", ""],
+      ["Date Range",   dateRange || "", "", "", "", ""],
+      [""],
+      ["EXPENSE BY COMPANY", "", "", "", "", ""],
+      ["Company", "Amount", "", "", "", ""],
+    ];
+    // Company SUMIF rows — reference Raw Data col G (Class/Company) and col J (Amount)
+    for (const co of COLS) {
+      dashValues.push([co, `=SUMIF('Raw Data'!G:G,"${co}",'Raw Data'!J:J)`, "", "", "", ""]);
+    }
+    dashValues.push(["TOTAL", `=SUM(B${8 + COLS.length}:B${7 + COLS.length})`, "", "", "", ""]);
+    dashValues.push([""]);
+    dashValues.push(["TRANSACTION SUMMARY", "", "", "", "", ""]);
+    dashValues.push(["Total Transactions", `=COUNTA('Raw Data'!B2:B)`, "", "", "", ""]);
+    dashValues.push(["Total Amount",       `=SUM('Raw Data'!J2:J)`,   "", "", "", ""]);
+    dashValues.push([""]);
+    dashValues.push(["", "", "", "", "", `Generated by FinanceOps Portal. Filter Weekly Breakdown by Week column to view a specific week.`]);
+
+    // ── Build Weekly Breakdown values (flat, filterable) ──────────────────────
+    const nc = COLS.length + 3; // Week | Vendor | companies... | Total
+    const wkHeaders = ["Week", "Week Start", ...COLS, "Total"];
+    const wkValues: any[][] = [wkHeaders];
+    for (const row of (weeklyRows || [])) {
+      wkValues.push([
+        row.weekLabel, row.weekStart,
+        ...COLS.map((co: string) => row.byCompany?.[co] ?? 0),
+        row.grandTotal ?? 0,
+      ]);
+    }
+
+    // ── Build YTD Summary values ──────────────────────────────────────────────
+    const ytdHeaders = ["Vendor", ...COLS, "Total"];
+    const ytdValues: any[][] = [ytdHeaders];
+    for (const row of (ytdRows || [])) {
+      ytdValues.push([row.vendor, ...COLS.map((co: string) => row.byCompany?.[co] ?? 0), row.grandTotal ?? 0]);
+    }
+    // Totals row
+    ytdValues.push(["TOTAL", ...COLS.map((co: string) => (ytdTotals || {})[co] ?? 0), ytdTotal ?? 0]);
+
+    // ── Build Raw Data values ─────────────────────────────────────────────────
     const rawVals = [[...(rawHeaders || [])], ...(rawData || [])];
 
-    // 2. Write all values in one batchUpdate
+    // ── Write all values ──────────────────────────────────────────────────────
     await fetch(`${base}/${spreadsheetId}/values:batchUpdate`, {
       method: "POST", headers: hdr,
       body: JSON.stringify({
         valueInputOption: "USER_ENTERED",
         data: [
-          { range: "Weekly Summary!A1", values: weekly.values },
-          { range: "YTD Summary!A1",    values: ytdBlk.values },
-          { range: "Raw Data!A1",        values: rawVals },
+          { range: "Dashboard!A1",        values: dashValues  },
+          { range: "Weekly Breakdown!A1", values: wkValues    },
+          { range: "YTD Summary!A1",      values: ytdValues   },
+          { range: "Raw Data!A1",         values: rawVals     },
         ]
       })
     });
 
-    // 3. Build formatting requests
+    // ── Formatting batchUpdate ────────────────────────────────────────────────
     const requests: any[] = [];
-    const BLUE       = { red: 0.102, green: 0.451, blue: 0.910 };
-    const LIGHT_BLUE = { red: 0.910, green: 0.941, blue: 0.996 };
-    const LIGHT_GRAY = { red: 0.953, green: 0.957, blue: 0.961 };
-    const WHITE      = { red: 1, green: 1, blue: 1 };
-    const CURR_FMT   = { type: "CURRENCY", pattern: '"$"#,##0.00' };
+    const R = (sheetId: number, r0: number, r1: number, c0: number, c1: number) =>
+      ({ sheetId, startRowIndex: r0, endRowIndex: r1, startColumnIndex: c0, endColumnIndex: c1 });
 
-    const applyMeta = (sheetId: number, meta: RowMeta[]) => {
-      for (const m of meta) {
-        if (m.type === "blank" || m.numCols === 0) continue;
-        const full = { sheetId, startRowIndex: m.rowIdx, endRowIndex: m.rowIdx + 1, startColumnIndex: 0, endColumnIndex: m.numCols };
-
-        if (m.type === "title") {
-          requests.push({ mergeCells: { range: full, mergeType: "MERGE_ALL" } });
-          requests.push({ repeatCell: { range: full, cell: { userEnteredFormat: {
-            backgroundColor: BLUE,
-            textFormat: { bold: true, foregroundColor: WHITE, fontSize: 11 },
-            padding: { top: 6, bottom: 6, left: 8, right: 8 },
-            horizontalAlignment: "LEFT"
-          }}, fields: "userEnteredFormat(backgroundColor,textFormat,padding,horizontalAlignment)" }});
-        } else if (m.type === "header") {
-          requests.push({ repeatCell: { range: { ...full, endColumnIndex: 1 }, cell: { userEnteredFormat: {
-            backgroundColor: LIGHT_BLUE, textFormat: { bold: true }, horizontalAlignment: "LEFT"
-          }}, fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)" }});
-          if (m.numCols > 1) requests.push({ repeatCell: { range: { ...full, startColumnIndex: 1 }, cell: { userEnteredFormat: {
-            backgroundColor: LIGHT_BLUE, textFormat: { bold: true }, horizontalAlignment: "RIGHT"
-          }}, fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)" }});
-        } else if (m.type === "data" && m.numCols > 1) {
-          requests.push({ repeatCell: { range: { ...full, startColumnIndex: 1 }, cell: { userEnteredFormat: {
-            numberFormat: CURR_FMT, horizontalAlignment: "RIGHT"
-          }}, fields: "userEnteredFormat(numberFormat,horizontalAlignment)" }});
-        } else if (m.type === "total") {
-          requests.push({ repeatCell: { range: { ...full, endColumnIndex: 1 }, cell: { userEnteredFormat: {
-            backgroundColor: LIGHT_GRAY, textFormat: { bold: true }, horizontalAlignment: "LEFT"
-          }}, fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)" }});
-          if (m.numCols > 1) requests.push({ repeatCell: { range: { ...full, startColumnIndex: 1 }, cell: { userEnteredFormat: {
-            backgroundColor: LIGHT_GRAY, textFormat: { bold: true }, numberFormat: CURR_FMT, horizontalAlignment: "RIGHT"
-          }}, fields: "userEnteredFormat(backgroundColor,textFormat,numberFormat,horizontalAlignment)" }});
-        }
-      }
-    };
-
-    applyMeta(weeklyId, weekly.meta);
-    applyMeta(ytdId, ytdBlk.meta);
-
-    // Raw Data tab: blue header row, freeze row 1
-    requests.push({ repeatCell: {
-      range: { sheetId: rawId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 20 },
-      cell: { userEnteredFormat: {
-        backgroundColor: BLUE, textFormat: { bold: true, foregroundColor: WHITE, fontSize: 10 }, horizontalAlignment: "CENTER"
-      }},
-      fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)"
-    }});
-    requests.push({ updateSheetProperties: {
-      properties: { sheetId: rawId, gridProperties: { frozenRowCount: 1 } },
-      fields: "gridProperties.frozenRowCount"
-    }});
-
-    // Auto-resize columns on all 3 sheets
-    for (const sid of [weeklyId, ytdId, rawId]) {
-      requests.push({ autoResizeDimensions: {
-        dimensions: { sheetId: sid, dimension: "COLUMNS", startIndex: 0, endIndex: 20 }
-      }});
+    // Dashboard formatting
+    // Row 0: big title (merged, dark blue)
+    requests.push({ mergeCells: { range: R(dashId, 0, 1, 0, 6), mergeType: "MERGE_ALL" } });
+    requests.push({ repeatCell: { range: R(dashId, 0, 1, 0, 6), cell: cell(DARK_BLUE, true, WHITE, "LEFT"), fields: fields(false) } });
+    requests.push({ updateSheetProperties: { properties: { sheetId: dashId, gridProperties: { frozenRowCount: 1 } }, fields: "gridProperties.frozenRowCount" } });
+    // Increase title row height
+    requests.push({ updateDimensionProperties: { range: { sheetId: dashId, dimension: "ROWS", startIndex: 0, endIndex: 1 }, properties: { pixelSize: 40 }, fields: "pixelSize" } });
+    // Rows 2-3: meta labels
+    for (const r of [2, 3]) {
+      requests.push({ repeatCell: { range: R(dashId, r, r + 1, 0, 1), cell: cell(LIGHT_GRAY, true, { red: 0.2, green: 0.2, blue: 0.2 }, "LEFT"), fields: fields(false) } });
     }
+    // Row 5: section header "EXPENSE BY COMPANY"
+    requests.push({ mergeCells: { range: R(dashId, 5, 6, 0, 4), mergeType: "MERGE_ALL" } });
+    requests.push({ repeatCell: { range: R(dashId, 5, 6, 0, 4), cell: cell(BLUE, true, WHITE, "LEFT"), fields: fields(false) } });
+    // Row 6: column headers
+    requests.push({ repeatCell: { range: R(dashId, 6, 7, 0, 2), cell: cell(LIGHT_BLUE, true, { red: 0.1, green: 0.1, blue: 0.1 }, "LEFT"), fields: fields(false) } });
+    requests.push({ repeatCell: { range: R(dashId, 6, 7, 1, 2), cell: cell(LIGHT_BLUE, true, { red: 0.1, green: 0.1, blue: 0.1 }, "RIGHT"), fields: fields(false) } });
+    // Company rows: currency on col B
+    const coStart = 7, coEnd = 7 + COLS.length;
+    requests.push({ repeatCell: { range: R(dashId, coStart, coEnd, 1, 2), cell: { userEnteredFormat: { numberFormat: CURR_FMT, horizontalAlignment: "RIGHT" } }, fields: "userEnteredFormat(numberFormat,horizontalAlignment)" } });
+    // TOTAL row
+    requests.push({ repeatCell: { range: R(dashId, coEnd, coEnd + 1, 0, 1), cell: cell(LIGHT_GRAY, true, { red: 0.1, green: 0.1, blue: 0.1 }, "LEFT"), fields: fields(false) } });
+    requests.push({ repeatCell: { range: R(dashId, coEnd, coEnd + 1, 1, 2), cell: { userEnteredFormat: { backgroundColor: LIGHT_GRAY, textFormat: { bold: true }, numberFormat: CURR_FMT, horizontalAlignment: "RIGHT" } }, fields: "userEnteredFormat(backgroundColor,textFormat,numberFormat,horizontalAlignment)" } });
+    // Section header "TRANSACTION SUMMARY"
+    const txRow = coEnd + 2;
+    requests.push({ mergeCells: { range: R(dashId, txRow, txRow + 1, 0, 4), mergeType: "MERGE_ALL" } });
+    requests.push({ repeatCell: { range: R(dashId, txRow, txRow + 1, 0, 4), cell: cell(GREEN, true, WHITE, "LEFT"), fields: fields(false) } });
+    // Tx labels
+    requests.push({ repeatCell: { range: R(dashId, txRow + 1, txRow + 3, 0, 1), cell: cell(LIGHT_GRAY, true, { red: 0.2, green: 0.2, blue: 0.2 }, "LEFT"), fields: fields(false) } });
+    requests.push({ repeatCell: { range: R(dashId, txRow + 2, txRow + 3, 1, 2), cell: { userEnteredFormat: { numberFormat: CURR_FMT, horizontalAlignment: "RIGHT" } }, fields: "userEnteredFormat(numberFormat,horizontalAlignment)" } });
+    // Dashboard col widths: col A=220, col B=160
+    requests.push({ updateDimensionProperties: { range: { sheetId: dashId, dimension: "COLUMNS", startIndex: 0, endIndex: 1 }, properties: { pixelSize: 220 }, fields: "pixelSize" } });
+    requests.push({ updateDimensionProperties: { range: { sheetId: dashId, dimension: "COLUMNS", startIndex: 1, endIndex: 2 }, properties: { pixelSize: 160 }, fields: "pixelSize" } });
+
+    // Weekly Breakdown formatting
+    // Header row: blue, bold, white, frozen
+    requests.push({ repeatCell: { range: R(weeklyId, 0, 1, 0, nc), cell: cell(BLUE, true, WHITE, "CENTER"), fields: fields(false) } });
+    requests.push({ updateSheetProperties: { properties: { sheetId: weeklyId, gridProperties: { frozenRowCount: 1 } }, fields: "gridProperties.frozenRowCount" } });
+    // Amount columns (2..nc-1 = companies + total)
+    if (nc > 2) {
+      requests.push({ repeatCell: { range: R(weeklyId, 1, wkValues.length, 2, nc), cell: { userEnteredFormat: { numberFormat: CURR_FMT, horizontalAlignment: "RIGHT" } }, fields: "userEnteredFormat(numberFormat,horizontalAlignment)" } });
+    }
+    // Alternating row colors on data rows
+    for (let i = 1; i < wkValues.length; i++) {
+      if (i % 2 === 0) {
+        requests.push({ repeatCell: { range: R(weeklyId, i, i + 1, 0, nc), cell: { userEnteredFormat: { backgroundColor: { red: 0.976, green: 0.980, blue: 0.996 } } }, fields: "userEnteredFormat.backgroundColor" } });
+      }
+    }
+    // Auto-filter on Weekly Breakdown
+    requests.push({ setBasicFilter: { filter: { range: R(weeklyId, 0, wkValues.length, 0, nc) } } });
+    // Auto-resize Weekly Breakdown
+    requests.push({ autoResizeDimensions: { dimensions: { sheetId: weeklyId, dimension: "COLUMNS", startIndex: 0, endIndex: nc } } });
+
+    // YTD Summary formatting
+    const ytdNc = COLS.length + 2; // Vendor + companies + Total
+    requests.push({ repeatCell: { range: R(ytdId, 0, 1, 0, ytdNc), cell: cell(BLUE, true, WHITE, "CENTER"), fields: fields(false) } });
+    requests.push({ updateSheetProperties: { properties: { sheetId: ytdId, gridProperties: { frozenRowCount: 1 } }, fields: "gridProperties.frozenRowCount" } });
+    if (ytdNc > 1) {
+      requests.push({ repeatCell: { range: R(ytdId, 1, ytdValues.length - 1, 1, ytdNc), cell: { userEnteredFormat: { numberFormat: CURR_FMT, horizontalAlignment: "RIGHT" } }, fields: "userEnteredFormat(numberFormat,horizontalAlignment)" } });
+    }
+    // TOTAL row
+    const ytdTotalRow = ytdValues.length - 1;
+    requests.push({ repeatCell: { range: R(ytdId, ytdTotalRow, ytdTotalRow + 1, 0, 1), cell: cell(LIGHT_GRAY, true, { red: 0.1, green: 0.1, blue: 0.1 }, "LEFT"), fields: fields(false) } });
+    requests.push({ repeatCell: { range: R(ytdId, ytdTotalRow, ytdTotalRow + 1, 1, ytdNc), cell: { userEnteredFormat: { backgroundColor: LIGHT_GRAY, textFormat: { bold: true }, numberFormat: CURR_FMT, horizontalAlignment: "RIGHT" } }, fields: "userEnteredFormat(backgroundColor,textFormat,numberFormat,horizontalAlignment)" } });
+    requests.push({ setBasicFilter: { filter: { range: R(ytdId, 0, ytdTotalRow, 0, ytdNc) } } }); // exclude total row from filter
+    requests.push({ autoResizeDimensions: { dimensions: { sheetId: ytdId, dimension: "COLUMNS", startIndex: 0, endIndex: ytdNc } } });
+
+    // Raw Data formatting: blue header, freeze, auto-filter, auto-resize
+    const rawNc = (rawHeaders || []).length || 11;
+    requests.push({ repeatCell: { range: R(rawId, 0, 1, 0, rawNc), cell: cell(BLUE, true, WHITE, "CENTER"), fields: fields(false) } });
+    requests.push({ updateSheetProperties: { properties: { sheetId: rawId, gridProperties: { frozenRowCount: 1 } }, fields: "gridProperties.frozenRowCount" } });
+    // Currency on Amount col (J = index 9) and Balance col (K = index 10)
+    for (const ci of [9, 10]) {
+      if (ci < rawNc) {
+        requests.push({ repeatCell: { range: R(rawId, 1, rawVals.length, ci, ci + 1), cell: { userEnteredFormat: { numberFormat: CURR_FMT, horizontalAlignment: "RIGHT" } }, fields: "userEnteredFormat(numberFormat,horizontalAlignment)" } });
+      }
+    }
+    requests.push({ setBasicFilter: { filter: { range: R(rawId, 0, rawVals.length, 0, rawNc) } } });
+    requests.push({ autoResizeDimensions: { dimensions: { sheetId: rawId, dimension: "COLUMNS", startIndex: 0, endIndex: rawNc } } });
 
     await fetch(`${base}/${spreadsheetId}:batchUpdate`, {
       method: "POST", headers: hdr,
       body: JSON.stringify({ requests })
     });
 
-    res.json({ ok: true, url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`, spreadsheetId });
+    const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
+    res.json({ ok: true, url, spreadsheetId, isSync });
   } catch (e: any) {
     res.status(500).json({ ok: false, error: e?.message || String(e) });
   }
