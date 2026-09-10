@@ -367,16 +367,6 @@ const DEFAULT_EXTERNAL_LINKS: ExternalLinkItem[] = [
   },
   // ── TOOLS TAB → TOOLS ───────────────────────────────────────────────────────
   {
-    id: "tool-content-week",
-    name: "Your Content Week",
-    url: "https://yourcontentweek.com",
-    iconType: "wrench",
-    color: "#0891b2",
-    category: "tools",
-    subType: "tool",
-    description: "Content Prompt Creator"
-  },
-  {
     id: "tool-ops-portal",
     name: "OPS Team Portal",
     url: "https://opsteam-portal.onrender.com",
