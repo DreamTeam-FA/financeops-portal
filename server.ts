@@ -3718,13 +3718,15 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
     requests.push({ repeatCell: { range: R(dashId, 2, 3, 3, 4), cell: { userEnteredFormat: { textFormat: { bold: true, fontSize: 10, foregroundColor: GRAY_TEXT } } }, fields: "userEnteredFormat(textFormat)" } });
     // "Filter Week:" label (col 6 = G) — bold gray
     requests.push({ repeatCell: { range: R(dashId, 2, 3, 6, 7), cell: { userEnteredFormat: { textFormat: { bold: true, fontSize: 10, foregroundColor: GRAY_TEXT }, horizontalAlignment: "RIGHT" } }, fields: "userEnteredFormat(textFormat,horizontalAlignment)" } });
-    // Dropdown cell (col 7 = H) — light border so it looks like an input
-    requests.push({ updateBorders: { range: R(dashId, 2, 3, 7, 9),
+    // Dropdown cell (col 8 = I) — light border so it looks like an input; clear H3 (col 7) validation
+    requests.push({ updateBorders: { range: R(dashId, 2, 3, 8, 9),
       top: solidBorder({ red: 0.7, green: 0.7, blue: 0.75 }),
       bottom: solidBorder({ red: 0.7, green: 0.7, blue: 0.75 }),
       left: solidBorder({ red: 0.7, green: 0.7, blue: 0.75 }),
       right: solidBorder({ red: 0.7, green: 0.7, blue: 0.75 }),
     }});
+    // Explicitly clear any leftover validation on H3 (col 7) — only I3 should have the dropdown
+    requests.push({ setDataValidation: { range: R(dashId, 2, 3, 7, 8) } });
     // Data Validation: dropdown on I3 (col 8, 0-idx) — formulas read $I$3 for week filter
     requests.push({ setDataValidation: {
       range: R(dashId, 2, 3, 8, 9),
