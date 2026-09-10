@@ -71,7 +71,7 @@ const FAQ = [
   },
   {
     q: "How do I track bank statements?",
-    a: "Open the Bank Statements Tracker page from the sidebar. It tracks monthly bank statement requests and downloads per entity. Click 'Add Entry' to log a new statement request for a bank and month. When you receive and file the statement, mark the entry as 'Downloaded'. Use the month and bank name filters to quickly find any entry. You can edit or delete entries at any time.",
+    a: "Open the Bank Statements Tracker from the sidebar. The page has two sections: a collapsible Legacy Entries section (pre-redesign records, collapsed by default) and the main Statement Tracker below it (for new auto-generated entries). Use the Month, Bank, and Entity filters at the top to narrow down entries across both sections. Pending entries appear first (sorted A–Z by bank), followed by downloaded entries (sorted by entity). Click 'Mark Downloaded' on any entry once you've retrieved and filed the statement. Use 'Add Entry' to manually log a statement, or 'Generate Monthly' to batch-create entries for all banks at once.",
   },
   {
     q: "How does the Email Invoice Scanner work?",
@@ -299,10 +299,11 @@ const HOWTOS = [
     title: "Track a Bank Statement Download",
     steps: [
       "Open the Bank Statements Tracker from the sidebar.",
-      "Click 'Add Entry' and select the entity, bank name, and statement month.",
-      "Save the entry — it appears in the tracker with a 'Pending' status.",
-      "When you receive and file the statement, find the entry and click 'Mark Downloaded'.",
-      "Use the month and bank filters at the top to search for specific entries.",
+      "New auto-generated entries appear in the main 'Statement Tracker' section below. Legacy (pre-redesign) entries are in the collapsible 'Legacy Entries' section above — click to expand it.",
+      "Use the Month, Bank, and Entity dropdowns to filter entries across both sections.",
+      "Pending entries are shown first (A–Z by bank name). Downloaded entries appear below them, sorted by entity.",
+      "When you receive and file a statement, click 'Mark Downloaded' on its entry.",
+      "To manually add an entry, click 'Add Entry'. To batch-create entries for all banks, use 'Generate Monthly'.",
     ],
   },
   {

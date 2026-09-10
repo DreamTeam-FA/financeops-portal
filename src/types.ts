@@ -99,6 +99,7 @@ export interface BankStatement {
   remarks: string;
   statementDate: string;
   requestDate: string;
+  cutOffDate?: string;  // undefined/empty for legacy entries; set for auto-generated entries
   downloaded: boolean;
   downloadedAt: string;
   rowIndex: number;

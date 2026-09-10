@@ -1158,6 +1158,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
         remarks,
         statementDate,
         requestDate,
+        cutOffDate: "",   // legacy entries have no cut-off date; auto-generated entries will set this
         downloaded: isDownloaded,
         downloadedAt,
         rowIndex: i + 1,
