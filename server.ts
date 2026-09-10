@@ -3704,27 +3704,30 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
     const solidBorder = (clr: any) => ({ style: "SOLID", width: 1, color: clr });
     const thickBorder = (clr: any) => ({ style: "SOLID_MEDIUM", width: 2, color: clr });
 
-    // Row 0: Title bar — merged full width, dark blue, 20pt, height 52px
-    requests.push({ mergeCells: { range: R(dashId, 0, 1, 0, W), mergeType: "MERGE_ALL" } });
-    requests.push({ repeatCell: { range: R(dashId, 0, 1, 0, W), cell: { userEnteredFormat: {
-      backgroundColor: DARK_BLUE, textFormat: { bold: true, foregroundColor: WHITE, fontSize: 20 },
-      horizontalAlignment: "LEFT", verticalAlignment: "MIDDLE",
-      padding: { top: 0, bottom: 0, left: 16, right: 0 },
-    }}, fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,padding)" } });
-    requests.push({ updateDimensionProperties: { range: { sheetId: dashId, dimension: "ROWS", startIndex: 0, endIndex: 1 }, properties: { pixelSize: 52 }, fields: "pixelSize" } });
+    // ── Dashboard visual formatting — first creation only (sync preserves user's formatting) ──
+    if (!isSync) {
+      // Row 0: Title bar — merged full width, dark blue, 20pt, height 52px
+      requests.push({ mergeCells: { range: R(dashId, 0, 1, 0, W), mergeType: "MERGE_ALL" } });
+      requests.push({ repeatCell: { range: R(dashId, 0, 1, 0, W), cell: { userEnteredFormat: {
+        backgroundColor: DARK_BLUE, textFormat: { bold: true, foregroundColor: WHITE, fontSize: 20 },
+        horizontalAlignment: "LEFT", verticalAlignment: "MIDDLE",
+        padding: { top: 0, bottom: 0, left: 16, right: 0 },
+      }}, fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,padding)" } });
+      requests.push({ updateDimensionProperties: { range: { sheetId: dashId, dimension: "ROWS", startIndex: 0, endIndex: 1 }, properties: { pixelSize: 52 }, fields: "pixelSize" } });
 
-    // Row 2: meta labels bold + "Filter Week:" label + dropdown cell border + Data Validation
-    requests.push({ repeatCell: { range: R(dashId, 2, 3, 0, 1), cell: { userEnteredFormat: { textFormat: { bold: true, fontSize: 10, foregroundColor: GRAY_TEXT } } }, fields: "userEnteredFormat(textFormat)" } });
-    requests.push({ repeatCell: { range: R(dashId, 2, 3, 3, 4), cell: { userEnteredFormat: { textFormat: { bold: true, fontSize: 10, foregroundColor: GRAY_TEXT } } }, fields: "userEnteredFormat(textFormat)" } });
-    // "Filter Week:" label (col 6 = G) — bold gray
-    requests.push({ repeatCell: { range: R(dashId, 2, 3, 6, 7), cell: { userEnteredFormat: { textFormat: { bold: true, fontSize: 10, foregroundColor: GRAY_TEXT }, horizontalAlignment: "RIGHT" } }, fields: "userEnteredFormat(textFormat,horizontalAlignment)" } });
-    // Dropdown cell (col 8 = I) — light border; also clear any leftover H3 (col 7) validation
-    requests.push({ updateBorders: { range: R(dashId, 2, 3, 8, 9),
-      top: solidBorder({ red: 0.7, green: 0.7, blue: 0.75 }),
-      bottom: solidBorder({ red: 0.7, green: 0.7, blue: 0.75 }),
-      left: solidBorder({ red: 0.7, green: 0.7, blue: 0.75 }),
-      right: solidBorder({ red: 0.7, green: 0.7, blue: 0.75 }),
-    }});
+      // Row 2: meta labels bold + "Filter Week:" label + dropdown cell border
+      requests.push({ repeatCell: { range: R(dashId, 2, 3, 0, 1), cell: { userEnteredFormat: { textFormat: { bold: true, fontSize: 10, foregroundColor: GRAY_TEXT } } }, fields: "userEnteredFormat(textFormat)" } });
+      requests.push({ repeatCell: { range: R(dashId, 2, 3, 3, 4), cell: { userEnteredFormat: { textFormat: { bold: true, fontSize: 10, foregroundColor: GRAY_TEXT } } }, fields: "userEnteredFormat(textFormat)" } });
+      requests.push({ repeatCell: { range: R(dashId, 2, 3, 6, 7), cell: { userEnteredFormat: { textFormat: { bold: true, fontSize: 10, foregroundColor: GRAY_TEXT }, horizontalAlignment: "RIGHT" } }, fields: "userEnteredFormat(textFormat,horizontalAlignment)" } });
+      requests.push({ updateBorders: { range: R(dashId, 2, 3, 8, 9),
+        top: solidBorder({ red: 0.7, green: 0.7, blue: 0.75 }),
+        bottom: solidBorder({ red: 0.7, green: 0.7, blue: 0.75 }),
+        left: solidBorder({ red: 0.7, green: 0.7, blue: 0.75 }),
+        right: solidBorder({ red: 0.7, green: 0.7, blue: 0.75 }),
+      }});
+    }
+
+    // ── Always: dropdown validation + hide helper column (week list changes every sync) ──
     // Explicitly clear any leftover validation on H3 (col 7) — only I3 should have the dropdown
     requests.push({ setDataValidation: { range: R(dashId, 2, 3, 7, 8) } });
     // Data Validation: dropdown on I3 (col 8, 0-idx) — formulas read $I$3 for week filter
@@ -3746,6 +3749,8 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
       fields: "hiddenByUser",
     }});
 
+    // ── KPI + section formatting — first creation only ──────────────────────
+    if (!isSync) {
     // KPI boxes (rows 4-6) — three side-by-side cards
     // Box 1: cols 0-2 (Total Expenses) → blue
     // Box 2: cols 4-6 (Transactions) → green
@@ -3833,11 +3838,7 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
       backgroundColor: LIGHT_GRAY, textFormat: { bold: true, fontSize: 10 }, horizontalAlignment: "RIGHT",
     }}, fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)" } });
 
-    // Column widths: A=200, B=130, C=90, gap(D)=20, E=20(KPI), J=20(KPI)
-    const colWidths = [200, 130, 90, 20, 60, 60, 60, 20, 60, 60, 60];
-    colWidths.forEach((px, ci) => {
-      requests.push({ updateDimensionProperties: { range: { sheetId: dashId, dimension: "COLUMNS", startIndex: ci, endIndex: ci + 1 }, properties: { pixelSize: px }, fields: "pixelSize" } });
-    });
+    } // end !isSync Dashboard formatting
 
     // Embedded bar chart — only added on first creation; the chart is bound to the
     // Dashboard source range so it auto-updates whenever values are synced.
