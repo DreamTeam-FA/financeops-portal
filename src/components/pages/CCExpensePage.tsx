@@ -1,9 +1,10 @@
 import React, { useState, useRef, useCallback } from "react";
 import {
   Upload, RefreshCw, ChevronDown, Eye, EyeOff, AlertCircle,
-  X, FileText, UploadCloud, CreditCard, Search, Settings, Plus, Trash2
+  X, FileText, UploadCloud, CreditCard, Search, Settings, Plus, Trash2, ExternalLink
 } from "lucide-react";
 import { useFinance } from "../../context/FinanceContext";
+import { getAccessToken } from "../../services/googleAuth";
 
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -561,6 +562,73 @@ export const CCExpensePage: React.FC = () => {
     showToast(`Loaded ${csvRows.length} transactions`, "success");
   }, [parsedUploadRows, uploadHeaderRow, showToast]);
 
+  // ── Save to new Google Sheet ─────────────────────────────────────────────────
+  const [saving, setSaving] = useState(false);
+
+  const handleSaveToSheet = useCallback(async () => {
+    const tok = getAccessToken();
+    if (!tok) { showToast("Sign in first to export to Google Sheets", "error"); return; }
+    if (rawRows.length === 0) { showToast("No data to export — upload a file first", "error"); return; }
+    setSaving(true);
+    try {
+      // Build per-week tables with adjustments applied
+      const weeksData = weeks.map(week => {
+        const rawTable = buildWeekTable(week.rows, vendorMap);
+        const adjRows = rawTable.map(r => {
+          const byCompany: Record<string, number> = {};
+          for (const co of COMPANIES) {
+            byCompany[co] = getAdjustedValue(week.weekStart, r.vendor, co, r.byCompany[co] || 0);
+          }
+          const grandTotal = Object.values(byCompany).reduce((s, v) => s + v, 0);
+          return { vendor: r.vendor, byCompany, grandTotal };
+        }).filter(r => r.grandTotal !== 0);
+        const activeComps = [...COMPANIES].filter(co => adjRows.some(r => (r.byCompany[co] || 0) !== 0));
+        const totals: Record<string, number> = {};
+        for (const co of activeComps) totals[co] = adjRows.reduce((s, r) => s + (r.byCompany[co] || 0), 0);
+        return { weekLabel: week.weekLabel, companies: activeComps, rows: adjRows, totals, total: adjRows.reduce((s, r) => s + r.grandTotal, 0) };
+      });
+
+      // YTD
+      const ytdRows2 = ytdTable.map(r => ({ vendor: r.vendor, byCompany: { ...r.byCompany }, grandTotal: r.grandTotal })).filter(r => r.grandTotal !== 0);
+      const ytdComps = [...COMPANIES].filter(co => ytdRows2.some(r => (r.byCompany[co] || 0) !== 0));
+      const ytdTotals: Record<string, number> = {};
+      for (const co of ytdComps) ytdTotals[co] = ytdRows2.reduce((s, r) => s + (r.byCompany[co] || 0), 0);
+
+      // Raw 2D array
+      const rawData2D = rawRows.map(r => [
+        r.category, r.transactionDate, r.transactionType, r.num,
+        r.name, r.location, r.classCompany, r.description, r.account,
+        r.amount, r.balance
+      ]);
+
+      // Sheet title from date range
+      const sorted = [...weeks].sort((a, b) => a.weekStart.localeCompare(b.weekStart));
+      const oldest = sorted[0]?.weekLabel || "";
+      const newest = sorted[sorted.length - 1]?.weekLabel || "";
+      const sheetTitle = oldest === newest ? `CC Expenses – ${oldest}` : `CC Expenses – ${oldest} → ${newest}`;
+
+      const resp = await fetch("/api/cc-expense/create-export-sheet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accessToken: tok, title: sheetTitle,
+          weeks: weeksData,
+          ytd: { companies: ytdComps, rows: ytdRows2, totals: ytdTotals, total: ytdRows2.reduce((s, r) => s + r.grandTotal, 0) },
+          rawHeaders: RAW_HEADERS,
+          rawData: rawData2D,
+        })
+      });
+      const result = await resp.json();
+      if (!result.ok) throw new Error(result.error || "Export failed");
+      showToast("Sheet created — opening…", "success");
+      window.open(result.url, "_blank");
+    } catch (e: any) {
+      showToast(e?.message || "Export failed", "error");
+    } finally {
+      setSaving(false);
+    }
+  }, [weeks, rawRows, vendorMap, adjustments, ytdTable, showToast]);
+
   // ── Styling helpers ─────────────────────────────────────────────────────────
   const cardCls = isLight
     ? "bg-white border border-slate-200 rounded-lg"
@@ -611,6 +679,19 @@ export const CCExpensePage: React.FC = () => {
           </span>
         </div>
         <div className="flex items-center gap-2">
+          {rawRows.length > 0 && (
+            <button
+              onClick={handleSaveToSheet}
+              disabled={saving}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-[12px] font-medium transition-colors disabled:opacity-50 ${
+                isLight ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-emerald-700 hover:bg-emerald-600 text-white"
+              }`}
+              title="Create a new Google Sheet with the current summary"
+            >
+              {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
+              {saving ? "Creating…" : "Save to Sheet"}
+            </button>
+          )}
           <button
             onClick={() => setCardsOpen(o => !o)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-[12px] font-medium transition-colors ${

@@ -3420,6 +3420,161 @@ app.post("/api/cc-expense/adjustments/push", async (req, res) => {
   }
 });
 
+// ── CC Export: create a new Google Sheet with Weekly Summary / YTD / Raw Data ──
+// Creates a fresh spreadsheet in the user's Drive — never touches the source CC sheet.
+app.post("/api/cc-expense/create-export-sheet", async (req, res) => {
+  const { accessToken, title, weeks, ytd, rawHeaders, rawData } = req.body || {};
+  if (!accessToken) return res.status(401).json({ ok: false, error: "No access token" });
+
+  const base = "https://sheets.googleapis.com/v4/spreadsheets";
+  const hdr = { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
+
+  try {
+    // 1. Create spreadsheet with 3 tabs
+    const createResp = await fetch(base, {
+      method: "POST", headers: hdr,
+      body: JSON.stringify({
+        properties: { title: title || "CC Expense Summary" },
+        sheets: [
+          { properties: { title: "Weekly Summary", sheetId: 100, index: 0 } },
+          { properties: { title: "YTD Summary",    sheetId: 101, index: 1 } },
+          { properties: { title: "Raw Data",        sheetId: 102, index: 2 } },
+        ]
+      })
+    });
+    const ss: any = await createResp.json();
+    if (!ss.spreadsheetId) throw new Error(ss.error?.message || "Failed to create spreadsheet");
+    const spreadsheetId: string = ss.spreadsheetId;
+    const getSheetId = (name: string): number =>
+      ss.sheets.find((s: any) => s.properties.title === name)?.properties.sheetId ?? 0;
+    const weeklyId = getSheetId("Weekly Summary");
+    const ytdId    = getSheetId("YTD Summary");
+    const rawId    = getSheetId("Raw Data");
+
+    // ── Helpers ──
+    interface SummarySection {
+      label: string; companies: string[];
+      rows: { vendor: string; byCompany: Record<string, number>; grandTotal: number }[];
+      totals: Record<string, number>; total: number;
+    }
+    type RowMeta = { type: "title"|"header"|"data"|"total"|"blank"; rowIdx: number; numCols: number };
+
+    const buildBlock = (sections: SummarySection[]) => {
+      const values: any[][] = [];
+      const meta: RowMeta[] = [];
+      let r = 0;
+      for (const sec of sections) {
+        const cols = sec.companies;
+        const nc = cols.length + 2; // Vendor + companies + Total
+        values.push([sec.label, ...Array(nc - 1).fill("")]);
+        meta.push({ type: "title", rowIdx: r++, numCols: nc });
+        values.push(["Vendor", ...cols, "Total"]);
+        meta.push({ type: "header", rowIdx: r++, numCols: nc });
+        for (const row of sec.rows) {
+          values.push([row.vendor, ...cols.map(co => row.byCompany[co] ?? 0), row.grandTotal]);
+          meta.push({ type: "data", rowIdx: r++, numCols: nc });
+        }
+        values.push(["TOTAL", ...cols.map(co => sec.totals[co] ?? 0), sec.total]);
+        meta.push({ type: "total", rowIdx: r++, numCols: nc });
+        values.push([]); meta.push({ type: "blank", rowIdx: r++, numCols: 0 });
+      }
+      return { values, meta };
+    };
+
+    const weekly  = buildBlock((weeks || []) as SummarySection[]);
+    const ytdBlk  = buildBlock([{ label: "Year to Date", companies: ytd?.companies || [], rows: ytd?.rows || [], totals: ytd?.totals || {}, total: ytd?.total || 0 }]);
+    const rawVals = [[...(rawHeaders || [])], ...(rawData || [])];
+
+    // 2. Write all values in one batchUpdate
+    await fetch(`${base}/${spreadsheetId}/values:batchUpdate`, {
+      method: "POST", headers: hdr,
+      body: JSON.stringify({
+        valueInputOption: "USER_ENTERED",
+        data: [
+          { range: "Weekly Summary!A1", values: weekly.values },
+          { range: "YTD Summary!A1",    values: ytdBlk.values },
+          { range: "Raw Data!A1",        values: rawVals },
+        ]
+      })
+    });
+
+    // 3. Build formatting requests
+    const requests: any[] = [];
+    const BLUE       = { red: 0.102, green: 0.451, blue: 0.910 };
+    const LIGHT_BLUE = { red: 0.910, green: 0.941, blue: 0.996 };
+    const LIGHT_GRAY = { red: 0.953, green: 0.957, blue: 0.961 };
+    const WHITE      = { red: 1, green: 1, blue: 1 };
+    const CURR_FMT   = { type: "CURRENCY", pattern: '"$"#,##0.00' };
+
+    const applyMeta = (sheetId: number, meta: RowMeta[]) => {
+      for (const m of meta) {
+        if (m.type === "blank" || m.numCols === 0) continue;
+        const full = { sheetId, startRowIndex: m.rowIdx, endRowIndex: m.rowIdx + 1, startColumnIndex: 0, endColumnIndex: m.numCols };
+
+        if (m.type === "title") {
+          requests.push({ mergeCells: { range: full, mergeType: "MERGE_ALL" } });
+          requests.push({ repeatCell: { range: full, cell: { userEnteredFormat: {
+            backgroundColor: BLUE,
+            textFormat: { bold: true, foregroundColor: WHITE, fontSize: 11 },
+            padding: { top: 6, bottom: 6, left: 8, right: 8 },
+            horizontalAlignment: "LEFT"
+          }}, fields: "userEnteredFormat(backgroundColor,textFormat,padding,horizontalAlignment)" }});
+        } else if (m.type === "header") {
+          requests.push({ repeatCell: { range: { ...full, endColumnIndex: 1 }, cell: { userEnteredFormat: {
+            backgroundColor: LIGHT_BLUE, textFormat: { bold: true }, horizontalAlignment: "LEFT"
+          }}, fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)" }});
+          if (m.numCols > 1) requests.push({ repeatCell: { range: { ...full, startColumnIndex: 1 }, cell: { userEnteredFormat: {
+            backgroundColor: LIGHT_BLUE, textFormat: { bold: true }, horizontalAlignment: "RIGHT"
+          }}, fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)" }});
+        } else if (m.type === "data" && m.numCols > 1) {
+          requests.push({ repeatCell: { range: { ...full, startColumnIndex: 1 }, cell: { userEnteredFormat: {
+            numberFormat: CURR_FMT, horizontalAlignment: "RIGHT"
+          }}, fields: "userEnteredFormat(numberFormat,horizontalAlignment)" }});
+        } else if (m.type === "total") {
+          requests.push({ repeatCell: { range: { ...full, endColumnIndex: 1 }, cell: { userEnteredFormat: {
+            backgroundColor: LIGHT_GRAY, textFormat: { bold: true }, horizontalAlignment: "LEFT"
+          }}, fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)" }});
+          if (m.numCols > 1) requests.push({ repeatCell: { range: { ...full, startColumnIndex: 1 }, cell: { userEnteredFormat: {
+            backgroundColor: LIGHT_GRAY, textFormat: { bold: true }, numberFormat: CURR_FMT, horizontalAlignment: "RIGHT"
+          }}, fields: "userEnteredFormat(backgroundColor,textFormat,numberFormat,horizontalAlignment)" }});
+        }
+      }
+    };
+
+    applyMeta(weeklyId, weekly.meta);
+    applyMeta(ytdId, ytdBlk.meta);
+
+    // Raw Data tab: blue header row, freeze row 1
+    requests.push({ repeatCell: {
+      range: { sheetId: rawId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 20 },
+      cell: { userEnteredFormat: {
+        backgroundColor: BLUE, textFormat: { bold: true, foregroundColor: WHITE, fontSize: 10 }, horizontalAlignment: "CENTER"
+      }},
+      fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)"
+    }});
+    requests.push({ updateSheetProperties: {
+      properties: { sheetId: rawId, gridProperties: { frozenRowCount: 1 } },
+      fields: "gridProperties.frozenRowCount"
+    }});
+
+    // Auto-resize columns on all 3 sheets
+    for (const sid of [weeklyId, ytdId, rawId]) {
+      requests.push({ autoResizeDimensions: {
+        dimensions: { sheetId: sid, dimension: "COLUMNS", startIndex: 0, endIndex: 20 }
+      }});
+    }
+
+    await fetch(`${base}/${spreadsheetId}:batchUpdate`, {
+      method: "POST", headers: hdr,
+      body: JSON.stringify({ requests })
+    });
+
+    res.json({ ok: true, url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`, spreadsheetId });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
 // ── Sheet Continuity: runtime sheet ID override ──────────────────────────────────
 // POST /api/config/set-sheet-id  { key: "cc"|"main"|"calendar"|"payroll4yr", id: "..." }
 // Persists the new sheet ID to financeops_data.json so it survives server restarts.
