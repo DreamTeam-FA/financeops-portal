@@ -3662,9 +3662,9 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
     }}, fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,padding)" } });
     requests.push({ updateDimensionProperties: { range: { sheetId: dashId, dimension: "ROWS", startIndex: 0, endIndex: 1 }, properties: { pixelSize: 52 }, fields: "pixelSize" } });
 
-    // Row 2: meta labels bold, meta values normal
-    requests.push({ repeatCell: { range: R(dashId, 2, 3, 0, 1), cell: { userEnteredFormat: { textFormat: { bold: true, fontSize: 10 }, foregroundColor: GRAY_TEXT } }, fields: "userEnteredFormat(textFormat,foregroundColor)" } });
-    requests.push({ repeatCell: { range: R(dashId, 2, 3, 3, 4), cell: { userEnteredFormat: { textFormat: { bold: true, fontSize: 10 }, foregroundColor: GRAY_TEXT } }, fields: "userEnteredFormat(textFormat,foregroundColor)" } });
+    // Row 2: meta labels bold
+    requests.push({ repeatCell: { range: R(dashId, 2, 3, 0, 1), cell: { userEnteredFormat: { textFormat: { bold: true, fontSize: 10, foregroundColor: GRAY_TEXT } } }, fields: "userEnteredFormat(textFormat)" } });
+    requests.push({ repeatCell: { range: R(dashId, 2, 3, 3, 4), cell: { userEnteredFormat: { textFormat: { bold: true, fontSize: 10, foregroundColor: GRAY_TEXT } } }, fields: "userEnteredFormat(textFormat)" } });
 
     // KPI boxes (rows 4-6) — three side-by-side cards
     // Box 1: cols 0-2 (Total Expenses) → blue
@@ -3774,7 +3774,7 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
           ],
           domains: [{ domain: { sourceRange: { sources: [R(dashId, coStart, coEnd, 0, 1)] } } }],
           series: [{ series: { sourceRange: { sources: [R(dashId, coStart, coEnd, 1, 2)] } }, targetAxis: "BOTTOM_AXIS",
-            dataLabel: { type: "VALUE" },
+            dataLabel: { type: "DATA" },
             color: BLUE,
           }],
           headerCount: 0,
@@ -3833,10 +3833,14 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
     requests.push({ setBasicFilter: { filter: { range: R(rawId, 0, rawVals.length, 0, rawNc) } } });
     requests.push({ autoResizeDimensions: { dimensions: { sheetId: rawId, dimension: "COLUMNS", startIndex: 0, endIndex: rawNc } } });
 
-    await fetch(`${base}/${spreadsheetId}:batchUpdate`, {
+    const fmtResp = await fetch(`${base}/${spreadsheetId}:batchUpdate`, {
       method: "POST", headers: hdr,
       body: JSON.stringify({ requests })
     });
+    if (!fmtResp.ok) {
+      const errBody = await fmtResp.json().catch(() => ({}));
+      throw new Error(`Sheets batchUpdate failed (${fmtResp.status}): ${errBody?.error?.message || JSON.stringify(errBody)}`);
+    }
 
     const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
     res.json({ ok: true, url, spreadsheetId, isSync });
