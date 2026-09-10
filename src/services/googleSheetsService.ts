@@ -34,10 +34,14 @@ export const parseDateVal = (val: any, year?: any, month?: any, dayStr?: any): s
   }
   if (typeof val === "number" || (!isNaN(Number(val)) && Number(val) > 30000 && Number(val) < 80000)) {
     const num = Number(val);
-    const d = new Date(Math.round((num - 25569) * 86400 * 1000));
+    const ms = (num - 25569) * 86400 * 1000; // preserve fractional seconds (time component)
+    const d = new Date(ms);
     if (!isNaN(d.getTime())) {
       const y = d.getFullYear();
-      if (y >= 2000 && y <= 2030) return d.toISOString().split("T")[0];
+      if (y >= 2000 && y <= 2030) {
+        // If the serial has a fractional part, it encodes a time — return full ISO
+        return Math.abs(num % 1) > 0.0005 ? d.toISOString() : d.toISOString().split("T")[0];
+      }
     }
   }
   if (val && typeof val === "string") {

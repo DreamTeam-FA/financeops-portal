@@ -338,7 +338,7 @@ function fetchSheetsV4Tab(
     const a1Name = "'" + sheetName.replace(/'/g, "''") + "'";
     const isBearerAuth = "bearerToken" in auth;
     const keyParam = isBearerAuth ? "" : `&key=${encodeURIComponent((auth as any).apiKey)}`;
-    const reqPath = `/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(a1Name)}?valueRenderOption=FORMATTED_VALUE&majorDimension=ROWS${keyParam}`;
+    const reqPath = `/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(a1Name)}?valueRenderOption=UNFORMATTED_VALUE&majorDimension=ROWS${keyParam}`;
     const headers: Record<string, string> = {};
     if (isBearerAuth) headers["Authorization"] = `Bearer ${(auth as any).bearerToken}`;
     const req = https.request({
@@ -1129,7 +1129,16 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       const statementDate  = String(row[5] || "").trim();
       const requestDate    = String(row[6] || "").trim();
       const isDownloaded   = row[7] === true || /^(true|yes|ready)$/i.test(String(row[7] || ""));
-      const downloadedAt   = parseDateVal(row[8]) || "";
+      // Read downloadedAt as raw value — UNFORMATTED_VALUE gives serial number with time fraction
+      const rawDlAt = row[8];
+      let downloadedAt = "";
+      if (typeof rawDlAt === "number" && rawDlAt > 30000 && rawDlAt < 80000) {
+        const ms = (rawDlAt - 25569) * 86400 * 1000;
+        const d = new Date(ms);
+        downloadedAt = !isNaN(d.getTime()) ? d.toISOString() : "";
+      } else if (rawDlAt) {
+        downloadedAt = String(rawDlAt).trim();
+      }
 
       let entity: EntityName = "TI";
       if (entityRaw.includes("MSDx")) entity = "MSDx";
