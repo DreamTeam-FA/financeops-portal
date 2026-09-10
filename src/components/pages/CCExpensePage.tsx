@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback } from "react";
 import {
   Upload, RefreshCw, ChevronDown, Eye, EyeOff, AlertCircle,
-  X, FileText, UploadCloud, CreditCard, Search, Settings, Plus, Trash2, ExternalLink
+  X, FileText, UploadCloud, CreditCard, Search, Settings, Plus, Trash2, ExternalLink, Share2, Check
 } from "lucide-react";
 import { useFinance } from "../../context/FinanceContext";
 import { getAccessToken } from "../../services/googleAuth";
@@ -577,6 +577,7 @@ export const CCExpensePage: React.FC = () => {
 
   // ── Save to new Google Sheet ─────────────────────────────────────────────────
   const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const handleSaveToSheet = useCallback(async () => {
     const tok = getAccessToken();
@@ -699,17 +700,36 @@ export const CCExpensePage: React.FC = () => {
         </div>
         <div className="flex items-center gap-2">
           {exportSheet?.linked && exportSheet.url && (
-            <a
-              href={exportSheet.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-[12px] font-medium transition-colors ${
-                isLight ? "bg-slate-100 hover:bg-slate-200 text-emerald-700 border border-slate-200" : "bg-[#1a2235] hover:bg-[#232f47] text-emerald-400 border border-[#1e2d48]"
-              }`}
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              Open Sheet
-            </a>
+            <>
+              <a
+                href={exportSheet.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-[12px] font-medium transition-colors ${
+                  isLight ? "bg-slate-100 hover:bg-slate-200 text-emerald-700 border border-slate-200" : "bg-[#1a2235] hover:bg-[#232f47] text-emerald-400 border border-[#1e2d48]"
+                }`}
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                Open Sheet
+              </a>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(exportSheet.url!).then(() => {
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  });
+                }}
+                title="Copy shareable link to clipboard"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-[12px] font-medium transition-colors ${
+                  copied
+                    ? "bg-green-600 text-white"
+                    : isLight ? "bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200" : "bg-[#1a2235] hover:bg-[#232f47] text-slate-300 border border-[#1e2d48]"
+                }`}
+              >
+                {copied ? <Check className="w-3.5 h-3.5" /> : <Share2 className="w-3.5 h-3.5" />}
+                {copied ? "Copied!" : "Share"}
+              </button>
+            </>
           )}
           {rawRows.length > 0 && (
             <button
