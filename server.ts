@@ -3702,12 +3702,7 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
         strict: false,
       },
     }});
-    // Hide helper col M (make it 1px wide so it's invisible)
-    requests.push({ updateDimensionProperties: {
-      range: { sheetId: dashId, dimension: "COLUMNS", startIndex: 12, endIndex: 13 },
-      properties: { pixelSize: 1, hiddenByUser: true },
-      fields: "pixelSize,hiddenByUser",
-    }});
+    // Note: col M (index 12) holds the week list for the dropdown — left visible but off to the right
 
     // KPI boxes (rows 4-6) — three side-by-side cards
     // Box 1: cols 0-2 (Total Expenses) → blue
