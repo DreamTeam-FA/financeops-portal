@@ -31,7 +31,19 @@ const RAW_HEADERS = [
   "Account",
   "Amount",
   "Balance",
+  "Week",
 ];
+
+/** Compute the week label (e.g. "Aug 30 – Sep 5, 2026") for a given transaction date. */
+function getWeekLabel(transactionDate: any): string {
+  const d = parseDate(transactionDate);
+  if (!d) return "";
+  const sun = getSunday(d);
+  const end = new Date(sun); end.setDate(sun.getDate() + 6);
+  const fmtShort = (dt: Date) => dt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const fmtFull  = (dt: Date) => dt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return `${fmtShort(sun)} – ${fmtFull(end)}`;
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Adjustment {
@@ -607,11 +619,11 @@ export const CCExpensePage: React.FC = () => {
       const ytdTotals: Record<string, number> = {};
       for (const co of activeComps) ytdTotals[co] = ytdRows2.reduce((s, r) => s + (r.byCompany[co] || 0), 0);
 
-      // ── Raw 2D array ──────────────────────────────────────────────────────────
+      // ── Raw 2D array (includes Week label as last col for Dashboard filter) ────
       const rawData2D = rawRows.map(r => [
         r.category, r.transactionDate, r.transactionType, r.num,
         r.name, r.location, r.classCompany, r.description, r.account,
-        r.amount, r.balance,
+        r.amount, r.balance, getWeekLabel(r.transactionDate),
       ]);
 
       // ── Date range label ──────────────────────────────────────────────────────
