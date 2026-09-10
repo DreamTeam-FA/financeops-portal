@@ -3713,6 +3713,17 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
     }}, fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,padding)" } });
     requests.push({ updateDimensionProperties: { range: { sheetId: dashId, dimension: "ROWS", startIndex: 0, endIndex: 1 }, properties: { pixelSize: 52 }, fields: "pixelSize" } });
 
+    // Column widths — fixed so sync never messes up the layout
+    // A=150 B=130 C=85 D=80 E=200 F=60 G=72 H=40 I=115 J=68 K=68
+    const COL_WIDTHS = [150, 130, 85, 80, 200, 60, 72, 40, 115, 68, 68];
+    COL_WIDTHS.forEach((px, i) => {
+      requests.push({ updateDimensionProperties: {
+        range: { sheetId: dashId, dimension: "COLUMNS", startIndex: i, endIndex: i + 1 },
+        properties: { pixelSize: px },
+        fields: "pixelSize",
+      }});
+    });
+
     // Row 2: meta labels bold + "Filter Week:" label + dropdown cell border + Data Validation
     requests.push({ repeatCell: { range: R(dashId, 2, 3, 0, 1), cell: { userEnteredFormat: { textFormat: { bold: true, fontSize: 10, foregroundColor: GRAY_TEXT } } }, fields: "userEnteredFormat(textFormat)" } });
     requests.push({ repeatCell: { range: R(dashId, 2, 3, 3, 4), cell: { userEnteredFormat: { textFormat: { bold: true, fontSize: 10, foregroundColor: GRAY_TEXT } } }, fields: "userEnteredFormat(textFormat)" } });
