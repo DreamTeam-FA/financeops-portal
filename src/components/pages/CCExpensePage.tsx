@@ -355,6 +355,31 @@ export const CCExpensePage: React.FC = () => {
   const [selectedWeek, setSelectedWeek] = useState<string>(_persisted.firstWeek);
   // Ref to hold raw CSV text during file select so we can persist it on confirm
   const pendingCsvTextRef = React.useRef<string | null>(null);
+
+  // On mount: if sheet is linked and user is signed in, pull Raw Data from sheet
+  React.useEffect(() => {
+    const tok = getAccessToken();
+    if (!tok) return;
+    fetch("/api/cc-expense/sheet-data", { headers: { Authorization: `Bearer ${tok}` } })
+      .then(r => r.json())
+      .then((d: any) => {
+        if (!d.ok || !d.rows || d.rows.length < 2) return;
+        // rows[0] is the header row; find header index
+        const allRows: string[][] = d.rows;
+        let hdr = 0;
+        for (let i = 0; i < Math.min(15, allRows.length); i++) {
+          if (allRows[i].some((c: string) => /date/i.test(c) || /amount/i.test(c))) { hdr = i; break; }
+        }
+        const loaded = rawRowsFromUploadedRows(allRows, hdr);
+        if (loaded.length === 0) return;
+        setRawRows(loaded);
+        const grouped = groupIntoWeeks(loaded);
+        setWeeks(grouped);
+        if (grouped.length > 0 && !selectedWeek) setSelectedWeek(grouped[0].weekStart);
+      })
+      .catch(() => { /* sheet read failed — keep localStorage data */ });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [activeTab, setActiveTab] = useState<"weekly" | "ytd" | "raw">("weekly");
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
 

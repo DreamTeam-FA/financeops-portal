@@ -3427,6 +3427,26 @@ app.post("/api/cc-expense/adjustments/push", async (req, res) => {
 // Dashboard timestamp. Dashboard formulas auto-recalculate from Raw Data.
 // Never touches the source CC sheet.
 
+// GET /api/cc-expense/sheet-data — read Raw Data tab from linked sheet and return rows
+app.get("/api/cc-expense/sheet-data", async (req, res) => {
+  const accessToken = req.headers.authorization?.replace("Bearer ", "") || (req.query.accessToken as string);
+  if (!accessToken) return res.status(401).json({ ok: false, error: "No access token" });
+  const data = getStoredData();
+  const sid: string | undefined = data.sheetIdOverrides?.ccExport;
+  if (!sid) return res.json({ ok: false, error: "No linked sheet" });
+  try {
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}/values/${encodeURIComponent("'Raw Data'")}`
+      + `?valueRenderOption=FORMATTED_VALUE&majorDimension=ROWS`;
+    const resp = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!resp.ok) return res.json({ ok: false, error: "Sheet read failed" });
+    const body: any = await resp.json();
+    const rows: string[][] = body.values || [];
+    res.json({ ok: true, rows });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
 // GET /api/cc-expense/export-sheet-info — return saved spreadsheet info
 app.get("/api/cc-expense/export-sheet-info", (_req, res) => {
   const data = getStoredData();
