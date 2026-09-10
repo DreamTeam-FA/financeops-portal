@@ -520,7 +520,7 @@ export const BankStatementsPage: React.FC = () => {
                       )}
                     </td>
                     <td className={`p-3 ${isLight ? "text-slate-500" : "text-[#666]"} font-mono text-[10px] hidden sm:table-cell`}>
-                      {s.downloadedAt || "—"}
+                      {formatTimestampLocal(s.downloadedAt)}
                     </td>
                     <td className="p-3">
                       <div className="flex items-center gap-2">
