@@ -42,6 +42,8 @@ export const parseDateVal = (val: any, year?: any, month?: any, dayStr?: any): s
   }
   if (val && typeof val === "string") {
     const str = val.trim();
+    // ISO datetime (with time) — pass through as-is so callers can display full timestamp
+    if (/^\d{4}-\d{2}-\d{2}T/.test(str)) return str;
     if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
     if (/^\d{4}\.\d{2}\.\d{2}$/.test(str)) return str.replace(/\./g, "-");
     const slashParts = str.split("/");
@@ -57,7 +59,9 @@ export const parseDateVal = (val: any, year?: any, month?: any, dayStr?: any): s
     const d = new Date(val);
     if (!isNaN(d.getTime())) {
       const y = d.getFullYear();
-      if (y >= 2000 && y <= 2030) return d.toISOString().split("T")[0];
+      // Preserve time if the original value had one; otherwise return date only
+      const hasTime = typeof val === "string" && /:/.test(val);
+      if (y >= 2000 && y <= 2030) return hasTime ? d.toISOString() : d.toISOString().split("T")[0];
     }
   }
   if (year && month) {

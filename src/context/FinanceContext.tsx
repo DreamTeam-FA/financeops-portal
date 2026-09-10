@@ -2849,7 +2849,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (s.id === id) {
         const nextDownloaded = !s.downloaded;
         const downloadedAt = nextDownloaded
-          ? new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" })
+          ? new Date().toISOString() // ISO preserves full datetime across sheet round-trips
           : "";
         updatedSt = { ...s, downloaded: nextDownloaded, downloadedAt };
         return updatedSt;

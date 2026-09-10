@@ -24,16 +24,29 @@ export const formatDateTimeLocal = (dateInput?: string | Date | number | null): 
   if (!dateInput) return "N/A";
   try {
     let d: Date;
+    let dateOnly = false;
+
     if (typeof dateInput === "number") {
       d = new Date(dateInput);
     } else if (dateInput instanceof Date) {
       d = dateInput;
     } else {
-      d = new Date(String(dateInput));
+      const s = String(dateInput).trim();
+      // Date-only strings (YYYY-MM-DD) parse as UTC midnight → show as date only, no time
+      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+        const [y, m, day] = s.split("-").map(Number);
+        d = new Date(y, m - 1, day); // local midnight — no UTC shift
+        dateOnly = true;
+      } else {
+        d = new Date(s);
+      }
     }
 
     if (isNaN(d.getTime())) return String(dateInput);
 
+    if (dateOnly) {
+      return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+    }
     return d.toLocaleString(undefined, {
       year: "numeric",
       month: "short",
