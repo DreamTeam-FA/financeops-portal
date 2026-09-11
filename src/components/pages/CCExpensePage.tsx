@@ -362,12 +362,14 @@ export const CCExpensePage: React.FC = () => {
   // Runs at mount (if token is already available) and again when googleUser changes
   // (i.e., right after the user signs in). Guards against double-fetch with hasFetchedSheetRef.
   const [sheetPullStatus, setSheetPullStatus] = React.useState<"idle" | "loading" | "ok" | "empty" | "error">("idle");
+  const [sheetPullError, setSheetPullError] = React.useState<string>("");
   React.useEffect(() => {
     const tok = getAccessToken();
     if (!tok) return;                        // not signed in yet — wait for googleUser to change
     if (hasFetchedSheetRef.current) return;  // already fetched this session
     hasFetchedSheetRef.current = true;
     setSheetPullStatus("loading");
+    setSheetPullError("");
     fetch("/api/cc-expense/pull", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -375,7 +377,11 @@ export const CCExpensePage: React.FC = () => {
     })
       .then(r => r.json())
       .then((d: any) => {
-        if (!d.ok) { setSheetPullStatus("error"); return; }
+        if (!d.ok) {
+          setSheetPullError(d.error || "Unknown error from server");
+          setSheetPullStatus("error");
+          return;
+        }
         const allRows: any[][] = d.rawRows || [];
         if (allRows.length < 1) { setSheetPullStatus("empty"); return; }
         // Find the header row — scan first 15 rows for date/amount column
@@ -397,8 +403,9 @@ export const CCExpensePage: React.FC = () => {
         if (Object.keys(vMap).length > 0) setVendorMap(vMap);
         setSheetPullStatus("ok");
       })
-      .catch(() => {
+      .catch((err) => {
         hasFetchedSheetRef.current = false; // allow retry on next render
+        setSheetPullError(err?.message || "Network error");
         setSheetPullStatus("error");
       });
   // googleUser as dep: re-runs when auth state changes so we catch sign-in after mount
@@ -1304,7 +1311,7 @@ export const CCExpensePage: React.FC = () => {
             </p>
             <p className={`text-[12px] ${isLight ? "text-slate-400" : "text-slate-500"}`}>
               {sheetPullStatus === "error"
-                ? "Could not read from the CC source sheet. Check your connection and try reloading."
+                ? (sheetPullError || "Could not read from the CC source sheet.")
                 : sheetPullStatus === "empty"
                 ? "The Raw Data tab in the CC source sheet is empty. Upload a CSV/XLSX file to populate it."
                 : sheetPullStatus === "loading"
