@@ -361,11 +361,13 @@ export const CCExpensePage: React.FC = () => {
   // Pull current Raw Data from the CC source sheet whenever the user is signed in.
   // Runs at mount (if token is already available) and again when googleUser changes
   // (i.e., right after the user signs in). Guards against double-fetch with hasFetchedSheetRef.
+  const [sheetPullStatus, setSheetPullStatus] = React.useState<"idle" | "loading" | "ok" | "empty" | "error">("idle");
   React.useEffect(() => {
     const tok = getAccessToken();
     if (!tok) return;                        // not signed in yet — wait for googleUser to change
     if (hasFetchedSheetRef.current) return;  // already fetched this session
     hasFetchedSheetRef.current = true;
+    setSheetPullStatus("loading");
     fetch("/api/cc-expense/pull", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -373,15 +375,16 @@ export const CCExpensePage: React.FC = () => {
     })
       .then(r => r.json())
       .then((d: any) => {
-        if (!d.ok || !d.rawRows || d.rawRows.length < 2) return;
-        const allRows: any[][] = d.rawRows;
-        // Find the header row
+        if (!d.ok) { setSheetPullStatus("error"); return; }
+        const allRows: any[][] = d.rawRows || [];
+        if (allRows.length < 1) { setSheetPullStatus("empty"); return; }
+        // Find the header row — scan first 15 rows for date/amount column
         let hdr = 0;
         for (let i = 0; i < Math.min(15, allRows.length); i++) {
           if (allRows[i].some((c: any) => /date/i.test(String(c)) || /amount/i.test(String(c)))) { hdr = i; break; }
         }
         const loaded = rawRowsFromUploadedRows(allRows, hdr);
-        if (loaded.length === 0) return;
+        if (loaded.length === 0) { setSheetPullStatus("empty"); return; }
         setRawRows(loaded);
         const grouped = groupIntoWeeks(loaded);
         setWeeks(grouped);
@@ -392,10 +395,11 @@ export const CCExpensePage: React.FC = () => {
           if (row[0] && row[1]) vMap[String(row[0]).trim()] = String(row[1]).trim();
         });
         if (Object.keys(vMap).length > 0) setVendorMap(vMap);
+        setSheetPullStatus("ok");
       })
       .catch(() => {
         hasFetchedSheetRef.current = false; // allow retry on next render
-        /* pull failed — localStorage data (if any) remains */
+        setSheetPullStatus("error");
       });
   // googleUser as dep: re-runs when auth state changes so we catch sign-in after mount
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1290,10 +1294,22 @@ export const CCExpensePage: React.FC = () => {
       <div className="flex-1 overflow-auto">
         {rawRows.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-3 text-center p-8">
-            <CreditCard className={`w-10 h-10 ${isLight ? "text-slate-300" : "text-slate-600"}`} />
-            <p className={`text-[14px] font-medium ${isLight ? "text-slate-500" : "text-slate-400"}`}>No data loaded</p>
+            {sheetPullStatus === "loading" ? (
+              <RefreshCw className={`w-10 h-10 animate-spin ${isLight ? "text-slate-400" : "text-slate-500"}`} />
+            ) : (
+              <CreditCard className={`w-10 h-10 ${isLight ? "text-slate-300" : "text-slate-600"}`} />
+            )}
+            <p className={`text-[14px] font-medium ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+              {sheetPullStatus === "loading" ? "Loading from sheet…" : "No data loaded"}
+            </p>
             <p className={`text-[12px] ${isLight ? "text-slate-400" : "text-slate-500"}`}>
-              Click "Pull from Sheet" to load CC expense data, or upload a CSV/XLSX file.
+              {sheetPullStatus === "error"
+                ? "Could not read from the CC source sheet. Check your connection and try reloading."
+                : sheetPullStatus === "empty"
+                ? "The Raw Data tab in the CC source sheet is empty. Upload a CSV/XLSX file to populate it."
+                : sheetPullStatus === "loading"
+                ? "Reading the Raw Data tab from the CC source sheet…"
+                : "Upload a CSV/XLSX file to load CC expense data."}
             </p>
           </div>
         ) : activeTab === "raw" ? (
