@@ -438,12 +438,11 @@ export const CalendarPage: React.FC = () => {
       if (st.includes("hold") || st.includes("pending approval")) hasHold = true;
     });
 
-    // AP Bills always stay in the red family — color intensity signals urgency,
-    // not a completely different hue (avoids confusion with AR/green or payroll/amber)
-    if (hasHold) return { bg: "bg-red-800", text: "text-white" };          // held/pending
-    if (diffDays <= 0) return { bg: "bg-red-600", text: "text-white" };    // overdue
-    if (diffDays <= 2) return { bg: "bg-red-500", text: "text-white" };    // due very soon
-    return { bg: "bg-red-400", text: "text-white" };                        // upcoming (was emerald — caused confusion)
+    // Each AP Bill urgency state gets a genuinely different hue (shades of one color look the same)
+    if (hasHold) return { bg: "bg-purple-600",  text: "text-white" };   // held/pending — purple = blocked
+    if (diffDays <= 0) return { bg: "bg-red-600",    text: "text-white" };   // overdue    — red    = danger
+    if (diffDays <= 2) return { bg: "bg-orange-500", text: "text-white" };   // due soon   — orange = warning
+    return { bg: "bg-slate-500", text: "text-white" };                        // upcoming   — slate  = neutral/informational
   };
 
   // Event chip color style helper
@@ -490,7 +489,7 @@ export const CalendarPage: React.FC = () => {
   const getChipStyle = (type: string, category?: string, urgency?: string) => {
     // Source colors are fixed — they never borrow urgency hues
     if (type === "loan")    return { border: "border-l-[3px] border-violet-500", bg: isLight ? "bg-violet-100 ring-1 ring-violet-200" : "bg-violet-500/25 ring-1 ring-violet-500/30", text: isLight ? "text-violet-900" : "text-violet-100", shadow: "shadow-[0_1px_6px_rgba(139,92,246,.35)]" };
-    if (type === "ar")      return { border: "border-l-[3px] border-amber-500", bg: isLight ? "bg-amber-100 ring-1 ring-amber-200" : "bg-amber-500/25 ring-1 ring-amber-500/30", text: isLight ? "text-amber-900" : "text-amber-100", shadow: "shadow-[0_1px_6px_rgba(245,158,11,.35)]" };
+    if (type === "ar")      return { border: "border-l-[3px] border-emerald-500", bg: isLight ? "bg-emerald-100 ring-1 ring-emerald-200" : "bg-emerald-500/25 ring-1 ring-emerald-500/30", text: isLight ? "text-emerald-900" : "text-emerald-100", shadow: "shadow-[0_1px_6px_rgba(16,185,129,.35)]" };
     if (type === "payroll") return { border: "border-l-[3px] border-indigo-500", bg: isLight ? "bg-indigo-100 ring-1 ring-indigo-200" : "bg-indigo-500/25 ring-1 ring-indigo-500/30", text: isLight ? "text-indigo-900" : "text-indigo-100", shadow: "shadow-[0_1px_6px_rgba(99,102,241,.35)]" };
     if (type === "google" && !category) return { border: "border-l-[3px] border-sky-400", bg: isLight ? "bg-sky-100 ring-1 ring-sky-200" : "bg-sky-500/25 ring-1 ring-sky-500/30", text: isLight ? "text-sky-900" : "text-sky-100", shadow: "shadow-[0_1px_6px_rgba(56,189,248,.35)]" };
     // Urgency colors — only applied to local/google events without a source color
@@ -1016,7 +1015,7 @@ export const CalendarPage: React.FC = () => {
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30 whitespace-nowrap">🔴 Critical</span>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30 whitespace-nowrap">🟠 High</span>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30 whitespace-nowrap">🔵 Normal</span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-500/15 text-slate-600 dark:text-slate-400 border border-slate-500/30 whitespace-nowrap">⚪ Low</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-400/15 text-slate-500 dark:text-slate-400 border border-slate-400/30 whitespace-nowrap">⚪ Low</span>
               </div>
             </div>
 
@@ -1085,7 +1084,7 @@ export const CalendarPage: React.FC = () => {
                 onClick={() => setShowArFilter(!showArFilter)}
                 className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
                   showArFilter
-                    ? "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 font-extrabold"
+                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-extrabold"
                     : isLight ? "bg-slate-100 text-slate-400 border-slate-200" : "bg-[#0d111a] text-[#4a5568] border-[#1a2235]"
                 }`}
               >
@@ -1386,7 +1385,7 @@ export const CalendarPage: React.FC = () => {
                                     });
                                   }}
                                   title={dayArItems.map((a) => `${a.customer}${a.amount > 0 ? ` ($${a.amount.toFixed(2)})` : ""}`).join("\n")}
-                                  className="text-[11px] px-2 py-1 rounded-md font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] cursor-pointer transition-opacity hover:opacity-90 flex flex-col gap-0.5 border border-amber-400/30"
+                                  className="text-[11px] px-2 py-1 rounded-md font-bold bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] cursor-pointer transition-opacity hover:opacity-90 flex flex-col gap-0.5 border border-emerald-400/30"
                                 >
                                   <div className="flex items-center justify-between">
                                     <span>🧾 AR ({dayArItems.length})</span>
@@ -1567,7 +1566,7 @@ export const CalendarPage: React.FC = () => {
                                 });
                               }}
                               title={dayArItems.map((a) => `${a.customer}${a.amount > 0 ? ` ($${a.amount.toFixed(2)})` : ""}`).join("\n")}
-                              className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] cursor-pointer truncate transition-opacity hover:opacity-90 flex items-center gap-1"
+                              className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] cursor-pointer truncate transition-opacity hover:opacity-90 flex items-center gap-1"
                             >
                               <span>🧾</span>
                               <span className="truncate">
