@@ -262,21 +262,25 @@ interface FinanceContextType {
 
 const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit?usp=sharing";
 
-/** Remove duplicate external links by URL. Defaults (fixed IDs) win over custom entries
- *  when URLs match — this handles the case where a user-added item was later promoted to a
- *  DEFAULT_EXTERNAL_LINKS entry with a different ID, causing both to appear after a merge. */
+/** Remove duplicate external links. Defaults (fixed IDs) win over custom entries.
+ *  Two items are considered duplicates if they share the same URL (normalised) OR the same name
+ *  (case-insensitive). This catches stored custom copies of items later promoted to defaults,
+ *  even when URLs differ slightly (different path, casing, etc.). */
 const dedupeExternalLinks = (links: ExternalLinkItem[]): ExternalLinkItem[] => {
-  const defaultUrls = new Set(DEFAULT_EXTERNAL_LINKS.map(d => d.url.trim().toLowerCase()));
-  // Put defaults first so they win in the seen-URL check
+  const defaultIds = new Set(DEFAULT_EXTERNAL_LINKS.map(d => d.id));
+  // Put default-ID items first so they win in the dedup check
   const sorted = [
-    ...links.filter(l => defaultUrls.has(l.url.trim().toLowerCase())),
-    ...links.filter(l => !defaultUrls.has(l.url.trim().toLowerCase())),
+    ...links.filter(l => defaultIds.has(l.id)),
+    ...links.filter(l => !defaultIds.has(l.id)),
   ];
-  const seen = new Set<string>();
+  const seenUrls = new Set<string>();
+  const seenNames = new Set<string>();
   return sorted.filter(l => {
-    const key = l.url.trim().toLowerCase().replace(/\/+$/, "");
-    if (seen.has(key)) return false;
-    seen.add(key);
+    const urlKey = l.url.trim().toLowerCase().replace(/\/+$/, "");
+    const nameKey = l.name.trim().toLowerCase();
+    if (seenUrls.has(urlKey) || seenNames.has(nameKey)) return false;
+    seenUrls.add(urlKey);
+    seenNames.add(nameKey);
     return true;
   });
 };
