@@ -3033,9 +3033,9 @@ app.post("/api/4yr/start-new-week", async (req, res) => {
 
 // ────────────────────────────────────────────────────────────
 // CC EXPENSES ROUTES
-// Spreadsheet: 1gKCKrWw8mkqJDiRl_9xYIhkzmtjOEoauQZgbtW9gIew
+// Spreadsheet: 1XM3tMo-MxC-g7H2O3S-eQqy2UilPheoTKJ3QVIy7hkc
 // ────────────────────────────────────────────────────────────
-const CC_SHEET_ID_DEFAULT = "1gKCKrWw8mkqJDiRl_9xYIhkzmtjOEoauQZgbtW9gIew";
+const CC_SHEET_ID_DEFAULT = "1XM3tMo-MxC-g7H2O3S-eQqy2UilPheoTKJ3QVIy7hkc";
 // Read at call time so runtime overrides take effect without restart
 function getCCSheetId(): string { return (getStoredData().sheetIdOverrides?.cc) || CC_SHEET_ID_DEFAULT; }
 
