@@ -487,11 +487,11 @@ export const CalendarPage: React.FC = () => {
   };
 
   const getChipStyle = (type: string, category?: string, urgency?: string) => {
-    // Source colors are fixed — they never borrow urgency hues
-    if (type === "loan")    return { border: "border-l-[3px] border-violet-500", bg: isLight ? "bg-violet-100 ring-1 ring-violet-200" : "bg-violet-500/25 ring-1 ring-violet-500/30", text: isLight ? "text-violet-900" : "text-violet-100", shadow: "shadow-[0_1px_6px_rgba(139,92,246,.35)]" };
+    // Source colors — each source is a unique hue family, never shared with another source or urgency
+    if (type === "loan")    return { border: "border-l-[3px] border-fuchsia-500", bg: isLight ? "bg-fuchsia-100 ring-1 ring-fuchsia-200" : "bg-fuchsia-500/25 ring-1 ring-fuchsia-500/30", text: isLight ? "text-fuchsia-900" : "text-fuchsia-100", shadow: "shadow-[0_1px_6px_rgba(217,70,239,.35)]" };
     if (type === "ar")      return { border: "border-l-[3px] border-emerald-500", bg: isLight ? "bg-emerald-100 ring-1 ring-emerald-200" : "bg-emerald-500/25 ring-1 ring-emerald-500/30", text: isLight ? "text-emerald-900" : "text-emerald-100", shadow: "shadow-[0_1px_6px_rgba(16,185,129,.35)]" };
-    if (type === "payroll") return { border: "border-l-[3px] border-indigo-500", bg: isLight ? "bg-indigo-100 ring-1 ring-indigo-200" : "bg-indigo-500/25 ring-1 ring-indigo-500/30", text: isLight ? "text-indigo-900" : "text-indigo-100", shadow: "shadow-[0_1px_6px_rgba(99,102,241,.35)]" };
-    if (type === "google" && !category) return { border: "border-l-[3px] border-sky-400", bg: isLight ? "bg-sky-100 ring-1 ring-sky-200" : "bg-sky-500/25 ring-1 ring-sky-500/30", text: isLight ? "text-sky-900" : "text-sky-100", shadow: "shadow-[0_1px_6px_rgba(56,189,248,.35)]" };
+    if (type === "payroll") return { border: "border-l-[3px] border-amber-500",   bg: isLight ? "bg-amber-100 ring-1 ring-amber-200"   : "bg-amber-500/25 ring-1 ring-amber-500/30",   text: isLight ? "text-amber-900"   : "text-amber-100",   shadow: "shadow-[0_1px_6px_rgba(245,158,11,.35)]"  };
+    if (type === "google" && !category) return { border: "border-l-[3px] border-cyan-500", bg: isLight ? "bg-cyan-100 ring-1 ring-cyan-200" : "bg-cyan-500/25 ring-1 ring-cyan-500/30", text: isLight ? "text-cyan-900" : "text-cyan-100", shadow: "shadow-[0_1px_6px_rgba(6,182,212,.35)]" };
     // Urgency colors — only applied to local/google events without a source color
     if (urgency === "critical") return { border: "border-l-[3px] border-red-500",    bg: isLight ? "bg-red-100 ring-1 ring-red-200"       : "bg-red-500/25 ring-1 ring-red-500/30",       text: isLight ? "text-red-900"    : "text-red-100",    shadow: "shadow-[0_1px_6px_rgba(239,68,68,.4)]"   };
     if (urgency === "high")     return { border: "border-l-[3px] border-orange-500", bg: isLight ? "bg-orange-100 ring-1 ring-orange-200" : "bg-orange-500/25 ring-1 ring-orange-500/30", text: isLight ? "text-orange-900" : "text-orange-100", shadow: "shadow-[0_1px_6px_rgba(249,115,22,.4)]"  };
@@ -1019,13 +1019,13 @@ export const CalendarPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Categories */}
+            {/* Categories — symbols only, no color coding */}
             <div className="space-y-1">
               <span className={`text-[10px] font-extrabold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-[#888]"}`}>Category</span>
-              <div className="flex flex-wrap items-center gap-2 font-bold">
-                <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400">📅 Event</span>
-                <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">✅ Task</span>
-                <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">🤝 Meeting</span>
+              <div className={`flex flex-wrap items-center gap-2 font-bold text-[11px] ${isLight ? "text-slate-600" : "text-slate-300"}`}>
+                <span>📅 Event</span>
+                <span>✅ Task</span>
+                <span>🤝 Meeting</span>
               </div>
             </div>
 
@@ -1074,7 +1074,7 @@ export const CalendarPage: React.FC = () => {
                 onClick={() => setShowLoansFilter(!showLoansFilter)}
                 className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
                   showLoansFilter
-                    ? "bg-purple-500/10 border-purple-500/30 text-purple-600 dark:text-purple-400 font-extrabold"
+                    ? "bg-fuchsia-500/10 border-fuchsia-500/30 text-fuchsia-600 dark:text-fuchsia-400 font-extrabold"
                     : isLight ? "bg-slate-100 text-slate-400 border-slate-200" : "bg-[#0d111a] text-[#4a5568] border-[#1a2235]"
                 }`}
               >
@@ -1094,7 +1094,7 @@ export const CalendarPage: React.FC = () => {
                 onClick={() => setShowPayrollFilter(!showPayrollFilter)}
                 className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
                   showPayrollFilter
-                    ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-600 dark:text-indigo-400 font-extrabold"
+                    ? "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 font-extrabold"
                     : isLight ? "bg-slate-100 text-slate-400 border-slate-200" : "bg-[#0d111a] text-[#4a5568] border-[#1a2235]"
                 }`}
               >
@@ -1104,7 +1104,7 @@ export const CalendarPage: React.FC = () => {
                 onClick={() => setShowGoogleCalFilter(!showGoogleCalFilter)}
                 className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
                   showGoogleCalFilter
-                    ? "bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400 font-extrabold"
+                    ? "bg-cyan-500/10 border-cyan-500/30 text-cyan-600 dark:text-cyan-400 font-extrabold"
                     : isLight ? "bg-slate-100 text-slate-400 border-slate-200" : "bg-[#0d111a] text-[#4a5568] border-[#1a2235]"
                 }`}
               >
