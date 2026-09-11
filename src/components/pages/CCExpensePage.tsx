@@ -356,28 +356,40 @@ export const CCExpensePage: React.FC = () => {
   // Ref to hold raw CSV text during file select so we can persist it on confirm
   const pendingCsvTextRef = React.useRef<string | null>(null);
 
-  // On mount: if sheet is linked and user is signed in, pull Raw Data from sheet
+  // On mount: pull current Raw Data from the CC source sheet.
+  // This is the source of truth — the sheet holds whatever was last uploaded.
+  // localStorage is only a fallback if the pull fails or the user is not signed in.
   React.useEffect(() => {
     const tok = getAccessToken();
     if (!tok) return;
-    fetch("/api/cc-expense/sheet-data", { headers: { Authorization: `Bearer ${tok}` } })
+    fetch("/api/cc-expense/pull", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accessToken: tok }),
+    })
       .then(r => r.json())
       .then((d: any) => {
-        if (!d.ok || !d.rows || d.rows.length < 2) return;
-        // rows[0] is the header row; find header index
-        const allRows: string[][] = d.rows;
+        if (!d.ok || !d.rawRows || d.rawRows.length < 2) return;
+        const allRows: any[][] = d.rawRows;
+        // Find the header row
         let hdr = 0;
         for (let i = 0; i < Math.min(15, allRows.length); i++) {
-          if (allRows[i].some((c: string) => /date/i.test(c) || /amount/i.test(c))) { hdr = i; break; }
+          if (allRows[i].some((c: any) => /date/i.test(String(c)) || /amount/i.test(String(c)))) { hdr = i; break; }
         }
         const loaded = rawRowsFromUploadedRows(allRows, hdr);
         if (loaded.length === 0) return;
         setRawRows(loaded);
         const grouped = groupIntoWeeks(loaded);
         setWeeks(grouped);
-        if (grouped.length > 0 && !selectedWeek) setSelectedWeek(grouped[0].weekStart);
+        if (grouped.length > 0) setSelectedWeek(w => w || grouped[0].weekStart);
+        // Parse vendor map from pull response
+        const vMap: Record<string, string> = {};
+        (d.vendorMapRows || []).forEach((row: any[]) => {
+          if (row[0] && row[1]) vMap[String(row[0]).trim()] = String(row[1]).trim();
+        });
+        if (Object.keys(vMap).length > 0) setVendorMap(vMap);
       })
-      .catch(() => { /* sheet read failed — keep localStorage data */ });
+      .catch(() => { /* pull failed — localStorage data (if any) remains */ });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [activeTab, setActiveTab] = useState<"weekly" | "ytd" | "raw">("weekly");
@@ -621,8 +633,8 @@ export const CCExpensePage: React.FC = () => {
 
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
 
-  // ── Confirm upload → load data locally (no sheet write) ───────────────────
-  const handleConfirmUpload = useCallback(() => {
+  // ── Confirm upload → load locally AND write to CC source sheet ──────────────
+  const handleConfirmUpload = useCallback(async () => {
     if (!parsedUploadRows) return;
     const csvRows = rawRowsFromUploadedRows(parsedUploadRows, uploadHeaderRow);
     setRawRows(csvRows);
@@ -638,6 +650,20 @@ export const CCExpensePage: React.FC = () => {
     setParsedUploadRows(null);
     setUploadPreviewOpen(false);
     showToast(`Loaded ${csvRows.length} transactions`, "success");
+
+    // Write to CC source sheet so future page loads read this new data
+    const tok = getAccessToken();
+    if (tok) {
+      try {
+        await fetch("/api/cc-expense/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accessToken: tok, rows: parsedUploadRows }),
+        });
+      } catch {
+        // Non-fatal — data is already loaded locally; sheet write is best-effort
+      }
+    }
   }, [parsedUploadRows, uploadHeaderRow, showToast]);
 
   // ── Save to new Google Sheet ─────────────────────────────────────────────────
