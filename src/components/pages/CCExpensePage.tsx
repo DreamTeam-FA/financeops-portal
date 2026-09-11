@@ -335,7 +335,7 @@ function loadPersistedCCRows(): { rows: RawRow[]; weeks: WeekEntry[]; firstWeek:
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export const CCExpensePage: React.FC = () => {
-  const { theme, showToast } = useFinance();
+  const { theme, showToast, googleUser } = useFinance();
   const isLight = theme === "light";
 
   // Linked export sheet info (fetched on mount)
@@ -355,13 +355,17 @@ export const CCExpensePage: React.FC = () => {
   const [selectedWeek, setSelectedWeek] = useState<string>(_persisted.firstWeek);
   // Ref to hold raw CSV text during file select so we can persist it on confirm
   const pendingCsvTextRef = React.useRef<string | null>(null);
+  // Guard: only pull from sheet once per sign-in (not on every re-render)
+  const hasFetchedSheetRef = React.useRef(false);
 
-  // On mount: pull current Raw Data from the CC source sheet.
-  // This is the source of truth — the sheet holds whatever was last uploaded.
-  // localStorage is only a fallback if the pull fails or the user is not signed in.
+  // Pull current Raw Data from the CC source sheet whenever the user is signed in.
+  // Runs at mount (if token is already available) and again when googleUser changes
+  // (i.e., right after the user signs in). Guards against double-fetch with hasFetchedSheetRef.
   React.useEffect(() => {
     const tok = getAccessToken();
-    if (!tok) return;
+    if (!tok) return;                        // not signed in yet — wait for googleUser to change
+    if (hasFetchedSheetRef.current) return;  // already fetched this session
+    hasFetchedSheetRef.current = true;
     fetch("/api/cc-expense/pull", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -389,9 +393,13 @@ export const CCExpensePage: React.FC = () => {
         });
         if (Object.keys(vMap).length > 0) setVendorMap(vMap);
       })
-      .catch(() => { /* pull failed — localStorage data (if any) remains */ });
+      .catch(() => {
+        hasFetchedSheetRef.current = false; // allow retry on next render
+        /* pull failed — localStorage data (if any) remains */
+      });
+  // googleUser as dep: re-runs when auth state changes so we catch sign-in after mount
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [googleUser]);
   const [activeTab, setActiveTab] = useState<"weekly" | "ytd" | "raw">("weekly");
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
 
