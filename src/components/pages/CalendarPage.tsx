@@ -496,7 +496,7 @@ export const CalendarPage: React.FC = () => {
     if (urgency === "critical") return { border: "border-l-[3px] border-red-500",    bg: isLight ? "bg-red-100 ring-1 ring-red-200"       : "bg-red-500/25 ring-1 ring-red-500/30",       text: isLight ? "text-red-900"    : "text-red-100",    shadow: "shadow-[0_1px_6px_rgba(239,68,68,.4)]"   };
     if (urgency === "high")     return { border: "border-l-[3px] border-orange-500", bg: isLight ? "bg-orange-100 ring-1 ring-orange-200" : "bg-orange-500/25 ring-1 ring-orange-500/30", text: isLight ? "text-orange-900" : "text-orange-100", shadow: "shadow-[0_1px_6px_rgba(249,115,22,.4)]"  };
     if (urgency === "low")      return { border: "border-l-[3px] border-slate-400",  bg: isLight ? "bg-slate-100 ring-1 ring-slate-200"  : "bg-slate-500/20 ring-1 ring-slate-500/20",   text: isLight ? "text-slate-600"  : "text-slate-300",  shadow: ""                                        };
-    return { border: "border-l-[3px] border-teal-500", bg: isLight ? "bg-teal-100 ring-1 ring-teal-200" : "bg-teal-500/25 ring-1 ring-teal-500/30", text: isLight ? "text-teal-900" : "text-teal-100", shadow: "shadow-[0_1px_6px_rgba(20,184,166,.35)]" };
+    return { border: "border-l-[3px] border-yellow-500", bg: isLight ? "bg-yellow-100 ring-1 ring-yellow-200" : "bg-yellow-500/25 ring-1 ring-yellow-500/30", text: isLight ? "text-yellow-900" : "text-yellow-100", shadow: "shadow-[0_1px_6px_rgba(234,179,8,.35)]" };
   };
 
   const getEventIcon = (type: string, category?: string) =>
@@ -1114,7 +1114,7 @@ export const CalendarPage: React.FC = () => {
                 onClick={() => setShowTasksFilter(!showTasksFilter)}
                 className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
                   showTasksFilter
-                    ? "bg-teal-500/10 border-teal-500/30 text-teal-600 dark:text-teal-400 font-extrabold"
+                    ? "bg-yellow-500/10 border-yellow-500/30 text-yellow-600 dark:text-yellow-400 font-extrabold"
                     : isLight ? "bg-slate-100 text-slate-400 border-slate-200" : "bg-[#0d111a] text-[#4a5568] border-[#1a2235]"
                 }`}
               >
