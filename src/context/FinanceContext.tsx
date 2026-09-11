@@ -262,6 +262,25 @@ interface FinanceContextType {
 
 const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs/edit?usp=sharing";
 
+/** Remove duplicate external links by URL. Defaults (fixed IDs) win over custom entries
+ *  when URLs match — this handles the case where a user-added item was later promoted to a
+ *  DEFAULT_EXTERNAL_LINKS entry with a different ID, causing both to appear after a merge. */
+const dedupeExternalLinks = (links: ExternalLinkItem[]): ExternalLinkItem[] => {
+  const defaultUrls = new Set(DEFAULT_EXTERNAL_LINKS.map(d => d.url.trim().toLowerCase()));
+  // Put defaults first so they win in the seen-URL check
+  const sorted = [
+    ...links.filter(l => defaultUrls.has(l.url.trim().toLowerCase())),
+    ...links.filter(l => !defaultUrls.has(l.url.trim().toLowerCase())),
+  ];
+  const seen = new Set<string>();
+  return sorted.filter(l => {
+    const key = l.url.trim().toLowerCase().replace(/\/+$/, "");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 const DEFAULT_EXTERNAL_LINKS: ExternalLinkItem[] = [
   // ── TOOLS TAB → SHEETS ──────────────────────────────────────────────────────
   {
@@ -750,10 +769,17 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (saved) {
         const parsed: ExternalLinkItem[] = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          // Merge: keep saved items + inject any new defaults not already present
+          // Merge: keep saved items + inject any new defaults not already present by ID
           const savedIds = new Set(parsed.map((l) => l.id));
           const newDefaults = DEFAULT_EXTERNAL_LINKS.filter((d) => !savedIds.has(d.id));
-          return newDefaults.length > 0 ? [...parsed, ...newDefaults] : parsed;
+          const merged = newDefaults.length > 0 ? [...parsed, ...newDefaults] : parsed;
+          // Deduplicate by URL — handles custom entries promoted to defaults (different IDs, same URL)
+          const deduped = dedupeExternalLinks(merged);
+          // Persist the clean list so duplicates are gone on next load too
+          if (deduped.length !== merged.length) {
+            try { localStorage.setItem("financeops_external_links", JSON.stringify(deduped)); } catch { /* ignore */ }
+          }
+          return deduped;
         }
       }
     } catch (e) {}
@@ -1264,17 +1290,29 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           const cfgUserAdded = (cfg.externalLinks as ExternalLinkItem[]).filter(l => !defaultIds.has(l.id));
           if (cfgUserAdded.length > 0 && !lsHasUserAdded) {
             // localStorage has only defaults — restore user links from config sheet
-            const merged = [...DEFAULT_EXTERNAL_LINKS, ...cfgUserAdded];
+            const merged = dedupeExternalLinks([...DEFAULT_EXTERNAL_LINKS, ...cfgUserAdded]);
             setExternalLinks(merged);
             localStorage.setItem("financeops_external_links", JSON.stringify(merged));
+            // Write clean list back to config sheet to remove stored duplicates permanently
+            const tok2 = getAccessToken();
+            if (tok2) writeConfigKey(tok2, "externalLinks", merged, userEmail).catch(() => {});
           } else if (cfgUserAdded.length > lsLinks.filter(l => !defaultIds.has(l.id)).length) {
             // Config sheet has more user-added links than localStorage — merge in the extras
             const lsUserIds = new Set(lsLinks.filter(l => !defaultIds.has(l.id)).map(l => l.id));
             const newFromCfg = cfgUserAdded.filter(l => !lsUserIds.has(l.id));
             if (newFromCfg.length > 0) {
-              const merged = [...lsLinks, ...newFromCfg];
+              const merged = dedupeExternalLinks([...lsLinks, ...newFromCfg]);
               setExternalLinks(merged);
               localStorage.setItem("financeops_external_links", JSON.stringify(merged));
+            }
+          } else {
+            // No new items from config — still dedup in case localStorage has duplicates
+            const deduped = dedupeExternalLinks(lsLinks);
+            if (deduped.length !== lsLinks.length) {
+              setExternalLinks(deduped);
+              localStorage.setItem("financeops_external_links", JSON.stringify(deduped));
+              const tok2 = getAccessToken();
+              if (tok2) writeConfigKey(tok2, "externalLinks", deduped, userEmail).catch(() => {});
             }
           }
         }
