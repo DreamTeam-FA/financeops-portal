@@ -1304,6 +1304,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
               const merged = dedupeExternalLinks([...lsLinks, ...newFromCfg]);
               setExternalLinks(merged);
               localStorage.setItem("financeops_external_links", JSON.stringify(merged));
+              // Write clean list back to config sheet so duplicates are gone permanently
+              const tok2 = getAccessToken();
+              if (tok2) writeConfigKey(tok2, "externalLinks", merged, userEmail).catch(() => {});
             }
           } else {
             // No new items from config — still dedup in case localStorage has duplicates
