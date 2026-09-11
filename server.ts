@@ -3071,28 +3071,35 @@ app.post("/api/cc-expense/pull", async (req, res) => {
     let rawRows: any[][] = [];
     let vendorMapRows: any[][] = [];
     try {
-      // Use batchGet so both ranges come back in one round-trip (faster than two fetches).
-      // Raw Data only — frontend computes weekly/YTD from raw rows; summary tabs may not exist.
-      const ranges = [
-        "'Raw Data'!A1:K5000",  // limit to 5000 rows — any larger is abnormally big for a CC export
-        "'_Vendor Map'!A:B",
-      ];
-      const query = ranges.map(r => `ranges=${encodeURIComponent(r)}`).join("&");
-      const url = `${base}/${sheetId}/values:batchGet?${query}&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING`;
-      console.log(`[CC pull] fetching batchGet...`);
-      const resp = await fetch(url, { headers, signal: ctrl.signal });
+      // Fetch Raw Data tab — the only required range.
+      const rawUrl = `${base}/${sheetId}/values/${encodeURIComponent("'Raw Data'!A1:K5000")}?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING`;
+      console.log(`[CC pull] fetching Raw Data...`);
+      const rawResp = await fetch(rawUrl, { headers, signal: ctrl.signal });
       clearTimeout(fetchTimeout);
 
-      if (!resp.ok) {
-        const errText = await resp.text();
-        console.error(`[CC pull] Sheets API error ${resp.status}:`, errText.slice(0, 300));
-        return res.status(resp.status).json({ ok: false, error: `Sheets API ${resp.status}: ${errText.slice(0, 200)}` });
+      if (!rawResp.ok) {
+        const errText = await rawResp.text();
+        console.error(`[CC pull] Sheets API error ${rawResp.status}:`, errText.slice(0, 300));
+        return res.status(rawResp.status).json({ ok: false, error: `Sheets API ${rawResp.status}: ${errText.slice(0, 200)}` });
       }
-      const data: any = await resp.json();
-      const [rawDataRange, vendorMapRange] = data.valueRanges || [];
-      rawRows = rawDataRange?.values || [];
-      vendorMapRows = vendorMapRange?.values || [];
-      console.log(`[CC pull] ok — rawRows=${rawRows.length} vendorMapRows=${vendorMapRows.length}`);
+      const rawData: any = await rawResp.json();
+      rawRows = rawData?.values || [];
+      console.log(`[CC pull] Raw Data ok — ${rawRows.length} rows`);
+
+      // Vendor Map tab is optional — not all sheets have it; ignore 400/404 errors.
+      try {
+        const vmUrl = `${base}/${sheetId}/values/${encodeURIComponent("'_Vendor Map'!A:B")}?valueRenderOption=UNFORMATTED_VALUE`;
+        const vmResp = await fetch(vmUrl, { headers });
+        if (vmResp.ok) {
+          const vmData: any = await vmResp.json();
+          vendorMapRows = vmData?.values || [];
+          console.log(`[CC pull] Vendor Map ok — ${vendorMapRows.length} rows`);
+        } else {
+          console.log(`[CC pull] Vendor Map tab not found (${vmResp.status}) — skipping`);
+        }
+      } catch {
+        console.log(`[CC pull] Vendor Map fetch failed — skipping`);
+      }
     } catch (fetchErr: any) {
       clearTimeout(fetchTimeout);
       const isAbort = fetchErr?.name === "AbortError";
