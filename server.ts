@@ -3464,7 +3464,7 @@ app.get("/api/cc-expense/export-sheet-info", (_req, res) => {
 
 // POST /api/cc-expense/export-sheet — create or sync the report sheet
 app.post("/api/cc-expense/export-sheet", async (req, res) => {
-  const { accessToken, title, dateRange, companies, weeklyRows, ytdRows, ytdTotals, ytdTotal, rawHeaders, rawData } = req.body || {};
+  const { accessToken, title, dateRange, companies, weeklyRows, ytdRows, ytdTotals, ytdTotal, rawHeaders, rawData, knownSpreadsheetId } = req.body || {};
   if (!accessToken) return res.status(401).json({ ok: false, error: "No access token" });
 
   const base = "https://sheets.googleapis.com/v4/spreadsheets";
@@ -3494,7 +3494,8 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
   try {
     // ── Determine if we're creating or syncing ────────────────────────────────
     const stored   = getStoredData();
-    let spreadsheetId: string | undefined = stored.sheetIdOverrides?.ccExport;
+    // Use server-stored ID first; fall back to client-supplied ID (survives server restarts on Render)
+    let spreadsheetId: string | undefined = stored.sheetIdOverrides?.ccExport || knownSpreadsheetId || undefined;
     let isSync = false;
     let dashId = 0, weeklyId = 0, ytdId = 0, rawId = 0;
 

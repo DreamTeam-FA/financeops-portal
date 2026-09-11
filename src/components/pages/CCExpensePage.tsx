@@ -339,12 +339,27 @@ export const CCExpensePage: React.FC = () => {
   const isLight = theme === "light";
 
   // Linked export sheet info (fetched on mount)
+  // localStorage key to survive Render redeploys (server-side JSON wiped on each deploy)
+  const CC_EXPORT_URL_KEY = "cc_export_sheet_url";
   const [exportSheet, setExportSheet] = useState<{ linked: boolean; url?: string } | null>(null);
   React.useEffect(() => {
     fetch("/api/cc-expense/export-sheet-info")
       .then(r => r.json())
-      .then(d => setExportSheet(d))
-      .catch(() => setExportSheet({ linked: false }));
+      .then(d => {
+        if (d.linked && d.url) {
+          // Server knows the sheet — save to localStorage as backup
+          try { localStorage.setItem(CC_EXPORT_URL_KEY, d.url); } catch { }
+          setExportSheet(d);
+        } else {
+          // Server lost it (e.g. redeployed) — restore from localStorage
+          const savedUrl = (() => { try { return localStorage.getItem(CC_EXPORT_URL_KEY); } catch { return null; } })();
+          setExportSheet(savedUrl ? { linked: true, url: savedUrl } : { linked: false });
+        }
+      })
+      .catch(() => {
+        const savedUrl = (() => { try { return localStorage.getItem(CC_EXPORT_URL_KEY); } catch { return null; } })();
+        setExportSheet(savedUrl ? { linked: true, url: savedUrl } : { linked: false });
+      });
   }, []);
 
   // Data state — raw CSV text persisted in localStorage so data survives page navigation/reload
@@ -730,6 +745,12 @@ export const CCExpensePage: React.FC = () => {
       const newest = sorted[sorted.length - 1]?.weekLabel || "";
       const dateRange = oldest === newest ? oldest : `${oldest} → ${newest}`;
 
+      // Pass locally-stored spreadsheet ID so server can sync even after a redeploy
+      const savedExportUrl = (() => { try { return localStorage.getItem(CC_EXPORT_URL_KEY); } catch { return null; } })();
+      const knownSpreadsheetId = savedExportUrl
+        ? (savedExportUrl.match(/\/d\/([a-zA-Z0-9_-]+)/)?.[1] || undefined)
+        : undefined;
+
       const resp = await fetch("/api/cc-expense/export-sheet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -744,12 +765,15 @@ export const CCExpensePage: React.FC = () => {
           ytdTotal: ytdRows2.reduce((s, r) => s + r.grandTotal, 0),
           rawHeaders: RAW_HEADERS,
           rawData: rawData2D,
+          knownSpreadsheetId,
         })
       });
       const result = await resp.json();
       if (!result.ok) throw new Error(result.error || "Export failed");
       const wasSync = result.isSync;
       showToast(wasSync ? "Sheet synced!" : "Sheet created!", "success");
+      // Persist the URL in localStorage so buttons survive server redeploys
+      try { localStorage.setItem(CC_EXPORT_URL_KEY, result.url); } catch { }
       setExportSheet({ linked: true, url: result.url });
       if (!wasSync) window.open(result.url, "_blank");
     } catch (e: any) {
