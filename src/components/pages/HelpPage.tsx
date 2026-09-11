@@ -154,6 +154,10 @@ const FAQ = [
     a: "The Dashboard tab has a 'Filter Week:' dropdown in cell I3 (top row, after the date range). Selecting a week filters all KPIs (Total Expenses, Transactions) and the per-company amounts to show only that week's CC transactions. The dropdown lists every week between the oldest and newest transaction, including weeks with $0 activity. Select 'All Weeks' to return to the full YTD view. The filter works by matching the selected week label against column L (Week) in the Raw Data tab — column L is populated automatically when you sync the sheet from the portal.",
   },
   {
+    q: "Where does the CC Expense page get its data when I first open it?",
+    a: "The CC Expense page now auto-loads directly from the CC source Google Sheet (Raw Data tab) every time you open it — no manual pull needed. Whatever data was last uploaded to the sheet is what you see. When you upload a new CSV file and confirm, the portal loads it locally AND writes it to the source sheet, so the next time anyone opens the page they will see the latest data. If you are not signed in, the page falls back to any data saved in your browser's local storage.",
+  },
+  {
     q: "Why do TI sub-entity bills (4G, 4YR, E1, Corner) appear in a separate 'TI Bills' bucket on the AP page?",
     a: "They no longer should. A previous version routed any negative-amount TI bill to a separate 'TI Bills' bucket regardless of its sub-entity. This has been fixed — negative-amount bills (credits, refunds) now go to their correct sub-entity bucket (4G, 4YR, E1, Corner, or TI) just like any other bill.",
   },
@@ -1194,6 +1198,7 @@ const btnGhost = \`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-cente
                         "Payables Calendar entity badges — TI sub-entities (4G, 4YR, E1, Corner) shown correctly",
                         "GAS Dashboard URLs persist across page loads and multi-user sessions (merge-only config sync)",
                         "CC Expenses CSV BOM stripping — QuickBooks/bank exports parse correctly",
+                        "CC Expenses auto-load from source sheet — page reads the CC source sheet (Raw Data tab) on open; confirming a CSV upload also writes it to the source sheet so data persists across reloads and users",
                         "CC Expenses 'Manage Cards' — fully user-managed account filter list (no hardcoded patterns), add/remove/edit via header panel, saved to localStorage",
                         "CC Expenses Dashboard week filter — 'Filter Week:' dropdown in H3 filters all KPIs and per-company amounts by week; column L (Week) in Raw Data auto-populated on sync from transaction dates",
                         "Negative-amount TI bills route to their correct sub-entity bucket (no more rogue 'TI Bills' bucket)",
