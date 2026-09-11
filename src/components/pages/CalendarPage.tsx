@@ -438,10 +438,12 @@ export const CalendarPage: React.FC = () => {
       if (st.includes("hold") || st.includes("pending approval")) hasHold = true;
     });
 
-    if (hasHold) return { bg: "bg-amber-600", text: "text-white" };
-    if (diffDays <= 0) return { bg: "bg-red-600", text: "text-white" };
-    if (diffDays <= 2) return { bg: "bg-amber-500", text: "text-white" };
-    return { bg: "bg-emerald-600", text: "text-white" };
+    // AP Bills always stay in the red family — color intensity signals urgency,
+    // not a completely different hue (avoids confusion with AR/green or payroll/amber)
+    if (hasHold) return { bg: "bg-red-800", text: "text-white" };          // held/pending
+    if (diffDays <= 0) return { bg: "bg-red-600", text: "text-white" };    // overdue
+    if (diffDays <= 2) return { bg: "bg-red-500", text: "text-white" };    // due very soon
+    return { bg: "bg-red-400", text: "text-white" };                        // upcoming (was emerald — caused confusion)
   };
 
   // Event chip color style helper
@@ -486,13 +488,15 @@ export const CalendarPage: React.FC = () => {
   };
 
   const getChipStyle = (type: string, category?: string, urgency?: string) => {
-    if (type === "loan")    return { border: "border-l-[3px] border-purple-500", bg: isLight ? "bg-purple-100 ring-1 ring-purple-200" : "bg-purple-500/25 ring-1 ring-purple-500/30", text: isLight ? "text-purple-900" : "text-purple-100", shadow: "shadow-[0_1px_6px_rgba(168,85,247,.35)]" };
-    if (type === "ar")      return { border: "border-l-[3px] border-emerald-500", bg: isLight ? "bg-emerald-100 ring-1 ring-emerald-200" : "bg-emerald-500/25 ring-1 ring-emerald-500/30", text: isLight ? "text-emerald-900" : "text-emerald-100", shadow: "shadow-[0_1px_6px_rgba(16,185,129,.35)]" };
-    if (type === "payroll") return { border: "border-l-[3px] border-blue-500", bg: isLight ? "bg-blue-100 ring-1 ring-blue-200" : "bg-blue-500/25 ring-1 ring-blue-500/30", text: isLight ? "text-blue-900" : "text-blue-100", shadow: "shadow-[0_1px_6px_rgba(59,130,246,.35)]" };
+    // Source colors are fixed — they never borrow urgency hues
+    if (type === "loan")    return { border: "border-l-[3px] border-violet-500", bg: isLight ? "bg-violet-100 ring-1 ring-violet-200" : "bg-violet-500/25 ring-1 ring-violet-500/30", text: isLight ? "text-violet-900" : "text-violet-100", shadow: "shadow-[0_1px_6px_rgba(139,92,246,.35)]" };
+    if (type === "ar")      return { border: "border-l-[3px] border-amber-500", bg: isLight ? "bg-amber-100 ring-1 ring-amber-200" : "bg-amber-500/25 ring-1 ring-amber-500/30", text: isLight ? "text-amber-900" : "text-amber-100", shadow: "shadow-[0_1px_6px_rgba(245,158,11,.35)]" };
+    if (type === "payroll") return { border: "border-l-[3px] border-indigo-500", bg: isLight ? "bg-indigo-100 ring-1 ring-indigo-200" : "bg-indigo-500/25 ring-1 ring-indigo-500/30", text: isLight ? "text-indigo-900" : "text-indigo-100", shadow: "shadow-[0_1px_6px_rgba(99,102,241,.35)]" };
     if (type === "google" && !category) return { border: "border-l-[3px] border-sky-400", bg: isLight ? "bg-sky-100 ring-1 ring-sky-200" : "bg-sky-500/25 ring-1 ring-sky-500/30", text: isLight ? "text-sky-900" : "text-sky-100", shadow: "shadow-[0_1px_6px_rgba(56,189,248,.35)]" };
-    if (urgency === "critical") return { border: "border-l-[3px] border-red-500", bg: isLight ? "bg-red-100 ring-1 ring-red-200" : "bg-red-500/25 ring-1 ring-red-500/30", text: isLight ? "text-red-900" : "text-red-100", shadow: "shadow-[0_1px_6px_rgba(239,68,68,.4)]" };
-    if (urgency === "high")     return { border: "border-l-[3px] border-orange-500", bg: isLight ? "bg-orange-100 ring-1 ring-orange-200" : "bg-orange-500/25 ring-1 ring-orange-500/30", text: isLight ? "text-orange-900" : "text-orange-100", shadow: "shadow-[0_1px_6px_rgba(249,115,22,.4)]" };
-    if (urgency === "low")      return { border: "border-l-[3px] border-slate-400", bg: isLight ? "bg-slate-100 ring-1 ring-slate-200" : "bg-slate-500/20 ring-1 ring-slate-500/20", text: isLight ? "text-slate-600" : "text-slate-300", shadow: "" };
+    // Urgency colors — only applied to local/google events without a source color
+    if (urgency === "critical") return { border: "border-l-[3px] border-red-500",    bg: isLight ? "bg-red-100 ring-1 ring-red-200"       : "bg-red-500/25 ring-1 ring-red-500/30",       text: isLight ? "text-red-900"    : "text-red-100",    shadow: "shadow-[0_1px_6px_rgba(239,68,68,.4)]"   };
+    if (urgency === "high")     return { border: "border-l-[3px] border-orange-500", bg: isLight ? "bg-orange-100 ring-1 ring-orange-200" : "bg-orange-500/25 ring-1 ring-orange-500/30", text: isLight ? "text-orange-900" : "text-orange-100", shadow: "shadow-[0_1px_6px_rgba(249,115,22,.4)]"  };
+    if (urgency === "low")      return { border: "border-l-[3px] border-slate-400",  bg: isLight ? "bg-slate-100 ring-1 ring-slate-200"  : "bg-slate-500/20 ring-1 ring-slate-500/20",   text: isLight ? "text-slate-600"  : "text-slate-300",  shadow: ""                                        };
     return { border: "border-l-[3px] border-teal-500", bg: isLight ? "bg-teal-100 ring-1 ring-teal-200" : "bg-teal-500/25 ring-1 ring-teal-500/30", text: isLight ? "text-teal-900" : "text-teal-100", shadow: "shadow-[0_1px_6px_rgba(20,184,166,.35)]" };
   };
 
@@ -513,7 +517,7 @@ export const CalendarPage: React.FC = () => {
     critical: { dot: "text-red-500",    active: "bg-red-500    border-red-500    text-white",  inactive: "bg-red-50    dark:bg-red-900/15    border-red-200    dark:border-red-700    text-red-600    dark:text-red-400"    },
     high:     { dot: "text-orange-500", active: "bg-orange-500 border-orange-500 text-white",  inactive: "bg-orange-50 dark:bg-orange-900/15 border-orange-200 dark:border-orange-700 text-orange-600 dark:text-orange-400" },
     normal:   { dot: "text-blue-500",   active: "bg-blue-500   border-blue-500   text-white",  inactive: "bg-blue-50   dark:bg-blue-900/15   border-blue-200   dark:border-blue-700   text-blue-600   dark:text-blue-400"   },
-    low:      { dot: "text-green-500",  active: "bg-green-500  border-green-500  text-white",  inactive: "bg-green-50  dark:bg-green-900/15  border-green-200  dark:border-green-700  text-green-600  dark:text-green-400"  },
+    low:      { dot: "text-slate-400",  active: "bg-slate-500  border-slate-500  text-white",  inactive: "bg-slate-50  dark:bg-slate-900/15  border-slate-200  dark:border-slate-700  text-slate-600  dark:text-slate-400"  },
   };
 
   const getEventHexColor = (type: string, category?: string, urgency?: string): string => {
@@ -1010,9 +1014,9 @@ export const CalendarPage: React.FC = () => {
               <span className={`text-[10px] font-extrabold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-[#888]"}`}>Urgency Level</span>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30 whitespace-nowrap">🔴 Critical</span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 whitespace-nowrap">🟠 High</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30 whitespace-nowrap">🟠 High</span>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30 whitespace-nowrap">🔵 Normal</span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 whitespace-nowrap">🟢 Low</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-500/15 text-slate-600 dark:text-slate-400 border border-slate-500/30 whitespace-nowrap">⚪ Low</span>
               </div>
             </div>
 
@@ -1081,7 +1085,7 @@ export const CalendarPage: React.FC = () => {
                 onClick={() => setShowArFilter(!showArFilter)}
                 className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
                   showArFilter
-                    ? "bg-orange-500/10 border-orange-500/30 text-orange-600 dark:text-orange-400 font-extrabold"
+                    ? "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 font-extrabold"
                     : isLight ? "bg-slate-100 text-slate-400 border-slate-200" : "bg-[#0d111a] text-[#4a5568] border-[#1a2235]"
                 }`}
               >
@@ -1091,7 +1095,7 @@ export const CalendarPage: React.FC = () => {
                 onClick={() => setShowPayrollFilter(!showPayrollFilter)}
                 className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
                   showPayrollFilter
-                    ? "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 font-extrabold"
+                    ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-600 dark:text-indigo-400 font-extrabold"
                     : isLight ? "bg-slate-100 text-slate-400 border-slate-200" : "bg-[#0d111a] text-[#4a5568] border-[#1a2235]"
                 }`}
               >
@@ -1382,7 +1386,7 @@ export const CalendarPage: React.FC = () => {
                                     });
                                   }}
                                   title={dayArItems.map((a) => `${a.customer}${a.amount > 0 ? ` ($${a.amount.toFixed(2)})` : ""}`).join("\n")}
-                                  className="text-[11px] px-2 py-1 rounded-md font-bold bg-orange-500/20 text-orange-700 dark:text-orange-300 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] cursor-pointer transition-opacity hover:opacity-90 flex flex-col gap-0.5 border border-orange-400/30"
+                                  className="text-[11px] px-2 py-1 rounded-md font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] cursor-pointer transition-opacity hover:opacity-90 flex flex-col gap-0.5 border border-amber-400/30"
                                 >
                                   <div className="flex items-center justify-between">
                                     <span>🧾 AR ({dayArItems.length})</span>
@@ -1563,7 +1567,7 @@ export const CalendarPage: React.FC = () => {
                                 });
                               }}
                               title={dayArItems.map((a) => `${a.customer}${a.amount > 0 ? ` ($${a.amount.toFixed(2)})` : ""}`).join("\n")}
-                              className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-orange-500/20 text-orange-700 dark:text-orange-300 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] cursor-pointer truncate transition-opacity hover:opacity-90 flex items-center gap-1"
+                              className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300 shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] cursor-pointer truncate transition-opacity hover:opacity-90 flex items-center gap-1"
                             >
                               <span>🧾</span>
                               <span className="truncate">
