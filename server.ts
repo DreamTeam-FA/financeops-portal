@@ -3033,11 +3033,17 @@ app.post("/api/4yr/start-new-week", async (req, res) => {
 
 // ────────────────────────────────────────────────────────────
 // CC EXPENSES ROUTES
-// Spreadsheet: 1XM3tMo-MxC-g7H2O3S-eQqy2UilPheoTKJ3QVIy7hkc
+// Source sheet (Raw Data tab):  1XM3tMo-MxC-g7H2O3S-eQqy2UilPheoTKJ3QVIy7hkc
+// Export/report sheet (shared): 1XM3tMo-MxC-g7H2O3S-eQqy2UilPheoTKJ3QVIy7hkc (same sheet — Dashboard/Weekly/YTD tabs)
 // ────────────────────────────────────────────────────────────
 const CC_SHEET_ID_DEFAULT = "1XM3tMo-MxC-g7H2O3S-eQqy2UilPheoTKJ3QVIy7hkc";
+// The export (Sync to Sheet) always targets this fixed shared sheet so all users stay in sync.
+// Using the same sheet as the source: Dashboard/Weekly Breakdown/YTD Summary tabs are the report,
+// Raw Data tab is the source. Never create a separate sheet.
+const CC_EXPORT_SHEET_ID_DEFAULT = "1XM3tMo-MxC-g7H2O3S-eQqy2UilPheoTKJ3QVIy7hkc";
 // Read at call time so runtime overrides take effect without restart
 function getCCSheetId(): string { return (getStoredData().sheetIdOverrides?.cc) || CC_SHEET_ID_DEFAULT; }
+function getCCExportSheetId(): string { return (getStoredData().sheetIdOverrides?.ccExport) || CC_EXPORT_SHEET_ID_DEFAULT; }
 
 // Parse CSV or XLSX file sent as base64, return rows
 app.post("/api/cc-expense/parse", async (req, res) => {
@@ -3454,11 +3460,10 @@ app.get("/api/cc-expense/sheet-data", async (req, res) => {
   }
 });
 
-// GET /api/cc-expense/export-sheet-info — return saved spreadsheet info
+// GET /api/cc-expense/export-sheet-info — return shared export sheet info
+// Always returns the fixed shared sheet so all users see Open Sheet / Sync to Sheet from day one.
 app.get("/api/cc-expense/export-sheet-info", (_req, res) => {
-  const data = getStoredData();
-  const sid: string | undefined = data.sheetIdOverrides?.ccExport;
-  if (!sid) return res.json({ linked: false });
+  const sid = getCCExportSheetId();
   res.json({ linked: true, spreadsheetId: sid, url: `https://docs.google.com/spreadsheets/d/${sid}/edit` });
 });
 
@@ -3492,10 +3497,11 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
     `userEnteredFormat(backgroundColor,textFormat,horizontalAlignment${hasFmt ? ",numberFormat" : ""})`;
 
   try {
-    // ── Determine if we're creating or syncing ────────────────────────────────
+    // ── Always sync to the fixed shared sheet — never create a new one ────────
+    // getCCExportSheetId() returns the hardcoded default so every user targets
+    // the same sheet regardless of their localStorage state or server restarts.
     const stored   = getStoredData();
-    // Use server-stored ID first; fall back to client-supplied ID (survives server restarts on Render)
-    let spreadsheetId: string | undefined = stored.sheetIdOverrides?.ccExport || knownSpreadsheetId || undefined;
+    let spreadsheetId: string | undefined = getCCExportSheetId();
     let isSync = false;
     let dashId = 0, weeklyId = 0, ytdId = 0, rawId = 0;
 

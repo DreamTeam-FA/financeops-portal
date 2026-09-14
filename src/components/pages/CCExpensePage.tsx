@@ -338,8 +338,8 @@ export const CCExpensePage: React.FC = () => {
   const { theme, showToast, googleUser } = useFinance();
   const isLight = theme === "light";
 
-  // Linked export sheet info (fetched on mount)
-  // localStorage key to survive Render redeploys (server-side JSON wiped on each deploy)
+  // Linked export sheet info — server always returns the fixed shared sheet ID,
+  // so Open Sheet / Sync to Sheet buttons appear for every user immediately.
   const CC_EXPORT_URL_KEY = "cc_export_sheet_url";
   const [exportSheet, setExportSheet] = useState<{ linked: boolean; url?: string } | null>(null);
   React.useEffect(() => {
@@ -347,13 +347,10 @@ export const CCExpensePage: React.FC = () => {
       .then(r => r.json())
       .then(d => {
         if (d.linked && d.url) {
-          // Server knows the sheet — save to localStorage as backup
           try { localStorage.setItem(CC_EXPORT_URL_KEY, d.url); } catch { }
           setExportSheet(d);
         } else {
-          // Server lost it (e.g. redeployed) — restore from localStorage
-          const savedUrl = (() => { try { return localStorage.getItem(CC_EXPORT_URL_KEY); } catch { return null; } })();
-          setExportSheet(savedUrl ? { linked: true, url: savedUrl } : { linked: false });
+          setExportSheet({ linked: false });
         }
       })
       .catch(() => {
