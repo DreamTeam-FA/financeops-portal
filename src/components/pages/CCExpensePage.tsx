@@ -717,7 +717,8 @@ export const CCExpensePage: React.FC = () => {
             byCompany[co] = getAdjustedValue(week.weekStart, r.vendor, co, r.byCompany[co] || 0);
           }
           const grandTotal = Object.values(byCompany).reduce((s, v) => s + v, 0);
-          if (grandTotal !== 0) weeklyRows.push({ weekLabel: week.weekLabel, weekStart: week.weekStart, vendor: r.vendor, byCompany, grandTotal });
+          const remark = remarks[remarkKey(week.weekStart, r.vendor)] || "";
+          if (grandTotal !== 0) weeklyRows.push({ weekLabel: week.weekLabel, weekStart: week.weekStart, vendor: r.vendor, byCompany, grandTotal, remark });
         }
       }
 
