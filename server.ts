@@ -3470,7 +3470,6 @@ app.get("/api/cc-expense/export-sheet-info", (_req, res) => {
 // POST /api/cc-expense/export-sheet — create or sync the report sheet
 app.post("/api/cc-expense/export-sheet", async (req, res) => {
   const { accessToken, title, dateRange, companies, weeklyRows, ytdRows, ytdTotals, ytdTotal, rawHeaders, rawData, knownSpreadsheetId } = req.body || {};
-  let detailId = -1; // sheetId for Transaction Details tab
   if (!accessToken) return res.status(401).json({ ok: false, error: "No access token" });
 
   const base = "https://sheets.googleapis.com/v4/spreadsheets";
@@ -3504,7 +3503,7 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
     const stored   = getStoredData();
     let spreadsheetId: string | undefined = getCCExportSheetId();
     let isSync = false;
-    let dashId = 0, weeklyId = 0, ytdId = 0, rawId = 0;
+    let dashId = 0, weeklyId = 0, ytdId = 0, rawId = 0, detailId = -1;
 
     if (spreadsheetId) {
       // Verify sheet still exists
@@ -3517,6 +3516,7 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
         weeklyId = sid("Weekly Breakdown");
         ytdId    = sid("YTD Summary");
         rawId    = sid("Raw Data");
+        detailId = sid("Transaction Details"); // may be -1 if tab didn't exist yet
       } else {
         spreadsheetId = undefined; // sheet deleted — create fresh
       }
@@ -3573,12 +3573,6 @@ app.post("/api/cc-expense/export-sheet", async (req, res) => {
       ytdId    = addReplies[1]?.addSheet?.properties?.sheetId ?? 202;
       rawId    = addReplies[2]?.addSheet?.properties?.sheetId ?? 203;
       detailId = addReplies[3]?.addSheet?.properties?.sheetId ?? 204;
-    }
-
-    // ── Handle existing sheets that may not have Transaction Details tab yet ──
-    if (isSync && detailId < 0) {
-      // Tab didn't exist before — addReplies[3] would have it; detailId is set above.
-      // This branch is a no-op safety net.
     }
 
     // ── Build Dashboard values ────────────────────────────────────────────────
