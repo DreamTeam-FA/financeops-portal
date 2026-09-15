@@ -308,18 +308,20 @@ export const ServiceLimitsPage: React.FC = () => {
 
         {/* ── Snapshot Header ── */}
         <div className={`rounded-xl border p-4 ${cardBg}`}>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-indigo-400" />
-              <h3 className={`text-sm font-bold ${headTxt}`}>Usage Snapshots</h3>
-              <span className={`text-[11px] ${mutedTxt}`}>
-                (auto-saved every 2 h when this page is open — up to 12 checkpoints)
-              </span>
+          <div className="flex items-start justify-between gap-2 mb-3">
+            <div className="flex items-start gap-2 min-w-0">
+              <Clock className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <h3 className={`text-sm font-bold ${headTxt}`}>Usage Snapshots</h3>
+                <span className={`text-[11px] ${mutedTxt}`}>
+                  (auto-saved every 2 h when this page is open — up to 12 checkpoints)
+                </span>
+              </div>
             </div>
             <button
               onClick={() => takeSnapshot(true)}
               disabled={refreshing}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold border transition-colors disabled:opacity-50 ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold border whitespace-nowrap shrink-0 transition-colors disabled:opacity-50 ${
                 isLight
                   ? "bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100"
                   : "bg-indigo-950/30 border-indigo-800/40 text-indigo-300 hover:bg-indigo-900/40"

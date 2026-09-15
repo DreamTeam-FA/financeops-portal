@@ -60,9 +60,9 @@ const LoginTable: React.FC<{ rows: any[]; isLight: boolean }> = ({ rows, isLight
             <tr key={r.id || i} className={`border-b ${row} hover:opacity-80`}>
               <td className={`px-4 py-2.5 ${sub}`}>{i + 1}</td>
               <td className="px-4 py-2.5 whitespace-nowrap font-mono text-[11px]">{r.timestamp || "—"}</td>
-              <td className="px-4 py-2.5 font-medium">{r.user || "—"}</td>
+              <td className="px-4 py-2.5 font-medium whitespace-nowrap">{r.user || "—"}</td>
               <td className={`px-4 py-2.5 hidden sm:table-cell`}>{r.device || "—"}</td>
-              <td className="px-4 py-2.5">{[r.city, r.region, r.country].filter(Boolean).join(", ") || r.location || <span className={sub}>—</span>}</td>
+              <td className="px-4 py-2.5 whitespace-nowrap">{[r.city, r.region, r.country].filter(Boolean).join(", ") || r.location || <span className={sub}>—</span>}</td>
               <td className={`px-4 py-2.5 font-mono hidden sm:table-cell ${sub}`}>{r.ip || "—"}</td>
             </tr>
           ))}
@@ -95,7 +95,7 @@ const ActivityTable: React.FC<{ rows: any[]; isLight: boolean }> = ({ rows, isLi
             <tr key={r.id || i} className={`border-b ${row} hover:opacity-80`}>
               <td className={`px-4 py-2.5 ${sub}`}>{i + 1}</td>
               <td className="px-4 py-2.5 whitespace-nowrap font-mono text-[11px]">{r.timestamp || "—"}</td>
-              <td className={`px-4 py-2.5 ${sub}`}>{r.user || r.userEmail || "—"}</td>
+              <td className={`px-4 py-2.5 whitespace-nowrap ${sub}`}>{r.user || r.userEmail || "—"}</td>
               <td className="px-4 py-2.5">{badge(r.action || "—", actionColor(r.action || ""))}</td>
               <td className={`px-4 py-2.5 hidden sm:table-cell ${sub}`}>{r.details || r.note || "—"}</td>
             </tr>
@@ -179,52 +179,50 @@ export const LogsPage: React.FC = () => {
     <div className={`flex flex-col h-full ${bg} ${txt} overflow-hidden`}>
 
       {/* ── Header ── */}
-      <div className={`shrink-0 flex items-center justify-between px-6 py-4 border-b ${isLight ? "border-slate-200" : "border-[#1e2433]"}`}>
-        <div>
-          <h1 className="font-bold text-base">Portal Logs</h1>
-          <p className={`text-xs mt-0.5 ${txt2}`}>
-            Centralized activity for all users · {loginRows.length} logins · {activityRows.length} activities
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Search */}
-          <input
-            type="search"
-            placeholder="Search logs…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className={`w-44 text-xs px-3 py-1.5 rounded-lg border focus:outline-none ${inp}`}
-          />
-
-          {/* Open source sheet */}
-          {sheetUrl && (
-            <a
-              href={sheetUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`flex items-center gap-1.5 text-[11px] font-medium px-3 py-1.5 rounded-lg border transition-colors ${
-                isLight
-                  ? "border-slate-300 text-slate-600 hover:bg-slate-50"
-                  : "border-[#2a3140] text-slate-400 hover:bg-[#1a1e27]"
-              }`}
-              title="Open the shared logs Google Sheet"
+      <div className={`shrink-0 px-4 py-3 border-b ${isLight ? "border-slate-200" : "border-[#1e2433]"}`}>
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="min-w-0">
+            <h1 className="font-bold text-base">Portal Logs</h1>
+            <p className={`text-xs mt-0.5 ${txt2}`}>
+              {loginRows.length} logins · {activityRows.length} activities
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {sheetUrl && (
+              <a
+                href={sheetUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`flex items-center gap-1 text-[11px] font-medium px-2 py-1.5 rounded-lg border transition-colors whitespace-nowrap ${
+                  isLight
+                    ? "border-slate-300 text-slate-600 hover:bg-slate-50"
+                    : "border-[#2a3140] text-slate-400 hover:bg-[#1a1e27]"
+                }`}
+                title="Open the shared logs Google Sheet"
+              >
+                <ExternalLink className="w-3 h-3" />
+                <span className="hidden sm:inline">Open Source Sheet</span>
+                <span className="sm:hidden">Sheet</span>
+              </a>
+            )}
+            <button
+              onClick={loadLogs}
+              disabled={loading}
+              className={`p-1.5 rounded-lg border ${isLight ? "border-slate-300 hover:bg-slate-50" : "border-[#2a3140] hover:bg-[#1a1e27]"} disabled:opacity-40 transition-colors`}
+              title="Refresh logs"
             >
-              <ExternalLink className="w-3 h-3" />
-              Open Source Sheet
-            </a>
-          )}
-
-          {/* Refresh */}
-          <button
-            onClick={loadLogs}
-            disabled={loading}
-            className={`p-1.5 rounded-lg border ${isLight ? "border-slate-300 hover:bg-slate-50" : "border-[#2a3140] hover:bg-[#1a1e27]"} disabled:opacity-40 transition-colors`}
-            title="Refresh logs"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""} ${txt2}`} />
-          </button>
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""} ${txt2}`} />
+            </button>
+          </div>
         </div>
+        {/* Search — full width on mobile */}
+        <input
+          type="search"
+          placeholder="Search logs…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className={`w-full text-xs px-3 py-1.5 rounded-lg border focus:outline-none ${inp}`}
+        />
       </div>
 
       {/* ── Tabs ── */}
