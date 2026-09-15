@@ -1549,26 +1549,27 @@ export function FourYrPayrollPage() {
       </div>
 
       {/* ── Filter bar (GAS: .filter-bar) ── */}
-      <div className={`shrink-0 overflow-x-auto border-b ${bdr}`} style={{ background:isLight?"#fff":"#0f0f0f" }}>
-      <div className="flex items-center gap-2 px-3 py-1.5 min-w-max">
+      <div className={`shrink-0 border-b ${bdr}`} style={{ background:isLight?"#fff":"#0f0f0f" }}>
+      {/* Mobile: 2-col grid, no labels | Desktop: single row with labels */}
+      <div className="grid grid-cols-2 md:flex md:flex-wrap md:items-end gap-2 px-3 py-2 md:px-5 md:py-2.5">
         {/* Year */}
         <div className="flex flex-col gap-0.5">
           <label className={`text-[10px] font-bold uppercase tracking-widest hidden md:block ${txt2}`}>Year</label>
           <select value={yearFilter} onChange={e => onYearChange(e.target.value)}
-            className={`rounded border text-xs px-2 py-1.5 outline-none cursor-pointer ${inp}`} style={{ minWidth:80 }}>
+            className={`w-full rounded border text-xs px-2 py-1.5 outline-none cursor-pointer ${inp}`}>
             <option value="">— All Years —</option>
             {years.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>
 
         {/* Week Range */}
-        <div className="flex flex-col gap-0.5" style={{ position:"relative" }}>
+        <div className="flex flex-col gap-0.5 relative">
           <label className={`text-[10px] font-bold uppercase tracking-widest hidden md:block ${txt2}`}>
             Week Range <span className="normal-case font-normal opacity-70">(click to select multiple)</span>
           </label>
           <button onClick={() => setWeekDropOpen(o=>!o)}
-            className={`flex items-center gap-2 rounded border text-xs px-2.5 py-1.5 outline-none ${inp} whitespace-nowrap cursor-pointer`}
-            style={{ minWidth:160, justifyContent:"space-between" }}>
+            className={`flex items-center gap-2 w-full rounded border text-xs px-2.5 py-1.5 outline-none ${inp} whitespace-nowrap cursor-pointer`}
+            style={{ justifyContent:"space-between" }}>
             <span className="truncate">{weekLabel}</span>
             <span className={`text-[9px] ml-1 ${txt2}`}>{weekDropOpen ? "▲" : "▼"}</span>
           </button>
@@ -1614,7 +1615,7 @@ export function FourYrPayrollPage() {
         <div className="flex flex-col gap-0.5">
           <label className={`text-[10px] font-bold uppercase tracking-widest hidden md:block ${txt2}`}>Name</label>
           <select value={nameFilter} onChange={e => onNameChange(e.target.value)}
-            className={`rounded border text-xs px-2 py-1.5 outline-none cursor-pointer ${inp}`} style={{ minWidth:160 }}>
+            className={`w-full rounded border text-xs px-2 py-1.5 outline-none cursor-pointer ${inp}`}>
             <option value="">— All Names —</option>
             {contextNames.map(n => <option key={n} value={n}>{n}</option>)}
           </select>
@@ -1624,20 +1625,19 @@ export function FourYrPayrollPage() {
         <div className="flex flex-col gap-0.5">
           <label className={`text-[10px] font-bold uppercase tracking-widest hidden md:block ${txt2}`}>Job / Location</label>
           <select value={jobFilter} onChange={e => onJobChange(e.target.value)}
-            className={`rounded border text-xs px-2 py-1.5 outline-none cursor-pointer ${inp}`} style={{ minWidth:160 }}>
+            className={`w-full rounded border text-xs px-2 py-1.5 outline-none cursor-pointer ${inp}`}>
             <option value="">— All Jobs —</option>
             {contextJobs.map(j => <option key={j} value={j}>{j}</option>)}
           </select>
         </div>
 
-        {/* Specific Date + Reset */}
-        <div className="flex flex-col gap-0.5">
+        {/* Date + Reset — spans both cols on mobile */}
+        <div className="col-span-2 md:col-span-1 flex flex-col gap-0.5">
           <label className={`text-[10px] font-bold uppercase tracking-widest hidden md:block ${txt2}`}>Specific Date</label>
           <div className="flex items-center gap-1.5">
             <input type="date" value={dateFilter.replace(/(\d{2})\/(\d{2})\/(\d{4})/,"$3-$1-$2")}
               onChange={e => onDateChange(e.target.value)}
-              className={`rounded border text-xs px-2 py-1.5 outline-none ${inp}`} style={{ minWidth:140 }} />
-            {/* Reset button (GAS: .btn-reset with ↺ icon) */}
+              className={`flex-1 rounded border text-xs px-2 py-1.5 outline-none ${inp}`} />
             <button onClick={resetFilters} className={`rounded border px-2 py-1.5 transition-colors ${btnCls}`} title="Reset all filters">
               <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>
@@ -1646,8 +1646,8 @@ export function FourYrPayrollPage() {
           </div>
         </div>
 
-        {/* Right-side action cluster: Add + Delete */}
-        <div className="flex items-center gap-2 ml-auto flex-shrink-0 flex-wrap">
+        {/* Action buttons — spans both cols on mobile */}
+        <div className="col-span-2 md:col-span-1 flex items-center gap-2 md:ml-auto flex-shrink-0">
           {/* Add Record — with text */}
           <button onClick={openAddModal}
             className="flex items-center gap-1.5 px-4 py-1.5 rounded text-xs font-bold text-white whitespace-nowrap"
