@@ -298,6 +298,8 @@ export const CalendarPage: React.FC = () => {
   const [taskUrgency, setTaskUrgency] = useState<"critical" | "high" | "normal" | "low">("normal");
   const [taskAssignee, setTaskAssignee] = useState("");
   const [taskDesc, setTaskDesc] = useState("");
+  const [taskRepeat, setTaskRepeat] = useState<"none" | "daily" | "weekly" | "monthly" | "annually">("none");
+  const [taskOccurrences, setTaskOccurrences] = useState(2);
   const [syncToGoogleCal, setSyncToGoogleCal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -813,6 +815,21 @@ export const CalendarPage: React.FC = () => {
     });
   }
 
+  function getOccurrenceDates(baseDate: string, repeat: string, count: number): string[] {
+    const dates: string[] = [baseDate];
+    if (repeat === "none" || count < 2) return dates;
+    const base = new Date(baseDate + "T00:00:00");
+    for (let i = 1; i < count; i++) {
+      const d = new Date(base);
+      if (repeat === "daily") d.setDate(base.getDate() + i);
+      else if (repeat === "weekly") d.setDate(base.getDate() + i * 7);
+      else if (repeat === "monthly") d.setMonth(base.getMonth() + i);
+      else if (repeat === "annually") d.setFullYear(base.getFullYear() + i);
+      dates.push(d.toISOString().split("T")[0]);
+    }
+    return dates;
+  }
+
   // Add Note
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -824,70 +841,73 @@ export const CalendarPage: React.FC = () => {
         ? `[${taskCategory.toUpperCase()}] ${taskTitle} (${taskAssignee.trim()})`
         : `[${taskCategory.toUpperCase()}] ${taskTitle}`;
 
-      const newId = `cal-${Date.now()}`;
-
-      addCalendarEvent({
-        title: fullTitle,
-        date: taskDate,
-        time: taskTime,
-        type: "task",
-        description: `${taskDesc}\n\nPriority: ${taskUrgency.toUpperCase()}`
-      });
-
-      // Optimistic update to sheet events state
-      const newSheetRow: CalSheetRow = {
-        id: newId,
-        date: taskDate,
-        title: fullTitle,
-        notes: taskDesc,
-        entity: "Ruby's",
-        type: taskCategory,
-        assignee: taskAssignee.trim(),
-        urgency: taskUrgency,
-        done: false,
-        sheetRow: -1, // unknown until appended
-      };
-      setSheetEvents(prev => [...prev, newSheetRow]);
-
-      // Write to sheet if token is available
+      const dates = getOccurrenceDates(taskDate, taskRepeat, taskRepeat === "none" ? 1 : taskOccurrences);
       const token = getAccessToken();
-      if (token) {
-        appendCalendarRow(token, sheetTab, {
-          date: taskDate,
+
+      for (const date of dates) {
+        const newId = `cal-${Date.now()}-${date}`;
+
+        addCalendarEvent({
+          title: fullTitle,
+          date,
           time: taskTime,
+          type: "task",
+          description: `${taskDesc}\n\nPriority: ${taskUrgency.toUpperCase()}`
+        });
+
+        const newSheetRow: CalSheetRow = {
+          id: newId,
+          date,
           title: fullTitle,
           notes: taskDesc,
           entity: "Ruby's",
           type: taskCategory,
           assignee: taskAssignee.trim(),
           urgency: taskUrgency,
-          id: newId,
-        }).then(() => {
-          // Reload sheet to get accurate row numbers
-          loadCalendarSheet(token).then(({ events, tab, colMap }) => {
-            setSheetEvents(events);
-            setSheetTab(tab);
-            setSheetColMap(colMap);
-          }).catch(() => {});
-        }).catch(err => console.warn("Sheet append failed:", err));
-      }
+          done: false,
+          sheetRow: -1,
+        };
+        setSheetEvents(prev => [...prev, newSheetRow]);
 
-      if (syncToGoogleCal) {
-        const token = getAccessToken();
         if (token) {
+          appendCalendarRow(token, sheetTab, {
+            date,
+            time: taskTime,
+            title: fullTitle,
+            notes: taskDesc,
+            entity: "Ruby's",
+            type: taskCategory,
+            assignee: taskAssignee.trim(),
+            urgency: taskUrgency,
+            id: newId,
+          }).catch(err => console.warn("Sheet append failed:", err));
+        }
+
+        if (syncToGoogleCal && token) {
           const gEv = await createGoogleCalendarEvent(token, {
             summary: fullTitle,
             description: taskDesc,
-            date: taskDate,
+            date,
             time: taskTime
           });
           if (gEv) setGoogleEvents((prev) => [...prev, gEv]);
         }
       }
 
+      // Reload sheet once after all appends
+      if (token) {
+        loadCalendarSheet(token).then(({ events, tab, colMap }) => {
+          setSheetEvents(events);
+          setSheetTab(tab);
+          setSheetColMap(colMap);
+        }).catch(() => {});
+      }
+
       setTaskTitle("");
       setTaskAssignee("");
       setTaskDesc("");
+      setTaskRepeat("none");
+      setTaskOccurrences(2);
       setShowModal(false);
     } catch (err) {
       console.error("Error creating event:", err);
@@ -2291,6 +2311,42 @@ export const CalendarPage: React.FC = () => {
                   onFocus={e => (e.target.style.borderColor = accent.hex)}
                   onBlur={e => (e.target.style.borderColor = "")}
                 />
+              </div>
+
+              {/* Repeat / Recurrence */}
+              <div className={`grid gap-3 ${taskRepeat !== "none" ? "grid-cols-2" : "grid-cols-1"}`}>
+                <div>
+                  <label className="block font-semibold mb-1 text-slate-500">Repeat</label>
+                  <select
+                    value={taskRepeat}
+                    onChange={(e) => setTaskRepeat(e.target.value as typeof taskRepeat)}
+                    className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded-lg px-3 py-1.5 focus:outline-none`}
+                    onFocus={e => (e.target.style.borderColor = accent.hex)}
+                    onBlur={e => (e.target.style.borderColor = "")}
+                  >
+                    <option value="none">Does not repeat</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="annually">Annually</option>
+                  </select>
+                </div>
+                {taskRepeat !== "none" && (
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-500">Occurrences</label>
+                    <input
+                      type="number"
+                      min={2}
+                      max={52}
+                      value={taskOccurrences}
+                      onChange={(e) => setTaskOccurrences(Math.max(2, Math.min(52, parseInt(e.target.value) || 2)))}
+                      className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded-lg px-3 py-1.5 focus:outline-none`}
+                      onFocus={e => (e.target.style.borderColor = accent.hex)}
+                      onBlur={e => (e.target.style.borderColor = "")}
+                    />
+                    <p className="text-[10px] text-slate-400 mt-0.5">Creates {taskOccurrences} total events</p>
+                  </div>
+                )}
               </div>
 
               <div className="pt-1">
