@@ -252,24 +252,6 @@ export const ServiceLimitsPage: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [clearing, setClearing] = useState(false);
 
-  const clearCache = useCallback(async () => {
-    setClearing(true);
-    try {
-      const keysToRemove = [
-        "financeops_data_cache_v3",
-        "financeops_data_cache_v2",
-        "financeops_data_cache_v1",
-        "financeops_data_cache",
-        "billDriveLinks_v2",
-      ];
-      keysToRemove.forEach(k => { try { localStorage.removeItem(k); } catch {} });
-      // Retake snapshot so the bar reflects the new size
-      await takeSnapshot(true);
-    } finally {
-      setClearing(false);
-    }
-  }, [takeSnapshot]);
-
   // Take a snapshot and prepend to the list
   const takeSnapshot = useCallback(async (force = false) => {
     setRefreshing(true);
@@ -290,6 +272,23 @@ export const ServiceLimitsPage: React.FC = () => {
       setRefreshing(false);
     }
   }, []);
+
+  const clearCache = useCallback(async () => {
+    setClearing(true);
+    try {
+      const keysToRemove = [
+        "financeops_data_cache_v3",
+        "financeops_data_cache_v2",
+        "financeops_data_cache_v1",
+        "financeops_data_cache",
+        "billDriveLinks_v2",
+      ];
+      keysToRemove.forEach(k => { try { localStorage.removeItem(k); } catch {} });
+      await takeSnapshot(true);
+    } finally {
+      setClearing(false);
+    }
+  }, [takeSnapshot]);
 
   useEffect(() => {
     const existing = loadSnapshots();
