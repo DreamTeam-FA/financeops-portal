@@ -667,8 +667,81 @@ export function FourYrPayrollPage() {
           </div>
         </div>
 
-        {/* Table */}
-        <div className="overflow-auto flex-1 min-h-0">
+        {/* Mobile card list — md:hidden */}
+        <div className="md:hidden overflow-y-auto flex-1 min-h-0 pb-2">
+          <div className="space-y-2 px-1 pt-1">
+            {filteredGroupedPivot.companies.map((co: any) => (
+              <div key={co.company} className={`rounded-lg border ${bdr} overflow-hidden`}>
+                <div className="px-3 py-2 flex items-center justify-between" style={{ background: COcell.bg }}>
+                  <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: COcell.fg }}>{co.company}</span>
+                  <div className="flex items-center gap-2 shrink-0 text-xs tabular-nums font-bold" style={{ color: COcell.fg }}>
+                    <span>{fmtHrs(co.hours)} hrs</span>
+                    <span>{fmtAmt(co.amount)}</span>
+                  </div>
+                </div>
+                {co.jobs.map((job: any) => (
+                  <div key={job.job}>
+                    <div className="px-3 py-1.5 text-[11px] font-semibold border-t" style={{ background: JOBcell.bg, color: JOBcell.fg, borderColor: isLight ? "#c8ddd0" : "#2e3340" }}>
+                      {job.job}
+                    </div>
+                    {job.subCats.map((sc: any) => {
+                      const scKey = `sc-${co.company}-${job.job}-${sc.subCat}`;
+                      const scCollapsed = !!collapsed[scKey];
+                      const isDed  = !!sc.isDeduction;
+                      const isNP   = !!sc.isNonPayroll;
+                      const rowBg  = isDed ? DED_BG : isNP ? NP_BG : (isLight ? "#fff" : "#22262f");
+                      const amtFg  = isDed ? DED_FG : isNP ? NP_FG : (isLight ? "#1a5c2a" : "#7fd99a");
+                      const scFg   = scCollapsed ? "#f4a261" : isDed ? DED_FG : isNP ? NP_FG : SCcell.fg;
+                      return (
+                        <div key={sc.subCat} style={{ background: rowBg }}>
+                          <div className="px-3 py-2 flex items-center justify-between gap-2 border-t cursor-pointer"
+                            style={{ borderColor: isLight ? "#e8f0e9" : "#2e3340" }}
+                            onClick={() => setCollapsed(c => ({ ...c, [scKey]: !c[scKey] }))}>
+                            <span className="text-xs font-semibold flex items-center gap-1.5 min-w-0" style={{ color: scFg }}>
+                              <span className="text-[10px] shrink-0">{scCollapsed ? "▶" : "▼"}</span>
+                              <span className="truncate">{(!sc.subCat || sc.subCat === "—" || sc.subCat === "(none)") ? "(none)" : sc.subCat}</span>
+                            </span>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-[11px] tabular-nums" style={{ color: isLight ? "#1b3a22" : "#c8d6cc" }}>{fmtHrs(sc.hours)} hrs</span>
+                              <span className="text-[11px] font-bold tabular-nums" style={{ color: amtFg }}>{fmtAmt(sc.amount)}</span>
+                            </div>
+                          </div>
+                          {!scCollapsed && sc.dateRows.map((dr: any) => (
+                            <div key={dr.date} className="flex items-center justify-between px-6 py-1 border-t"
+                              style={{ borderColor: isLight ? "#e8f0e9" : "#2e3340", background: isLight ? "#f5faf6" : "#1e2530" }}>
+                              <span className="text-[11px] tabular-nums" style={{ color: isLight ? "#2d8a52" : "#7fd99a" }}>{dr.date}</span>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="text-[11px] tabular-nums" style={{ color: isLight ? "#1b3a22" : "#c8d6cc" }}>{fmtHrs(dr.hours)} hrs</span>
+                                <span className="text-[11px] tabular-nums" style={{ color: amtFg }}>{fmtAmt(dr.amount)}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+                <div className="px-3 py-2 flex items-center justify-between border-t" style={{ background: COTOTbg, borderColor: isLight ? "#8cb89a" : "#2e6a3f" }}>
+                  <span className="text-xs font-bold" style={{ color: COTOTfg }}>{co.company} Total</span>
+                  <div className="flex items-center gap-2 shrink-0 text-xs tabular-nums font-bold" style={{ color: COTOTfg }}>
+                    <span>{fmtHrs(co.hours)} hrs</span>
+                    <span>{fmtAmt(co.amount)}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+            <div className="rounded-lg px-3 py-2.5 flex items-center justify-between" style={{ background: GRANDbg }}>
+              <span className="text-xs font-bold uppercase tracking-wide" style={{ color: GRANDfg }}>Grand Total</span>
+              <div className="flex items-center gap-2 shrink-0 text-xs tabular-nums font-bold" style={{ color: GRANDfg }}>
+                <span>{fmtHrs(filteredGroupedPivot.grandTotal.hours)} hrs</span>
+                <span>{fmtAmt(filteredGroupedPivot.grandTotal.amount)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop table — hidden on mobile */}
+        <div className="hidden md:block overflow-auto flex-1 min-h-0">
           <table className="text-xs border-collapse" style={{ minWidth:"100%", tableLayout:"auto" }}>
             <thead>
               <tr style={{ background: TH1 }}>
@@ -823,7 +896,49 @@ export function FourYrPayrollPage() {
           <span className={`font-bold text-sm ${txt}`}>Summary by Date</span>
           {selectedWeeks.length > 0 && <span className={`ml-2 text-xs ${txt2}`}>{weekLabel}</span>}
         </div>
-        <div className="overflow-auto flex-1 min-h-0">
+        {/* Mobile cards — md:hidden */}
+        <div className="md:hidden overflow-y-auto flex-1 min-h-0 pb-2">
+          <div className="space-y-2 px-1 pt-1">
+            {dates.map((d: string) => {
+              const rh = names.reduce((s: number, n: string) => s + (matrix[d]?.[n]?.hours || 0), 0);
+              const ra = names.reduce((s: number, n: string) => s + (matrix[d]?.[n]?.amount || 0), 0);
+              const isNeg = ra < 0;
+              return (
+                <div key={d} className={`rounded-lg border ${bdr} overflow-hidden`} style={{ background: isLight ? "#fff" : "#111318" }}>
+                  <div className="px-3 py-2 flex items-center justify-between" style={{ background: isLight ? "#f0faf2" : "#1e2530" }}>
+                    <span className="text-xs font-bold tabular-nums" style={{ color: isLight ? "#2d8a52" : "#7fd99a" }}>{d}</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs tabular-nums font-semibold" style={{ color: isLight ? "#1b3a22" : "#c8d6cc" }}>{fmtHrs(rh)} hrs</span>
+                      <span className="text-xs font-bold tabular-nums" style={{ color: isNeg ? DED_FG : isLight ? "#1a5c2a" : "#7fd99a" }}>{fmtAmt(ra)}</span>
+                    </div>
+                  </div>
+                  {names.filter((n: string) => matrix[d]?.[n]?.hours || matrix[d]?.[n]?.amount).map((n: string) => {
+                    const c = matrix[d]?.[n];
+                    return (
+                      <div key={n} className="px-3 py-1.5 flex items-center justify-between border-t gap-2" style={{ borderColor: isLight ? "#e8f0e9" : "#2e3340" }}>
+                        <span className="text-xs font-medium min-w-0 truncate" style={{ color: isLight ? "#334155" : "#c8d6cc" }}>{n}</span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-[11px] tabular-nums" style={{ color: isLight ? "#475569" : "#94a3b8" }}>{c?.hours ? fmtHrs(c.hours) + " hrs" : "—"}</span>
+                          <span className="text-[11px] font-semibold tabular-nums" style={{ color: (c?.amount ?? 0) < 0 ? DED_FG : isLight ? "#1a5c2a" : "#7fd99a" }}>{c?.amount ? fmtAmt(c.amount) : "—"}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+            <div className="rounded-lg px-3 py-2 flex items-center justify-between" style={{ background: TH1 }}>
+              <span className="text-[11px] font-bold text-white uppercase tracking-wide">Total Hrs</span>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-xs tabular-nums font-semibold text-white">{fmtHrs(grandTotal.hours)} hrs</span>
+                <span className="text-xs font-bold tabular-nums text-white">{fmtAmt(grandTotal.amount)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop table — hidden on mobile */}
+        <div className="hidden md:block overflow-auto flex-1 min-h-0">
           <table className="text-xs border-collapse" style={{ minWidth:"100%" }}>
             <thead>
               <tr style={{ background:TH1 }}>
