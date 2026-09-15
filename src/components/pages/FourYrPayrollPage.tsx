@@ -908,7 +908,69 @@ export function FourYrPayrollPage() {
           {typeFilters.size > 0 && <button onClick={() => setTypeFilters(new Set())} className={`text-[10px] ${txt2} hover:text-red-500`}>clear</button>}
         </div>
       </div>
-      <div className="overflow-auto flex-1 min-h-0">
+      {/* ── Mobile card list (hidden on md+) ── */}
+      <div className="md:hidden overflow-y-auto flex-1 min-h-0 space-y-2 px-1 py-2">
+        {(() => {
+          const mFiltered = typeFilters.size === 0 ? rows : rows.filter(r => {
+            const isDed = r.total < 0 || /deduct|loan|rent|penalty|withhold/i.test(r.job+r.subCat);
+            const isNP  = !isDed && /reimburse|adjustment|allowance|bonus|incentive|extra|misc/i.test(r.subCat);
+            if (typeFilters.has("deduction")  && isDed)  return true;
+            if (typeFilters.has("nonpayroll") && isNP)   return true;
+            if (typeFilters.has("payroll")    && !isDed && !isNP) return true;
+            return false;
+          });
+          if (mFiltered.length === 0)
+            return <div className={`text-center py-12 text-sm italic ${txt2}`}>{dataLoaded ? "No records match current filters." : "Loading…"}</div>;
+          return mFiltered.map(row => {
+            const isDed  = row.total < 0 || /deduct|loan|rent|penalty|withhold/i.test(row.job+row.subCat);
+            const isNP   = !isDed && /reimburse|adjustment|allowance|bonus|incentive|extra|misc/i.test(row.subCat);
+            const rowBg  = isDed ? DED_BG : isNP ? NP_BG : undefined;
+            const amtCls = isDed ? DED_FG : isNP ? NP_FG : isLight?"#1a5c2a":"#7fd99a";
+            const startFmt = row.started.replace(/(\d{1,2}:\d{2}):\d{2}(\s*[AP]M)$/i, '$1$2');
+            const endFmt   = row.finished.replace(/(\d{1,2}:\d{2}):\d{2}(\s*[AP]M)$/i, '$1$2');
+            return (
+              <div key={row.rowIndex} className={`rounded-lg border ${bdr} p-3 space-y-1.5`} style={{ background: rowBg ?? (isLight ? "#fff" : "#111318") }}>
+                {/* Date + Company + Amount */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-mono" style={{ color: isLight?"#2d8a52":"#7fd99a" }}>{row.date}</span>
+                  <div className="flex items-center gap-2">
+                    {row.company && <CoChip co={row.company} isLight={isLight} />}
+                    <span className="font-bold text-sm tabular-nums" style={{ color: amtCls }}>{fmtAmt(row.total)}</span>
+                  </div>
+                </div>
+                {/* Name + Job */}
+                <div className="flex items-baseline gap-1.5 flex-wrap">
+                  <span className={`font-semibold text-sm ${txt3}`}>{row.name}</span>
+                  <span className={`text-xs ${txt2}`}>{row.job}{(!row.subCat || row.subCat === "(none)") ? "" : ` · ${row.subCat}`}</span>
+                </div>
+                {/* Time + Hours + Rate */}
+                <div className={`flex items-center gap-2 text-[11px] flex-wrap ${txt2}`}>
+                  <span>{startFmt} → {endFmt}</span>
+                  <span className={row.hrsRed ? "text-red-500 font-semibold" : ""}>{fmtHrs(row.hours)} hrs</span>
+                  {row.rate ? <span>@ ${fmt2(row.rate)}/hr</span> : null}
+                </div>
+                {/* Remarks + Actions */}
+                <div className="flex items-center justify-between gap-2 pt-0.5">
+                  {row.remarks ? (
+                    <span className="text-[11px] text-[#c62828] font-semibold">{row.remarks}</span>
+                  ) : (
+                    <span />
+                  )}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button onClick={() => openEditModal(row)} className="w-7 h-7 flex items-center justify-center rounded text-[11px]"
+                      style={{ background: isLight?"#f0f9ff":"rgba(59,130,246,.1)", color:"#3b82f6" }} title="Edit">✏️</button>
+                    <button onClick={() => setDeleteConfirm(row)} className="w-7 h-7 flex items-center justify-center rounded text-[11px]"
+                      style={{ background: isLight?"#fff5f5":"rgba(197,50,50,.1)", color:"#c62828" }} title="Delete">🗑️</button>
+                  </div>
+                </div>
+              </div>
+            );
+          });
+        })()}
+      </div>
+
+      {/* ── Desktop table (hidden on mobile) ── */}
+      <div className="hidden md:block overflow-auto flex-1 min-h-0">
         <table className="text-xs border-collapse" style={{ minWidth:"100%", tableLayout:"fixed" }}>
           <thead>
             <tr style={{ background:TH1 }}>

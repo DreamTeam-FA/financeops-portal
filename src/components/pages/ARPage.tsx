@@ -424,12 +424,81 @@ export const ARPage: React.FC = () => {
             <h3 className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-slate-900" : "text-white"} flex items-center gap-2`}>
               <Receipt className="w-4 h-4 text-[#16a34a]" /> Accounts Receivable Workflow Matrix
             </h3>
-            <span className={`text-[11px] ${isLight ? "text-slate-500" : "text-[#888]"}`}>
+            <span className={`text-[11px] hidden sm:inline ${isLight ? "text-slate-500" : "text-[#888]"}`}>
               Click stage checkboxes to update or click pencil to edit row
             </span>
           </div>
 
-          <div className="overflow-x-auto w-full">
+          {/* ── Mobile card list (hidden on md+) ── */}
+          <div className={`md:hidden divide-y ${isLight ? "divide-slate-100" : "divide-[#1a2235]"}`}>
+            {filtered.map((a) => {
+              const statusInfo = getDaysOverdueText(a.dueDate, a.payment);
+              return (
+                <div key={`mob-${a.id}`} className="p-3 space-y-2">
+                  {/* Customer + Amount */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap shrink-0 ${getEntityBadge(a.entity)}`}>{a.entity}</span>
+                      {(a as any).subentity && <span className={`text-[10px] font-semibold ${isLight?"text-slate-500":"text-slate-400"}`}>{(a as any).subentity}</span>}
+                      <span className={`font-semibold text-sm ${isLight?"text-slate-900":"text-white"}`}>{a.customer}</span>
+                    </div>
+                    <span className={`font-bold text-sm whitespace-nowrap shrink-0 ${isLight?"text-slate-900":"text-white"}`}>{formatCurrency(a.amount)}</span>
+                  </div>
+                  {/* Description + Status */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`text-xs ${isLight?"text-slate-500":"text-slate-400"}`}>{a.description}</span>
+                    <span className={`text-[11px] font-semibold whitespace-nowrap shrink-0 ${statusInfo.class}`}>{statusInfo.text}</span>
+                  </div>
+                  {/* Stage pipeline */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-0.5">
+                      {([
+                        { key: "invoice" as const, label: "Inv",  color: "#60a5fa" },
+                        { key: "approval" as const, label: "Appr", color: "#60a5fa" },
+                        { key: "sent" as const,     label: "Sent", color: "#60a5fa" },
+                        { key: "payment" as const,  label: "Paid", color: "#4ade80" },
+                      ] as const).map((stage, i) => (
+                        <React.Fragment key={stage.key}>
+                          {i > 0 && <span className={`text-[10px] mx-0.5 ${isLight?"text-slate-300":"text-slate-700"}`}>›</span>}
+                          <button onClick={() => toggleARStage(a.id, stage.key)} className="flex items-center gap-0.5 px-1 py-0.5 rounded" style={{ color: a[stage.key] ? stage.color : "#666" }}>
+                            {a[stage.key] ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
+                            <span className={`text-[10px] font-medium ${isLight?"text-slate-500":"text-slate-500"}`}>{stage.label}</span>
+                          </button>
+                        </React.Fragment>
+                      ))}
+                    </div>
+                    <span className={`text-[11px] shrink-0 ${isLight?"text-slate-400":"text-slate-500"}`}>{a.dueDate}</span>
+                  </div>
+                  {/* Remarks + Edit/Delete */}
+                  <div className="flex items-center justify-between gap-2">
+                    {editingRemarksId === a.id ? (
+                      <div className="flex items-center gap-1 flex-1">
+                        <input type="text" value={tempRemarks} onChange={e => setTempRemarks(e.target.value)}
+                          className={`flex-1 border rounded px-2 py-1 text-xs ${isLight?"bg-white border-slate-300 text-slate-900":"bg-[#0d111a] border-[#16a34a] text-white"}`} />
+                        <button onClick={() => handleSaveRemarks(a.id)} className="px-2 py-0.5 bg-[#16a34a] text-white rounded text-[10px] font-bold whitespace-nowrap">Save</button>
+                      </div>
+                    ) : (
+                      <div onClick={() => { setEditingRemarksId(a.id); setTempRemarks(a.remarks || ""); }}
+                        className={`flex items-center gap-1 cursor-pointer text-xs flex-1 ${isLight?"text-slate-400":"text-[#888]"}`}>
+                        <Edit3 className="w-3 h-3 shrink-0" />
+                        <span className="truncate">{a.remarks || "Add remark…"}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button onClick={() => setEditingAR(a)} className="text-[#38bdf8] p-1.5"><Pencil className="w-4 h-4" /></button>
+                      <button onClick={() => showConfirm("Delete this invoice?", () => deleteARItem(a.id))} className="text-red-500 p-1.5"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            {filtered.length === 0 && (
+              <div className={`text-center py-10 text-xs italic ${isLight?"text-slate-400":"text-[#888]"}`}>No AR items found.</div>
+            )}
+          </div>
+
+          {/* ── Desktop table (hidden on mobile) ── */}
+          <div className="hidden md:block overflow-x-auto w-full">
             <table className="w-full text-left text-xs border-collapse min-w-[900px]">
               <thead>
                 <tr className={`${isLight ? "bg-slate-100/70 border-slate-200 text-slate-600" : "bg-[#141414] border-[#1a2235] text-[#888]"} border-b font-semibold`}>
