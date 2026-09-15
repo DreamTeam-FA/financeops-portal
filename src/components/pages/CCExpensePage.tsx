@@ -822,7 +822,7 @@ export const CCExpensePage: React.FC = () => {
     <div className={`flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-900" : "bg-[#0a0c10] text-white"}`}>
 
       {/* ── Header ── */}
-      <div className={`shrink-0 px-5 py-3 border-b flex items-center justify-between gap-3 ${isLight ? "bg-white border-slate-200" : "bg-[#0d1117] border-[#1e2535]"}`}>
+      <div className={`shrink-0 px-5 py-3 border-b flex flex-wrap items-center justify-between gap-3 ${isLight ? "bg-white border-slate-200" : "bg-[#0d1117] border-[#1e2535]"}`}>
         <div className="flex items-center gap-2.5">
           <CreditCard className={`w-5 h-5 ${isLight ? "text-[#1a73e8]" : "text-[#4f9cf9]"}`} />
           <h1 className="text-[15px] font-semibold">CC Expenses</h1>
@@ -830,7 +830,7 @@ export const CCExpensePage: React.FC = () => {
             4Grace_CC_Expense
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {exportSheet?.linked && exportSheet.url && (
             <>
               <a

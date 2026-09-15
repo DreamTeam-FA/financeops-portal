@@ -463,29 +463,29 @@ export const ARPage: React.FC = () => {
                       <td className={`p-3 font-bold whitespace-nowrap ${isLight ? "text-slate-900" : "text-white"}`}>{formatCurrency(a.amount)}</td>
 
                       {/* Invoice Stage Checkbox */}
-                      <td className="p-3">
-                        <button onClick={() => toggleARStage(a.id, "invoice")} className="text-[#60a5fa]">
+                      <td className="p-4">
+                        <button onClick={() => toggleARStage(a.id, "invoice")} className="text-[#60a5fa] flex items-center justify-center min-w-[28px] min-h-[28px]">
                           {a.invoice ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4 text-[#555]" />}
                         </button>
                       </td>
 
                       {/* Approval Stage Checkbox */}
-                      <td className="p-3">
-                        <button onClick={() => toggleARStage(a.id, "approval")} className="text-[#60a5fa]">
+                      <td className="p-4">
+                        <button onClick={() => toggleARStage(a.id, "approval")} className="text-[#60a5fa] flex items-center justify-center min-w-[28px] min-h-[28px]">
                           {a.approval ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4 text-[#555]" />}
                         </button>
                       </td>
 
                       {/* Sent Stage Checkbox */}
-                      <td className="p-3">
-                        <button onClick={() => toggleARStage(a.id, "sent")} className="text-[#60a5fa]">
+                      <td className="p-4">
+                        <button onClick={() => toggleARStage(a.id, "sent")} className="text-[#60a5fa] flex items-center justify-center min-w-[28px] min-h-[28px]">
                           {a.sent ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4 text-[#555]" />}
                         </button>
                       </td>
 
                       {/* Payment Received Checkbox */}
-                      <td className="p-3">
-                        <button onClick={() => toggleARStage(a.id, "payment")} className="text-[#4ade80]">
+                      <td className="p-4">
+                        <button onClick={() => toggleARStage(a.id, "payment")} className="text-[#4ade80] flex items-center justify-center min-w-[28px] min-h-[28px]">
                           {a.payment ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4 text-[#555]" />}
                         </button>
                       </td>
@@ -501,7 +501,7 @@ export const ARPage: React.FC = () => {
                               type="text"
                               value={tempRemarks}
                               onChange={(e) => setTempRemarks(e.target.value)}
-                              className="bg-[#0d111a] border border-[#16a34a] rounded px-2 py-0.5 text-xs text-white w-36"
+                              className="bg-[#0d111a] border border-[#16a34a] rounded px-2 py-1.5 text-xs text-white w-36"
                             />
                             <button
                               onClick={() => handleSaveRemarks(a.id)}

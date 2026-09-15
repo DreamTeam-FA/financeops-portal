@@ -154,7 +154,7 @@ const SyncToastBanner: React.FC = () => {
   return (
     <div
       className={`fixed bottom-5 left-1/2 -translate-x-1/2 z-[9999] flex flex-col overflow-hidden rounded-xl border ${isLight ? "border-transparent" : ""} text-sm font-medium animate-in slide-in-from-bottom-2 duration-200`}
-      style={{ minWidth: 300, maxWidth: 520 }}
+      style={{ minWidth: "min(300px, calc(100vw - 32px))", maxWidth: "min(520px, calc(100vw - 32px))" }}
     >
       {/* Colored top accent bar */}
       <div className={`h-[3px] w-full ${cfg.bar}`} />
@@ -633,7 +633,7 @@ const PortalContent: React.FC = () => {
           <button
             key={item.page}
             onClick={() => { setMobileMoreOpen(false); setCurrentPage(item.page as any); }}
-            className={`flex flex-col items-center gap-1 px-2 py-0.5 rounded-lg transition-colors ${
+            className={`flex flex-col items-center gap-1 px-2 py-1.5 rounded-lg transition-colors ${
               currentPage === item.page ? "text-[#1a73e8]" : "text-[#888]"
             }`}
           >
@@ -644,7 +644,7 @@ const PortalContent: React.FC = () => {
         {/* More button */}
         <button
           onClick={() => setMobileMoreOpen(o => !o)}
-          className={`flex flex-col items-center gap-1 px-2 py-0.5 rounded-lg transition-colors ${
+          className={`flex flex-col items-center gap-1 px-2 py-1.5 rounded-lg transition-colors ${
             mobileMoreOpen ? "text-[#1a73e8]" : "text-[#888]"
           }`}
         >

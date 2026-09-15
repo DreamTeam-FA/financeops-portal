@@ -195,8 +195,8 @@ const GenerateMonthlyModal: React.FC<{ isOpen: boolean; onClose: () => void }> =
         </div>
 
         {/* Bank list */}
-        <div className="flex-1 overflow-y-auto">
-          <table className="w-full text-xs">
+        <div className="flex-1 overflow-auto">
+          <table className="w-full text-xs min-w-[600px]">
             <thead>
               <tr className={`${isLight ? "bg-slate-100 text-slate-600" : "bg-[#141414] text-[#888]"} text-[11px] font-semibold`}>
                 <th className="p-2 text-center w-8">✓</th>
