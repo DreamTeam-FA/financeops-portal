@@ -266,74 +266,126 @@ const StatementTable: React.FC<TableProps> = ({
   entries, isLight, showCutOff, onToggle, onEdit, onDelete, getEntityBadge, cleanBankName,
 }) => {
   if (entries.length === 0) return null;
+
+  const div  = isLight ? "divide-slate-100"  : "divide-[#1e2433]";
+  const muted = isLight ? "text-slate-500"   : "text-[#666]";
+  const text  = isLight ? "text-slate-800"   : "text-white";
+
   return (
-    <div className="overflow-x-auto w-full">
-      <table className="w-full text-left text-xs border-collapse min-w-[600px]">
-        <thead>
-          <tr className={`${isLight ? "bg-slate-100/70 border-slate-200 text-slate-600" : "bg-[#141414] border-[#1a2235] text-[#888]"} border-b font-semibold`}>
-            <th className="p-3 whitespace-nowrap">Entity</th>
-            <th className="p-3 whitespace-nowrap">Bank Name</th>
-            <th className="p-3 whitespace-nowrap">Statement Cycle</th>
-            <th className="p-3 whitespace-nowrap hidden sm:table-cell">Remarks / Details</th>
-            <th className="p-3 whitespace-nowrap">Statement Date</th>
-            {showCutOff && <th className="p-3 whitespace-nowrap">Cut-Off Date</th>}
-            <th className="p-3 whitespace-nowrap">Downloaded</th>
-            <th className="p-3 whitespace-nowrap hidden sm:table-cell">Timestamp</th>
-            <th className="p-3 whitespace-nowrap">Actions</th>
-          </tr>
-        </thead>
-        <tbody className={`divide-y ${isLight ? "divide-slate-200" : "divide-[#222]"}`}>
-          {entries.map((s) => (
-            <tr key={s.id} className={`${isLight ? "hover:bg-slate-50" : "hover:bg-white/5"} transition-colors`}>
-              <td className="p-3">
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${getEntityBadge(s.entity)}`}>{s.entity}</span>
-              </td>
-              <td className={`p-3 font-semibold ${isLight ? "text-slate-900" : "text-white"}`}>{cleanBankName(s.bankName, s.entity)}</td>
-              <td className={`p-3 ${isLight ? "text-slate-600" : "text-[#888]"}`}>{s.occurrence}</td>
-              <td className={`p-3 ${isLight ? "text-slate-600" : "text-[#888]"} hidden sm:table-cell`}>{s.remarks}</td>
-              <td className={`p-3 ${isLight ? "text-slate-600" : "text-[#888]"}`}>{formatStmtDate(s.statementDate)}</td>
-              {showCutOff && (
-                <td className={`p-3 ${isLight ? "text-slate-600" : "text-[#888]"}`}>{formatCutOffDate(s.cutOffDate)}</td>
+    <>
+      {/* ── Mobile card list ─────────────────────────── */}
+      <div className={`md:hidden divide-y ${div}`}>
+        {entries.map((s) => (
+          <div key={s.id} className={`px-4 py-3 ${isLight ? "hover:bg-slate-50" : "hover:bg-white/4"} transition-colors`}>
+            {/* Row 1: entity badge + bank name + status */}
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className={`shrink-0 px-2 py-0.5 rounded text-[10px] font-bold ${getEntityBadge(s.entity)}`}>{s.entity}</span>
+              <span className={`flex-1 text-sm font-semibold truncate ${text}`}>{cleanBankName(s.bankName, s.entity)}</span>
+              {s.downloaded ? (
+                <span className={`shrink-0 px-2 py-0.5 rounded text-[10px] font-bold bg-[#16a34a]/20 ${isLight ? "text-emerald-600" : "text-[#4ade80]"}`}>✓ Done</span>
+              ) : (
+                <span className="shrink-0 px-2 py-0.5 rounded text-[10px] font-bold bg-[#fb923c]/20 text-[#fb923c]">Pending</span>
               )}
-              <td className="p-3">
-                {s.downloaded ? (
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold bg-[#16a34a]/20 ${isLight ? "text-emerald-600" : "text-[#4ade80]"}`}>
-                    Downloaded
-                  </span>
-                ) : (
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#fb923c]/20 text-[#fb923c]">
-                    Pending
-                  </span>
-                )}
-              </td>
-              <td className={`p-3 ${isLight ? "text-slate-500" : "text-[#666]"} font-mono text-[10px] hidden sm:table-cell`}>
-                {formatTimestampLocal(s.downloadedAt)}
-              </td>
-              <td className="p-3">
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => onToggle(s.id)}
-                    className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-colors whitespace-nowrap ${
-                      s.downloaded
-                        ? isLight ? "bg-slate-100 hover:bg-slate-200 text-slate-700" : "bg-[#0d111a] hover:bg-[#222] text-[#888] hover:text-white"
-                        : "bg-[#1a73e8] hover:bg-[#1557b0] text-white"
-                    }`}
-                  >
-                    {s.downloaded ? "Mark Pending" : "Mark Downloaded"}
-                  </button>
-                  <button onClick={() => onEdit(s)} className={`p-1 ${isLight ? "text-blue-600 hover:text-blue-800" : "text-blue-400 hover:text-blue-300"} transition-colors`} title="Edit Statement">
-                    <Edit2 className="w-3.5 h-3.5" />
-                  </button>
-                  <button onClick={() => onDelete(s.id)} className="p-1 text-red-500 hover:text-red-600 transition-colors" title="Delete Statement">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </td>
+            </div>
+            {/* Row 2: dates + cycle */}
+            <div className={`flex items-center gap-3 text-[11px] ${muted} mb-2`}>
+              <span>{s.occurrence}</span>
+              {s.statementDate && <span>· {formatStmtDate(s.statementDate)}</span>}
+              {showCutOff && s.cutOffDate && <span>· Cut-off: {formatCutOffDate(s.cutOffDate)}</span>}
+              {s.remarks && <span className="truncate">· {s.remarks}</span>}
+            </div>
+            {/* Row 3: actions */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onToggle(s.id)}
+                className={`flex-1 py-1.5 rounded-lg text-[11px] font-semibold transition-colors whitespace-nowrap ${
+                  s.downloaded
+                    ? isLight ? "bg-slate-100 hover:bg-slate-200 text-slate-700" : "bg-white/6 hover:bg-white/10 text-[#888]"
+                    : "bg-[#1a73e8] hover:bg-[#1557b0] text-white"
+                }`}
+              >
+                {s.downloaded ? "Mark Pending" : "Mark Downloaded"}
+              </button>
+              <button onClick={() => onEdit(s)} className={`p-2 rounded-lg ${isLight ? "text-blue-600 hover:bg-blue-50" : "text-blue-400 hover:bg-blue-500/10"} transition-colors`}>
+                <Edit2 className="w-3.5 h-3.5" />
+              </button>
+              <button onClick={() => onDelete(s.id)} className={`p-2 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors`}>
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Desktop table ────────────────────────────── */}
+      <div className="hidden md:block overflow-x-auto w-full">
+        <table className="w-full text-left text-xs border-collapse min-w-[600px]">
+          <thead>
+            <tr className={`${isLight ? "bg-slate-100/70 border-slate-200 text-slate-600" : "bg-[#141414] border-[#1a2235] text-[#888]"} border-b font-semibold`}>
+              <th className="p-3 whitespace-nowrap">Entity</th>
+              <th className="p-3 whitespace-nowrap">Bank Name</th>
+              <th className="p-3 whitespace-nowrap">Statement Cycle</th>
+              <th className="p-3 whitespace-nowrap hidden sm:table-cell">Remarks / Details</th>
+              <th className="p-3 whitespace-nowrap">Statement Date</th>
+              {showCutOff && <th className="p-3 whitespace-nowrap">Cut-Off Date</th>}
+              <th className="p-3 whitespace-nowrap">Downloaded</th>
+              <th className="p-3 whitespace-nowrap hidden sm:table-cell">Timestamp</th>
+              <th className="p-3 whitespace-nowrap">Actions</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody className={`divide-y ${isLight ? "divide-slate-200" : "divide-[#222]"}`}>
+            {entries.map((s) => (
+              <tr key={s.id} className={`${isLight ? "hover:bg-slate-50" : "hover:bg-white/5"} transition-colors`}>
+                <td className="p-3">
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${getEntityBadge(s.entity)}`}>{s.entity}</span>
+                </td>
+                <td className={`p-3 font-semibold ${isLight ? "text-slate-900" : "text-white"}`}>{cleanBankName(s.bankName, s.entity)}</td>
+                <td className={`p-3 ${isLight ? "text-slate-600" : "text-[#888]"}`}>{s.occurrence}</td>
+                <td className={`p-3 ${isLight ? "text-slate-600" : "text-[#888]"} hidden sm:table-cell`}>{s.remarks}</td>
+                <td className={`p-3 ${isLight ? "text-slate-600" : "text-[#888]"}`}>{formatStmtDate(s.statementDate)}</td>
+                {showCutOff && (
+                  <td className={`p-3 ${isLight ? "text-slate-600" : "text-[#888]"}`}>{formatCutOffDate(s.cutOffDate)}</td>
+                )}
+                <td className="p-3">
+                  {s.downloaded ? (
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold bg-[#16a34a]/20 ${isLight ? "text-emerald-600" : "text-[#4ade80]"}`}>
+                      Downloaded
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#fb923c]/20 text-[#fb923c]">
+                      Pending
+                    </span>
+                  )}
+                </td>
+                <td className={`p-3 ${isLight ? "text-slate-500" : "text-[#666]"} font-mono text-[10px] hidden sm:table-cell`}>
+                  {formatTimestampLocal(s.downloadedAt)}
+                </td>
+                <td className="p-3">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => onToggle(s.id)}
+                      className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-colors whitespace-nowrap ${
+                        s.downloaded
+                          ? isLight ? "bg-slate-100 hover:bg-slate-200 text-slate-700" : "bg-[#0d111a] hover:bg-[#222] text-[#888] hover:text-white"
+                          : "bg-[#1a73e8] hover:bg-[#1557b0] text-white"
+                      }`}
+                    >
+                      {s.downloaded ? "Mark Pending" : "Mark Downloaded"}
+                    </button>
+                    <button onClick={() => onEdit(s)} className={`p-1 ${isLight ? "text-blue-600 hover:text-blue-800" : "text-blue-400 hover:text-blue-300"} transition-colors`} title="Edit Statement">
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => onDelete(s.id)} className="p-1 text-red-500 hover:text-red-600 transition-colors" title="Delete Statement">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 };
 
