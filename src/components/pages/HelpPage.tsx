@@ -47,15 +47,19 @@ const FAQ = [
   },
   {
     q: "How do I clear the portal cache if something looks wrong?",
-    a: "Go to ⚙️ → Settings & Data Sync and use the clear cache option there. In an emergency (page won't load), the Error screen has a 'Clear cache & reload' button. This resets local state but does not affect your Google Sheets data.",
+    a: "Go to ⚙️ → Settings & Data Sync and use the clear cache option there. You can also clear the Drive link cache specifically from ⚙️ → Service Limits & Usage (the 'Clear' button on the Drive Link Cache card). In an emergency (page won't load), the Error screen has a 'Clear cache & reload' button. Clearing cache resets local state but does not affect your Google Sheets data.",
   },
   {
     q: "How do I use the PDF Data Extractor?",
-    a: "Go to the PDF Data Extractor page from the sidebar. Upload one or more PDFs (financial documents, reports, invoices, or timesheets). Gemini AI automatically scans each file and extracts all tables and text. Choose an extraction mode — Auto, Tables Only, Text Only, or Key-Value — before or after upload. Review the extracted sections in the panel on the right; you can rename or delete individual sections. When ready, export everything as CSV, XLSX (Excel), or DOCX (Word) using the export buttons at the top.",
+    a: "Go to the PDF Data Extractor page from the sidebar. Upload one or more PDFs (financial documents, reports, invoices, or timesheets) — you can upload from your device OR click the 'Google Drive' tab to pick files directly from your Drive without downloading them first. Gemini AI automatically scans each file and extracts all tables and text. Choose an extraction mode — Auto, Tables Only, Text Only, or Key-Value — before or after upload. Review the extracted sections in the panel on the right; you can rename or delete individual sections. When ready, export everything as CSV, XLSX (Excel), or DOCX (Word) using the export buttons at the top.",
   },
   {
     q: "How does the AI Invoice Scanner work?",
     a: "On the AR / Invoices page, click 'Add Invoice' and then choose 'Scan with AI'. Upload a photo or PDF of the invoice. Gemini AI reads all fields — vendor, amount, due date, invoice number, etc. — and pre-fills the Add Invoice form automatically. Review every field and make any corrections, then click Save. Nothing is written until you confirm.",
+  },
+  {
+    q: "How do I create a repeating calendar event?",
+    a: "When adding a calendar event, fill in the title, date, category, description, urgency, and optional assignee. Then use the 'Repeat' dropdown to choose a recurrence: Does not repeat, Daily, Weekly, Monthly, or Annually. When any repeat option other than 'Does not repeat' is selected, an 'Occurrences' field appears (2–52) — set how many total events to create. For example, Weekly + 4 occurrences creates 4 events spaced 7 days apart. Each occurrence is written as a separate row in the Calendar Sheet. Assignee info and color are stored in their own columns (not in the event title). After saving, the calendar reloads from the sheet so all occurrences show with the correct sheetRow for done-sync.",
   },
   {
     q: "How do I use the Payables Calendar?",
@@ -253,8 +257,11 @@ const HOWTOS = [
     steps: [
       "Go to the Calendar page.",
       "Click '+ Add Event' in the header.",
-      "Enter the title, date, time, type, and linked entity.",
-      "Save — the event is written to the Events tab in the Calendar Sheet.",
+      "Fill in: Title, Category (EVENT / TASK / MEETING / etc.), Date, Time (optional), Description (optional), Urgency, and Assignee (optional).",
+      "To repeat: use the 'Repeat' dropdown (Does not repeat / Daily / Weekly / Monthly / Annually). When a repeat option is selected, an 'Occurrences' field appears — set how many total events to create (2–52).",
+      "Assignee is stored in its own sheet column (col L=name, M=color) — it does NOT appear in the event title.",
+      "A colored bar from the assignee's color appears on the event chip on the calendar.",
+      "Save — each occurrence is appended as a separate row to the Events tab in the Calendar Sheet. The calendar reloads from the sheet after all rows are written so sheetRow is correct for marking done.",
     ],
   },
   {
@@ -384,7 +391,11 @@ const BREAKAGE = [
   { symptom: "4YR Payroll header shows 'Payroll Dashboard' title but clips the right-side buttons on mobile", cause: "The header contained logo (shrink-0) + divider + 'Payroll Dashboard' title + right buttons (flex-shrink-0) — total width exceeded 375px, squeezing the middle elements", fix: "Fixed — 'Payroll Dashboard' title and its divider are hidden on mobile (hidden sm:inline / hidden sm:block). Logo maxWidth reduced from 130px to 100px so the right action buttons fit on 375px." },
   { symptom: "Workflows page navigation is a horizontal-scroll strip on mobile that requires swiping between items", cause: "The workflow selector nav was a horizontal flex row with overflow-x-auto — unusable on small screens", fix: "Fixed — on mobile (<md) the workflow nav is replaced by a native <select> dropdown that lets you pick a workflow without scrolling. The full vertical list nav is still shown on desktop (md+)." },
   { symptom: "Workflow diagrams on mobile show all stages in one horizontal row that overflows off-screen", cause: "WorkflowDiagram was a single horizontal flex row with min-w-max — no mobile-friendly stacking", fix: "Fixed — WorkflowDiagram now shows a vertical stack (flex-col) on mobile with SVG down-arrow connectors between stages, and the original horizontal flow (hidden md:block) on desktop. Tapping any stage still opens the stage detail modal." },
-  { symptom: "AP bill partial payment — how does it work?", cause: "Sometimes only part of a bill is paid at a time (partial payment)", fix: "Click 'Mark Paid' on any unpaid bill. A choice appears: 'Full Payment' (existing flow — marks the bill fully paid) or 'Partial Payment'. Choosing Partial asks for the amount paid and a date. The portal records the partial amount and shows the remaining balance on the bill. The sheet is updated: Status 1 column (Ruby's/MSDx) or Payment Via column (TI) gets 'Partial: $X paid'. The bill stays in Unpaid status with a blue 'Partial' badge until fully paid." },
+  { symptom: "AP bill partial payment — how does it work?", cause: "Sometimes only part of a bill is paid at a time (partial payment)", fix: "Click 'Mark Paid' on any unpaid bill. A choice appears: 'Full Payment' (existing flow — marks the bill fully paid) or 'Partial Payment'. Choosing Partial asks for the amount paid and a date. The portal records the partial amount and shows the remaining balance on the bill. The sheet is updated: Status 1 column (Ruby's/MSDx col L) or Payment Via column (TI) appends 'YYYY.MM.DD - $X' for each partial payment. The bill stays in Unpaid status with a blue 'Partial' badge until fully paid. When marked fully paid: the sheet Amount column is reverted to the ORIGINAL amount (pre-partial), and the Status column is set to 'Paid'. The partial history in Status 1 / Payment Via is intentionally preserved as a reference record — it is NOT cleared." },
+  { symptom: "Calendar events are in the sheet but not visible in the portal calendar", cause: "loadCalendarSheet was fetching only A1:Z500 — events appended by the portal land at row 900+ and were outside the range", fix: "Fixed — range updated from A1:Z500 to A1:Z5000 in googleCalendarService.ts. Events in rows beyond 500 now load and render correctly." },
+  { symptom: "Calendar event chips show assignee name as part of the title (e.g. '[EVENT] Task (John)')", cause: "handleCreateTask was appending the assignee to the fullTitle string before writing to the sheet", fix: "Fixed — title now stores only '[CATEGORY] EventTitle'. Assignee is written to its own column (col L=assigneeName, M=assigneeColor) and displayed separately on the chip." },
+  { symptom: "Calendar event chips have no colored bar for assignee", cause: "appendCalendarRow was not writing the assigneeColor to col M; getEventColorBars() had nothing to read", fix: "Fixed — appendCalendarRow now writes assigneeColor to col M (index 12). getEventColorBars() reads ev.assigneeColor and renders a colored left-bar on each chip." },
+  { symptom: "Marking a calendar event as 'done' does not sync to the sheet", cause: "After the repeat-event refactor, loadCalendarSheet was called before appendCalendarRow finished — the sheetRow for new events was still -1, so updateCalendarDone fell back to portal-only path", fix: "Fixed — appendCalendarRow promises are collected and Promise.allSettled() waits for all of them before calling loadCalendarSheet. sheetRow is now populated correctly for done sync." },
   { symptom: "Calendar month view event chips are truncated to 1–2 characters on mobile — can't read event names", cause: "Month-view day cells are ~53px wide on 375px with 7 columns. Event chips use 'truncate' which clips after a few characters — leaving only the icon or first letter visible", fix: "Fixed — tapping any day cell in month view now opens a mobile day-agenda panel below the calendar showing all events for that day in full (name, time, assignee, urgency). Tapping an event in the panel opens the full event detail modal." },
   { symptom: "Bank Statements 'Statement Date' column shows raw pipe-separated dates like '2026-08-01|2026-08-31'", cause: "QuickBooks-style bank statement exports store date ranges as ISO pipe-separated values — the portal was rendering them as raw strings without formatting", fix: "Fixed in commit 6070eb9 — formatStmtDate() now converts pipe-separated ISO dates to readable ranges like 'Aug 1, 2026 – Aug 31, 2026'." },
 ];
