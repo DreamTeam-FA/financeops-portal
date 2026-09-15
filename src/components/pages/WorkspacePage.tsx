@@ -20,6 +20,7 @@ import {
   FileSearch,
   MailSearch,
   ShoppingBag,
+  ScanSearch,
 } from "lucide-react";
 
 interface WorkspacePageProps {
@@ -99,7 +100,18 @@ const HEADLEYS_CARD = {
   route: "headleys",
 };
 
-const PINNED_TOOL_CARDS = [RECEIPT_RENAMER_CARD, BANK_STATEMENT_CARD, PDF_TABLE_EXTRACTOR_CARD, EMAIL_SCANNER_CARD, HEADLEYS_CARD];
+const DOC_SCANNER_CARD = {
+  id: "__doc_scanner__",
+  name: "Doc Scanner",
+  url: "",
+  description: "Search for keywords across PDFs, DOCX, XLSX, images & text files — 100% in-browser",
+  color: "#0284c7",
+  icon: <ScanSearch className="w-3.5 h-3.5" />,
+  pinned: true,
+  route: "doc-scanner",
+};
+
+const PINNED_TOOL_CARDS = [RECEIPT_RENAMER_CARD, BANK_STATEMENT_CARD, PDF_TABLE_EXTRACTOR_CARD, EMAIL_SCANNER_CARD, HEADLEYS_CARD, DOC_SCANNER_CARD];
 
 const TOOLS_COLUMNS: { key: "tool" | "portal" | "sheet"; label: string; accentLight: string; accentDark: string; borderLight: string; borderDark: string }[] = [
   { key: "tool",   label: "Tools",            accentLight: "text-blue-600",   accentDark: "text-blue-400",   borderLight: "border-blue-200/70",   borderDark: "border-blue-500/20"   },
