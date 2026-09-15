@@ -601,9 +601,9 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       if (payments.length > 0) {
         parsedPartialPaid = payments.reduce((s, p) => s + p.amount, 0);
         parsedPartialPayments = payments;
-        // Sheet Amount column (col J) is NEVER updated by partial payments — it always holds the
-        // original invoice amount. So original = amount, and remaining = amount - partialPaid.
-        parsedOriginalAmount = amount;
+        // If partialPaid > amount, the Amount cell holds the net remaining (formula like =5000-3000).
+        // Add back the partial to recover the original. Otherwise Amount is the original invoice.
+        parsedOriginalAmount = parsedPartialPaid > amount ? amount + parsedPartialPaid : amount;
       }
     }
 
@@ -615,7 +615,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       vendor,
       entity: "Ruby's",
       company: "Ruby's",
-      amount: amount, // original invoice amount from sheet (display computes remaining = amount - partialPaid)
+      amount: parsedOriginalAmount ?? amount,
       dueDate: finalDueDate,
       invoiceDate: parseDateVal(row[7]) || undefined,
       paidDate: status === "paid" ? parseDateVal(row[11]) || undefined : undefined, // col L = paid date when paid
@@ -786,8 +786,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
         if (payments.length > 0) {
           parsedPartialPaidTI = payments.reduce((s, p) => s + p.amount, 0);
           parsedPartialPaymentsTI = payments;
-          // Sheet Amount column is NEVER updated by partial payments — always the original.
-          parsedOriginalAmountTI = amount;
+          parsedOriginalAmountTI = parsedPartialPaidTI > amount ? amount + parsedPartialPaidTI : amount;
         }
       }
 
@@ -797,7 +796,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
         vendor,
         entity,
         company: company || currentCompany,
-        amount: amount, // original invoice amount from sheet
+        amount: parsedOriginalAmountTI ?? amount,
         dueDate,
         invoiceDate: parseDateVal(row[7]) || undefined,
         paidDate: status === "paid" ? parseDateVal(row[10]) || undefined : undefined, // col K = paid date
@@ -878,7 +877,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       if (payments.length > 0) {
         parsedPartialPaidMSDx = payments.reduce((s, p) => s + p.amount, 0);
         parsedPartialPaymentsMSDx = payments;
-        parsedOriginalAmountMSDx = amount; // Sheet Amount is NEVER updated by partial payments
+        parsedOriginalAmountMSDx = parsedPartialPaidMSDx > amount ? amount + parsedPartialPaidMSDx : amount;
       }
     }
 
@@ -887,7 +886,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       id: `ap-msdx-${i + 1}`,
       vendor,
       entity: "MSDx",
-      amount: amount, // original invoice amount from sheet
+      amount: parsedOriginalAmountMSDx ?? amount,
       dueDate,
       invoiceDate: parseDateVal(row[7]) || undefined,
       paidDate: status === "paid" ? parseDateVal(row[11]) || undefined : undefined, // col L = paid date when paid
