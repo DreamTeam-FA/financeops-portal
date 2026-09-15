@@ -2605,7 +2605,17 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (b.id === id) {
         const bucket = computeBucket(b.dueDate, newStatus);
         const pd = newStatus === "paid" ? (paidDate || new Date().toISOString().split("T")[0]) : undefined;
-        updatedBill = { ...b, status: newStatus, bucket, paidDate: pd };
+        updatedBill = {
+          ...b,
+          status: newStatus,
+          bucket,
+          paidDate: pd,
+          // When marking fully paid after partial payments, restore amount to the original
+          // full bill value so Paid Bills totals are accurate
+          ...(newStatus === "paid" && b.partialPaid && b.partialPaid > 0
+            ? { amount: b.originalAmount ?? b.amount }
+            : {}),
+        };
         return updatedBill;
       }
       return b;

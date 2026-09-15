@@ -579,6 +579,33 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       col11Str.startsWith("Date(");
     const status1 = col11Str && !col11IsDate ? col11Str : undefined;
 
+    // Reconstruct partial payment data from status1 history text (format: "YYYY.MM.DD - $amount")
+    // This restores partialPaid/originalAmount after a Pull All when local state is replaced.
+    let parsedPartialPaid: number | undefined;
+    let parsedPartialPayments: { amount: number; date: string }[] | undefined;
+    let parsedOriginalAmount: number | undefined;
+    if (status1 && status !== "unpaid") {
+      const lines = status1.split(/[\n\r]+/).filter(l => l.trim());
+      const payments: { amount: number; date: string }[] = [];
+      for (const line of lines) {
+        const amtMatch = line.match(/\$\s*([\d,]+(?:\.\d+)?)/);
+        const dtMatch  = line.match(/(\d{4})[.\-/](\d{2})[.\-/](\d{2})/);
+        if (amtMatch) {
+          const amt = parseFloat(amtMatch[1].replace(/,/g, ""));
+          if (!isNaN(amt) && amt > 0) {
+            const date = dtMatch ? `${dtMatch[1]}-${dtMatch[2]}-${dtMatch[3]}` : "";
+            payments.push({ amount: amt, date });
+          }
+        }
+      }
+      if (payments.length > 0) {
+        parsedPartialPaid = payments.reduce((s, p) => s + p.amount, 0);
+        parsedPartialPayments = payments;
+        // amount from sheet = remaining balance (formula computed); original = remaining + totalPaid
+        parsedOriginalAmount = amount + parsedPartialPaid;
+      }
+    }
+
     const finalDueDate = dueDate || new Date().toISOString().split("T")[0];
 
     const driveUrlRuby = String(row[38] || "").trim();
@@ -587,7 +614,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       vendor,
       entity: "Ruby's",
       company: "Ruby's",
-      amount,
+      amount: parsedOriginalAmount ?? amount, // use original full amount as the base amount
       dueDate: finalDueDate,
       invoiceDate: parseDateVal(row[7]) || undefined,
       paidDate: status === "paid" ? parseDateVal(row[11]) || undefined : undefined, // col L = paid date when paid
@@ -599,6 +626,9 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       invoiceNo,
       paymentInstructions,
       status1,
+      partialPaid: parsedPartialPaid,
+      partialPayments: parsedPartialPayments,
+      originalAmount: parsedOriginalAmount,
       description: String(row[4] || "").trim() || undefined, // col E
       category:    String(row[5] || "").trim() || undefined, // col F
       driveViewUrl: sanitizeDriveUrl(driveUrlRuby), // col AM (index 38) — strips KNOWN_BAD_DRIVE_URLS
@@ -797,12 +827,37 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       col11MSDxStr.startsWith("Date(");
     const status1MSDx = col11MSDxStr && !col11MSDxIsDate ? col11MSDxStr : undefined;
 
+    // Reconstruct partial payment data from status1 history text
+    let parsedPartialPaidMSDx: number | undefined;
+    let parsedPartialPaymentsMSDx: { amount: number; date: string }[] | undefined;
+    let parsedOriginalAmountMSDx: number | undefined;
+    if (status1MSDx && status !== "unpaid") {
+      const lines = status1MSDx.split(/[\n\r]+/).filter(l => l.trim());
+      const payments: { amount: number; date: string }[] = [];
+      for (const line of lines) {
+        const amtMatch = line.match(/\$\s*([\d,]+(?:\.\d+)?)/);
+        const dtMatch  = line.match(/(\d{4})[.\-/](\d{2})[.\-/](\d{2})/);
+        if (amtMatch) {
+          const amt = parseFloat(amtMatch[1].replace(/,/g, ""));
+          if (!isNaN(amt) && amt > 0) {
+            const date = dtMatch ? `${dtMatch[1]}-${dtMatch[2]}-${dtMatch[3]}` : "";
+            payments.push({ amount: amt, date });
+          }
+        }
+      }
+      if (payments.length > 0) {
+        parsedPartialPaidMSDx = payments.reduce((s, p) => s + p.amount, 0);
+        parsedPartialPaymentsMSDx = payments;
+        parsedOriginalAmountMSDx = amount + parsedPartialPaidMSDx;
+      }
+    }
+
     const driveUrlMSDx = String(row[26] || "").trim();
     ap.push({
       id: `ap-msdx-${i + 1}`,
       vendor,
       entity: "MSDx",
-      amount,
+      amount: parsedOriginalAmountMSDx ?? amount,
       dueDate,
       invoiceDate: parseDateVal(row[7]) || undefined,
       paidDate: status === "paid" ? parseDateVal(row[11]) || undefined : undefined, // col L = paid date when paid
@@ -814,6 +869,9 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       invoiceNo,
       paymentInstructions: paymentInstructionsMSDx,
       status1: status1MSDx,
+      partialPaid: parsedPartialPaidMSDx,
+      partialPayments: parsedPartialPaymentsMSDx,
+      originalAmount: parsedOriginalAmountMSDx,
       description: String(row[4] || "").trim() || undefined, // col E
       category:    String(row[5] || "").trim() || undefined, // col F
       driveViewUrl: sanitizeDriveUrl(driveUrlMSDx), // col AA (index 26) — strips KNOWN_BAD_DRIVE_URLS

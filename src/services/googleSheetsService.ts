@@ -1147,6 +1147,11 @@ export const buildAPBillRow = (b: APBill, entity: string): any[] => {
       // Fallback for older records without payment history
       row[map.amount] = `=${base}-${b.partialPaid}`;
     }
+  } else if (b.status === "paid" && b.partialPaid && b.partialPaid > 0) {
+    // Fully paid after partial payments — revert to original full amount on the sheet.
+    // Paid Bills totals are computed from this amount column, so it must reflect the
+    // true bill value, not the remaining balance from the partial-payment formula.
+    row[map.amount] = b.originalAmount ?? b.amount;
   } else {
     row[map.amount] = b.amount;
   }
