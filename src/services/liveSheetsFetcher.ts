@@ -1046,9 +1046,19 @@ export async function fetchFullLiveDataset(accessToken?: string) {
 
       const desc = String(row[2] || "Invoice").trim();
 
-      let entity: "Ruby's" | "TI" | "MSDx" = "TI";
-      if (/ruby/i.test(entityRaw))  entity = "Ruby's";
-      else if (/msdx/i.test(entityRaw)) entity = "MSDx";
+      const _eStr = entityRaw.toLowerCase();
+      const entity: EntityName = (
+        (_eStr.includes("ruby") || _eStr.includes("pizzeria")) ? "Ruby's" :
+        (_eStr.includes("msdx") || _eStr.includes("mobile") || _eStr.includes("swallowing") || _eStr.includes("diagnostics")) ? "MSDx" :
+        _eStr.includes("curcumin") ? "CurcuminPro" :
+        _eStr.includes("ziglar") ? "Ziglar" :
+        _eStr.includes("cpg") ? "CPG" :
+        _eStr.includes("4yr") ? "4YR" :
+        _eStr.includes("4g") ? "4G" :
+        _eStr.includes("e1") ? "E1" :
+        (_eStr.includes("ti") || _eStr.includes("timm") || _eStr.includes("investments") || _eStr.includes("corner")) ? "TI" :
+        "TI"
+      ) as EntityName;
 
       const isTrue = (val: any) =>
         val === true || String(val).toLowerCase() === "true" || val === 1;
