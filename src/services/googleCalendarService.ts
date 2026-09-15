@@ -253,7 +253,7 @@ export async function loadCalendarSheet(token: string): Promise<{
     try {
       // UNFORMATTED_VALUE so epoch-ms numbers come back as raw integers,
       // not as Sheets-formatted date strings that lose the time component.
-      const url = `https://sheets.googleapis.com/v4/spreadsheets/${CALENDAR_SPREADSHEET_ID}/values/${encodeURIComponent(candidate)}!A1:Z500?valueRenderOption=UNFORMATTED_VALUE`;
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${CALENDAR_SPREADSHEET_ID}/values/${encodeURIComponent(candidate)}!A1:Z5000?valueRenderOption=UNFORMATTED_VALUE`;
       const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (res.status === 401) {
         const err = new Error("Google token expired");
