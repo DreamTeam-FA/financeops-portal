@@ -3,6 +3,7 @@ import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { APBill, EntityName } from "../../types";
 import { normalizeEntityName } from "../../services/googleSheetsService";
+import { ENTITY_PARENT, entityMatchesFilter } from "../../utils/entityColors";
 import { formatCurrency } from "../../utils/formatters";
 import { Search, ChevronDown, ChevronRight, PauseCircle, Eye, AlertTriangle, X, Pencil, Trash2, Download } from "lucide-react";
 import { Tooltip } from "../Tooltip";
@@ -150,25 +151,25 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
       fillClass: isLight ? "bg-emerald-50/90 border-emerald-200/80 hover:bg-emerald-100/90" : "bg-emerald-950/25 border-emerald-900/40 hover:bg-emerald-900/40"
     },
     "4YR": {
-      bg: "bg-[#7c3aed]",
-      light: isLight ? "bg-violet-50/80" : "bg-[#7c3aed]/10",
-      textClass: "text-[#8b5cf6]",
-      badgeClass: "bg-[#7c3aed]/20 text-[#8b5cf6]",
-      fillClass: isLight ? "bg-violet-50/90 border-violet-200/80 hover:bg-violet-100/90" : "bg-violet-950/25 border-violet-900/40 hover:bg-violet-900/40"
+      bg: "bg-[#1565c0]",
+      light: isLight ? "bg-blue-50/80" : "bg-[#1565c0]/10",
+      textClass: "text-[#64b5f6]",
+      badgeClass: "bg-[#1565c0]/20 text-[#64b5f6]",
+      fillClass: isLight ? "bg-blue-50/90 border-blue-300/80 hover:bg-blue-100/90" : "bg-blue-950/25 border-blue-900/40 hover:bg-blue-900/40"
     },
     "4G": {
-      bg: "bg-[#d97706]",
-      light: isLight ? "bg-amber-50/80" : "bg-[#d97706]/10",
-      textClass: "text-[#f59e0b]",
-      badgeClass: "bg-[#d97706]/20 text-[#f59e0b]",
-      fillClass: isLight ? "bg-amber-50/90 border-amber-200/80 hover:bg-amber-100/90" : "bg-amber-950/25 border-amber-900/40 hover:bg-amber-900/40"
+      bg: "bg-[#1a73e8]",
+      light: isLight ? "bg-blue-50/80" : "bg-[#1a73e8]/10",
+      textClass: "text-[#1a73e8]",
+      badgeClass: "bg-[#1a73e8]/20 text-[#1a73e8]",
+      fillClass: isLight ? "bg-blue-50/90 border-blue-200/80 hover:bg-blue-100/90" : "bg-blue-950/25 border-blue-900/40 hover:bg-blue-900/40"
     },
     "E1": {
-      bg: "bg-[#ea580c]",
-      light: isLight ? "bg-orange-50/80" : "bg-[#ea580c]/10",
-      textClass: "text-[#f97316]",
-      badgeClass: "bg-[#ea580c]/20 text-[#f97316]",
-      fillClass: isLight ? "bg-orange-50/90 border-orange-200/80 hover:bg-orange-100/90" : "bg-orange-950/25 border-orange-900/40 hover:bg-orange-900/40"
+      bg: "bg-[#0288d1]",
+      light: isLight ? "bg-sky-50/80" : "bg-[#0288d1]/10",
+      textClass: "text-[#29b6f6]",
+      badgeClass: "bg-[#0288d1]/20 text-[#29b6f6]",
+      fillClass: isLight ? "bg-sky-50/90 border-sky-200/80 hover:bg-sky-100/90" : "bg-sky-950/25 border-sky-900/40 hover:bg-sky-900/40"
     }
   };
   const ENTITY_CONFIG = new Proxy(ENTITY_CONFIG_MAP, {
@@ -178,10 +179,10 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
   // Sub-entity banner configs
   const SUBENTITY_BANNER_CONFIGS: Record<string, { label: string; bg: string }> = {
     "rubys":    { label: "Ruby's Bills",         bg: "bg-[#d81b60] text-white" },
-    "4g":       { label: "4G",                   bg: "bg-[#d97706] text-white" },
-    "4yr":      { label: "4YR",                  bg: "bg-[#7c3aed] text-white" },
-    "corner":   { label: "Corner Property Group", bg: "bg-[#1a73e8] text-white" },
-    "e1":       { label: "E1",                   bg: "bg-[#ea580c] text-white" },
+    "4g":       { label: "4G",                   bg: "bg-[#1a73e8] text-white" },
+    "4yr":      { label: "4YR",                  bg: "bg-[#1565c0] text-white" },
+    "corner":   { label: "Corner Property Group", bg: "bg-[#1976d2] text-white" },
+    "e1":       { label: "E1",                   bg: "bg-[#0288d1] text-white" },
     "ti":       { label: "TI",                   bg: "bg-[#1a73e8] text-white" },
     "ti-bills": { label: "TI Bills",             bg: "bg-[#3949ab] text-white" },
     "msdx":     { label: "MSDx Bills",           bg: "bg-[#00897b] text-white" },
@@ -198,6 +199,10 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
     if (normE === "MSDx") return "msdx";
     if (normE === "CurcuminPro") return "curcumin";
     if (normE === "Ziglar") return "ziglar";
+    // Direct sub-entity entities (entity field already set to the sub-entity name)
+    if (normE === "4G")  return "4g";
+    if (normE === "4YR") return "4yr";
+    if (normE === "E1")  return "e1";
     if (normE === "TI") {
       const comp = (b.company || "").trim();
       const cl = comp.toLowerCase();
@@ -250,12 +255,13 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
   // Filtered bills
   const filteredBills = useMemo(() => {
     return apBills.filter((b) => {
-      // Entity filter
+      // Entity filter — 4G/4YR/E1 are sub-entities of TI so they match the TI filter too
       if (filterEntityOverride) {
-        if (normalizeEntityName(b.entity) !== filterEntityOverride) return false;
+        const normE = normalizeEntityName(b.entity);
+        if (normE !== filterEntityOverride && ENTITY_PARENT[normE] !== filterEntityOverride) return false;
       } else if (selectedEntities && !selectedEntities.has("ALL")) {
         const normE = normalizeEntityName(b.entity);
-        if (!Array.from(selectedEntities).some((se) => normalizeEntityName(String(se)) === normE)) return false;
+        if (!entityMatchesFilter(normE, selectedEntities as Set<string>)) return false;
       }
 
       // Company / sub-entity filter

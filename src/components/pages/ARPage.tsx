@@ -7,7 +7,7 @@ import { Tooltip } from "../Tooltip";
 import { exportARItemsCSV } from "../../utils/exportUtils";
 import { formatCurrency, formatTimestampLocal } from "../../utils/formatters";
 import { fuzzyBest } from "../../utils/fuzzyMatch";
-import { getEntityBadgeClass } from "../../utils/entityColors";
+import { getEntityBadgeClass, entityMatchesFilter } from "../../utils/entityColors";
 
 export const ARPage: React.FC = () => {
   const {
@@ -128,7 +128,7 @@ export const ARPage: React.FC = () => {
   );
 
   const filtered = arItems.filter((a) => {
-    const isEntityMatch = selectedEntities.has("ALL") || selectedEntities.has(a.entity);
+    const isEntityMatch = entityMatchesFilter(a.entity, selectedEntities);
     const isMonthMatch = selectedMonth === "ALL" || (a.month || "").toLowerCase().includes(selectedMonth.toLowerCase());
     return isEntityMatch && isMonthMatch;
   });

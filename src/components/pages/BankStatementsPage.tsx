@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { AddStatementModal, EditStatementModal } from "../modals/AddBankModal";
 import { formatTimestampLocal } from "../../utils/formatters";
-import { getEntityBadgeClass } from "../../utils/entityColors";
+import { getEntityBadgeClass, entityMatchesFilter } from "../../utils/entityColors";
 
 /* ── Hardcoded fallback bank list (used only when sheet columns N–T are empty) */
 const FALLBACK_BANKS = [
@@ -425,7 +425,7 @@ export const BankStatementsPage: React.FC = () => {
   /* ── Filter ── */
   const applyFilters = (entries: any[]): any[] =>
     entries.filter((s) => {
-      const isGlobalEntityMatch = selectedEntities.has("ALL") || selectedEntities.has(s.entity);
+      const isGlobalEntityMatch = entityMatchesFilter(s.entity, selectedEntities);
       const isLocalEntityMatch  = selectedEntity === "ALL" || s.entity === selectedEntity;
       const monthLabel          = getStatementMonth(s);
       const isMonthMatch        = selectedMonth === "ALL" || monthLabel === selectedMonth;
