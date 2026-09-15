@@ -837,12 +837,16 @@ export const CalendarPage: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      const fullTitle = taskAssignee.trim()
-        ? `[${taskCategory.toUpperCase()}] ${taskTitle} (${taskAssignee.trim()})`
-        : `[${taskCategory.toUpperCase()}] ${taskTitle}`;
+      // Title stores only the label — assignee is stored in its own sheet column
+      const fullTitle = `[${taskCategory.toUpperCase()}] ${taskTitle}`;
+      // Look up the assignee's color from the assignees list
+      const assigneeColorVal = taskAssignee.trim()
+        ? (assignees.find(a => a.name === taskAssignee.trim())?.color || "")
+        : "";
 
       const dates = getOccurrenceDates(taskDate, taskRepeat, taskRepeat === "none" ? 1 : taskOccurrences);
       const token = getAccessToken();
+      const appendPromises: Promise<void>[] = [];
 
       for (const date of dates) {
         const newId = `cal-${Date.now()}-${date}`;
@@ -863,6 +867,7 @@ export const CalendarPage: React.FC = () => {
           entity: "Ruby's",
           type: taskCategory,
           assignee: taskAssignee.trim(),
+          assigneeColor: assigneeColorVal,
           urgency: taskUrgency,
           done: false,
           sheetRow: -1,
@@ -870,7 +875,7 @@ export const CalendarPage: React.FC = () => {
         setSheetEvents(prev => [...prev, newSheetRow]);
 
         if (token) {
-          appendCalendarRow(token, sheetTab, {
+          const p = appendCalendarRow(token, sheetTab, {
             date,
             time: taskTime,
             title: fullTitle,
@@ -878,9 +883,11 @@ export const CalendarPage: React.FC = () => {
             entity: "Ruby's",
             type: taskCategory,
             assignee: taskAssignee.trim(),
+            assigneeColor: assigneeColorVal,
             urgency: taskUrgency,
             id: newId,
           }).catch(err => console.warn("Sheet append failed:", err));
+          appendPromises.push(p as Promise<void>);
         }
 
         if (syncToGoogleCal && token) {
@@ -894,13 +901,15 @@ export const CalendarPage: React.FC = () => {
         }
       }
 
-      // Reload sheet once after all appends
+      // Reload sheet after all appends complete so sheetRow is populated (needed for done sync)
       if (token) {
-        loadCalendarSheet(token).then(({ events, tab, colMap }) => {
-          setSheetEvents(events);
-          setSheetTab(tab);
-          setSheetColMap(colMap);
-        }).catch(() => {});
+        Promise.allSettled(appendPromises).then(() => {
+          loadCalendarSheet(token).then(({ events, tab, colMap }) => {
+            setSheetEvents(events);
+            setSheetTab(tab);
+            setSheetColMap(colMap);
+          }).catch(() => {});
+        });
       }
 
       setTaskTitle("");

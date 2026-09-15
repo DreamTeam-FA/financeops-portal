@@ -353,15 +353,18 @@ async function assertOk(res: Response): Promise<void> {
 export async function appendCalendarRow(
   token: string,
   tab: string,
-  event: { date: string; time?: string; title: string; notes?: string; entity?: string; type?: string; assignee?: string; urgency?: string; id: string }
+  event: { date: string; time?: string; title: string; notes?: string; entity?: string; type?: string; assignee?: string; assigneeColor?: string; urgency?: string; id: string }
 ): Promise<void> {
   const { start, end, allDay } = calendarTimestamps(event.date, event.time);
   // The Calendar source is a structured A:P sheet.  Keep the fixed columns used
   // by its Apps Script so that a row written here can be read back unchanged.
+  // Cols: A=id, B=source, C=title, D=notes, E=start, F=end, G=allDay,
+  //       H=entity, I=urgency, J=type, K=assigneeId, L=assigneeName, M=assigneeColor,
+  //       N=assigneeIds, O=seriesId, P=done
   const values = [[
     event.id, "portal", event.title, event.notes || "", start, end, allDay,
     event.entity || "Ruby's", event.urgency || "normal", event.type || "task",
-    "", event.assignee || "", "", "", "", "FALSE"
+    "", event.assignee || "", event.assigneeColor || "", "", "", "FALSE"
   ]];
   const range = `${tab}!A:P`;
   const res = await fetch(
