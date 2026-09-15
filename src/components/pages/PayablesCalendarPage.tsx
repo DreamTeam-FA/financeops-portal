@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { formatCurrency } from "../../utils/formatters";
+import { entityMatchesFilter } from "../../utils/entityColors";
 import { ChevronLeft, ChevronRight, Calendar, AlertTriangle, History } from "lucide-react";
 import { BillDetailsModal } from "../modals/BillDetailsModal";
 import { EditBillModal } from "../modals/EditBillModal";
@@ -421,9 +422,7 @@ export const PayablesCalendarPage: React.FC = () => {
 
   /* Filter bills by selected entities */
   const bills: any[] = useMemo(() =>
-    (apBills || []).filter((b: any) =>
-      selectedEntities.has("ALL") || selectedEntities.has(b.entity)
-    ),
+    (apBills || []).filter((b: any) => entityMatchesFilter(b.entity, selectedEntities)),
   [apBills, selectedEntities]);
 
   /* Column 1: Overdue — unpaid, due before last-week Monday */

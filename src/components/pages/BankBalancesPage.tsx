@@ -7,6 +7,7 @@ import { exportBanksCSV } from "../../utils/exportUtils";
 import { AddBankModal } from "../modals/AddBankModal";
 import { Tooltip as AppTooltip } from "../Tooltip";
 import { formatCurrency } from "../../utils/formatters";
+import { entityMatchesFilter } from "../../utils/entityColors";
 import {
   BarChart,
   Bar,
@@ -137,7 +138,7 @@ export const BankBalancesPage: React.FC = () => {
   }, [updateBankBalance]);
 
   const filtered = bankAccounts.filter(
-    (b: any) => selectedEntities.has("ALL") || selectedEntities.has(b.entity)
+    (b: any) => entityMatchesFilter(b.entity, selectedEntities)
   );
 
   const totalBalance = filtered.reduce((s: number, a: any) => s + a.balance, 0);

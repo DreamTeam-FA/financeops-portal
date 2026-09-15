@@ -7,6 +7,7 @@ import { exportLoansCSV } from "../../utils/exportUtils";
 import { AddLoanModal, EditLoanModal } from "../modals/AddBankModal";
 import { Loan } from "../../types";
 import { formatCurrency, getDaysRemaining } from "../../utils/formatters";
+import { entityMatchesFilter } from "../../utils/entityColors";
 
 export const LoansPage: React.FC = () => {
   const { loans, selectedEntities, theme, deleteLoan, searchHighlightId, setSearchHighlightId } = useFinance() as any;
@@ -67,7 +68,7 @@ export const LoansPage: React.FC = () => {
   };
 
   const entityFiltered = loans.filter(
-    (l) => selectedEntities.has("ALL") || selectedEntities.has(l.entity)
+    (l) => entityMatchesFilter(l.entity, selectedEntities)
   );
 
   // Sort near due date first
