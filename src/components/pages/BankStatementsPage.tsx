@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { AddStatementModal, EditStatementModal } from "../modals/AddBankModal";
 import { formatTimestampLocal } from "../../utils/formatters";
+import { getEntityBadgeClass } from "../../utils/entityColors";
 
 /* ── Hardcoded fallback bank list (used only when sheet columns N–T are empty) */
 const FALLBACK_BANKS = [
@@ -139,13 +140,7 @@ const GenerateMonthlyModal: React.FC<{ isOpen: boolean; onClose: () => void }> =
     onClose();
   };
 
-  const getEntityBadge = (entity: string) => {
-    if (entity.includes("Ruby")) return "bg-[#d81b60]/20 text-[#e91e63]";
-    if (entity.includes("MSDx")) return "bg-[#00897b]/20 text-[#00897b]";
-    if (entity === "4YR") return "bg-purple-500/20 text-purple-400";
-    if (entity === "E1")  return "bg-orange-500/20 text-orange-400";
-    return "bg-[#1a73e8]/20 text-[#1a73e8]";
-  };
+  const getEntityBadge = getEntityBadgeClass;
 
   const isLiveData = statementTemplates && statementTemplates.length > 0;
 
@@ -367,14 +362,7 @@ export const BankStatementsPage: React.FC = () => {
     return bankName;
   };
 
-  const getEntityBadge = (entity: string): string => {
-    if (entity.includes("Ruby"))     return "bg-[#d81b60]/20 text-[#e91e63]";
-    if (entity.includes("MSDx"))     return "bg-[#00897b]/20 text-[#00897b]";
-    if (entity.includes("Curcumin")) return "bg-[#6d4c41]/20 text-[#8d6e63]";
-    if (entity === "4YR")            return "bg-purple-500/20 text-purple-400";
-    if (entity === "E1")             return "bg-orange-500/20 text-orange-400";
-    return "bg-[#1a73e8]/20 text-[#1a73e8]";
-  };
+  const getEntityBadge = getEntityBadgeClass;
 
   /**
    * Returns "Month YYYY" label for filtering.

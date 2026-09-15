@@ -282,15 +282,11 @@ export const normalizeEntityName = (input?: string, fallback: EntityName = "TI")
   if (str.includes("msdx") || str.includes("mobile") || str.includes("swallowing") || str.includes("diagnostics")) return "MSDx";
   if (str.includes("curcumin")) return "CurcuminPro";
   if (str.includes("ziglar")) return "Ziglar";
-  if (
-    str.includes("ti") ||
-    str.includes("timm") ||
-    str.includes("investments") ||
-    str.includes("4g") ||
-    str.includes("4yr") ||
-    str.includes("corner") ||
-    str.includes("e1")
-  ) return "TI";
+  // Check distinct sub-entities BEFORE the TI catch-all
+  if (str.includes("4yr")) return "4YR";
+  if (str.includes("4g"))  return "4G";
+  if (str.includes("e1"))  return "E1";
+  if (str.includes("ti") || str.includes("timm") || str.includes("investments") || str.includes("corner")) return "TI";
   return fallback;
 };
 

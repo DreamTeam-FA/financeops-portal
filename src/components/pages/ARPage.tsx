@@ -7,6 +7,7 @@ import { Tooltip } from "../Tooltip";
 import { exportARItemsCSV } from "../../utils/exportUtils";
 import { formatCurrency, formatTimestampLocal } from "../../utils/formatters";
 import { fuzzyBest } from "../../utils/fuzzyMatch";
+import { getEntityBadgeClass } from "../../utils/entityColors";
 
 export const ARPage: React.FC = () => {
   const {
@@ -179,12 +180,7 @@ export const ARPage: React.FC = () => {
     setEditingAR(null);
   };
 
-  const getEntityBadge = (entityStr: string) => {
-    if (entityStr.includes("Ruby")) return "bg-[#d81b60]/20 text-[#e91e63]";
-    if (entityStr.includes("MSDx")) return "bg-[#00897b]/20 text-[#00897b]";
-    if (entityStr.includes("Curcumin")) return "bg-[#6d4c41]/20 text-[#8d6e63]";
-    return "bg-[#1a73e8]/20 text-[#1a73e8]";
-  };
+  const getEntityBadge = getEntityBadgeClass;
 
   const getDaysOverdueText = (dueDateStr: string, isPaid: boolean) => {
     if (isPaid) return { text: "Received", class: "text-emerald-600 dark:text-[#4ade80]" };

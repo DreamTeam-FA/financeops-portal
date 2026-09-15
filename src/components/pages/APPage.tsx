@@ -148,6 +148,27 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
       textClass: "text-[#059669]",
       badgeClass: "bg-[#059669]/20 text-[#059669]",
       fillClass: isLight ? "bg-emerald-50/90 border-emerald-200/80 hover:bg-emerald-100/90" : "bg-emerald-950/25 border-emerald-900/40 hover:bg-emerald-900/40"
+    },
+    "4YR": {
+      bg: "bg-[#7c3aed]",
+      light: isLight ? "bg-violet-50/80" : "bg-[#7c3aed]/10",
+      textClass: "text-[#8b5cf6]",
+      badgeClass: "bg-[#7c3aed]/20 text-[#8b5cf6]",
+      fillClass: isLight ? "bg-violet-50/90 border-violet-200/80 hover:bg-violet-100/90" : "bg-violet-950/25 border-violet-900/40 hover:bg-violet-900/40"
+    },
+    "4G": {
+      bg: "bg-[#d97706]",
+      light: isLight ? "bg-amber-50/80" : "bg-[#d97706]/10",
+      textClass: "text-[#f59e0b]",
+      badgeClass: "bg-[#d97706]/20 text-[#f59e0b]",
+      fillClass: isLight ? "bg-amber-50/90 border-amber-200/80 hover:bg-amber-100/90" : "bg-amber-950/25 border-amber-900/40 hover:bg-amber-900/40"
+    },
+    "E1": {
+      bg: "bg-[#ea580c]",
+      light: isLight ? "bg-orange-50/80" : "bg-[#ea580c]/10",
+      textClass: "text-[#f97316]",
+      badgeClass: "bg-[#ea580c]/20 text-[#f97316]",
+      fillClass: isLight ? "bg-orange-50/90 border-orange-200/80 hover:bg-orange-100/90" : "bg-orange-950/25 border-orange-900/40 hover:bg-orange-900/40"
     }
   };
   const ENTITY_CONFIG = new Proxy(ENTITY_CONFIG_MAP, {
@@ -157,10 +178,10 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
   // Sub-entity banner configs
   const SUBENTITY_BANNER_CONFIGS: Record<string, { label: string; bg: string }> = {
     "rubys":    { label: "Ruby's Bills",         bg: "bg-[#d81b60] text-white" },
-    "4g":       { label: "4G",                   bg: "bg-[#1a73e8] text-white" },
-    "4yr":      { label: "4YR",                  bg: "bg-[#1565c0] text-white" },
-    "corner":   { label: "Corner Property Group", bg: "bg-[#1976d2] text-white" },
-    "e1":       { label: "E1",                   bg: "bg-[#0288d1] text-white" },
+    "4g":       { label: "4G",                   bg: "bg-[#d97706] text-white" },
+    "4yr":      { label: "4YR",                  bg: "bg-[#7c3aed] text-white" },
+    "corner":   { label: "Corner Property Group", bg: "bg-[#1a73e8] text-white" },
+    "e1":       { label: "E1",                   bg: "bg-[#ea580c] text-white" },
     "ti":       { label: "TI",                   bg: "bg-[#1a73e8] text-white" },
     "ti-bills": { label: "TI Bills",             bg: "bg-[#3949ab] text-white" },
     "msdx":     { label: "MSDx Bills",           bg: "bg-[#00897b] text-white" },
