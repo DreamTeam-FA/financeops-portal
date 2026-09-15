@@ -137,6 +137,7 @@ export function FourYrPayrollPage() {
   const [moreMenuOpen,  setMoreMenuOpen]  = useState(false);
   const [ssCapturing,   setSsCapturing]   = useState(false);
   const [weekDropOpen,  setWeekDropOpen]  = useState(false);
+  const [filterBarOpen, setFilterBarOpen] = useState(false);
   const [collapsed,     setCollapsed]     = useState<Record<string, boolean>>({});
   const [typeFilters,   setTypeFilters]   = useState<Set<string>>(new Set());
 
@@ -1548,11 +1549,11 @@ export function FourYrPayrollPage() {
       </div>
 
       {/* ── Filter bar (GAS: .filter-bar) ── */}
-      <div className={`shrink-0 border-b ${bdr}`} style={{ background:isLight?"#fff":"#0f0f0f" }}>
-      <div className="flex flex-wrap items-end gap-2.5 px-4 py-2.5">
+      <div className={`shrink-0 overflow-x-auto border-b ${bdr}`} style={{ background:isLight?"#fff":"#0f0f0f" }}>
+      <div className="flex items-center gap-2 px-3 py-1.5 min-w-max">
         {/* Year */}
         <div className="flex flex-col gap-0.5">
-          <label className={`text-[10px] font-bold uppercase tracking-widest ${txt2}`}>Year</label>
+          <label className={`text-[10px] font-bold uppercase tracking-widest hidden md:block ${txt2}`}>Year</label>
           <select value={yearFilter} onChange={e => onYearChange(e.target.value)}
             className={`rounded border text-xs px-2 py-1.5 outline-none cursor-pointer ${inp}`} style={{ minWidth:80 }}>
             <option value="">— All Years —</option>
@@ -1562,11 +1563,11 @@ export function FourYrPayrollPage() {
 
         {/* Week Range */}
         <div className="flex flex-col gap-0.5" style={{ position:"relative" }}>
-          <label className={`text-[10px] font-bold uppercase tracking-widest ${txt2}`}>
+          <label className={`text-[10px] font-bold uppercase tracking-widest hidden md:block ${txt2}`}>
             Week Range <span className="normal-case font-normal opacity-70">(click to select multiple)</span>
           </label>
           <button onClick={() => setWeekDropOpen(o=>!o)}
-            className={`flex items-center gap-2 rounded border text-xs px-2.5 py-1.5 outline-none ${inp} whitespace-nowrap cursor-pointer w-full`}
+            className={`flex items-center gap-2 rounded border text-xs px-2.5 py-1.5 outline-none ${inp} whitespace-nowrap cursor-pointer`}
             style={{ minWidth:160, justifyContent:"space-between" }}>
             <span className="truncate">{weekLabel}</span>
             <span className={`text-[9px] ml-1 ${txt2}`}>{weekDropOpen ? "▲" : "▼"}</span>
@@ -1611,7 +1612,7 @@ export function FourYrPayrollPage() {
 
         {/* Name */}
         <div className="flex flex-col gap-0.5">
-          <label className={`text-[10px] font-bold uppercase tracking-widest ${txt2}`}>Name</label>
+          <label className={`text-[10px] font-bold uppercase tracking-widest hidden md:block ${txt2}`}>Name</label>
           <select value={nameFilter} onChange={e => onNameChange(e.target.value)}
             className={`rounded border text-xs px-2 py-1.5 outline-none cursor-pointer ${inp}`} style={{ minWidth:160 }}>
             <option value="">— All Names —</option>
@@ -1621,7 +1622,7 @@ export function FourYrPayrollPage() {
 
         {/* Job */}
         <div className="flex flex-col gap-0.5">
-          <label className={`text-[10px] font-bold uppercase tracking-widest ${txt2}`}>Job / Location</label>
+          <label className={`text-[10px] font-bold uppercase tracking-widest hidden md:block ${txt2}`}>Job / Location</label>
           <select value={jobFilter} onChange={e => onJobChange(e.target.value)}
             className={`rounded border text-xs px-2 py-1.5 outline-none cursor-pointer ${inp}`} style={{ minWidth:160 }}>
             <option value="">— All Jobs —</option>
@@ -1631,7 +1632,7 @@ export function FourYrPayrollPage() {
 
         {/* Specific Date + Reset */}
         <div className="flex flex-col gap-0.5">
-          <label className={`text-[10px] font-bold uppercase tracking-widest ${txt2}`}>Specific Date</label>
+          <label className={`text-[10px] font-bold uppercase tracking-widest hidden md:block ${txt2}`}>Specific Date</label>
           <div className="flex items-center gap-1.5">
             <input type="date" value={dateFilter.replace(/(\d{2})\/(\d{2})\/(\d{4})/,"$3-$1-$2")}
               onChange={e => onDateChange(e.target.value)}
