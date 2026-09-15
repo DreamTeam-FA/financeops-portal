@@ -417,21 +417,39 @@ export function BankStatementPage({ onBack }: { onBack: () => void }) {
 
         {/* Stats */}
         {allTxns.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {[
-              { label: "Transactions", val: allTxns.length.toString(), icon: <FileText className="w-4 h-4" />, grad: "from-blue-500/20 to-indigo-500/20", brd: "border-blue-500/20", ic: "bg-blue-500", sh: "shadow-blue-500/15" },
-              { label: "Total Debits",  val: `$${totalDebit.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, icon: <BarChart3 className="w-4 h-4" />, grad: "from-red-500/20 to-orange-500/20", brd: "border-red-500/20", ic: "bg-red-500", sh: "shadow-red-500/15" },
-              { label: "Total Credits", val: `$${Math.abs(totalCredit).toLocaleString("en-US", { minimumFractionDigits: 2 })}`, icon: <CheckCircle2 className="w-4 h-4" />, grad: "from-emerald-500/20 to-teal-500/20", brd: "border-emerald-500/20", ic: "bg-emerald-500", sh: "shadow-emerald-500/15" },
-            ].map(s => (
-              <div key={s.label} className={cl("rounded-xl border p-4 bg-gradient-to-br shadow-lg", s.grad, s.brd, s.sh)}>
-                <div className="flex items-center gap-2 mb-2">
-                  <div className={cl("w-7 h-7 rounded-lg flex items-center justify-center text-white shadow-md", s.ic)}>{s.icon}</div>
-                  <span className={cl("text-xs font-medium", muted)}>{s.label}</span>
-                </div>
-                <p className={cl("text-2xl font-bold", text)}>{s.val}</p>
+          <>
+            {/* Mobile: compact single-row bar */}
+            <div className={cl("sm:hidden flex items-center gap-4 rounded-xl border px-4 py-2.5 overflow-x-auto", isLight ? "bg-slate-50 border-slate-200" : "bg-white/4 border-white/8")}>
+              <div className="flex items-baseline gap-1 shrink-0">
+                <span className={cl("font-bold text-sm tabular-nums", text)}>{allTxns.length}</span>
+                <span className={cl("text-[10px]", muted)}>txns</span>
               </div>
-            ))}
-          </div>
+              <div className="flex items-baseline gap-1 shrink-0">
+                <span className="font-bold text-sm tabular-nums text-red-400">${totalDebit.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                <span className={cl("text-[10px]", muted)}>debit</span>
+              </div>
+              <div className="flex items-baseline gap-1 shrink-0">
+                <span className="font-bold text-sm tabular-nums text-emerald-400">${Math.abs(totalCredit).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                <span className={cl("text-[10px]", muted)}>credit</span>
+              </div>
+            </div>
+            {/* Desktop: 3-card grid */}
+            <div className="hidden sm:grid sm:grid-cols-3 gap-4">
+              {[
+                { label: "Transactions", val: allTxns.length.toString(), icon: <FileText className="w-4 h-4" />, grad: "from-blue-500/20 to-indigo-500/20", brd: "border-blue-500/20", ic: "bg-blue-500", sh: "shadow-blue-500/15" },
+                { label: "Total Debits",  val: `$${totalDebit.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, icon: <BarChart3 className="w-4 h-4" />, grad: "from-red-500/20 to-orange-500/20", brd: "border-red-500/20", ic: "bg-red-500", sh: "shadow-red-500/15" },
+                { label: "Total Credits", val: `$${Math.abs(totalCredit).toLocaleString("en-US", { minimumFractionDigits: 2 })}`, icon: <CheckCircle2 className="w-4 h-4" />, grad: "from-emerald-500/20 to-teal-500/20", brd: "border-emerald-500/20", ic: "bg-emerald-500", sh: "shadow-emerald-500/15" },
+              ].map(s => (
+                <div key={s.label} className={cl("rounded-xl border p-4 bg-gradient-to-br shadow-lg", s.grad, s.brd, s.sh)}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className={cl("w-7 h-7 rounded-lg flex items-center justify-center text-white shadow-md", s.ic)}>{s.icon}</div>
+                    <span className={cl("text-xs font-medium", muted)}>{s.label}</span>
+                  </div>
+                  <p className={cl("text-2xl font-bold", text)}>{s.val}</p>
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
         {/* Drop zone */}
@@ -534,9 +552,9 @@ export function BankStatementPage({ onBack }: { onBack: () => void }) {
         )}
       </div>
 
-      {/* ── Side-by-side: PDF preview + Editable transaction table ──────── */}
+      {/* ── Transaction table (+ PDF preview on desktop) ──────────────────── */}
       {allEditableRows.length > 0 && (
-        <div className="flex-1 min-h-0 flex gap-4 px-6 pb-6 overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col md:flex-row gap-4 px-4 md:px-6 pb-4 md:pb-6 overflow-hidden">
 
           {/* Editable transaction table */}
           <div className={cl("flex-1 flex flex-col rounded-2xl border overflow-hidden", card, border)}>
@@ -572,8 +590,68 @@ export function BankStatementPage({ onBack }: { onBack: () => void }) {
               </div>
             </div>
 
-            {/* Table body — scrollable */}
-            <div className="flex-1 overflow-y-auto overflow-x-auto">
+            {/* Mobile card list — md:hidden */}
+            <div className="md:hidden flex-1 overflow-y-auto space-y-2 px-3 py-2">
+              {allEditableRows.map((row) => {
+                const fileLabel = files.find(f => f.id === row._fileId)?.name.replace(/\.pdf$/i, "").slice(0, 14);
+                return (
+                  <div key={`mob-${row._fileId}-${row._txnIdx}`} className={cl("rounded-xl border p-3 space-y-2", card, border)}>
+                    {/* Date + file badge + delete */}
+                    <div className="flex items-center justify-between gap-2">
+                      <input
+                        value={row.Date}
+                        onChange={e => updateTxn(row._fileId, row._txnIdx, { Date: e.target.value })}
+                        placeholder="MM/DD/YYYY"
+                        className={cl(inputCls, "w-28 tabular-nums")}
+                      />
+                      <div className="flex items-center gap-2 shrink-0">
+                        {files.length > 1 && fileLabel && (
+                          <span className={cl("text-[10px] px-1.5 py-0.5 rounded font-mono", isLight ? "bg-blue-50 text-blue-600" : "bg-blue-500/10 text-blue-400")}>{fileLabel}</span>
+                        )}
+                        <button onClick={() => deleteTxn(row._fileId, row._txnIdx)} className={cl("p-1 rounded hover:text-red-400 transition-colors", muted)}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                    {/* Description */}
+                    <input
+                      value={row.Description}
+                      onChange={e => updateTxn(row._fileId, row._txnIdx, { Description: e.target.value })}
+                      placeholder="Description"
+                      className={cl(inputCls, "w-full")}
+                    />
+                    {/* Debit + Credit */}
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <label className={cl("text-[10px] font-medium mb-0.5 block", muted)}>Debit</label>
+                        <input
+                          value={row.Debit === "" ? "" : String(row.Debit)}
+                          onChange={e => { const v = e.target.value === "" ? "" : parseFloat(e.target.value); updateTxn(row._fileId, row._txnIdx, { Debit: isNaN(v as number) ? "" : v }); }}
+                          placeholder="0.00" type="number" step="0.01" min="0"
+                          className={cl(inputCls, "w-full text-right tabular-nums", row.Debit !== "" ? "text-red-400" : "")}
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className={cl("text-[10px] font-medium mb-0.5 block", muted)}>Credit</label>
+                        <input
+                          value={row.Credit === "" ? "" : String(row.Credit)}
+                          onChange={e => { const v = e.target.value === "" ? "" : parseFloat(e.target.value); updateTxn(row._fileId, row._txnIdx, { Credit: isNaN(v as number) ? "" : v }); }}
+                          placeholder="0.00" type="number" step="0.01" min="0"
+                          className={cl(inputCls, "w-full text-right tabular-nums", row.Credit !== "" ? "text-emerald-400" : "")}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {/* Add row button */}
+              <button onClick={addRow} className={cl("flex items-center gap-2 text-xs font-medium w-full py-2 rounded-xl border border-dashed transition-colors", isLight ? "border-slate-300 text-slate-400 hover:border-blue-400 hover:text-blue-500" : "border-white/10 text-[#7a8394] hover:border-blue-500/40 hover:text-blue-400")}>
+                <Plus className="w-3.5 h-3.5 ml-2" /> Add row
+              </button>
+            </div>
+
+            {/* Desktop table — hidden on mobile */}
+            <div className="hidden md:block flex-1 overflow-y-auto overflow-x-auto">
               <table className="w-full text-xs border-separate border-spacing-0 min-w-[450px]">
                 <thead className="sticky top-0 z-10">
                   <tr className={cl(isLight ? "bg-slate-100 text-slate-500" : "bg-[#0a0e18] text-[#7a8394]")}>
@@ -699,9 +777,9 @@ export function BankStatementPage({ onBack }: { onBack: () => void }) {
             </div>
           </div>
 
-          {/* PDF preview panel — right side */}
+          {/* PDF preview panel — right side, hidden on mobile */}
           {previewFile && previewFile.fileUrl && (
-            <div className={cl("w-[42%] flex flex-col rounded-2xl border overflow-hidden shrink-0", card, border)}>
+            <div className={cl("hidden md:flex w-[42%] flex-col rounded-2xl border overflow-hidden shrink-0", card, border)}>
               <div className={cl("flex items-center justify-between px-4 py-2.5 border-b shrink-0", border, isLight ? "bg-slate-50" : "bg-[#0a0e18]")}>
                 <div className="flex items-center gap-2 min-w-0">
                   <FileText className="w-3.5 h-3.5 text-blue-400 shrink-0" />
