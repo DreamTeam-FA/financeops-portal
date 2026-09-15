@@ -584,7 +584,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
     let parsedPartialPaid: number | undefined;
     let parsedPartialPayments: { amount: number; date: string }[] | undefined;
     let parsedOriginalAmount: number | undefined;
-    if (status1 && status !== "unpaid") {
+    if (status1) {
       const lines = status1.split(/[\n\r]+/).filter(l => l.trim());
       const payments: { amount: number; date: string }[] = [];
       for (const line of lines) {
@@ -601,8 +601,9 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       if (payments.length > 0) {
         parsedPartialPaid = payments.reduce((s, p) => s + p.amount, 0);
         parsedPartialPayments = payments;
-        // amount from sheet = remaining balance (formula computed); original = remaining + totalPaid
-        parsedOriginalAmount = amount + parsedPartialPaid;
+        // For unpaid: sheet amount = remaining balance (formula), original = remaining + paid.
+        // For paid: our write fix already restored sheet amount to original, so original = amount.
+        parsedOriginalAmount = status === "unpaid" ? amount + parsedPartialPaid : amount;
       }
     }
 
@@ -785,7 +786,9 @@ export async function fetchFullLiveDataset(accessToken?: string) {
         if (payments.length > 0) {
           parsedPartialPaidTI = payments.reduce((s, p) => s + p.amount, 0);
           parsedPartialPaymentsTI = payments;
-          parsedOriginalAmountTI = amount + parsedPartialPaidTI;
+          // For unpaid: sheet amount = remaining balance, original = remaining + paid.
+          // For paid: our write fix already restored sheet amount to original.
+          parsedOriginalAmountTI = status === "unpaid" ? amount + parsedPartialPaidTI : amount;
         }
       }
 
@@ -859,7 +862,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
     let parsedPartialPaidMSDx: number | undefined;
     let parsedPartialPaymentsMSDx: { amount: number; date: string }[] | undefined;
     let parsedOriginalAmountMSDx: number | undefined;
-    if (status1MSDx && status !== "unpaid") {
+    if (status1MSDx) {
       const lines = status1MSDx.split(/[\n\r]+/).filter(l => l.trim());
       const payments: { amount: number; date: string }[] = [];
       for (const line of lines) {
@@ -876,7 +879,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       if (payments.length > 0) {
         parsedPartialPaidMSDx = payments.reduce((s, p) => s + p.amount, 0);
         parsedPartialPaymentsMSDx = payments;
-        parsedOriginalAmountMSDx = amount + parsedPartialPaidMSDx;
+        parsedOriginalAmountMSDx = status === "unpaid" ? amount + parsedPartialPaidMSDx : amount;
       }
     }
 
