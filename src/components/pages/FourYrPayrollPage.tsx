@@ -1548,8 +1548,8 @@ export function FourYrPayrollPage() {
       </div>
 
       {/* ── Filter bar (GAS: .filter-bar) ── */}
-      <div className={`shrink-0 overflow-x-auto border-b ${bdr}`} style={{ background:isLight?"#fff":"#0f0f0f" }}>
-      <div className="flex items-end gap-2.5 px-5 py-2.5 min-w-max">
+      <div className={`shrink-0 border-b ${bdr}`} style={{ background:isLight?"#fff":"#0f0f0f" }}>
+      <div className="flex flex-wrap items-end gap-2.5 px-4 py-2.5">
         {/* Year */}
         <div className="flex flex-col gap-0.5">
           <label className={`text-[10px] font-bold uppercase tracking-widest ${txt2}`}>Year</label>
@@ -1566,8 +1566,8 @@ export function FourYrPayrollPage() {
             Week Range <span className="normal-case font-normal opacity-70">(click to select multiple)</span>
           </label>
           <button onClick={() => setWeekDropOpen(o=>!o)}
-            className={`flex items-center gap-2 rounded border text-xs px-2.5 py-1.5 outline-none ${inp} whitespace-nowrap cursor-pointer`}
-            style={{ minWidth:200, justifyContent:"space-between" }}>
+            className={`flex items-center gap-2 rounded border text-xs px-2.5 py-1.5 outline-none ${inp} whitespace-nowrap cursor-pointer w-full`}
+            style={{ minWidth:160, justifyContent:"space-between" }}>
             <span className="truncate">{weekLabel}</span>
             <span className={`text-[9px] ml-1 ${txt2}`}>{weekDropOpen ? "▲" : "▼"}</span>
           </button>
@@ -1646,7 +1646,7 @@ export function FourYrPayrollPage() {
         </div>
 
         {/* Right-side action cluster: Add + Delete */}
-        <div className="flex items-center gap-2 ml-auto flex-shrink-0">
+        <div className="flex items-center gap-2 ml-auto flex-shrink-0 flex-wrap">
           {/* Add Record — with text */}
           <button onClick={openAddModal}
             className="flex items-center gap-1.5 px-4 py-1.5 rounded text-xs font-bold text-white whitespace-nowrap"
@@ -1668,8 +1668,8 @@ export function FourYrPayrollPage() {
             {startingWeek ? "⏳" : "🗓️"}
           </button>
         </div>
-      </div>{/* end min-w-max */}
-      </div>{/* end overflow-x-auto */}
+      </div>
+      </div>
 
       {weekDropOpen && <div className="fixed inset-0 z-40" onClick={() => setWeekDropOpen(false)} />}
       {ssMenuOpen   && <div className="fixed inset-0 z-[599]" onClick={() => setSsMenuOpen(false)} />}
