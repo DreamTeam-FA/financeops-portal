@@ -1069,6 +1069,17 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   //
   //  This eliminates the stale flash and the "token not ready" silent-fail that
   //  previously caused the portal to show old data until the user clicked Sync.
+
+  // Purge stale cache keys from old versions on startup (free up localStorage)
+  useEffect(() => {
+    const staleKeys = [
+      "financeops_data_cache",
+      "financeops_data_cache_v1",
+      "financeops_data_cache_v2",
+    ];
+    staleKeys.forEach(k => { try { localStorage.removeItem(k); } catch {} });
+  }, []);
+
   useEffect(() => {
     const CACHE_KEY = "financeops_data_cache_v3"; // bumped: forces cache drop after paid-bills parse fix
     const CACHE_TTL = 20 * 60 * 1000; // 20 min — fresh enough; pull-live always replaces anyway

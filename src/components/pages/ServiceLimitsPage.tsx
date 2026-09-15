@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { PageHeader } from "../PageHeader";
 import { useFinance } from "../../context/FinanceContext";
-import { ExternalLink, Info, RefreshCw, Clock, HardDrive } from "lucide-react";
+import { ExternalLink, Info, RefreshCw, Clock, HardDrive, Trash2 } from "lucide-react";
 import { getApiCounter } from "../../utils/apiCounter";
 import { getGeminiCounter } from "../../utils/geminiCounter";
 
@@ -250,6 +250,25 @@ export const ServiceLimitsPage: React.FC = () => {
   const [snapshots, setSnapshots] = useState<UsageSnapshot[]>([]);
   const [activeIdx, setActiveIdx] = useState(0); // index into snapshots, 0 = most recent
   const [refreshing, setRefreshing] = useState(false);
+  const [clearing, setClearing] = useState(false);
+
+  const clearCache = useCallback(async () => {
+    setClearing(true);
+    try {
+      const keysToRemove = [
+        "financeops_data_cache_v3",
+        "financeops_data_cache_v2",
+        "financeops_data_cache_v1",
+        "financeops_data_cache",
+        "billDriveLinks_v2",
+      ];
+      keysToRemove.forEach(k => { try { localStorage.removeItem(k); } catch {} });
+      // Retake snapshot so the bar reflects the new size
+      await takeSnapshot(true);
+    } finally {
+      setClearing(false);
+    }
+  }, [takeSnapshot]);
 
   // Take a snapshot and prepend to the list
   const takeSnapshot = useCallback(async (force = false) => {
@@ -391,6 +410,21 @@ export const ServiceLimitsPage: React.FC = () => {
                 />
               </div>
               <p className={`text-[10px] ${mutedTxt}`}>{lsPct.toFixed(1)}% of ~5 MB limit</p>
+              {lsPct > 50 && (
+                <button
+                  onClick={clearCache}
+                  disabled={clearing}
+                  title="Clears the finance data cache and Drive link cache — they rebuild on next sync"
+                  className={`mt-2 w-full flex items-center justify-center gap-1 px-2 py-1 rounded text-[10px] font-semibold transition-colors disabled:opacity-50 ${
+                    isLight
+                      ? "bg-red-50 border border-red-200 text-red-600 hover:bg-red-100"
+                      : "bg-red-950/20 border border-red-900/40 text-red-400 hover:bg-red-950/40"
+                  }`}
+                >
+                  <Trash2 className={`w-2.5 h-2.5 ${clearing ? "animate-spin" : ""}`} />
+                  {clearing ? "Clearing…" : "Clear Cache"}
+                </button>
+              )}
             </div>
 
             {/* Browser origin storage */}
