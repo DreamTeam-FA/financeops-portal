@@ -13,10 +13,11 @@
  */
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useFinance } from "../../context/FinanceContext";
+import { getAccessToken } from "../../services/googleAuth";
 import {
   Search, FileText, Loader2, CheckCircle2, AlertCircle,
   ChevronLeft, Download, FileSearch, FolderOpen, X,
-  ToggleLeft, ToggleRight, ChevronRight, ChevronDown
+  ToggleLeft, ToggleRight, ChevronRight, ChevronDown, Cloud, HardDrive
 } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist";
 import * as XLSX from "xlsx";
@@ -168,6 +169,77 @@ function exportReport(results: FileResult[], keywords: string[], folderName: str
   URL.revokeObjectURL(url);
 }
 
+/* ── Drive API helpers ─────────────────────────────────────────────── */
+const DRIVE_API = "https://www.googleapis.com/drive/v3";
+
+function extractFolderId(url: string): string | null {
+  const m = url.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+  if (m) return m[1];
+  // also handle ?id=... or /d/...
+  const id = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (id) return id[1];
+  // bare ID (no slashes)
+  if (/^[a-zA-Z0-9_-]{25,}$/.test(url.trim())) return url.trim();
+  return null;
+}
+
+async function listDriveFiles(folderId: string, token: string, recursive: boolean): Promise<{id: string; name: string; mimeType: string}[]> {
+  const all: {id: string; name: string; mimeType: string}[] = [];
+  let pageToken: string | undefined;
+
+  do {
+    const params = new URLSearchParams({
+      q: `'${folderId}' in parents and trashed = false`,
+      fields: "nextPageToken,files(id,name,mimeType)",
+      pageSize: "1000",
+    });
+    if (pageToken) params.set("pageToken", pageToken);
+
+    const res = await fetch(`${DRIVE_API}/files?${params}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error(`Drive API error ${res.status}: ${await res.text()}`);
+    const data = await res.json();
+    const files: {id: string; name: string; mimeType: string}[] = data.files ?? [];
+
+    const folders = files.filter(f => f.mimeType === "application/vnd.google-apps.folder");
+    const regular = files.filter(f => f.mimeType !== "application/vnd.google-apps.folder");
+    all.push(...regular);
+
+    if (recursive) {
+      for (const sub of folders) {
+        const children = await listDriveFiles(sub.id, token, true);
+        all.push(...children.map(c => ({ ...c, name: `${sub.name}/${c.name}` })));
+      }
+    }
+    pageToken = data.nextPageToken;
+  } while (pageToken);
+
+  return all;
+}
+
+async function downloadDriveFile(fileId: string, fileName: string, mimeType: string, token: string): Promise<File | null> {
+  const ext = fileName.split(".").pop()?.toLowerCase() ?? "";
+  if (!SUPPORTED_EXTS.has(ext)) return null;
+
+  // Google Workspace types need export
+  let url = `${DRIVE_API}/files/${fileId}?alt=media`;
+  if (mimeType === "application/vnd.google-apps.spreadsheet") {
+    url = `${DRIVE_API}/files/${fileId}/export?mimeType=application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`;
+  } else if (mimeType === "application/vnd.google-apps.document") {
+    url = `${DRIVE_API}/files/${fileId}/export?mimeType=application/vnd.openxmlformats-officedocument.wordprocessingml.document`;
+  }
+
+  try {
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return new File([blob], fileName, { type: blob.type });
+  } catch {
+    return null;
+  }
+}
+
 /* ── Component ──────────────────────────────────────────────────────── */
 export const DocScannerPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const { theme } = useFinance() as any;
@@ -180,6 +252,12 @@ export const DocScannerPage: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
   });
   const [wholeWord, setWholeWord] = useState(false);
   const [recursive, setRecursive] = useState(true);
+
+  // Source: local or drive
+  const [sourceTab, setSourceTab] = useState<"local" | "drive">("local");
+  const [driveUrl, setDriveUrl] = useState("");
+  const [driveLoading, setDriveLoading] = useState(false);
+  const [driveError, setDriveError] = useState<string | null>(null);
 
   // Files from selected folder
   const [allFiles, setAllFiles]   = useState<File[]>([]);
@@ -234,6 +312,56 @@ export const DocScannerPage: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
     setFolderName("");
     setResults([]);
     setSelectedId(null);
+    setDriveError(null);
+  };
+
+  /* Google Drive folder loader */
+  const loadDriveFolder = async () => {
+    const folderId = extractFolderId(driveUrl.trim());
+    if (!folderId) {
+      setDriveError("Invalid Google Drive folder URL or ID.");
+      return;
+    }
+    const token = getAccessToken();
+    if (!token) {
+      setDriveError("Not signed in with Google. Please sign in first.");
+      return;
+    }
+    setDriveLoading(true);
+    setDriveError(null);
+    clearFolder();
+
+    try {
+      const driveFiles = await listDriveFiles(folderId, token, recursive);
+      const supported = driveFiles.filter(f => {
+        const ext = f.name.split(".").pop()?.toLowerCase() ?? "";
+        return SUPPORTED_EXTS.has(ext);
+      });
+
+      if (supported.length === 0) {
+        setDriveError("No supported files found in this folder.");
+        setDriveLoading(false);
+        return;
+      }
+
+      const folderLabel = `Drive: ${driveUrl.match(/\/folders\/([^/?]+)/)?.[1]?.slice(0, 12) ?? folderId.slice(0, 12)}…`;
+      setFolderName(folderLabel);
+
+      // Download all supported files
+      const downloaded: File[] = [];
+      for (const df of supported) {
+        const file = await downloadDriveFile(df.id, df.name, df.mimeType, token);
+        if (file) downloaded.push(file);
+      }
+
+      setAllFiles(downloaded);
+      setResults([]);
+      setSelectedId(null);
+    } catch (err: any) {
+      setDriveError(err.message ?? "Failed to load Drive folder.");
+    } finally {
+      setDriveLoading(false);
+    }
   };
 
   /* Scan */
@@ -300,7 +428,7 @@ export const DocScannerPage: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
         <FileSearch className="w-4 h-4 text-sky-400 shrink-0" />
         <div>
           <div className={`text-sm font-bold ${isLight ? "text-slate-900" : "text-white"}`}>Doc Scanner</div>
-          <div className={`text-[11px] ${muted}`}>Search keywords across all documents in a folder — PDF · DOCX · XLSX · Images · TXT</div>
+          <div className={`text-[11px] ${muted}`}>Scan document contents for keywords — local folder or Google Drive — PDF · DOCX · XLSX · Images · TXT</div>
         </div>
       </div>
 
@@ -344,9 +472,34 @@ export const DocScannerPage: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
             </div>
           </div>
 
-          {/* Folder picker */}
+          {/* Folder source tabs */}
+          <div className={`border-b ${bdr}`}>
+            <div className="flex">
+              <button
+                onClick={() => { setSourceTab("local"); clearFolder(); }}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-[10px] font-bold uppercase tracking-wider transition-colors border-b-2 ${
+                  sourceTab === "local"
+                    ? "border-sky-500 text-sky-400"
+                    : `border-transparent ${muted} hover:text-slate-300`
+                }`}
+              >
+                <HardDrive className="w-3 h-3" />Local
+              </button>
+              <button
+                onClick={() => { setSourceTab("drive"); clearFolder(); }}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-[10px] font-bold uppercase tracking-wider transition-colors border-b-2 ${
+                  sourceTab === "drive"
+                    ? "border-sky-500 text-sky-400"
+                    : `border-transparent ${muted} hover:text-slate-300`
+                }`}
+              >
+                <Cloud className="w-3 h-3" />Google Drive
+              </button>
+            </div>
+          </div>
+
+          {/* Folder picker area */}
           <div className={`p-3 border-b ${bdr}`}>
-            <span className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${muted}`}>Folder to scan</span>
             <input
               ref={folderRef}
               type="file"
@@ -357,16 +510,20 @@ export const DocScannerPage: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
               onChange={onFolderChange}
             />
 
+            {/* Loaded folder display (shared between local + drive) */}
             {folderName ? (
               <div className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border text-xs ${panel}`}>
-                <FolderOpen className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                {sourceTab === "drive"
+                  ? <Cloud className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                  : <FolderOpen className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                }
                 <span className={`flex-1 truncate font-mono ${txt}`}>{folderName}</span>
                 <span className={`text-[10px] shrink-0 ${muted}`}>{allFiles.length} file{allFiles.length !== 1 ? "s" : ""}</span>
                 <button onClick={clearFolder} className={`shrink-0 p-0.5 rounded hover:text-red-400 ${muted}`}>
                   <X className="w-3 h-3" />
                 </button>
               </div>
-            ) : (
+            ) : sourceTab === "local" ? (
               <button
                 onClick={() => folderRef.current?.click()}
                 className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border-2 border-dashed text-xs font-medium transition-colors ${
@@ -376,6 +533,33 @@ export const DocScannerPage: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
                 <FolderOpen className="w-4 h-4" />
                 Choose folder…
               </button>
+            ) : (
+              /* Drive URL input */
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  value={driveUrl}
+                  onChange={e => { setDriveUrl(e.target.value); setDriveError(null); }}
+                  placeholder="Paste Google Drive folder URL or ID"
+                  className={`w-full border rounded-lg px-2.5 py-2 text-[11px] focus:outline-none ${inp}`}
+                  onKeyDown={e => e.key === "Enter" && loadDriveFolder()}
+                />
+                {driveError && (
+                  <p className="text-[10px] text-red-400 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3 shrink-0" />{driveError}
+                  </p>
+                )}
+                <button
+                  onClick={loadDriveFolder}
+                  disabled={driveLoading || !driveUrl.trim()}
+                  className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-sky-700 hover:bg-sky-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[11px] font-bold transition-colors"
+                >
+                  {driveLoading
+                    ? <><Loader2 className="w-3 h-3 animate-spin" />Loading files…</>
+                    : <><Cloud className="w-3 h-3" />Load Drive Folder</>
+                  }
+                </button>
+              </div>
             )}
           </div>
 
@@ -383,7 +567,7 @@ export const DocScannerPage: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
           <div className="p-3">
             <button
               onClick={runScan}
-              disabled={scanning || !allFiles.length || !keywords.length}
+              disabled={scanning || driveLoading || !allFiles.length || !keywords.length}
               className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-colors"
             >
               {scanning
@@ -505,7 +689,7 @@ export const DocScannerPage: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
                       {!keywords.length
                         ? "Enter keywords on the left to get started"
                         : !folderName
-                        ? "Choose a folder to scan"
+                        ? sourceTab === "drive" ? "Paste a Drive folder URL and click Load" : "Choose a local folder to scan"
                         : "Click Scan Documents to begin"}
                     </p>
                   </div>
