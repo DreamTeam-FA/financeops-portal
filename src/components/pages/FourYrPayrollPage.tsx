@@ -1675,17 +1675,36 @@ export function FourYrPayrollPage() {
       {ssMenuOpen   && <div className="fixed inset-0 z-[599]" onClick={() => setSsMenuOpen(false)} />}
 
       {/* ── KPI Strip (GAS: .kpi-row) ── */}
-      <div className={`shrink-0 grid grid-cols-2 md:flex md:flex-wrap gap-2 md:gap-3 px-4 md:px-5 py-2 md:py-3 border-b ${bdr}`} style={{ background:isLight?"#f4f7f5":"#0f0f0f" }}>
+      {/* Mobile: compact single-row stat bar */}
+      <div className={`md:hidden shrink-0 flex items-center gap-4 px-4 py-2 border-b ${bdr} overflow-x-auto`} style={{ background:isLight?"#f4f7f5":"#0f0f0f" }}>
+        <div className="flex items-baseline gap-1 shrink-0">
+          <span className="font-bold text-sm tabular-nums" style={{ color:isLight?"#1a6b36":"#52b788" }}>{fmtHrs(totals.hours)}</span>
+          <span className={`text-[10px] ${txt2}`}>hrs</span>
+        </div>
+        <div className="flex items-baseline gap-1 shrink-0">
+          <span className="font-bold text-sm tabular-nums" style={{ color:isLight?"#1a6b36":"#52b788" }}>{fmtAmt(totals.amount)}</span>
+        </div>
+        <div className="flex items-baseline gap-1 shrink-0">
+          <span className="font-bold text-sm tabular-nums" style={{ color:"#7c3aed" }}>{rows.length}</span>
+          <span className={`text-[10px] ${txt2}`}>entries</span>
+        </div>
+        <div className="flex items-baseline gap-1 shrink-0">
+          <span className="font-bold text-sm tabular-nums" style={{ color:"#d97706" }}>{kpiWorkers}</span>
+          <span className={`text-[10px] ${txt2}`}>workers</span>
+        </div>
+      </div>
+      {/* Desktop: 4-card grid */}
+      <div className={`hidden md:flex md:flex-wrap gap-3 px-5 py-3 border-b ${bdr}`} style={{ background:isLight?"#f4f7f5":"#0f0f0f" }}>
         {[
           { label:"Total Hours",  val:fmtHrs(totals.hours),  sub:"Logged hrs",    c:isLight?"#1a6b36":"#52b788" },
           { label:"Total Amount", val:fmtAmt(totals.amount), sub:"Gross payroll", c:isLight?"#1a6b36":"#52b788" },
           { label:"Entries",      val:String(rows.length),   sub:"Time records",  c:"#7c3aed" },
           { label:"Workers",      val:String(kpiWorkers),    sub:"Unique names",  c:"#d97706" },
         ].map(k => (
-          <div key={k.label} className={`rounded-lg border ${bdr} px-3 md:px-4 py-2 md:py-3`} style={{ background:isLight?"#fff":"#22262f", boxShadow:"0 2px 8px rgba(0,0,0,.08)", minWidth:0 }}>
-            <p className={`text-[9px] md:text-[10px] font-bold uppercase tracking-widest mb-0.5 md:mb-1 ${txt2}`}>{k.label}</p>
-            <p className="text-[18px] md:text-[22px] font-bold tabular-nums leading-tight" style={{ color:k.c }}>{k.val}</p>
-            <p className={`text-[9px] md:text-[10px] mt-0.5 ${txt2}`}>{k.sub}</p>
+          <div key={k.label} className={`rounded-lg border ${bdr} px-4 py-3`} style={{ background:isLight?"#fff":"#22262f", boxShadow:"0 2px 8px rgba(0,0,0,.08)", minWidth:0 }}>
+            <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${txt2}`}>{k.label}</p>
+            <p className="text-[22px] font-bold tabular-nums leading-tight" style={{ color:k.c }}>{k.val}</p>
+            <p className={`text-[10px] mt-0.5 ${txt2}`}>{k.sub}</p>
           </div>
         ))}
       </div>
@@ -1695,7 +1714,11 @@ export function FourYrPayrollPage() {
         <>
           {/* Inner tabs (GAS: .tabs / .tab) */}
           <div className={`shrink-0 flex items-center gap-0.5 px-2 md:px-5 pt-2 md:pt-3 border-b ${bdr} overflow-x-auto`}>
-            {([{id:"grouped",l:"🗂️ Weekly Summary"},{id:"pivot",l:"📅 Summary by Date"},{id:"detail",l:"📋 Detail Log"}] as {id:Tab;l:string}[]).map(t => (
+            {([
+              {id:"grouped", short:"🗂️ Summary",  full:"🗂️ Weekly Summary"},
+              {id:"pivot",   short:"📅 By Date",  full:"📅 Summary by Date"},
+              {id:"detail",  short:"📋 Detail",   full:"📋 Detail Log"},
+            ] as {id:Tab;short:string;full:string}[]).map(t => (
               <button key={t.id} onClick={() => setActiveTab(t.id)}
                 className={`px-3 md:px-4 py-1.5 md:py-2 text-xs font-semibold rounded-t transition-all -mb-px border border-b-0 whitespace-nowrap shrink-0`}
                 style={{
@@ -1703,7 +1726,8 @@ export function FourYrPayrollPage() {
                   color: activeTab===t.id ? (isLight?"#1a6b36":"#52b788") : isLight?"#6b8f71":"#8b96ab",
                   borderColor: activeTab===t.id ? (isLight?"#cde0d3":"#2e3340") : "transparent",
                 }}>
-                {t.l}
+                <span className="md:hidden">{t.short}</span>
+                <span className="hidden md:inline">{t.full}</span>
               </button>
             ))}
           </div>
