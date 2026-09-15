@@ -764,13 +764,38 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       const paidViaTI  = String(row[12] || "").trim() || undefined;
       const remarksTI  = String(row[14] || "").trim() || undefined;
 
+      // Reconstruct partial payment data from paidVia history text (col M, same format as status1)
+      let parsedPartialPaidTI: number | undefined;
+      let parsedPartialPaymentsTI: { amount: number; date: string }[] | undefined;
+      let parsedOriginalAmountTI: number | undefined;
+      if (paidViaTI && /\$[\d,]+/.test(paidViaTI)) {
+        const lines = paidViaTI.split(/[\n\r]+/).filter(l => l.trim());
+        const payments: { amount: number; date: string }[] = [];
+        for (const line of lines) {
+          const amtMatch = line.match(/\$\s*([\d,]+(?:\.\d+)?)/);
+          const dtMatch  = line.match(/(\d{4})[.\-/](\d{2})[.\-/](\d{2})/);
+          if (amtMatch) {
+            const amt = parseFloat(amtMatch[1].replace(/,/g, ""));
+            if (!isNaN(amt) && amt > 0) {
+              const date = dtMatch ? `${dtMatch[1]}-${dtMatch[2]}-${dtMatch[3]}` : "";
+              payments.push({ amount: amt, date });
+            }
+          }
+        }
+        if (payments.length > 0) {
+          parsedPartialPaidTI = payments.reduce((s, p) => s + p.amount, 0);
+          parsedPartialPaymentsTI = payments;
+          parsedOriginalAmountTI = amount + parsedPartialPaidTI;
+        }
+      }
+
       const driveUrlTI = String(row[26] || "").trim();
       ap.push({
         id: `ap-ti-${tabName.replace(/\s+/g, "")}-${i + 1}`,
         vendor,
         entity,
         company: company || currentCompany,
-        amount,
+        amount: parsedOriginalAmountTI ?? amount,
         dueDate,
         invoiceDate: parseDateVal(row[7]) || undefined,
         paidDate: status === "paid" ? parseDateVal(row[10]) || undefined : undefined, // col K = paid date
@@ -782,6 +807,9 @@ export async function fetchFullLiveDataset(accessToken?: string) {
         invoiceNo,
         paidVia: paidViaTI,
         remarks: remarksTI,
+        partialPaid: parsedPartialPaidTI,
+        partialPayments: parsedPartialPaymentsTI,
+        originalAmount: parsedOriginalAmountTI,
         driveViewUrl: sanitizeDriveUrl(driveUrlTI), // col AA (index 26) — strips KNOWN_BAD_DRIVE_URLS
         row: i - 5 // dataStart=7: row 1 = sheet row 7, so bill.row = i+1-(dataStart-1) = i-5
       });
