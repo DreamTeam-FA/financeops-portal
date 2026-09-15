@@ -648,9 +648,9 @@ export function FourYrPayrollPage() {
             <span className={`text-[10px] ml-auto italic ${txt2}`}>* click row to expand</span>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <button onClick={expandAll}   className={`text-[11px] px-2.5 py-1 rounded border font-medium transition-colors ${btnCls}`}>⊞ Expand All</button>
-            <button onClick={collapseAll} className={`text-[11px] px-2.5 py-1 rounded border font-medium transition-colors ${btnCls}`}>⊟ Collapse All</button>
-            <span className={`mx-1 opacity-30`}>|</span>
+            <button onClick={expandAll}   className={`text-[11px] px-2.5 py-1 rounded border font-medium transition-colors whitespace-nowrap ${btnCls}`}>⊞ Expand All</button>
+            <button onClick={collapseAll} className={`text-[11px] px-2.5 py-1 rounded border font-medium transition-colors whitespace-nowrap ${btnCls}`}>⊟ Collapse All</button>
+            <span className={`hidden sm:inline mx-1 opacity-30`}>|</span>
             {/* GAS-style legend squares + clickable type filters */}
             {[
               {k:"payroll",    l:"Payroll",    bg:isLight?"#d8f3dc":"#16331f", bdr:isLight?"#8cb89a":"#2e6a3f", fg:isLight?"#1a6b36":"#7fd99a"},
@@ -889,11 +889,11 @@ export function FourYrPayrollPage() {
 
   const renderDetail = () => (
     <div className="flex flex-col gap-3 flex-1 min-h-0 overflow-hidden">
-      <div className={`shrink-0 pb-2 border-b ${bdr} flex items-center gap-4`}>
+      <div className={`shrink-0 pb-2 border-b ${bdr} flex flex-wrap items-center gap-2`}>
         <span className={`font-bold text-sm ${txt}`}>Detailed Time Log</span>
         <span className={`text-xs ${txt2}`}>{rows.length} records</span>
         {/* Type filter toggles (GAS style) */}
-        <div className="ml-2 flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {[
             {k:"payroll",    l:"Payroll",    bg:isLight?"#d8f3dc":"#16331f", bdr:isLight?"#8cb89a":"#2e6a3f", fg:isLight?"#1a6b36":"#7fd99a"},
             {k:"deduction",  l:"Deduction",  bg:isLight?"#fff5f5":"#3a1f22", bdr:isLight?"#e8a0a0":"#6a2020", fg:isLight?"#c62828":"#ff9b9b"},

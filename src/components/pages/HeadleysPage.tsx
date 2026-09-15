@@ -490,7 +490,7 @@ export const HeadleysPage: React.FC = () => {
     <div className={`flex-1 flex flex-col h-full overflow-hidden ${isLight ? "bg-slate-100 text-slate-800" : "bg-[#070b12] text-[#e8e8e8]"}`}>
       {/* ── Header ── */}
       <div className="bg-gradient-to-r from-[#070b12] via-purple-950/60 to-[#070b12] border-b border-white/8 px-6 py-4 flex items-center gap-4 shrink-0">
-        <button onClick={() => setCurrentPage?.("workspace-tools")} className="flex items-center gap-1.5 text-sm text-[#7a8394] hover:text-white transition-colors">
+        <button onClick={() => setCurrentPage?.("workspace-tools")} className="flex items-center gap-1.5 text-sm text-[#7a8394] hover:text-white transition-colors whitespace-nowrap">
           <ChevronLeft className="w-4 h-4" />Back
         </button>
         <div className="h-5 w-px bg-white/10" />

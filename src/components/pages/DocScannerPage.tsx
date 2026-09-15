@@ -305,10 +305,10 @@ export const DocScannerPage: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
       </div>
 
       {/* ── Body ── */}
-      <div className="flex flex-1 min-h-0 overflow-hidden">
+      <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden">
 
         {/* ── Left panel: setup + results list ── */}
-        <div className={`flex flex-col w-72 shrink-0 border-r overflow-y-auto ${bdr} ${isLight ? "bg-slate-50" : "bg-[#080c14]"}`}>
+        <div className={`flex flex-col w-full md:w-72 md:shrink-0 border-b md:border-b-0 md:border-r overflow-y-auto ${bdr} ${isLight ? "bg-slate-50" : "bg-[#080c14]"}`}>
 
           {/* Keywords */}
           <div className={`p-3 border-b ${bdr}`}>
@@ -395,7 +395,7 @@ export const DocScannerPage: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
 
           {/* Results file list */}
           {hitsFirst.length > 0 && (
-            <div className={`flex-1 border-t overflow-y-auto ${bdr}`}>
+            <div className={`md:flex-1 border-t overflow-y-auto max-h-64 md:max-h-none ${bdr}`}>
               <div className={`px-3 py-2 text-[10px] font-bold uppercase tracking-wider ${muted}`}>
                 Results — {hitsFirst.filter(r => r.matches.length > 0).length} of {hitsFirst.filter(r => r.status === "done").length} files matched
               </div>
@@ -431,15 +431,23 @@ export const DocScannerPage: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
           )}
         </div>
 
-        {/* ── Right panel: detail view ── */}
-        <div className={`flex-1 flex flex-col overflow-hidden ${bg}`}>
+        {/* ── Right panel: detail view (hidden on mobile when empty) ── */}
+        <div className={`flex-1 flex flex-col overflow-hidden ${bg} ${!selectedResult && !hasResults ? "hidden md:flex" : ""}`}>
           {selectedResult ? (
             <>
               {/* Detail header */}
               <div className={`px-5 py-3 border-b flex items-center justify-between ${bdr}`}>
-                <div>
-                  <div className={`text-xs font-bold ${txt}`}>{selectedResult.name}</div>
-                  <div className={`text-[11px] ${muted}`}>{selectedResult.relativePath}</div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSelectedId(null)}
+                    className={`md:hidden flex items-center gap-1 text-xs mr-1 ${muted} hover:text-sky-400`}
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </button>
+                  <div>
+                    <div className={`text-xs font-bold ${txt}`}>{selectedResult.name}</div>
+                    <div className={`text-[11px] ${muted}`}>{selectedResult.relativePath}</div>
+                  </div>
                 </div>
                 {selectedResult.matches.length > 0 && (
                   <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${isLight ? "bg-emerald-100 text-emerald-700" : "bg-emerald-950/40 text-emerald-400 border border-emerald-800/30"}`}>

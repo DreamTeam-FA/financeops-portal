@@ -592,7 +592,7 @@ export const ReceiptRenamerPage: React.FC<{ onBack?: () => void }> = ({ onBack }
 
       {/* ── Header ── */}
       <div className="bg-gradient-to-r from-[#070b12] via-emerald-950/60 to-[#070b12] border-b border-white/8 px-6 py-4 flex items-center gap-4 shrink-0">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-[#7a8394] hover:text-white transition-colors">
+        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-[#7a8394] hover:text-white transition-colors whitespace-nowrap">
           <ChevronLeft className="w-4 h-4" />Back
         </button>
         <div className="h-5 w-px bg-white/10" />

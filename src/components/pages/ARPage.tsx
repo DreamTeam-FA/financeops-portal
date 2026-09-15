@@ -457,6 +457,11 @@ export const ARPage: React.FC = () => {
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap ${getEntityBadge(a.entity)}`}>
                           {a.entity}
                         </span>
+                        {(a as any).subentity && (
+                          <div className={`text-[9px] mt-0.5 font-semibold whitespace-nowrap ${isLight ? "text-slate-500" : "text-slate-500"}`}>
+                            {(a as any).subentity}
+                          </div>
+                        )}
                       </td>
                       <td className={`p-3 font-semibold ${isLight ? "text-slate-900" : "text-white"}`}>{a.customer}</td>
                       <td className={`p-3 max-w-[180px] truncate ${isLight ? "text-slate-600" : "text-[#888]"}`}>{a.description}</td>

@@ -1427,7 +1427,7 @@ export const CCExpensePage: React.FC = () => {
                         : rowHoverCls
                       }`}
                     >
-                      <td className={`px-3 py-1.5 font-medium whitespace-nowrap sticky left-0 ${
+                      <td className={`px-3 py-1.5 font-medium whitespace-nowrap sticky left-0 z-[1] ${
                         isHighlighted
                           ? isLight ? "bg-pink-50 text-pink-900" : "bg-pink-950/20 text-pink-200"
                           : isLight ? "bg-white text-slate-800" : "bg-[#0a0c10] text-slate-200"

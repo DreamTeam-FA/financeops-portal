@@ -588,6 +588,7 @@ export const CalendarPage: React.FC = () => {
   };
 
   // Source Filters State
+  const [mobileLegendOpen, setMobileLegendOpen] = useState(false);
   const [showApBillsFilter, setShowApBillsFilter] = useState(true);
   const [showLoansFilter, setShowLoansFilter] = useState(true);
   const [showArFilter, setShowArFilter] = useState(true);
@@ -1006,8 +1007,18 @@ export const CalendarPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Legends Bar: Urgency, Categories, Assignees */}
-          <div className={`p-3 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} grid grid-cols-1 md:grid-cols-3 gap-3 text-xs`}>
+          {/* Legends Bar: Urgency, Categories, Assignees — hidden on mobile, toggle shown */}
+          <div className="sm:hidden flex items-center justify-between">
+            <button
+              onClick={() => setMobileLegendOpen(v => !v)}
+              className={`flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-lg border transition-colors ${isLight ? "border-slate-200 text-slate-600 bg-white hover:bg-slate-50" : "border-[#1a2235] text-slate-400 bg-[#0d111a] hover:bg-white/[0.02]"}`}
+            >
+              <Filter className="w-3 h-3" />
+              {mobileLegendOpen ? "Hide Legend" : "Legend & Filters"}
+              <ChevronDown className={`w-3 h-3 transition-transform ${mobileLegendOpen ? "rotate-180" : ""}`} />
+            </button>
+          </div>
+          <div className={`${mobileLegendOpen ? "block" : "hidden"} sm:block rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} p-3 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs`}>
             {/* Urgency */}
             <div className="space-y-1">
               <span className={`text-[10px] font-extrabold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-[#888]"}`}>Urgency Level</span>
@@ -1053,8 +1064,8 @@ export const CalendarPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Calendar Source Filters */}
-          <div className={`p-3 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} flex flex-wrap items-center justify-between gap-2 text-xs`}>
+          {/* Calendar Source Filters — hidden on mobile unless legend open */}
+          <div className={`${mobileLegendOpen ? "block" : "hidden"} sm:block p-3 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} flex flex-wrap items-center justify-between gap-2 text-xs`}>
             <div className="flex items-center gap-2">
               <Filter className="w-3.5 h-3.5 text-[#0d9488]" />
               <span className={`text-[10px] font-extrabold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-[#888]"}`}>Visible Sources:</span>
