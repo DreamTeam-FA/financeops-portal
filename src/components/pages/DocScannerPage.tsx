@@ -1,13 +1,22 @@
 /**
- * DocScannerPage — keyword search across uploaded documents.
- * Mirrors Fin_Doc_scanner.py: supports PDF, DOCX, XLSX, images, TXT.
- * All processing runs in-browser; no server needed.
+ * DocScannerPage — mirrors Fin_Doc_scanner.py exactly.
+ *
+ * Flow:
+ *   1. Enter/load saved keywords (whole-word toggle)
+ *   2. Pick a local folder (browser folder picker) — includes subfolders option
+ *   3. Scans every supported file's CONTENTS for the keywords
+ *   4. Split results: file list left (hits first), detail panel right
+ *   5. Export as text report
+ *
+ * Supported: PDF · DOCX · XLSX · TXT/CSV/MD/LOG · Images (OCR)
+ * All processing is 100% in-browser; keywords saved to localStorage.
  */
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import {
-  Upload, Search, FileText, Loader2, CheckCircle2,
-  AlertCircle, X, Download, FileSearch, ChevronDown, ChevronRight, ChevronLeft
+  Search, FileText, Loader2, CheckCircle2, AlertCircle,
+  ChevronLeft, Download, FileSearch, FolderOpen, X,
+  ToggleLeft, ToggleRight, ChevronRight, ChevronDown
 } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist";
 import * as XLSX from "xlsx";
@@ -19,21 +28,29 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url
 ).href;
 
+/* ── Constants ──────────────────────────────────────────────────────── */
+const LS_KEYWORDS_KEY = "docscanner_keywords";
+const CONTEXT_CHARS   = 80;
+const MAX_MATCHES_PER_FILE = 20;
+const SUPPORTED_EXTS  = new Set([
+  "pdf", "docx", "xlsx", "xls",
+  "txt", "csv", "md", "log",
+  "png", "jpg", "jpeg", "tif", "tiff", "bmp",
+]);
+
 /* ── Types ─────────────────────────────────────────────────────────── */
-interface KeywordHit {
+interface MatchHit {
   keyword: string;
-  count: number;
-  snippets: string[];
+  context: string;
 }
 
-interface ScanResult {
+interface FileResult {
   id: string;
-  file: File;
+  name: string;
+  relativePath: string;
   status: "pending" | "scanning" | "done" | "error";
-  hits: KeywordHit[];
-  totalMatches: number;
+  matches: MatchHit[];
   error?: string;
-  expanded: boolean;
 }
 
 /* ── Text extraction ────────────────────────────────────────────────── */
@@ -49,7 +66,15 @@ async function extractText(file: File): Promise<string> {
       const content = await page.getTextContent();
       pages.push(content.items.map((item: any) => item.str).join(" "));
     }
-    return pages.join("\n");
+    const text = pages.join("\n");
+    // If PDF had no text layer, fall back to OCR
+    if (text.trim().length < 50) {
+      try {
+        const { data } = await Tesseract.recognize(file, "eng", { logger: () => {} });
+        return data.text;
+      } catch { return text; }
+    }
+    return text;
   }
 
   if (ext === "docx") {
@@ -58,76 +83,87 @@ async function extractText(file: File): Promise<string> {
     return result.value;
   }
 
-  if (["xlsx", "xls", "csv"].includes(ext)) {
+  if (["xlsx", "xls"].includes(ext)) {
     const buf = await file.arrayBuffer();
     const wb = XLSX.read(buf);
-    return wb.SheetNames.map((name) =>
-      XLSX.utils.sheet_to_csv(wb.Sheets[name])
+    return wb.SheetNames.map((n) =>
+      XLSX.utils.sheet_to_csv(wb.Sheets[n])
     ).join("\n");
   }
 
-  if (["jpg", "jpeg", "png", "bmp", "tiff", "tif", "gif", "webp"].includes(ext)) {
+  if (["png", "jpg", "jpeg", "tif", "tiff", "bmp"].includes(ext)) {
     const { data } = await Tesseract.recognize(file, "eng", { logger: () => {} });
     return data.text;
   }
 
-  if (["txt", "md", "log", "csv"].includes(ext)) {
-    return await file.text();
-  }
-
-  // fallback: try as plain text
+  // txt / csv / md / log and fallback
   try { return await file.text(); } catch { return ""; }
 }
 
-/* ── Keyword search ─────────────────────────────────────────────────── */
-function searchKeywords(text: string, keywords: string[]): KeywordHit[] {
+/* ── Search ─────────────────────────────────────────────────────────── */
+function searchText(text: string, keywords: string[], wholeWord: boolean): MatchHit[] {
+  const hits: MatchHit[] = [];
   const lower = text.toLowerCase();
-  return keywords
-    .map((kw) => kw.trim())
-    .filter(Boolean)
-    .map((kw) => {
-      const lkw = kw.toLowerCase();
-      let idx = 0;
-      let count = 0;
-      const snippets: string[] = [];
-      while ((idx = lower.indexOf(lkw, idx)) !== -1) {
-        count++;
-        if (snippets.length < 3) {
-          const s = Math.max(0, idx - 60);
-          const e = Math.min(text.length, idx + kw.length + 60);
-          const raw = text.slice(s, e).replace(/\s+/g, " ").trim();
-          // highlight the keyword in the snippet
-          const highlighted = raw.replace(
-            new RegExp(kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"),
-            (m) => `«${m}»`
-          );
-          snippets.push(highlighted);
-        }
-        idx += lkw.length;
-      }
-      return { keyword: kw, count, snippets };
-    })
-    .filter((h) => h.count > 0);
+
+  for (const kw of keywords) {
+    if (!kw.trim()) continue;
+    const pattern = wholeWord
+      ? new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi")
+      : new RegExp(kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+
+    let m: RegExpExecArray | null;
+    while ((m = pattern.exec(text)) !== null) {
+      if (hits.length >= MAX_MATCHES_PER_FILE) break;
+      const s = Math.max(0, m.index - CONTEXT_CHARS);
+      const e = Math.min(text.length, m.index + kw.length + CONTEXT_CHARS);
+      let snippet = text.slice(s, e).replace(/\s+/g, " ").trim();
+      if (s > 0) snippet = "…" + snippet;
+      if (e < text.length) snippet = snippet + "…";
+      hits.push({ keyword: kw, context: snippet });
+    }
+    if (hits.length >= MAX_MATCHES_PER_FILE) break;
+  }
+  return hits;
 }
 
-/* ── CSV export ─────────────────────────────────────────────────────── */
-function exportCSV(results: ScanResult[], keywords: string[]) {
-  const rows: string[][] = [["File", "Status", ...keywords, "Total Matches"]];
-  results.forEach((r) => {
-    const hitMap = Object.fromEntries(r.hits.map((h) => [h.keyword.toLowerCase(), h.count]));
-    rows.push([
-      r.file.name,
-      r.status === "error" ? `Error: ${r.error}` : r.status,
-      ...keywords.map((kw) => String(hitMap[kw.toLowerCase()] ?? 0)),
-      String(r.totalMatches),
-    ]);
-  });
-  const csv = rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
-  const blob = new Blob([csv], { type: "text/csv" });
+/* ── Export ─────────────────────────────────────────────────────────── */
+function exportReport(results: FileResult[], keywords: string[], folderName: string) {
+  const lines: string[] = [
+    "KEYWORD SCAN REPORT",
+    `Generated : ${new Date().toLocaleString()}`,
+    `Folder    : ${folderName}`,
+    `Keywords  : ${keywords.join(", ")}`,
+    "=".repeat(80),
+    "",
+  ];
+
+  const sorted = [...results].sort((a, b) => b.matches.length - a.matches.length);
+  for (const r of sorted) {
+    lines.push(`FILE: ${r.relativePath}`);
+    lines.push("=".repeat(80));
+    if (r.error) {
+      lines.push(`ERROR: ${r.error}`);
+    } else if (!r.matches.length) {
+      lines.push("No matches found.");
+    } else {
+      const byKw: Record<string, MatchHit[]> = {};
+      for (const h of r.matches) {
+        (byKw[h.keyword] = byKw[h.keyword] || []).push(h);
+      }
+      for (const [kw, hits] of Object.entries(byKw)) {
+        lines.push(`\nKeyword: "${kw}"  (${hits.length} match(es))`);
+        lines.push("-".repeat(60));
+        for (const h of hits) lines.push(`  ${h.context}`);
+      }
+    }
+    lines.push("");
+  }
+
+  const blob = new Blob([lines.join("\n")], { type: "text/plain" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `doc-scan-results-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `keyword_scan_${new Date().toISOString().slice(0, 10)}.txt`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -136,70 +172,93 @@ function exportCSV(results: ScanResult[], keywords: string[]) {
 export const DocScannerPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const { theme } = useFinance() as any;
   const isLight = theme === "light";
-  const inputRef = useRef<HTMLInputElement>(null);
+  const folderRef = useRef<HTMLInputElement>(null);
 
-  const [files, setFiles] = useState<File[]>([]);
-  const [keywordsText, setKeywordsText] = useState("");
-  const [results, setResults] = useState<ScanResult[]>([]);
-  const [scanning, setScanning] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
+  // Keywords (persisted)
+  const [keywordsText, setKeywordsText] = useState<string>(() => {
+    try { return localStorage.getItem(LS_KEYWORDS_KEY) ?? ""; } catch { return ""; }
+  });
+  const [wholeWord, setWholeWord] = useState(false);
+  const [recursive, setRecursive] = useState(true);
+
+  // Files from selected folder
+  const [allFiles, setAllFiles]   = useState<File[]>([]);
+  const [folderName, setFolderName] = useState("");
+
+  // Scan state
+  const [results, setResults]     = useState<FileResult[]>([]);
+  const [scanning, setScanning]   = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Persist keywords
+  useEffect(() => {
+    try { localStorage.setItem(LS_KEYWORDS_KEY, keywordsText); } catch {}
+  }, [keywordsText]);
 
   const keywords = keywordsText
     .split(/[\n,]+/)
     .map((k) => k.trim())
     .filter(Boolean);
 
-  const addFiles = useCallback((incoming: FileList | File[]) => {
-    setFiles((prev) => {
-      const existing = new Set(prev.map((f) => f.name + f.size));
-      const novel = Array.from(incoming).filter(
-        (f) => !existing.has(f.name + f.size)
-      );
-      return [...prev, ...novel];
+  /* Folder picker */
+  const onFolderChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || !files.length) return;
+
+    // Determine folder name from first file's webkitRelativePath
+    const firstPath = (files[0] as any).webkitRelativePath as string;
+    const name = firstPath ? firstPath.split("/")[0] : "Selected folder";
+    setFolderName(name);
+
+    // Filter to supported extensions; optionally filter out subfolders
+    const filtered = Array.from(files).filter((f) => {
+      const ext = f.name.split(".").pop()?.toLowerCase() ?? "";
+      if (!SUPPORTED_EXTS.has(ext)) return false;
+      if (!recursive) {
+        const rel = (f as any).webkitRelativePath as string;
+        // top-level only: rel = "folder/file.pdf" (one slash)
+        return rel.split("/").length === 2;
+      }
+      return true;
     });
+
+    setAllFiles(filtered);
     setResults([]);
-  }, []);
+    setSelectedId(null);
+    // Reset input so same folder can be re-picked
+    if (folderRef.current) folderRef.current.value = "";
+  }, [recursive]);
 
-  const removeFile = (index: number) => {
-    setFiles((prev) => prev.filter((_, i) => i !== index));
+  const clearFolder = () => {
+    setAllFiles([]);
+    setFolderName("");
     setResults([]);
+    setSelectedId(null);
   };
 
-  const onDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
-  };
-
-  const toggleExpand = (id: string) => {
-    setResults((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, expanded: !r.expanded } : r))
-    );
-  };
-
+  /* Scan */
   const runScan = async () => {
-    if (!files.length || !keywords.length) return;
+    if (!allFiles.length || !keywords.length) return;
     setScanning(true);
+    setSelectedId(null);
 
-    const initial: ScanResult[] = files.map((f, i) => ({
-      id: `${i}-${f.name}`,
-      file: f,
+    const initial: FileResult[] = allFiles.map((f, i) => ({
+      id: `${i}`,
+      name: f.name,
+      relativePath: (f as any).webkitRelativePath || f.name,
       status: "pending",
-      hits: [],
-      totalMatches: 0,
-      expanded: false,
+      matches: [],
     }));
     setResults(initial);
 
     const updated = [...initial];
-    for (let i = 0; i < files.length; i++) {
+    for (let i = 0; i < allFiles.length; i++) {
       updated[i] = { ...updated[i], status: "scanning" };
       setResults([...updated]);
       try {
-        const text = await extractText(files[i]);
-        const hits = searchKeywords(text, keywords);
-        const totalMatches = hits.reduce((s, h) => s + h.count, 0);
-        updated[i] = { ...updated[i], status: "done", hits, totalMatches };
+        const text = await extractText(allFiles[i]);
+        const matches = searchText(text, keywords, wholeWord);
+        updated[i] = { ...updated[i], status: "done", matches };
       } catch (err: any) {
         updated[i] = { ...updated[i], status: "error", error: err.message ?? "Unknown error" };
       }
@@ -208,208 +267,278 @@ export const DocScannerPage: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
     setScanning(false);
   };
 
-  const hasResults = results.some((r) => r.status === "done");
-  const filesWithHits = results.filter((r) => r.totalMatches > 0);
-  const filesScanned = results.filter((r) => r.status === "done" || r.status === "error").length;
+  /* Derived */
+  const hasResults   = results.some((r) => r.status === "done" || r.status === "error");
+  const doneCount    = results.filter((r) => r.status === "done" || r.status === "error").length;
+  const hitsFirst    = [...results].sort((a, b) => b.matches.length - a.matches.length);
+  const selectedResult = results.find((r) => r.id === selectedId) ?? null;
 
   /* ── Styles ── */
   const bg    = isLight ? "bg-white"           : "bg-[#0a0f1c]";
   const bdr   = isLight ? "border-slate-200"   : "border-[#1a2235]";
   const txt   = isLight ? "text-slate-800"     : "text-[#c8d4e8]";
   const muted = isLight ? "text-slate-500"     : "text-[#5a7090]";
-  const card  = isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]";
+  const panel = isLight ? "bg-white border-slate-200"     : "bg-[#0d111a] border-[#1a2235]";
+  const rowHover = isLight ? "hover:bg-slate-50" : "hover:bg-[#0a0e1a]";
   const inp   = isLight
     ? "bg-slate-50 border-slate-300 text-slate-800 focus:border-blue-500 placeholder-slate-400"
     : "bg-[#0a0e1a] border-[#1e2c42] text-white focus:border-[#1a73e8] placeholder-[#3d5478]";
 
   return (
     <div className={`flex flex-col h-full overflow-hidden ${bg} ${txt}`}>
-      {/* Header */}
+
+      {/* ── Header ── */}
       <div className={`border-b px-5 py-3.5 flex items-center gap-3 shrink-0 ${isLight ? "bg-white border-slate-200" : "bg-[#070b12] border-[#1a2235]"}`}>
         {onBack && (
-          <button onClick={onBack} className={`flex items-center gap-1 text-xs transition-colors ${isLight ? "text-slate-500 hover:text-slate-800" : "text-[#5a7090] hover:text-white"}`}>
-            <ChevronLeft className="w-4 h-4" />Back
-          </button>
+          <>
+            <button onClick={onBack} className={`flex items-center gap-1 text-xs transition-colors ${isLight ? "text-slate-500 hover:text-slate-800" : "text-[#5a7090] hover:text-white"}`}>
+              <ChevronLeft className="w-4 h-4" />Back
+            </button>
+            <div className={`h-4 w-px ${bdr}`} />
+          </>
         )}
-        {onBack && <div className={`h-4 w-px ${isLight ? "bg-slate-200" : "bg-[#1a2235]"}`} />}
         <FileSearch className="w-4 h-4 text-sky-400 shrink-0" />
         <div>
           <div className={`text-sm font-bold ${isLight ? "text-slate-900" : "text-white"}`}>Doc Scanner</div>
-          <div className={`text-[11px] ${isLight ? "text-slate-500" : "text-[#5a7090]"}`}>Search for keywords across PDF, DOCX, XLSX, images & text files — all in-browser</div>
+          <div className={`text-[11px] ${muted}`}>Search keywords across all documents in a folder — PDF · DOCX · XLSX · Images · TXT</div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      {/* ── Body ── */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
 
-        {/* Top panel: file upload + keywords side by side on desktop */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-          {/* File upload */}
-          <div className={`border rounded-xl p-4 space-y-3 ${card}`}>
-            <h3 className={`text-xs font-bold uppercase tracking-wider ${muted}`}>Files to scan</h3>
-            <div
-              onDrop={onDrop}
-              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-              onDragLeave={() => setDragOver(false)}
-              onClick={() => inputRef.current?.click()}
-              className={`border-2 border-dashed rounded-lg p-5 text-center cursor-pointer transition-colors ${
-                dragOver
-                  ? isLight ? "border-sky-400 bg-sky-50" : "border-sky-500 bg-sky-950/20"
-                  : isLight ? "border-slate-200 hover:border-sky-400 hover:bg-sky-50/50" : "border-[#1a2235] hover:border-sky-600/50 hover:bg-sky-950/10"
-              }`}
-            >
-              <input
-                ref={inputRef}
-                type="file"
-                multiple
-                className="hidden"
-                accept=".pdf,.docx,.doc,.xlsx,.xls,.csv,.txt,.md,.jpg,.jpeg,.png,.bmp,.tiff,.tif,.gif,.webp"
-                onChange={(e) => e.target.files && addFiles(e.target.files)}
-              />
-              <Upload className={`w-6 h-6 mx-auto mb-1.5 ${dragOver ? "text-sky-500" : muted}`} />
-              <p className={`text-xs font-medium ${txt}`}>Drop files or click to browse</p>
-              <p className={`text-[10px] mt-0.5 ${muted}`}>PDF · DOCX · XLSX · Images · TXT</p>
-            </div>
-
-            {files.length > 0 && (
-              <div className="space-y-1 max-h-48 overflow-y-auto">
-                {files.map((f, i) => (
-                  <div key={i} className={`flex items-center gap-2 px-2 py-1 rounded-lg text-xs ${isLight ? "bg-slate-50" : "bg-[#0a0e1a]"}`}>
-                    <FileText className={`w-3.5 h-3.5 shrink-0 ${muted}`} />
-                    <span className={`flex-1 truncate font-mono text-[11px] ${txt}`}>{f.name}</span>
-                    <span className={`shrink-0 text-[10px] ${muted}`}>{(f.size / 1024).toFixed(0)}KB</span>
-                    <button onClick={() => removeFile(i)} className={`shrink-0 p-0.5 rounded hover:text-red-400 ${muted}`}>
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+        {/* ── Left panel: setup + results list ── */}
+        <div className={`flex flex-col w-72 shrink-0 border-r overflow-y-auto ${bdr} ${isLight ? "bg-slate-50" : "bg-[#080c14]"}`}>
 
           {/* Keywords */}
-          <div className={`border rounded-xl p-4 space-y-3 ${card}`}>
-            <h3 className={`text-xs font-bold uppercase tracking-wider ${muted}`}>Keywords to search</h3>
+          <div className={`p-3 border-b ${bdr}`}>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${muted}`}>Keywords</span>
+              <span className={`text-[10px] ${muted}`}>saved automatically</span>
+            </div>
             <textarea
               value={keywordsText}
               onChange={(e) => setKeywordsText(e.target.value)}
-              placeholder={"Enter keywords, one per line or comma-separated:\n\nrefund\noverdue\nAmazon\nstatement date"}
-              rows={7}
-              className={`w-full border rounded-lg px-3 py-2 text-xs font-mono resize-none focus:outline-none ${inp}`}
+              placeholder={"refund\noverdue\nAmazon\nstatement date"}
+              rows={5}
+              className={`w-full border rounded-lg px-2.5 py-2 text-[11px] font-mono resize-none focus:outline-none ${inp}`}
             />
-            {keywords.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {keywords.map((kw) => (
-                  <span key={kw} className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${isLight ? "bg-sky-100 text-sky-700" : "bg-sky-950/40 text-sky-300 border border-sky-800/30"}`}>
-                    {kw}
-                  </span>
-                ))}
+            {/* Options */}
+            <div className="flex items-center gap-3 mt-2">
+              <button
+                onClick={() => setWholeWord((v) => !v)}
+                className={`flex items-center gap-1.5 text-[10px] font-medium transition-colors ${wholeWord ? "text-sky-400" : muted}`}
+                title="Match whole words only (e.g. 'tax' won't match 'taxation')"
+              >
+                {wholeWord ? <ToggleRight className="w-3.5 h-3.5" /> : <ToggleLeft className="w-3.5 h-3.5" />}
+                Whole word
+              </button>
+              <button
+                onClick={() => setRecursive((v) => !v)}
+                className={`flex items-center gap-1.5 text-[10px] font-medium transition-colors ${recursive ? "text-sky-400" : muted}`}
+                title="Include files in subfolders"
+              >
+                {recursive ? <ToggleRight className="w-3.5 h-3.5" /> : <ToggleLeft className="w-3.5 h-3.5" />}
+                Subfolders
+              </button>
+            </div>
+          </div>
+
+          {/* Folder picker */}
+          <div className={`p-3 border-b ${bdr}`}>
+            <span className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${muted}`}>Folder to scan</span>
+            <input
+              ref={folderRef}
+              type="file"
+              className="hidden"
+              // @ts-ignore — webkitdirectory is non-standard but widely supported
+              webkitdirectory=""
+              multiple
+              onChange={onFolderChange}
+            />
+
+            {folderName ? (
+              <div className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border text-xs ${panel}`}>
+                <FolderOpen className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className={`flex-1 truncate font-mono ${txt}`}>{folderName}</span>
+                <span className={`text-[10px] shrink-0 ${muted}`}>{allFiles.length} file{allFiles.length !== 1 ? "s" : ""}</span>
+                <button onClick={clearFolder} className={`shrink-0 p-0.5 rounded hover:text-red-400 ${muted}`}>
+                  <X className="w-3 h-3" />
+                </button>
               </div>
+            ) : (
+              <button
+                onClick={() => folderRef.current?.click()}
+                className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border-2 border-dashed text-xs font-medium transition-colors ${
+                  isLight ? "border-slate-300 text-slate-500 hover:border-sky-400 hover:text-sky-600 hover:bg-sky-50" : "border-[#1a2235] text-[#4a6080] hover:border-sky-600/50 hover:text-sky-400"
+                }`}
+              >
+                <FolderOpen className="w-4 h-4" />
+                Choose folder…
+              </button>
             )}
           </div>
-        </div>
 
-        {/* Scan button */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={runScan}
-            disabled={scanning || !files.length || !keywords.length}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold transition-colors"
-          >
-            {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-            {scanning ? `Scanning ${filesScanned}/${files.length}…` : "Scan Documents"}
-          </button>
-          {hasResults && (
+          {/* Scan button */}
+          <div className="p-3">
             <button
-              onClick={() => exportCSV(results, keywords)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition-colors ${
-                isLight ? "border-slate-300 text-slate-700 hover:bg-slate-50" : "border-[#1a2235] text-[#c8d4e8] hover:bg-[#0d111a]"
-              }`}
+              onClick={runScan}
+              disabled={scanning || !allFiles.length || !keywords.length}
+              className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-colors"
             >
-              <Download className="w-3.5 h-3.5" />
-              Export CSV
+              {scanning
+                ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />{doneCount}/{allFiles.length} scanned…</>
+                : <><Search className="w-3.5 h-3.5" />Scan Documents</>
+              }
             </button>
-          )}
-          {hasResults && (
-            <span className={`text-xs ${muted}`}>
-              {filesWithHits.length} of {results.filter(r => r.status === "done").length} files contain matches
-            </span>
-          )}
-        </div>
+          </div>
 
-        {/* Results */}
-        {results.length > 0 && (
-          <div className="space-y-2">
-            <h3 className={`text-xs font-bold uppercase tracking-wider ${muted}`}>Results</h3>
-            {results.map((r) => (
-              <div key={r.id} className={`border rounded-xl overflow-hidden ${card}`}>
-                {/* Row header */}
-                <div
-                  className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors ${
-                    r.hits.length > 0
-                      ? isLight ? "hover:bg-slate-50" : "hover:bg-[#0a0e1a]"
+          {/* Results file list */}
+          {hitsFirst.length > 0 && (
+            <div className={`flex-1 border-t overflow-y-auto ${bdr}`}>
+              <div className={`px-3 py-2 text-[10px] font-bold uppercase tracking-wider ${muted}`}>
+                Results — {hitsFirst.filter(r => r.matches.length > 0).length} of {hitsFirst.filter(r => r.status === "done").length} files matched
+              </div>
+              {hitsFirst.map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => setSelectedId(r.id === selectedId ? null : r.id)}
+                  className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs transition-colors border-b ${bdr} ${rowHover} ${
+                    selectedId === r.id
+                      ? isLight ? "bg-sky-50 border-l-2 border-l-sky-400" : "bg-sky-950/20 border-l-2 border-l-sky-500"
                       : ""
                   }`}
-                  onClick={() => r.hits.length > 0 && toggleExpand(r.id)}
                 >
                   {/* Status icon */}
-                  {r.status === "scanning" && <Loader2 className="w-4 h-4 text-sky-400 animate-spin shrink-0" />}
-                  {r.status === "done" && r.totalMatches > 0 && <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />}
-                  {r.status === "done" && r.totalMatches === 0 && <CheckCircle2 className="w-4 h-4 text-slate-400 shrink-0" />}
-                  {r.status === "error" && <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />}
-                  {r.status === "pending" && <div className={`w-4 h-4 rounded-full border-2 shrink-0 ${bdr}`} />}
+                  {r.status === "scanning" && <Loader2 className="w-3 h-3 text-sky-400 animate-spin shrink-0" />}
+                  {r.status === "done" && r.matches.length > 0 && <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />}
+                  {r.status === "done" && r.matches.length === 0 && <CheckCircle2 className="w-3 h-3 text-slate-400 shrink-0" />}
+                  {r.status === "error" && <AlertCircle className="w-3 h-3 text-red-400 shrink-0" />}
+                  {r.status === "pending" && <div className={`w-3 h-3 rounded-full border-2 shrink-0 ${bdr}`} />}
 
-                  {/* File name */}
-                  <span className={`flex-1 text-xs font-mono truncate ${txt}`}>{r.file.name}</span>
+                  <span className={`flex-1 truncate font-mono text-[11px] ${r.matches.length > 0 ? (isLight ? "text-slate-800" : "text-white") : muted}`}>
+                    {r.name}
+                  </span>
 
-                  {/* Match count badge */}
                   {r.status === "done" && (
-                    <span className={`shrink-0 text-xs font-bold px-2 py-0.5 rounded-full ${
-                      r.totalMatches > 0
-                        ? isLight ? "bg-emerald-100 text-emerald-700" : "bg-emerald-950/40 text-emerald-400 border border-emerald-800/30"
-                        : isLight ? "bg-slate-100 text-slate-500" : "bg-[#1a2235] text-[#4a6080]"
-                    }`}>
-                      {r.totalMatches > 0 ? `${r.totalMatches} match${r.totalMatches !== 1 ? "es" : ""}` : "no matches"}
+                    <span className={`shrink-0 text-[10px] font-bold ${r.matches.length > 0 ? "text-emerald-500" : muted}`}>
+                      {r.matches.length > 0 ? r.matches.length : "—"}
                     </span>
                   )}
-                  {r.status === "error" && (
-                    <span className="shrink-0 text-xs text-red-400">{r.error}</span>
-                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
-                  {/* Expand toggle */}
-                  {r.hits.length > 0 && (
-                    r.expanded
-                      ? <ChevronDown className={`w-4 h-4 shrink-0 ${muted}`} />
-                      : <ChevronRight className={`w-4 h-4 shrink-0 ${muted}`} />
-                  )}
+        {/* ── Right panel: detail view ── */}
+        <div className={`flex-1 flex flex-col overflow-hidden ${bg}`}>
+          {selectedResult ? (
+            <>
+              {/* Detail header */}
+              <div className={`px-5 py-3 border-b flex items-center justify-between ${bdr}`}>
+                <div>
+                  <div className={`text-xs font-bold ${txt}`}>{selectedResult.name}</div>
+                  <div className={`text-[11px] ${muted}`}>{selectedResult.relativePath}</div>
                 </div>
-
-                {/* Expanded hits */}
-                {r.expanded && r.hits.length > 0 && (
-                  <div className={`border-t px-4 py-3 space-y-3 ${isLight ? "border-slate-100 bg-slate-50" : "border-[#1a2235] bg-[#080c14]"}`}>
-                    {r.hits.map((hit) => (
-                      <div key={hit.keyword}>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${isLight ? "bg-sky-100 text-sky-700" : "bg-sky-950/40 text-sky-300 border border-sky-800/30"}`}>
-                            {hit.keyword}
-                          </span>
-                          <span className={`text-[10px] ${muted}`}>{hit.count} occurrence{hit.count !== 1 ? "s" : ""}</span>
-                        </div>
-                        <div className="space-y-1">
-                          {hit.snippets.map((s, i) => (
-                            <p key={i} className={`text-[11px] font-mono leading-relaxed px-2 py-1 rounded ${isLight ? "bg-white border border-slate-200 text-slate-700" : "bg-[#0d111a] border border-[#1a2235] text-[#9ab0c8]"}`}>
-                              …{s}…
-                            </p>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                {selectedResult.matches.length > 0 && (
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${isLight ? "bg-emerald-100 text-emerald-700" : "bg-emerald-950/40 text-emerald-400 border border-emerald-800/30"}`}>
+                    {selectedResult.matches.length} match{selectedResult.matches.length !== 1 ? "es" : ""}
+                  </span>
                 )}
               </div>
-            ))}
-          </div>
-        )}
+
+              {/* Detail body */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                {selectedResult.error && (
+                  <div className="flex items-center gap-2 text-red-400 text-sm">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    {selectedResult.error}
+                  </div>
+                )}
+
+                {selectedResult.status === "done" && selectedResult.matches.length === 0 && !selectedResult.error && (
+                  <p className={`text-sm ${muted}`}>No keyword matches found in this file.</p>
+                )}
+
+                {(() => {
+                  const byKw: Record<string, MatchHit[]> = {};
+                  for (const h of selectedResult.matches) {
+                    (byKw[h.keyword] = byKw[h.keyword] || []).push(h);
+                  }
+                  return Object.entries(byKw).map(([kw, hits]) => (
+                    <div key={kw}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded ${isLight ? "bg-sky-100 text-sky-700" : "bg-sky-950/40 text-sky-300 border border-sky-800/30"}`}>
+                          {kw}
+                        </span>
+                        <span className={`text-[10px] ${muted}`}>{hits.length} occurrence{hits.length !== 1 ? "s" : ""}</span>
+                      </div>
+                      <div className="space-y-1.5">
+                        {hits.map((h, i) => (
+                          <p key={i} className={`text-[11px] font-mono leading-relaxed px-3 py-1.5 rounded-lg ${isLight ? "bg-slate-50 border border-slate-200 text-slate-700" : "bg-[#0d111a] border border-[#1a2235] text-[#9ab0c8]"}`}>
+                            {h.context}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 p-8">
+              {!hasResults ? (
+                <>
+                  <FileSearch className={`w-10 h-10 ${muted}`} />
+                  <div className="text-center">
+                    <p className={`text-sm font-medium ${txt}`}>Ready to scan</p>
+                    <p className={`text-xs mt-1 ${muted}`}>
+                      {!keywords.length
+                        ? "Enter keywords on the left to get started"
+                        : !folderName
+                        ? "Choose a folder to scan"
+                        : "Click Scan Documents to begin"}
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3">
+                    <div className={`text-center px-4 py-3 rounded-xl border ${panel}`}>
+                      <div className={`text-2xl font-black ${isLight ? "text-emerald-600" : "text-emerald-400"}`}>
+                        {hitsFirst.filter(r => r.matches.length > 0).length}
+                      </div>
+                      <div className={`text-[10px] ${muted}`}>files matched</div>
+                    </div>
+                    <div className={`text-center px-4 py-3 rounded-xl border ${panel}`}>
+                      <div className={`text-2xl font-black ${txt}`}>
+                        {hitsFirst.filter(r => r.status === "done").length}
+                      </div>
+                      <div className={`text-[10px] ${muted}`}>files scanned</div>
+                    </div>
+                    <div className={`text-center px-4 py-3 rounded-xl border ${panel}`}>
+                      <div className={`text-2xl font-black ${txt}`}>
+                        {hitsFirst.reduce((s, r) => s + r.matches.length, 0)}
+                      </div>
+                      <div className={`text-[10px] ${muted}`}>total matches</div>
+                    </div>
+                  </div>
+                  <p className={`text-xs ${muted}`}>Click a file on the left to see match details</p>
+                  <button
+                    onClick={() => exportReport(results, keywords, folderName)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${
+                      isLight ? "border-slate-300 text-slate-700 hover:bg-slate-50" : "border-[#1a2235] text-[#c8d4e8] hover:bg-[#0d111a]"
+                    }`}
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Export text report
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
