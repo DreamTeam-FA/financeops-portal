@@ -1416,9 +1416,13 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
       } catch {}
 
-      // Step 4 — pull-live: authoritative data from Google Sheets, one retry on failure
+      // Step 4 — pull-live: authoritative data from Google Sheets.
+      // Render's free tier can take 50+s to wake from a cold start, so retry with
+      // increasing backoff (5s/10s/20s ≈ 35s of waiting across 4 attempts) instead of
+      // giving up after one quick 3s retry — that window was too short to survive a cold start.
+      const RETRY_DELAYS_MS = [5_000, 10_000, 20_000];
       let pullOk = false;
-      for (let attempt = 0; attempt < 2; attempt++) {
+      for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
         try {
           const resp = await fetch("/api/pull-live", {
             method: "POST",
@@ -1479,15 +1483,15 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
             break;
           }
         } catch {
-          if (attempt === 0) {
-            // Wait 3 s then retry once before giving up
-            await new Promise(r => setTimeout(r, 3_000));
-          }
+          // fall through to shared retry-delay logic below
+        }
+        if (!pullOk && attempt < RETRY_DELAYS_MS.length) {
+          await new Promise(r => setTimeout(r, RETRY_DELAYS_MS[attempt]));
         }
       }
 
       if (!pullOk) {
-        // Both attempts failed — tell the user and let them manually sync
+        // All attempts failed — tell the user and let them manually sync
         setSyncToast({
           message: "⚠️ Live data refresh failed — showing cached data. Click Sync to retry.",
           type: "error",
@@ -2926,14 +2930,18 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       ...d,
       id: `st-${now}-${i}`,
     }));
-    setBankStatements(prev => {
-      // Skip any new item that duplicates an existing (bankName + statementDate + entity + occurrence)
-      const existingKeys = new Set(prev.map(s => `${s.bankName}|${s.statementDate}|${s.entity}|${s.occurrence}`));
-      const unique = newItems.filter(s => !existingKeys.has(`${s.bankName}|${s.statementDate}|${s.entity}|${s.occurrence}`));
-      if (unique.length === 0) return prev;
-      return [...unique, ...prev];
-    });
-    newItems.forEach(st => logAction("Added Bank Statement Record", `${st.bankName} (${st.period})`));
+    // Skip any new item that duplicates an existing (bankName + statementDate + entity + occurrence).
+    // Computed ONCE and used for both the local state update AND the sheet write — previously the
+    // sheet write used the un-deduplicated newItems, so re-running Generate Monthly kept appending
+    // duplicate rows straight to the Google Sheet even though the portal UI looked clean.
+    const existingKeys = new Set(bankStatements.map(s => `${s.bankName}|${s.statementDate}|${s.entity}|${s.occurrence}`));
+    const unique = newItems.filter(s => !existingKeys.has(`${s.bankName}|${s.statementDate}|${s.entity}|${s.occurrence}`));
+    if (unique.length === 0) {
+      showToast("No new statements to add — all entries already exist.", "info", 3000);
+      return;
+    }
+    setBankStatements(prev => [...unique, ...prev]);
+    unique.forEach(st => logAction("Added Bank Statement Record", `${st.bankName} (${st.period})`));
     // Write all rows in ONE API call instead of N simultaneous calls
     const token = getAccessToken();
     if (!token) { setNeedsAuth(true); showToast("Connect Google Sheets to save statements.", "error", 5000); return; }
@@ -2941,8 +2949,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!mapping) return;
     (async () => {
       try {
-        await appendStatementsBatch(newItems, mapping.range, mapping.spreadsheetIdOrUrl, token);
-        showToast(`${newItems.length} statements saved to Google Sheets ✓`, "success", 3000);
+        await appendStatementsBatch(unique, mapping.range, mapping.spreadsheetIdOrUrl, token);
+        showToast(`${unique.length} statements saved to Google Sheets ✓`, "success", 3000);
       } catch (err) { handleSheetPushError(err, "statements"); }
     })();
   };
