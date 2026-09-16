@@ -38,6 +38,14 @@ import {
   writeConfigKey,
 } from "../services/configSheetService";
 import {
+  fetchGoogleCalendarEvents,
+  fetchCalendarSheetEvents,
+  loadCalendarSheet,
+  CalSheetRow,
+  ColMap,
+  GoogleCalendarEvent,
+} from "../services/googleCalendarService";
+import {
   fetchSheetValues,
   updateSheetValues,
   fetchSpreadsheetTabs,
@@ -171,6 +179,20 @@ interface FinanceContextType {
   // Calendar Dashboard Sheet Local Events
   calendarLocalEvents: CalendarLocalEvent[];
   toggleCalendarLocalEventDone: (id: string) => void;
+
+  // Google Calendar + Sheet Events (global — loaded at app start, not just when CalendarPage mounts)
+  googleCalEvents: GoogleCalendarEvent[];
+  setGoogleCalEvents: React.Dispatch<React.SetStateAction<GoogleCalendarEvent[]>>;
+  calSheetEvents: CalSheetRow[];
+  setCalSheetEvents: React.Dispatch<React.SetStateAction<CalSheetRow[]>>;
+  calSheetTab: string;
+  setCalSheetTab: React.Dispatch<React.SetStateAction<string>>;
+  calSheetColMap: ColMap;
+  setCalSheetColMap: React.Dispatch<React.SetStateAction<ColMap>>;
+  loadingGoogleCal: boolean;
+  calSheetLoading: boolean;
+  fetchGoogleCalEvents: (year: number, month: number) => void;
+  loadCalSheetEvents: () => void;
 
   // External Links Management
   externalLinks: ExternalLinkItem[];
@@ -1013,6 +1035,46 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [calendarLocalEvents, setCalendarLocalEvents] = useState<CalendarLocalEvent[]>([]);
   const [headleys, setHeadleys] = useState<HeadleysItem[]>([]);
 
+  // Google Calendar + Sheet events — global so notifications/other pages can read them
+  const DEFAULT_COL_MAP: ColMap = { date: 4, end: 5, allDay: 6, title: 2, notes: 3, entity: 7, type: 9, assignee: 11, urgency: 8, done: 15, id: 0 };
+  const [googleCalEvents, setGoogleCalEvents] = useState<GoogleCalendarEvent[]>([]);
+  const [loadingGoogleCal, setLoadingGoogleCal] = useState(false);
+  const [calSheetEvents, setCalSheetEvents] = useState<CalSheetRow[]>([]);
+  const [calSheetTab, setCalSheetTab] = useState("Events");
+  const [calSheetColMap, setCalSheetColMap] = useState<ColMap>(DEFAULT_COL_MAP);
+  const [calSheetLoading, setCalSheetLoading] = useState(false);
+
+  const loadCalSheetEvents = () => {
+    const token = getAccessToken();
+    if (!token) return;
+    setCalSheetLoading(true);
+    loadCalendarSheet(token)
+      .then(({ events, tab, colMap }) => {
+        setCalSheetEvents(events);
+        setCalSheetTab(tab);
+        setCalSheetColMap(colMap);
+      })
+      .catch(err => {
+        const status = (err as any)?.status;
+        if (status !== 401 && status !== 403) console.warn("[loadCalSheetEvents] failed:", err);
+      })
+      .finally(() => setCalSheetLoading(false));
+  };
+
+  const fetchGoogleCalEvents = (year: number, month: number) => {
+    const token = getAccessToken();
+    const timeMin = new Date(year, month, 1).toISOString();
+    const timeMax = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
+    setLoadingGoogleCal(true);
+    Promise.all([
+      token ? fetchGoogleCalendarEvents(token, timeMin, timeMax) : Promise.resolve([]),
+      token ? Promise.resolve([]) : fetchCalendarSheetEvents(undefined),
+    ])
+      .then(([gCalEvs, sheetEvs]) => setGoogleCalEvents([...gCalEvs, ...sheetEvs]))
+      .catch(err => { console.warn("[fetchGoogleCalEvents] failed:", err); })
+      .finally(() => setLoadingGoogleCal(false));
+  };
+
   const toggleCalendarLocalEventDone = (id: string) => {
     const updated = calendarLocalEvents.map((ev) =>
       ev.id === id ? { ...ev, done: !ev.done, completedAt: !ev.done ? new Date().toISOString().split("T")[0] : undefined } : ev
@@ -1268,7 +1330,16 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return;
       }
 
-      // Step 3.5 — Config sheet: load shared config (sheetMappings, gasUrls) that
+      // Step 3.5 — Calendar data: load Google Calendar + Sheet events globally
+      //            so they're available on every page (notifications, dashboard), not just CalendarPage.
+      const now = new Date();
+      loadCalSheetEvents();
+      fetchGoogleCalEvents(now.getFullYear(), now.getMonth());
+      // Re-fetch on silent token refresh (fired by auto-refresh cycle)
+      const onTokenRefresh = () => { loadCalSheetEvents(); fetchGoogleCalEvents(new Date().getFullYear(), new Date().getMonth()); };
+      window.addEventListener("google-token-refreshed", onTokenRefresh);
+
+      // Step 3.6 — Config sheet: load shared config (sheetMappings, gasUrls) that
       //            survives Render deploys and is visible to all users.
       //            Also flush any pending log rows that were queued while offline.
       readAllConfig(tok).then(cfg => {
@@ -2945,7 +3016,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       banks: parsedData.banks || bankAccounts,
       loans: parsedData.loans || loans,
       ar: parsedData.ar || arItems,
-      statements: parsedData.statements || bankStatements
+      // statements intentionally omitted — never stored in JSON
     });
     logAction("Imported External Sheet Data", "Updated portal datasets via Google Sheets import.");
   };
@@ -3029,6 +3100,18 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         updateCalendarEvent,
         calendarLocalEvents,
         toggleCalendarLocalEventDone,
+        googleCalEvents,
+        setGoogleCalEvents,
+        calSheetEvents,
+        setCalSheetEvents,
+        calSheetTab,
+        setCalSheetTab,
+        calSheetColMap,
+        setCalSheetColMap,
+        loadingGoogleCal,
+        calSheetLoading,
+        fetchGoogleCalEvents,
+        loadCalSheetEvents,
         externalLinks,
         addExternalLink,
         updateExternalLink,

@@ -26,9 +26,7 @@ import {
 } from "lucide-react";
 import { getAccessToken, clearAccessToken } from "../../services/googleAuth";
 import {
-  fetchGoogleCalendarEvents,
   createGoogleCalendarEvent,
-  fetchCalendarSheetEvents,
   loadCalendarSheet,
   appendCalendarRow,
   updateCalendarDone,
@@ -157,9 +155,9 @@ export const CalendarPage: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [calendarView, setCalendarView] = useState<"week" | "month">("month");
   const [selectedMobileDay, setSelectedMobileDay] = useState<string | null>(null);
-  const [googleEvents, setGoogleEvents] = useState<GoogleCalendarEvent[]>([]);
-  const [loadingGoogleCal, setLoadingGoogleCal] = useState(false);
   const [hasGoogleToken, setHasGoogleToken] = useState(() => !!getAccessToken());
+  // googleEvents and loadingGoogleCal come from context (loaded globally at app start)
+  const { googleCalEvents: googleEvents, setGoogleCalEvents: setGoogleEvents, loadingGoogleCal, fetchGoogleCalEvents, calSheetEvents: sheetEvents, setCalSheetEvents: setSheetEvents, calSheetTab: sheetTab, setCalSheetTab: setSheetTab, calSheetColMap: sheetColMap, setCalSheetColMap: setSheetColMap, calSheetLoading: sheetLoading, loadCalSheetEvents } = useFinance();
 
   // Assignees State with localStorage persistence so deletions stick across sessions
   const [assignees, setAssignees] = useState(() => {
@@ -192,12 +190,8 @@ export const CalendarPage: React.FC = () => {
     "#64748B","#78716C","#6B7280","#0F766E","#7C3AED","#9333EA",
   ];
 
-  // Calendar Sheet Sync State
-  const [sheetEvents, setSheetEvents] = useState<CalSheetRow[]>([]);
+  // Calendar Sheet Sync State (sheetEvents, sheetTab, sheetColMap, sheetLoading come from context above)
   const [doneOverrides, setDoneOverrides] = useState<Record<string, boolean>>(() => readCalendarOverrides().done);
-  const [sheetTab, setSheetTab] = useState("Events"); // actual tab name — "Events" not "Calendar"
-  const [sheetColMap, setSheetColMap] = useState<ColMap>({ date: 4, end: 5, allDay: 6, title: 2, notes: 3, entity: 7, type: 9, assignee: 11, urgency: 8, done: 15, id: 0 });
-  const [sheetLoading, setSheetLoading] = useState(false);
   // IDs of events deleted this session — suppresses them even if still in calendarLocalEvents
   const [deletedEventIds, setDeletedEventIds] = useState<Set<string>>(() => new Set(readCalendarOverrides().deleted));
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -232,37 +226,6 @@ export const CalendarPage: React.FC = () => {
     }));
   }, [doneOverrides, deletedEventIds]);
 
-  // Load events from the calendar sheet — runs on mount, on auth change, and after silent token refresh
-  const loadSheetEvents = () => {
-    const token = getAccessToken();
-    if (!token) return;
-    setSheetLoading(true);
-    loadCalendarSheet(token)
-      .then(({ events, tab, colMap }) => {
-        setSheetEvents(events);
-        setSheetTab(tab);
-        setSheetColMap(colMap);
-        setHasGoogleToken(true);
-      })
-      .catch(err => {
-        const status = (err as any)?.status;
-        if (status === 401 || status === 403) {
-          clearAccessToken();
-          setHasGoogleToken(false);
-          window.dispatchEvent(new CustomEvent("google-token-expired"));
-        } else {
-          console.warn("Calendar sheet load failed:", err);
-        }
-      })
-      .finally(() => setSheetLoading(false));
-  };
-
-  useEffect(() => {
-    loadSheetEvents();
-    const onRefresh = () => { setHasGoogleToken(true); loadSheetEvents(); };
-    window.addEventListener("google-token-refreshed", onRefresh);
-    return () => window.removeEventListener("google-token-refreshed", onRefresh);
-  }, [googleUser]);
 
   // Bottom Notes / Remarks Bar State
 
@@ -319,6 +282,12 @@ export const CalendarPage: React.FC = () => {
   const calYear = currentDate.getFullYear();
   const calMonth = currentDate.getMonth();
 
+  // Re-fetch calendar data when the viewed month changes (initial fetch happens in FinanceContext init)
+  useEffect(() => {
+    loadCalSheetEvents();
+    fetchGoogleCalEvents(calYear, calMonth);
+  }, [calYear, calMonth, googleUser]);
+
   const monthNames = [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
@@ -372,42 +341,6 @@ export const CalendarPage: React.FC = () => {
     setCurrentDate(new Date());
   };
 
-  // Fetch Google Calendar Events — also re-runs after silent token refresh
-  const fetchGoogleEvents = () => {
-    const token = getAccessToken();
-    const timeMin = new Date(calYear, calMonth, 1).toISOString();
-    const timeMax = new Date(calYear, calMonth + 1, 0, 23, 59, 59).toISOString();
-    setLoadingGoogleCal(true);
-    Promise.all([
-      token ? fetchGoogleCalendarEvents(token, timeMin, timeMax) : Promise.resolve([]),
-      // Only fetch sheet events via GViz fallback when NOT authenticated —
-      // when authenticated, sheetEvents (loaded via loadSheetEvents/OAuth) covers it
-      // and avoids returning unstructured bank-calendar junk entries
-      token ? Promise.resolve([]) : fetchCalendarSheetEvents(undefined)
-    ])
-      .then(([gCalEvs, sheetEvs]) => {
-        setGoogleEvents([...gCalEvs, ...sheetEvs]);
-        setHasGoogleToken(true);
-      })
-      .catch(err => {
-        const status = (err as any)?.status;
-        if (status === 401 || status === 403) {
-          clearAccessToken();
-          setHasGoogleToken(false);
-          window.dispatchEvent(new CustomEvent("google-token-expired"));
-        } else {
-          console.warn("Google Calendar fetch failed:", err);
-        }
-      })
-      .finally(() => setLoadingGoogleCal(false));
-  };
-
-  useEffect(() => {
-    fetchGoogleEvents();
-    const onRefresh = () => { setHasGoogleToken(true); fetchGoogleEvents(); };
-    window.addEventListener("google-token-refreshed", onRefresh);
-    return () => window.removeEventListener("google-token-refreshed", onRefresh);
-  }, [calYear, calMonth, googleUser]);
 
   // AP Bills by Date Key — exclude paid bills from calendar
   const apBillsByDate: { [dateStr: string]: typeof apBills } = {};
@@ -576,7 +509,7 @@ export const CalendarPage: React.FC = () => {
         updateCalendarRow(token, sheetTab, selectedEvent.sheetRow, sheetColMap, {
           title: editTitle, date: editDate, time: editTime || undefined, endTime: selectedEvent.endTime, notes: editDesc || "", urgency: editUrgency,
           type: editCategory, assignee: editAssignee || "",
-        }).then(() => loadSheetEvents()).catch((err: Error) => {
+        }).then(() => loadCalSheetEvents()).catch((err: Error) => {
           console.warn("Sheet edit write failed:", err.message);
         });
       }
@@ -1980,7 +1913,7 @@ export const CalendarPage: React.FC = () => {
                             : sheetEvents.find(e => e.id === eventId)?.sheetRow;
                           if (token && resolvedSheetRow && resolvedSheetRow > 0) {
                             updateCalendarDone(token, sheetTab, resolvedSheetRow, sheetColMap.done, newDone)
-                              .then(() => loadSheetEvents())
+                              .then(() => loadCalSheetEvents())
                               .catch(err => console.warn("Sheet done write failed:", err));
                           } else {
                             // No sheet row — update via context (portal-created events)
@@ -2023,7 +1956,7 @@ export const CalendarPage: React.FC = () => {
                                       : sheetEvents.find(e => e.id === eventId)?.sheetRow;
                                     if (token && sheetRow && sheetRow > 0) {
                                       updateCalendarRow(token, sheetTab, sheetRow, sheetColMap, { urgency: u })
-                                        .then(() => loadSheetEvents())
+                                        .then(() => loadCalSheetEvents())
                                         .catch(err => console.warn("Sheet urgency write failed:", err));
                                     }
                                     updateCalendarEvent(eventId, { urgency: u } as any);
@@ -2178,7 +2111,7 @@ export const CalendarPage: React.FC = () => {
                     const token = getAccessToken();
                     if (token && sheetRow && sheetRow > 0) {
                       clearCalendarRow(token, sheetTab, sheetRow)
-                        .then(() => loadSheetEvents())
+                        .then(() => loadCalSheetEvents())
                         .catch(err => console.warn("Sheet row clear failed:", err));
                     }
                     // Remove from FinanceContext local tasks (portal-created)
