@@ -603,9 +603,9 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       if (payments.length > 0) {
         parsedPartialPaid = payments.reduce((s, p) => s + p.amount, 0);
         parsedPartialPayments = payments;
-        // Amount col holds the ORIGINAL amount. Only use the additive path when
-        // parsedPartialPaid exceeds it (meaning the cell holds the NET remainder instead).
-        parsedOriginalAmount = parsedPartialPaid > amount ? amount + parsedPartialPaid : amount;
+        // Paid bills: the cell was reverted to the ORIGINAL amount — never add payments back.
+        // Unpaid bills: the cell holds the NET remainder only when payments exceed it.
+        parsedOriginalAmount = status !== "paid" && parsedPartialPaid > amount ? amount + parsedPartialPaid : amount;
       }
     }
 
@@ -790,7 +790,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
         if (payments.length > 0) {
           parsedPartialPaidTI = payments.reduce((s, p) => s + p.amount, 0);
           parsedPartialPaymentsTI = payments;
-          parsedOriginalAmountTI = parsedPartialPaidTI > amount ? amount + parsedPartialPaidTI : amount;
+          parsedOriginalAmountTI = status !== "paid" && parsedPartialPaidTI > amount ? amount + parsedPartialPaidTI : amount;
         }
       }
 
@@ -883,7 +883,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       if (payments.length > 0) {
         parsedPartialPaidMSDx = payments.reduce((s, p) => s + p.amount, 0);
         parsedPartialPaymentsMSDx = payments;
-        parsedOriginalAmountMSDx = parsedPartialPaidMSDx > amount ? amount + parsedPartialPaidMSDx : amount;
+        parsedOriginalAmountMSDx = status !== "paid" && parsedPartialPaidMSDx > amount ? amount + parsedPartialPaidMSDx : amount;
       }
     }
 
