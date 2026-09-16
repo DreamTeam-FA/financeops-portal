@@ -1147,7 +1147,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           }, 1500);
         }
       }
-      // statements are NOT loaded from JSON cache — sheet is the only source (Rule #1)
+      // RULE: statements are NOT loaded from JSON cache — sheet is the only source of truth.
+      // DO NOT add data.statements here. If statements look wrong, fix the sheet parser.
       if (data.statementTemplates) setStatementTemplates(data.statementTemplates);
       if (data.headleys)   setHeadleys(data.headleys);
       if (data.payrollPivot)  setPayrollPivot(data.payrollPivot);
@@ -1655,7 +1656,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     logAction("Google Logout", "User signed out from Google OAuth session.");
   };
 
-  // Sync to backend JSON on state mutation
+  // ─────────────────────────────────────────────────────────────────────────
+  // RULE: JSON cache is for config/metadata ONLY. NEVER pass financial data
+  // (statements, ap, ar, banks, loans) here. Sheet is the only source of truth.
+  // ─────────────────────────────────────────────────────────────────────────
   const persistChanges = (updatedData: Partial<{
     ap: APBill[];
     banks: BankAccount[];
