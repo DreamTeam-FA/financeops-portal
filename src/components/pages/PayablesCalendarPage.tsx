@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
-import { formatCurrency } from "../../utils/formatters";
+import { formatCurrency, billRemaining } from "../../utils/formatters";
 import { entityMatchesFilter } from "../../utils/entityColors";
 import { ChevronLeft, ChevronRight, Calendar, AlertTriangle, History } from "lucide-react";
 import { BillDetailsModal } from "../modals/BillDetailsModal";
@@ -85,7 +85,7 @@ const BillCard: React.FC<{
         </div>
         <div className={`font-semibold truncate leading-tight ${isLight ? "text-slate-800" : "text-white"}`}>{bill.vendor}</div>
         <div className={`font-extrabold mt-0.5 ${isLight ? "text-slate-900" : "text-white"}`}>
-          {formatCurrency(bill.amount)}
+          {formatCurrency(billRemaining(bill))}
         </div>
       </div>
     </div>
@@ -148,7 +148,7 @@ const DayEntityTotals: React.FC<{ dayBillArr: any[]; isLight: boolean }> = ({ da
   const totals = ENTITIES
     .map(en => ({
       entity: en,
-      amount: dayBillArr.filter(b => b.entity === en && b.status !== "paid" && b.status !== "hold").reduce((s, b) => s + (b.amount || 0), 0),
+      amount: dayBillArr.filter(b => b.entity === en && b.status !== "paid" && b.status !== "hold").reduce((s, b) => s + billRemaining(b), 0),
       ec: entityColor(en),
     }))
     .filter(t => t.amount > 0);
@@ -184,7 +184,7 @@ const SummaryColumn: React.FC<{
   headerColorClass: string;
   onBillClick: (bills: any[]) => void;
 }> = ({ label, icon, bills, isLight, isLastWeek, headerColorClass, onBillClick }) => {
-  const total = bills.reduce((s, b) => s + (b.amount || 0), 0);
+  const total = bills.reduce((s, b) => s + billRemaining(b), 0);
 
   // Group by entity + subcompany + vendor → one row per group
   const groupMap = new Map<string, VendorGroup>();
@@ -199,7 +199,7 @@ const SummaryColumn: React.FC<{
       const key = `${b.entity}||${b.company || ""}||${b.vendor || ""}`;
       const existing = groupMap.get(key);
       if (existing) {
-        existing.totalAmount += b.amount || 0;
+        existing.totalAmount += billRemaining(b);
         existing.count += 1;
         existing.bills.push(b);
       } else {
@@ -207,7 +207,7 @@ const SummaryColumn: React.FC<{
           entity: b.entity,
           subcompany: b.company || "",
           vendor: b.vendor || "",
-          totalAmount: b.amount || 0,
+          totalAmount: billRemaining(b),
           count: 1,
           bills: [b],
         });
@@ -218,7 +218,7 @@ const SummaryColumn: React.FC<{
   const entityTotals = ENTITIES
     .map(en => ({
       entity: en,
-      amount: bills.filter(b => b.entity === en).reduce((s, b) => s + (b.amount || 0), 0),
+      amount: bills.filter(b => b.entity === en).reduce((s, b) => s + billRemaining(b), 0),
       ec: entityColor(en),
     }))
     .filter(t => t.amount > 0);
@@ -287,8 +287,8 @@ function groupBillsByVendor(bills: any[]): VendorGroup[] {
     .forEach(b => {
       const key = `${b.entity}||${b.company || ""}||${b.vendor || ""}`;
       const ex = map.get(key);
-      if (ex) { ex.totalAmount += b.amount || 0; ex.count++; ex.bills.push(b); }
-      else map.set(key, { entity: b.entity, subcompany: b.company || "", vendor: b.vendor || "", totalAmount: b.amount || 0, count: 1, bills: [b] });
+      if (ex) { ex.totalAmount += billRemaining(b); ex.count++; ex.bills.push(b); }
+      else map.set(key, { entity: b.entity, subcompany: b.company || "", vendor: b.vendor || "", totalAmount: billRemaining(b), count: 1, bills: [b] });
     });
   return Array.from(map.values());
 }
@@ -310,10 +310,10 @@ const MobileListView: React.FC<{
   const sections: Section[] = [];
 
   if (overdueOldBills.length > 0)
-    sections.push({ label: "⚠ Overdue", total: overdueOldBills.reduce((s, b) => s + (b.amount || 0), 0), groups: groupBillsByVendor(overdueOldBills), accentClass: "text-red-500", overdueStyle: true, lastWeekStyle: false });
+    sections.push({ label: "⚠ Overdue", total: overdueOldBills.reduce((s, b) => s + billRemaining(b), 0), groups: groupBillsByVendor(overdueOldBills), accentClass: "text-red-500", overdueStyle: true, lastWeekStyle: false });
 
   if (lastWeekBills.length > 0)
-    sections.push({ label: "⏱ Last Week", total: lastWeekBills.reduce((s, b) => s + (b.amount || 0), 0), groups: groupBillsByVendor(lastWeekBills), accentClass: "text-amber-400", overdueStyle: false, lastWeekStyle: true });
+    sections.push({ label: "⏱ Last Week", total: lastWeekBills.reduce((s, b) => s + billRemaining(b), 0), groups: groupBillsByVendor(lastWeekBills), accentClass: "text-amber-400", overdueStyle: false, lastWeekStyle: true });
 
   weekDays.forEach(d => {
     const ymd = toYMD(d);
@@ -322,7 +322,7 @@ const MobileListView: React.FC<{
     const isPast = ymd < today;
     sections.push({
       label: isToday ? `Today — ${fmtDay(d)}` : fmtDay(d),
-      total: arr.reduce((s, b) => s + (b.amount || 0), 0),
+      total: arr.reduce((s, b) => s + billRemaining(b), 0),
       groups: groupBillsByVendor(arr),
       accentClass: isToday ? "text-[#1a73e8]" : isPast ? "text-red-400" : isLight ? "text-slate-600" : "text-[#888]",
       overdueStyle: isPast && !isToday,
@@ -454,7 +454,7 @@ export const PayablesCalendarPage: React.FC = () => {
   const weekUnpaidTotal = useMemo(() =>
     weekDays.reduce((sum, d) =>
       sum + (dayBills[toYMD(d)] || [])
-        .reduce((s: number, b: any) => s + (b.amount || 0), 0),
+        .reduce((s: number, b: any) => s + billRemaining(b), 0),
     0),
   [dayBills, weekDays]);
 
@@ -633,7 +633,7 @@ export const PayablesCalendarPage: React.FC = () => {
               const enTotal = weekDays.reduce((sum, d) =>
                 sum + (dayBills[toYMD(d)] || [])
                   .filter((b: any) => b.entity === en && b.status !== "paid" && b.status !== "hold")
-                  .reduce((s: number, b: any) => s + (b.amount || 0), 0),
+                  .reduce((s: number, b: any) => s + billRemaining(b), 0),
               0);
               if (enTotal === 0) return null;
               return (

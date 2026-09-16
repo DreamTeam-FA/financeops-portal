@@ -2,6 +2,7 @@
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { Tooltip } from "../Tooltip";
+import { billRemaining } from "../../utils/formatters";
 import {
   CalendarDays,
   ChevronLeft,
@@ -1122,7 +1123,7 @@ export const CalendarPage: React.FC = () => {
                   const dayEvents = eventsByDate[dateKey] || [];
                   const dayApBills = apBillsByDate[dateKey] || [];
                   const dayArItems = arByDate[dateKey] || [];
-                  const totalApAmt = dayApBills.reduce((sum, b) => sum + b.amount, 0);
+                  const totalApAmt = dayApBills.reduce((sum, b) => sum + billRemaining(b), 0);
                   const apColor = dayApBills.length > 0 ? getApDueDateColor(dateKey, dayApBills) : null;
 
                   const hasAP = showApBillsFilter && dayApBills.length > 0 && apColor;
@@ -1152,13 +1153,13 @@ export const CalendarPage: React.FC = () => {
                           if (!bc) return null;
                           return (
                             <div key={`ap-${bi}`}
-                              onClick={() => setSelectedEvent({ title: `${b.company || "AP"}: ${b.vendor}`, type: "AP BILLS", date: dateKey, amount: b.amount, description: `${b.company || "AP"} · ${b.vendor} · $${(Number(b.amount)||0).toFixed(2)} [${(b as any).status||"Unpaid"}]` })}
+                              onClick={() => setSelectedEvent({ title: `${b.company || "AP"}: ${b.vendor}`, type: "AP BILLS", date: dateKey, amount: billRemaining(b), description: `${b.company || "AP"} · ${b.vendor} · $${billRemaining(b).toFixed(2)} [${(b as any).status||"Unpaid"}]` })}
                               className={`flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer ${bc.bg} hover:opacity-90 transition-opacity`}
                             >
                               <span className="shrink-0">📋</span>
                               <div className="min-w-0">
                                 <p className={`text-[13px] font-bold leading-tight ${bc.text}`}>{b.vendor}</p>
-                                <p className={`text-[11px] ${bc.text} opacity-70`}>{b.company || "AP"} · ${(Number(b.amount)||0).toLocaleString("en-US",{minimumFractionDigits:2})}</p>
+                                <p className={`text-[11px] ${bc.text} opacity-70`}>{b.company || "AP"} · ${billRemaining(b).toLocaleString("en-US",{minimumFractionDigits:2})}</p>
                               </div>
                             </div>
                           );
@@ -1279,7 +1280,7 @@ export const CalendarPage: React.FC = () => {
                       const dayApBills = apBillsByDate[dateKey] || [];
 
                       const apColor = dayApBills.length > 0 ? getApDueDateColor(dateKey, dayApBills) : null;
-                      const totalApAmt = dayApBills.reduce((sum, b) => sum + b.amount, 0);
+                      const totalApAmt = dayApBills.reduce((sum, b) => sum + billRemaining(b), 0);
 
                       return (
                         <div
@@ -1327,12 +1328,12 @@ export const CalendarPage: React.FC = () => {
                                     amount: totalApAmt,
                                     billsList: dayApBills,
                                     description: dayApBills
-                                      .map((b) => `${b.company || "AP"} · ${b.vendor} · $${(Number(b.amount) || 0).toFixed(2)} [${b.status || "Unpaid"}]`)
+                                      .map((b) => `${b.company || "AP"} · ${b.vendor} · $${billRemaining(b).toFixed(2)} [${b.status || "Unpaid"}]`)
                                       .join("\n")
                                   });
                                 }}
                                 title={dayApBills
-                                  .map((b) => `${b.company || "AP"}: ${b.vendor} ($${(Number(b.amount) || 0).toFixed(2)})`)
+                                  .map((b) => `${b.company || "AP"}: ${b.vendor} ($${billRemaining(b).toFixed(2)})`)
                                   .join("\n")}
                                 className={`text-[11px] px-2 py-1 rounded-md font-bold ${apColor.bg} ${apColor.text} shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] cursor-pointer transition-opacity hover:opacity-90 flex flex-col gap-0.5 border border-amber-300/30`}
                               >
@@ -1465,7 +1466,7 @@ export const CalendarPage: React.FC = () => {
                   const dayApBills = apBillsByDate[dateKey] || [];
 
                   const apColor = dayApBills.length > 0 ? getApDueDateColor(dateKey, dayApBills) : null;
-                  const totalApAmt = dayApBills.reduce((sum, b) => sum + b.amount, 0);
+                  const totalApAmt = dayApBills.reduce((sum, b) => sum + billRemaining(b), 0);
 
                   return (
                     <div
@@ -1510,12 +1511,12 @@ export const CalendarPage: React.FC = () => {
                                 amount: totalApAmt,
                                 billsList: dayApBills,
                                 description: dayApBills
-                                  .map((b) => `${b.company || "AP"} · ${b.vendor} · $${(Number(b.amount) || 0).toFixed(2)} [${b.status || "Unpaid"}]`)
+                                  .map((b) => `${b.company || "AP"} · ${b.vendor} · $${billRemaining(b).toFixed(2)} [${b.status || "Unpaid"}]`)
                                   .join("\n")
                               });
                             }}
                             title={dayApBills
-                              .map((b) => `${b.company || "AP"}: ${b.vendor} ($${(Number(b.amount) || 0).toFixed(2)})`)
+                              .map((b) => `${b.company || "AP"}: ${b.vendor} ($${billRemaining(b).toFixed(2)})`)
                               .join("\n")}
                             className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${apColor.bg} ${apColor.text} shadow-[0_2px_12px_rgba(0,0,0,.45),inset_0_1px_0_rgba(255,255,255,.07)] cursor-pointer truncate transition-opacity hover:opacity-90 flex items-center gap-1`}
                           >
@@ -1640,7 +1641,7 @@ export const CalendarPage: React.FC = () => {
         const dayArItems = arByDate[selectedMobileDay] || [];
         const [y, m, d] = selectedMobileDay.split("-").map(Number);
         const dayLabel = new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-        const totalApAmt = dayApBills.reduce((sum, b) => sum + b.amount, 0);
+        const totalApAmt = dayApBills.reduce((sum, b) => sum + billRemaining(b), 0);
         const totalArAmt = dayArItems.reduce((sum, a) => sum + a.amount, 0);
         const hasAnything = dayEvents.length > 0 || (showApBillsFilter && dayApBills.length > 0) || (showArFilter && dayArItems.length > 0);
         return (
@@ -1664,13 +1665,13 @@ export const CalendarPage: React.FC = () => {
                 if (!apColor) return null;
                 return (
                   <div key={`ap-${bi}`}
-                    onClick={() => setSelectedEvent({ title: `${b.company || "AP"}: ${b.vendor}`, type: "AP BILLS", date: selectedMobileDay, amount: b.amount, description: `${b.company || "AP"} · ${b.vendor} · $${(Number(b.amount)||0).toFixed(2)} [${b.status||"Unpaid"}]` })}
+                    onClick={() => setSelectedEvent({ title: `${b.company || "AP"}: ${b.vendor}`, type: "AP BILLS", date: selectedMobileDay, amount: billRemaining(b), description: `${b.company || "AP"} · ${b.vendor} · $${billRemaining(b).toFixed(2)} [${b.status||"Unpaid"}]` })}
                     className={`flex items-center gap-2 px-3 py-2 rounded-xl cursor-pointer ${apColor.bg} transition-opacity hover:opacity-90`}
                   >
                     <span className="text-base shrink-0">📋</span>
                     <div className="min-w-0">
                       <p className={`text-[12px] font-bold leading-tight ${apColor.text} truncate`}>{b.vendor}</p>
-                      <p className={`text-[11px] ${apColor.text} opacity-70`}>{b.company || "AP"} · ${(Number(b.amount)||0).toLocaleString("en-US",{minimumFractionDigits:2})} · {b.status||"Unpaid"}</p>
+                      <p className={`text-[11px] ${apColor.text} opacity-70`}>{b.company || "AP"} · ${billRemaining(b).toLocaleString("en-US",{minimumFractionDigits:2})} · {b.status||"Unpaid"}</p>
                     </div>
                   </div>
                 );
@@ -2019,7 +2020,7 @@ export const CalendarPage: React.FC = () => {
                   <div>
                     <span className="font-bold text-[#0d9488]">[{b.company || "AP"}]</span> <span className="font-semibold">{b.vendor}</span>
                   </div>
-                  <span className="font-bold text-emerald-500">${b.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                  <span className="font-bold text-emerald-500">${billRemaining(b).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
                 </div>
               ))}
             </div>

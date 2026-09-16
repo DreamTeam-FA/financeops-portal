@@ -17,6 +17,14 @@ export const formatCurrency = (val?: number | string | null): string => {
   }).format(num);
 };
 
+/** Remaining balance of an AP bill: original minus partial payments while unpaid; the cell amount otherwise. */
+export const billRemaining = (b?: { amount?: number; partialPaid?: number; originalAmount?: number; status?: string } | null): number => {
+  if (!b) return 0;
+  const amt = Number(b.amount) || 0;
+  if (b.partialPaid && b.partialPaid > 0 && b.status !== "paid") return (b.originalAmount ?? amt) - b.partialPaid;
+  return amt;
+};
+
 /**
  * Format timestamp / ISO string to user's local date and time
  */
