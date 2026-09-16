@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { ExternalLinkItem } from "../../types";
+import { AutomationsTab } from "./AutomationsTab";
 import {
   Wrench,
   FileSpreadsheet,
@@ -24,7 +25,7 @@ import {
 } from "lucide-react";
 
 interface WorkspacePageProps {
-  initialCategory?: "tools" | "platforms" | "drive";
+  initialCategory?: "tools" | "platforms" | "drive" | "automations";
 }
 
 /** Infer sub-type from saved data or name/description patterns */
@@ -138,7 +139,7 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
   } = useFinance();
 
   const isLight = theme === "light";
-  const [activeTab, setActiveTab] = useState<"tools" | "platforms" | "drive">(initialCategory);
+  const [activeTab, setActiveTab] = useState<"tools" | "platforms" | "drive" | "automations">(initialCategory);
 
   React.useEffect(() => {
     setActiveTab(initialCategory);
@@ -173,6 +174,11 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
       title: "Google Drive Folders",
       sub: "Manually organized Drive folders — viewable inside dashboard or externally",
       icon: <Folder className="w-5 h-5 text-amber-500" />
+    },
+    automations: {
+      title: "Automation Runner",
+      sub: "Trigger Python scripts remotely — live log streaming, checkpoint control, cookie sync",
+      icon: <Wrench className="w-5 h-5 text-orange-500" />
     }
   };
 
@@ -522,7 +528,8 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
         tabs={[
           { id: "tools", label: "Tools & Sheets" },
           { id: "platforms", label: "Platforms" },
-          { id: "drive", label: "Drive Folders" }
+          { id: "drive", label: "Drive Folders" },
+          { id: "automations", label: "Automations" }
         ]}
         activeTab={activeTab}
         onTabChange={(t) => setActiveTab(t as any)}
@@ -530,8 +537,8 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
         addLabel={`Add ${activeTab === "tools" ? "Tool/Sheet" : activeTab === "platforms" ? "Platform" : "Drive Folder"}`}
       />
 
-      {/* Filter bar */}
-      <div className={`flex items-center justify-between gap-3 px-4 py-3 ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border-b shrink-0`}>
+      {/* Filter bar — hidden for Automations tab */}
+      {activeTab !== "automations" && <div className={`flex items-center justify-between gap-3 px-4 py-3 ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border-b shrink-0`}>
         <div className="relative flex-1 max-w-md">
           <Search className={`w-3.5 h-3.5 absolute left-3 top-2.5 ${isLight ? "text-slate-400" : "text-[#666]"}`} />
           <input
@@ -549,7 +556,7 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
           <Plus className="w-3.5 h-3.5" />
           <span>Add New</span>
         </button>
-      </div>
+      </div>}
 
       {/* Main content */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
@@ -568,13 +575,19 @@ export const WorkspacePage: React.FC<WorkspacePageProps> = ({
               </p>
             </div>
           </div>
-          <span className={`px-3 py-1 rounded-full text-xs font-bold ${isLight ? "bg-slate-100 text-slate-700" : "bg-[#1e1e1e] text-slate-300"}`}>
-            {activeItems.length + (activeTab === "tools" ? 1 : 0)} items saved
-          </span>
+          {activeTab !== "automations" && (
+            <span className={`px-3 py-1 rounded-full text-xs font-bold ${isLight ? "bg-slate-100 text-slate-700" : "bg-[#1e1e1e] text-slate-300"}`}>
+              {activeItems.length + (activeTab === "tools" ? 1 : 0)} items saved
+            </span>
+          )}
         </div>
 
         {/* Tab content */}
-        {activeTab === "tools" ? renderToolsColumns() : renderFlatGrid()}
+        {activeTab === "automations"
+          ? <AutomationsTab isLight={isLight} />
+          : activeTab === "tools"
+          ? renderToolsColumns()
+          : renderFlatGrid()}
       </div>
 
       {/* ADD / EDIT MODAL */}
