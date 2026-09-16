@@ -1147,7 +1147,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           }, 1500);
         }
       }
-      if (data.statements) setBankStatements(dedupeStatements(data.statements));
+      // statements are NOT loaded from JSON cache — sheet is the only source (Rule #1)
       if (data.statementTemplates) setStatementTemplates(data.statementTemplates);
       if (data.headleys)   setHeadleys(data.headleys);
       if (data.payrollPivot)  setPayrollPivot(data.payrollPivot);
@@ -1661,7 +1661,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     banks: BankAccount[];
     loans: Loan[];
     ar: ARItem[];
-    statements: BankStatement[];
     payrollPivot: PayrollPivot;
     auditLog: AuditLog[];
     sheetMappings: SheetMappingConfig[];
@@ -1676,7 +1675,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       banks: updatedData.banks || bankAccounts,
       loans: updatedData.loans || loans,
       ar: updatedData.ar || arItems,
-      statements: updatedData.statements || bankStatements,
+      statements: [],
       payrollWeeks,
       payrollPivot: updatedData.payrollPivot || payrollPivot,
       auditLog: updatedData.auditLog || auditLogs,
@@ -1979,9 +1978,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setArItems(aggregatedAR);
         persistChanges({ ar: aggregatedAR });
       } else if (mapping.module === "statements" && aggregatedStatements.length > 0) {
-        const dedupedStmts = dedupeStatements(aggregatedStatements);
-        setBankStatements(dedupedStmts);
-        persistChanges({ statements: dedupedStmts });
+        setBankStatements(dedupeStatements(aggregatedStatements));
       } else if (mapping.module === "payroll" && Object.keys(aggregatedPayroll).length > 0) {
         setPayrollPivot(aggregatedPayroll);
         persistChanges({ payrollPivot: aggregatedPayroll });
@@ -2875,11 +2872,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!requireToken()) return;
     const newSt: BankStatement = { ...statementData, id: "st-" + Date.now() };
     // Use functional update so rapid batch calls don't clobber each other
-    setBankStatements(prev => {
-      const nextSt = [newSt, ...prev];
-      persistChanges({ statements: nextSt });
-      return nextSt;
-    });
+    setBankStatements(prev => [newSt, ...prev]);
     logAction("Added Bank Statement Record", `${newSt.bankName} (${newSt.period})`);
     pushSingleStatementToSheet(newSt, "append");
   };
@@ -2898,9 +2891,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const existingKeys = new Set(prev.map(s => `${s.bankName}|${s.statementDate}|${s.entity}|${s.occurrence}`));
       const unique = newItems.filter(s => !existingKeys.has(`${s.bankName}|${s.statementDate}|${s.entity}|${s.occurrence}`));
       if (unique.length === 0) return prev;
-      const nextSt = [...unique, ...prev];
-      persistChanges({ statements: nextSt });
-      return nextSt;
+      return [...unique, ...prev];
     });
     newItems.forEach(st => logAction("Added Bank Statement Record", `${st.bankName} (${st.period})`));
     // Write all rows in ONE API call instead of N simultaneous calls
@@ -2918,18 +2909,14 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const updateBankStatement = (updatedStatement: BankStatement) => {
     if (!requireToken()) return;
-    const nextSt = bankStatements.map((s) => (s.id === updatedStatement.id ? updatedStatement : s));
-    setBankStatements(nextSt);
-    persistChanges({ statements: nextSt });
+    setBankStatements(bankStatements.map((s) => (s.id === updatedStatement.id ? updatedStatement : s)));
     logAction("Updated Bank Statement Record", `${updatedStatement.bankName} (${updatedStatement.period})`);
     pushSingleStatementToSheet(updatedStatement, "write");
   };
 
   const deleteBankStatement = (id: string) => {
     if (!requireToken()) return;
-    const nextSt = bankStatements.filter((s) => s.id !== id);
-    setBankStatements(nextSt);
-    persistChanges({ statements: nextSt });
+    setBankStatements(bankStatements.filter((s) => s.id !== id));
     logAction("Deleted Bank Statement Record", `Statement ID ${id} deleted`);
     // No sheet row clear on delete — use DataSync to reconcile
   };
@@ -2949,7 +2936,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return s;
     });
     setBankStatements(nextSt);
-    persistChanges({ statements: nextSt });
     logAction("Toggled Bank Statement Download", `Statement ID ${id}`);
     if (updatedSt) pushSingleStatementToSheet(updatedSt, "write");
   };
