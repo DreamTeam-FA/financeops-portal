@@ -171,13 +171,14 @@ export const Sidebar: React.FC = () => {
       b.status === "Active" && typeof b.balance === "number" && b.balance < LOW_BALANCE_THRESHOLD
     ).length;
 
-    // Loans & CC Dues: active items overdue or due within 10 days
-    // Uses the same getDaysRemaining util as LoansPage (dueSoonCount + nearDueCount)
+    // Loans & CC Dues: matches LoansPage's own "Due Soon" bucket (≤ 3 days) —
+    // the red URGENCY_GROUPS section actually shown on that page, not the
+    // stricter "overdue or due today" the badge used to require.
     const loansAlert = (loans as any[] || []).filter((l: any) => {
       if (l.status === "Paid" || l.status === "Refinanced") return false;
       if (!l.nextPay) return false;
       const { days } = getDaysRemaining(l.nextPay);
-      return days <= 0; // overdue or due today (matches dueSoonCount on LoansPage)
+      return days <= 3;
     }).length;
 
     // Bank Statements: pending in the current month (matches page default filter)
