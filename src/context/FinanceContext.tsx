@@ -1180,31 +1180,19 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
 
     // ── Apply financial data to React state ──────────────────────────────
-    const applyData = (data: any) => {
-      if (data.ap && data.ap.length > 0) setApBills(recomputeBills(data.ap));
-      if (data.banks)      setBankAccounts(data.banks);
-      if (data.loans)      setLoans(data.loans);
-      if (data.ar) {
-        const cleaned = sanitizeAr(data.ar);
-        setArItems(cleaned);
-        // If AEI items were filtered out, purge them from the server JSON cache
-        // so sync-portal-items-to-sheet doesn't re-write them to the sheet on next login.
-        if (cleaned.length < data.ar.length) {
-          setTimeout(() => {
-            fetch("/api/data", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ ...data, ar: cleaned }),
-            }).catch(() => {});
-          }, 1500);
-        }
+    // fromSheet=true → data came from liveSheetsFetcher (Pull All), apply financial state.
+    // fromSheet=false (default) → data came from localStorage cache or JSON, skip financial state (stale/potentially corrupted).
+    const applyData = (data: any, opts: { fromSheet?: boolean } = {}) => {
+      if (opts.fromSheet) {
+        if (data.ap && data.ap.length > 0) setApBills(recomputeBills(data.ap));
+        if (data.banks) setBankAccounts(data.banks);
+        if (data.loans) setLoans(data.loans);
+        if (data.ar) { const cleaned = sanitizeAr(data.ar); setArItems(cleaned); }
+        if (data.payrollPivot) setPayrollPivot(data.payrollPivot);
+        if (data.payrollWeeks) setPayrollWeeks(data.payrollWeeks);
       }
-      // RULE: statements are NOT loaded from JSON cache — sheet is the only source of truth.
-      // DO NOT add data.statements here. If statements look wrong, fix the sheet parser.
       if (data.statementTemplates) setStatementTemplates(data.statementTemplates);
       if (data.headleys)   setHeadleys(data.headleys);
-      if (data.payrollPivot)  setPayrollPivot(data.payrollPivot);
-      if (data.payrollWeeks)  setPayrollWeeks(data.payrollWeeks);
       if (data.lastSyncedAt)  setLastSyncedAt(data.lastSyncedAt);
       // calendarLocalEvents have NO sheet backing — loaded from financeops_local_cal_events localStorage in init()
       if (data.quickNotes && Array.isArray(data.quickNotes) && data.quickNotes.length > 0) {
@@ -1314,7 +1302,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           .then(resp => {
             if (resp?.data) {
               try { localStorage.removeItem("billDriveLinks_v2"); } catch {}
-              applyData(resp.data);
+              applyData(resp.data, { fromSheet: true });
               saveCache(resp.data);
               setIsLoading(false);
               try {
@@ -1442,7 +1430,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
             // Sheet is source of truth — clear stale localStorage drive cache before applying
             // so deleted sheet links don't get re-injected from browser storage
             try { localStorage.removeItem("billDriveLinks_v2"); } catch {}
-            applyData(resp.data);
+            applyData(resp.data, { fromSheet: true });
             saveCache(resp.data); // refresh localStorage cache with authoritative live data
             // Notify other open tabs so they re-read the cache without a full pull-live
             try {
@@ -1733,17 +1721,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     externalLinks: ExternalLinkItem[];
   }>) => {
     const payload = {
-      ap: updatedData.ap || apBills,
-      banks: updatedData.banks || bankAccounts,
-      loans: updatedData.loans || loans,
-      ar: updatedData.ar || arItems,
-      statements: [],
-      payrollWeeks,
-      payrollPivot: updatedData.payrollPivot || payrollPivot,
+      // RULE: financial data lives in Google Sheets + localStorage only — never in server JSON
+      ap: [], banks: [], loans: [], ar: [], statements: [], payrollWeeks: [], payrollPivot: {},
       auditLog: updatedData.auditLog || auditLogs,
       sheetMappings: updatedData.sheetMappings || sheetMappings,
       syncLogs: updatedData.syncLogs || syncLogs,
-      // RULE: these live in localStorage or config sheet ONLY — never in server JSON
       localCalendarEvents: [],
       quickNotes: [],
       gasUrls: {},

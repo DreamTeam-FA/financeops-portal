@@ -587,6 +587,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
     if (status1) {
       const lines = status1.split(/[\n\r]+/).filter(l => l.trim());
       const payments: { amount: number; date: string }[] = [];
+      const seenKeys = new Set<string>();
       for (const line of lines) {
         const amtMatch = line.match(/\$\s*([\d,]+(?:\.\d+)?)/);
         const dtMatch  = line.match(/(\d{4})[.\-/](\d{2})[.\-/](\d{2})/);
@@ -594,16 +595,17 @@ export async function fetchFullLiveDataset(accessToken?: string) {
           const amt = parseFloat(amtMatch[1].replace(/,/g, ""));
           if (!isNaN(amt) && amt > 0) {
             const date = dtMatch ? `${dtMatch[1]}-${dtMatch[2]}-${dtMatch[3]}` : "";
-            payments.push({ amount: amt, date });
+            const key = `${date}:${amt}`;
+            if (!seenKeys.has(key)) { seenKeys.add(key); payments.push({ amount: amt, date }); }
           }
         }
       }
       if (payments.length > 0) {
         parsedPartialPaid = payments.reduce((s, p) => s + p.amount, 0);
         parsedPartialPayments = payments;
-        // If partialPaid > amount, the Amount cell holds the net remaining (formula like =5000-3000).
-        // Add back the partial to recover the original. Otherwise Amount is the original invoice.
-        parsedOriginalAmount = parsedPartialPaid > amount ? amount + parsedPartialPaid : amount;
+        // Amount cell always holds the formula result (NET remaining = original - payments).
+        // So original = NET + total paid = amount + parsedPartialPaid.
+        parsedOriginalAmount = amount + parsedPartialPaid;
       }
     }
 
@@ -772,6 +774,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       if (paidViaTI && /\$[\d,]+/.test(paidViaTI)) {
         const lines = paidViaTI.split(/[\n\r]+/).filter(l => l.trim());
         const payments: { amount: number; date: string }[] = [];
+        const seenKeys = new Set<string>();
         for (const line of lines) {
           const amtMatch = line.match(/\$\s*([\d,]+(?:\.\d+)?)/);
           const dtMatch  = line.match(/(\d{4})[.\-/](\d{2})[.\-/](\d{2})/);
@@ -779,14 +782,15 @@ export async function fetchFullLiveDataset(accessToken?: string) {
             const amt = parseFloat(amtMatch[1].replace(/,/g, ""));
             if (!isNaN(amt) && amt > 0) {
               const date = dtMatch ? `${dtMatch[1]}-${dtMatch[2]}-${dtMatch[3]}` : "";
-              payments.push({ amount: amt, date });
+              const key = `${date}:${amt}`;
+              if (!seenKeys.has(key)) { seenKeys.add(key); payments.push({ amount: amt, date }); }
             }
           }
         }
         if (payments.length > 0) {
           parsedPartialPaidTI = payments.reduce((s, p) => s + p.amount, 0);
           parsedPartialPaymentsTI = payments;
-          parsedOriginalAmountTI = parsedPartialPaidTI > amount ? amount + parsedPartialPaidTI : amount;
+          parsedOriginalAmountTI = amount + parsedPartialPaidTI;
         }
       }
 
@@ -863,6 +867,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
     if (status1MSDx) {
       const lines = status1MSDx.split(/[\n\r]+/).filter(l => l.trim());
       const payments: { amount: number; date: string }[] = [];
+      const seenKeys = new Set<string>();
       for (const line of lines) {
         const amtMatch = line.match(/\$\s*([\d,]+(?:\.\d+)?)/);
         const dtMatch  = line.match(/(\d{4})[.\-/](\d{2})[.\-/](\d{2})/);
@@ -870,14 +875,15 @@ export async function fetchFullLiveDataset(accessToken?: string) {
           const amt = parseFloat(amtMatch[1].replace(/,/g, ""));
           if (!isNaN(amt) && amt > 0) {
             const date = dtMatch ? `${dtMatch[1]}-${dtMatch[2]}-${dtMatch[3]}` : "";
-            payments.push({ amount: amt, date });
+            const key = `${date}:${amt}`;
+            if (!seenKeys.has(key)) { seenKeys.add(key); payments.push({ amount: amt, date }); }
           }
         }
       }
       if (payments.length > 0) {
         parsedPartialPaidMSDx = payments.reduce((s, p) => s + p.amount, 0);
         parsedPartialPaymentsMSDx = payments;
-        parsedOriginalAmountMSDx = parsedPartialPaidMSDx > amount ? amount + parsedPartialPaidMSDx : amount;
+        parsedOriginalAmountMSDx = amount + parsedPartialPaidMSDx;
       }
     }
 
