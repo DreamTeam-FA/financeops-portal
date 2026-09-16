@@ -809,8 +809,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const updated = [...externalLinks, newLink];
     setExternalLinks(updated);
     localStorage.setItem("financeops_external_links", JSON.stringify(updated));
-    persistChanges({ externalLinks: updated });
-    // Persist to config sheet — survives Render restarts and browser cache clears
     const tok = getAccessToken();
     if (tok) writeConfigKey(tok, "externalLinks", updated, userEmail).catch(() => {});
     logAction("Added External Link", `Added '${link.name}' link (${link.url})`);
@@ -821,7 +819,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const updated = externalLinks.map((l) => (l.id === id ? { ...l, ...updates } : l));
     setExternalLinks(updated);
     localStorage.setItem("financeops_external_links", JSON.stringify(updated));
-    persistChanges({ externalLinks: updated });
     const tok = getAccessToken();
     if (tok) writeConfigKey(tok, "externalLinks", updated, userEmail).catch(() => {});
     logAction("Updated External Link", `Updated link ID '${id}'`);
@@ -840,7 +837,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         localStorage.setItem("financeops_deletedLinkIds", JSON.stringify(deletedIds));
       }
     } catch {}
-    persistChanges({ externalLinks: updated });
     const tok = getAccessToken();
     if (tok) writeConfigKey(tok, "externalLinks", updated, userEmail).catch(() => {});
     logAction("Deleted External Link", `Removed link ID '${id}'`);
@@ -868,7 +864,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const next = { ...gasUrls, [key]: url };
     setGasUrls(next);
     localStorage.setItem("financeops_gas_urls", JSON.stringify(next));
-    persistChanges({ gasUrls: next } as any);
     // Persist to shared Google Sheet config tab so all users get the updated URL
     const tok = getAccessToken();
     if (tok) writeConfigKey(tok, "gasUrls", next, userEmail).catch(err =>
@@ -930,7 +925,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const updated = [newNote, ...quickNotes];
     setQuickNotes(updated);
     localStorage.setItem("financeops_quick_notes", JSON.stringify(updated));
-    persistChanges({ quickNotes: updated } as any);
     pushNoteToSheet(newNote, "append");
     logAction("Added Note", `Created note '${newNote.title}'`);
   };
@@ -940,7 +934,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const updated = quickNotes.map((n) => (n.id === id ? { ...n, ...updates } : n));
     setQuickNotes(updated);
     localStorage.setItem("financeops_quick_notes", JSON.stringify(updated));
-    persistChanges({ quickNotes: updated } as any);
     const updatedNote = updated.find((n) => n.id === id);
     if (updatedNote) pushNoteToSheet(updatedNote, "write");
     logAction("Updated Note", `Updated note ID '${id}'`);
@@ -952,7 +945,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const updated = quickNotes.filter((n) => n.id !== id);
     setQuickNotes(updated);
     localStorage.setItem("financeops_quick_notes", JSON.stringify(updated));
-    persistChanges({ quickNotes: updated } as any);
     if (noteToDelete) pushNoteToSheet(noteToDelete, "clear");
     logAction("Deleted Note", `Removed note ID '${id}'`);
   };
@@ -960,7 +952,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const clearAllQuickNotes = () => {
     setQuickNotes([]);
     localStorage.setItem("financeops_quick_notes", JSON.stringify([]));
-    persistChanges({ quickNotes: [] } as any);
     logAction("Cleared Notes", "All quick notes cleared");
   };
 
@@ -973,7 +964,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const updated = [...quickNotes, ...fresh];
     setQuickNotes(updated);
     localStorage.setItem("financeops_quick_notes", JSON.stringify(updated));
-    persistChanges({ quickNotes: updated } as any);
     logAction("Seeded Workspace", `Loaded ${fresh.length} items`);
   };
 
@@ -999,7 +989,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     setQuickNotes(newNotes);
     localStorage.setItem("financeops_quick_notes", JSON.stringify(newNotes));
-    persistChanges({ quickNotes: newNotes } as any);
   };
 
   // State collections
@@ -1029,7 +1018,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       ev.id === id ? { ...ev, done: !ev.done, completedAt: !ev.done ? new Date().toISOString().split("T")[0] : undefined } : ev
     );
     setCalendarLocalEvents(updated);
-    persistChanges({ calendarLocalEvents: updated } as any);
+    try { localStorage.setItem("financeops_local_cal_events", JSON.stringify(updated)); } catch {}
   };
 
   // Entity Filters
@@ -1120,8 +1109,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           ap: data.ap, banks: data.banks, loans: data.loans, ar: data.ar,
           statements: data.statements, headleys: data.headleys,
           payrollPivot: data.payrollPivot, payrollWeeks: data.payrollWeeks,
-          calendarLocalEvents: data.calendarLocalEvents,
           quickNotes: data.quickNotes, lastSyncedAt: data.lastSyncedAt,
+          // calendarLocalEvents excluded — stored in financeops_local_cal_events localStorage (no sheet backing)
+          // externalLinks excluded — stored in financeops_external_links + config sheet
         };
         localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: slim }));
       } catch {}
@@ -1154,8 +1144,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (data.payrollPivot)  setPayrollPivot(data.payrollPivot);
       if (data.payrollWeeks)  setPayrollWeeks(data.payrollWeeks);
       if (data.lastSyncedAt)  setLastSyncedAt(data.lastSyncedAt);
-      if (data.calendarLocalEvents && Array.isArray(data.calendarLocalEvents))
-        setCalendarLocalEvents(data.calendarLocalEvents);
+      // calendarLocalEvents have NO sheet backing — loaded from financeops_local_cal_events localStorage in init()
       if (data.quickNotes && Array.isArray(data.quickNotes) && data.quickNotes.length > 0) {
         const seen = new Set<string>();
         const deduped = (data.quickNotes as DashboardNote[]).filter((n) => {
@@ -1167,23 +1156,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setQuickNotes(deduped);
         localStorage.setItem("financeops_quick_notes", JSON.stringify(deduped));
       }
-      // Restore externalLinks from server if localStorage is cleared (browser cache reset)
-      if (data.externalLinks && Array.isArray(data.externalLinks) && data.externalLinks.length > 0) {
-        const lsRaw = (() => { try { return localStorage.getItem("financeops_external_links"); } catch { return null; } })();
-        const lsLinks: ExternalLinkItem[] = lsRaw ? (() => { try { return JSON.parse(lsRaw); } catch { return []; } })() : [];
-        const deletedIds: Set<string> = new Set((() => { try { return JSON.parse(localStorage.getItem("financeops_deletedLinkIds") || "[]"); } catch { return []; } })());
-        // Only restore from server if localStorage has no user-added items (only defaults or empty)
-        const defaultIds = new Set(DEFAULT_EXTERNAL_LINKS.map(d => d.id));
-        const hasUserAdded = lsLinks.some(l => !defaultIds.has(l.id));
-        if (!hasUserAdded) {
-          const serverOnlyAdded = (data.externalLinks as ExternalLinkItem[]).filter(l => !defaultIds.has(l.id) && !deletedIds.has(l.id));
-          if (serverOnlyAdded.length > 0) {
-            const merged = [...lsLinks.filter(l => defaultIds.has(l.id)), ...serverOnlyAdded];
-            setExternalLinks(merged);
-            localStorage.setItem("financeops_external_links", JSON.stringify(merged));
-          }
-        }
-      }
+      // externalLinks are managed by config sheet (Step 3.5) and financeops_external_links localStorage
+      // NEVER restore from server JSON — config sheet is the authoritative source
     };
 
     // ── Poll for OAuth token — Firebase auth is async, don't fire pull-live blind ──
@@ -1201,6 +1175,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     // ── Main init sequence ───────────────────────────────────────────────
     const init = async () => {
+
+      // Init calendarLocalEvents from dedicated localStorage key (no sheet backing; not in cache)
+      try {
+        const saved = JSON.parse(localStorage.getItem("financeops_local_cal_events") || "[]");
+        if (Array.isArray(saved) && saved.length > 0) setCalendarLocalEvents(saved);
+      } catch {}
 
       // Step 1 — localStorage cache: instant paint with last-session data
       // driveViewUrl is stripped from cached AP bills — it is ONLY sourced from the live sheet
@@ -1657,8 +1637,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   // ─────────────────────────────────────────────────────────────────────────
-  // RULE: JSON cache is for config/metadata ONLY. NEVER pass financial data
-  // (statements, ap, ar, banks, loans) here. Sheet is the only source of truth.
+  // RULE: JSON cache is for boot config ONLY (sheetMappings, auditLog, syncLogs).
+  // NEVER pass financial data (statements, ap, ar, banks, loans) here.
+  // NEVER pass user data (quickNotes, externalLinks, gasUrls, localCalendarEvents) here.
+  // Sheet/config-sheet/localStorage are the authoritative sources for all user data.
   // ─────────────────────────────────────────────────────────────────────────
   const persistChanges = (updatedData: Partial<{
     ap: APBill[];
@@ -1685,14 +1667,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       auditLog: updatedData.auditLog || auditLogs,
       sheetMappings: updatedData.sheetMappings || sheetMappings,
       syncLogs: updatedData.syncLogs || syncLogs,
-      localCalendarEvents: updatedData.localCalendarEvents || localCalendarEvents,
-      quickNotes: updatedData.quickNotes !== undefined
-        ? updatedData.quickNotes
-        : (() => { try { return JSON.parse(localStorage.getItem("financeops_quick_notes") || "[]"); } catch { return quickNotes; } })(),
-      gasUrls: updatedData.gasUrls || gasUrls,
-      externalLinks: updatedData.externalLinks !== undefined
-        ? updatedData.externalLinks
-        : (() => { try { return JSON.parse(localStorage.getItem("financeops_external_links") || "[]"); } catch { return externalLinks; } })()
+      // RULE: these live in localStorage or config sheet ONLY — never in server JSON
+      localCalendarEvents: [],
+      quickNotes: [],
+      gasUrls: {},
+      externalLinks: []
     };
 
     fetch("/api/data", {
@@ -2137,7 +2116,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
             ap: live.ap, banks: live.banks, loans: live.loans, ar: live.ar,
             statements: live.statements, headleys: live.headleys,
             payrollPivot: live.payrollPivot, payrollWeeks: live.payrollWeeks,
-            calendarLocalEvents: live.calendarLocalEvents,
             quickNotes: live.quickNotes, lastSyncedAt: live.lastSyncedAt,
           };
           localStorage.setItem("financeops_data_cache_v3", JSON.stringify({ ts: Date.now(), data: slim }));
