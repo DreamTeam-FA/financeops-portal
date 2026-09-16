@@ -1190,6 +1190,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (data.ar) { const cleaned = sanitizeAr(data.ar); setArItems(cleaned); }
         if (data.payrollPivot) setPayrollPivot(data.payrollPivot);
         if (data.payrollWeeks) setPayrollWeeks(data.payrollWeeks);
+        // Bank Statements: was never applied by this function — only the manual "Pull All"
+        // button (syncAllFromGoogleSheets) set it, so every automatic load (cold start,
+        // hard refresh, the no-token fallback) left bankStatements empty until a manual click.
+        if (data.statements) setBankStatements(dedupeStatements(data.statements));
       }
       if (data.statementTemplates) setStatementTemplates(data.statementTemplates);
       if (data.headleys)   setHeadleys(data.headleys);
