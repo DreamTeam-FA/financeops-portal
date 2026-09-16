@@ -77,6 +77,8 @@ export const Sidebar: React.FC = () => {
     bankStatements,
     quickNotes,
     calendarLocalEvents,
+    googleCalEvents,
+    calSheetEvents,
   } = useFinance() as any;
 
   const greetingName = getUserGreetingName(userEmail, googleUser?.displayName);
@@ -195,8 +197,13 @@ export const Sidebar: React.FC = () => {
       return mo.toLowerCase().includes(currentMonthYear.toLowerCase()) && s.downloaded === false;
     }).length;
 
-    // Calendar: events within the next 7 days
-    const calUpcoming = (calendarLocalEvents as any[] || []).filter((ev: any) => {
+    // Calendar: events within the next 7 days (local + Google Cal + sheet events)
+    const allCalEvents = [
+      ...(calendarLocalEvents as any[] || []),
+      ...(googleCalEvents as any[] || []),
+      ...(calSheetEvents as any[] || []),
+    ];
+    const calUpcoming = allCalEvents.filter((ev: any) => {
       if (!ev.date && !ev.startDate) return false;
       const d = new Date(ev.date || ev.startDate);
       return !isNaN(d.getTime()) && d >= today && d <= in7Days;
@@ -208,7 +215,7 @@ export const Sidebar: React.FC = () => {
     ).length;
 
     return { ap: apOpen, ar: arPending, banks: banksLow, loans: loansAlert, statements: stmtsPending, calendar: calUpcoming, notes: notesOpen };
-  }, [apBills, arItems, bankAccounts, loans, bankStatements, calendarLocalEvents, quickNotes]);
+  }, [apBills, arItems, bankAccounts, loans, bankStatements, calendarLocalEvents, googleCalEvents, calSheetEvents, quickNotes]);
 
   const renderLinkIcon = (link: ExternalLinkItem) => {
     if (link.iconType === "users") return <Users className="w-3.5 h-3.5 text-purple-500 shrink-0" />;
