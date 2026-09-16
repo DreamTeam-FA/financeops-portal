@@ -10,10 +10,11 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Play, Square, RefreshCw, ChevronRight, Upload,
+  Play, RefreshCw, ChevronRight, Upload,
   Terminal, Wifi, WifiOff, AlertCircle, CheckCircle2, Clock,
-  Info, ChevronDown,
+  Info, ChevronDown, Settings,
 } from "lucide-react";
+import { useFinance } from "../../context/FinanceContext";
 
 const RUNNER_BASE = import.meta.env.VITE_AUTOMATION_RUNNER_URL || "http://localhost:8001";
 
@@ -83,7 +84,9 @@ interface AutomationsTabProps {
 }
 
 export const AutomationsTab: React.FC<AutomationsTabProps> = ({ isLight }) => {
+  const { logAction, userEmail } = useFinance() as any;
   const [showGuide, setShowGuide] = useState(false);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [activeJob, setActiveJob] = useState<JobState | null>(null);
   const [continueInput, setContinueInput] = useState("y");
   const [runnerOnline, setRunnerOnline] = useState<boolean | null | "waking">(null);
@@ -188,6 +191,7 @@ export const AutomationsTab: React.FC<AutomationsTabProps> = ({ isLight }) => {
       });
       if (!r.ok) throw new Error(await r.text());
       const { job_id } = await r.json();
+      logAction?.("Ran Automation", `${script.label} (job ${job_id}) triggered by ${userEmail || "unknown"}`);
       startStream(job_id, script.key);
     } catch (err: any) {
       setActiveJob({
@@ -272,45 +276,28 @@ export const AutomationsTab: React.FC<AutomationsTabProps> = ({ isLight }) => {
             </div>
 
             <div>
-              <p className={`font-bold mb-2 ${isLight ? "text-slate-900" : "text-white"}`}>First-time setup — upload cookies</p>
-              <ol className="list-decimal list-inside space-y-1.5 pl-1">
-                <li>Install the <strong>Cookie-Editor</strong> or <strong>EditThisCookie</strong> browser extension in Brave/Chrome.</li>
-                <li>Log in to the site you want (e.g. <span className="font-mono">toasttab.com</span>, <span className="font-mono">quickbooks.intuit.com</span>, <span className="font-mono">sellercentral.amazon.com</span>).</li>
-                <li>Open Cookie-Editor → click <strong>Export → Export as JSON</strong> → save the file.</li>
-                <li>Scroll down to the <strong>Cookie Sync</strong> panel below, pick the matching profile, choose the JSON file, and click <strong>Upload</strong>.</li>
-                <li>The server stores the cookies securely in Google Drive and injects them before each script run.</li>
-              </ol>
-            </div>
-
-            <div>
               <p className={`font-bold mb-2 ${isLight ? "text-slate-900" : "text-white"}`}>Running a script</p>
               <ol className="list-decimal list-inside space-y-1.5 pl-1">
-                <li>The runner wakes up automatically when you visit this page — wait for the green <strong>Runner online</strong> banner (up to ~30 s on first load).</li>
-                <li>Click <strong>Run</strong> on any script card. Logs stream in real time in the Live Log panel.</li>
-                <li>If the script needs a date range or confirmation, an amber <strong>Waiting for input</strong> bar appears — type your answer and click <strong>Continue</strong>.</li>
-                <li>When the log shows <span className="font-mono text-emerald-500">[DONE]</span>, the data has been pasted into the Google Sheet automatically.</li>
+                <li>Wait for the green <strong>Runner online</strong> banner — it wakes up automatically (up to ~30s on first visit).</li>
+                <li>Click <strong>Run</strong> on any script card. Logs stream live in the panel on the right.</li>
+                <li>If the script asks for a date or confirmation, an amber bar appears at the bottom of the log — type your answer and click <strong>Continue</strong>.</li>
+                <li>When the log shows <span className="font-mono text-emerald-500">[DONE]</span>, results are already in the Google Sheet.</li>
               </ol>
             </div>
 
             <div>
-              <p className={`font-bold mb-1.5 ${isLight ? "text-slate-900" : "text-white"}`}>Cookie profiles</p>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-                {[
-                  ["toasttab", "Ruby's Toast Recon, Ruby's FTA"],
-                  ["quickbooks", "QBO Report"],
-                  ["amazon", "CPRO Weekly/Monthly Report"],
-                  ["google", "Reserved for future use"],
-                ].map(([profile, used]) => (
-                  <div key={profile} className="flex items-start gap-1.5">
-                    <span className={`font-mono font-bold text-[11px] shrink-0 ${isLight ? "text-violet-600" : "text-violet-400"}`}>{profile}</span>
-                    <span className={`text-[11px] ${isLight ? "text-slate-500" : "text-[#777]"}`}>— {used}</span>
+              <p className={`font-bold mb-1.5 ${isLight ? "text-slate-900" : "text-white"}`}>Scripts available</p>
+              <div className="space-y-1">
+                {SCRIPTS.map((s) => (
+                  <div key={s.key} className="flex items-start gap-2">
+                    <span className="w-2 h-2 rounded-full mt-1.5 shrink-0" style={{ backgroundColor: s.color }} />
+                    <div>
+                      <span className={`font-bold text-[11px] ${isLight ? "text-slate-800" : "text-white"}`}>{s.label}</span>
+                      <span className={`text-[11px] ml-1.5 ${isLight ? "text-slate-500" : "text-[#777]"}`}>— {s.description}</span>
+                    </div>
                   </div>
                 ))}
               </div>
-            </div>
-
-            <div className={`rounded-lg px-3 py-2 text-[11px] ${isLight ? "bg-amber-50 border border-amber-200 text-amber-700" : "bg-amber-950/30 border border-amber-800/40 text-amber-400"}`}>
-              <strong>Cookies expire.</strong> If a script fails with an auth/login error, export fresh cookies from your browser and re-upload them for the affected profile.
             </div>
 
           </div>
@@ -485,79 +472,88 @@ export const AutomationsTab: React.FC<AutomationsTabProps> = ({ isLight }) => {
         </div>
       </div>
 
-      {/* ── Cookie Upload panel ─────────────────────────────────────────── */}
-      <div className={`rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} overflow-hidden`}>
-        <div className={`px-4 py-2.5 border-b text-xs font-bold ${
-          isLight ? "bg-slate-50 border-slate-200 text-slate-700" : "bg-[#0d0f17] border-[#1a2235] text-[#aaa]"
-        }`}>
-          Cookie Sync — Upload browser cookies to server
-        </div>
-        <div className="px-4 py-4 flex flex-wrap items-end gap-3">
-          <div className="space-y-1">
-            <label className={`text-[11px] font-semibold ${isLight ? "text-slate-500" : "text-[#888]"}`}>
-              Profile
-            </label>
-            <select
-              value={cookieProfile}
-              onChange={(e) => setCookieProfile(e.target.value)}
-              className={`text-xs px-3 py-1.5 rounded-lg border focus:outline-none ${
-                isLight
-                  ? "bg-slate-50 border-slate-300 text-slate-800"
-                  : "bg-[#0d111a] border-[#333] text-white"
+      {/* ── Admin panel (hidden by default) ────────────────────────────── */}
+      <div className="flex justify-end">
+        <button
+          onClick={() => setShowAdminPanel((v) => !v)}
+          className={`flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-lg transition-colors ${
+            isLight ? "text-slate-400 hover:text-slate-600 hover:bg-slate-100" : "text-[#444] hover:text-[#888] hover:bg-[#0d111a]"
+          }`}
+        >
+          <Settings className="w-3 h-3" />
+          Admin
+        </button>
+      </div>
+
+      {showAdminPanel && (
+        <div className={`rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} overflow-hidden`}>
+          <div className={`px-4 py-2.5 border-b text-xs font-bold flex items-center gap-2 ${
+            isLight ? "bg-slate-50 border-slate-200 text-slate-700" : "bg-[#0d0f17] border-[#1a2235] text-[#aaa]"
+          }`}>
+            <Settings className="w-3.5 h-3.5" />
+            Cookie Sync — Admin only
+          </div>
+
+          <div className={`px-4 py-3 text-[11px] leading-relaxed ${isLight ? "text-slate-500" : "text-[#666]"}`}>
+            Run <span className="font-mono font-bold">sync_cookies.bat</span> (located in the <span className="font-mono">automation-runner</span> folder) to automatically sync cookies from Brave to the server. Double-click it — no other steps needed.
+            <br /><br />
+            Or upload a JSON file manually below if the script is unavailable.
+          </div>
+
+          <div className="px-4 pb-4 flex flex-wrap items-end gap-3">
+            <div className="space-y-1">
+              <label className={`text-[11px] font-semibold ${isLight ? "text-slate-500" : "text-[#888]"}`}>Profile</label>
+              <select
+                value={cookieProfile}
+                onChange={(e) => setCookieProfile(e.target.value)}
+                className={`text-xs px-3 py-1.5 rounded-lg border focus:outline-none ${
+                  isLight ? "bg-slate-50 border-slate-300 text-slate-800" : "bg-[#0d111a] border-[#333] text-white"
+                }`}
+              >
+                <option value="toasttab">toasttab</option>
+                <option value="quickbooks">quickbooks</option>
+                <option value="amazon">amazon</option>
+                <option value="google">google</option>
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className={`text-[11px] font-semibold ${isLight ? "text-slate-500" : "text-[#888]"}`}>Cookies JSON file</label>
+              <input
+                type="file"
+                accept=".json"
+                onChange={(e) => setCookieFile(e.target.files?.[0] ?? null)}
+                className={`text-xs file:mr-2 file:px-2 file:py-1 file:rounded file:border-0 file:text-xs file:font-semibold cursor-pointer ${
+                  isLight ? "file:bg-slate-200 file:text-slate-700 text-slate-700" : "file:bg-[#222] file:text-[#ccc] text-[#aaa]"
+                }`}
+              />
+            </div>
+
+            <button
+              onClick={handleCookieUpload}
+              disabled={!cookieFile}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                cookieFile
+                  ? "bg-[#1a73e8] text-white hover:bg-[#1557b0]"
+                  : isLight ? "bg-slate-100 text-slate-400 cursor-not-allowed" : "bg-[#1a1a1a] text-[#555] cursor-not-allowed"
               }`}
             >
-              <option value="toasttab">toasttab</option>
-              <option value="quickbooks">quickbooks</option>
-              <option value="amazon">amazon</option>
-              <option value="google">google</option>
-            </select>
+              <Upload className="w-3.5 h-3.5" />
+              Upload
+            </button>
+
+            {cookieStatus && (
+              <span className={`text-[11px] font-semibold ${
+                cookieStatus.startsWith("Error")
+                  ? isLight ? "text-red-500" : "text-red-400"
+                  : isLight ? "text-emerald-600" : "text-emerald-400"
+              }`}>
+                {cookieStatus}
+              </span>
+            )}
           </div>
-
-          <div className="space-y-1">
-            <label className={`text-[11px] font-semibold ${isLight ? "text-slate-500" : "text-[#888]"}`}>
-              Cookies JSON file
-            </label>
-            <input
-              type="file"
-              accept=".json"
-              onChange={(e) => setCookieFile(e.target.files?.[0] ?? null)}
-              className={`text-xs file:mr-2 file:px-2 file:py-1 file:rounded file:border-0 file:text-xs file:font-semibold cursor-pointer ${
-                isLight
-                  ? "file:bg-slate-200 file:text-slate-700 text-slate-700"
-                  : "file:bg-[#222] file:text-[#ccc] text-[#aaa]"
-              }`}
-            />
-          </div>
-
-          <button
-            onClick={handleCookieUpload}
-            disabled={!cookieFile}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-              cookieFile
-                ? "bg-[#1a73e8] text-white hover:bg-[#1557b0]"
-                : isLight ? "bg-slate-100 text-slate-400 cursor-not-allowed" : "bg-[#1a1a1a] text-[#555] cursor-not-allowed"
-            }`}
-          >
-            <Upload className="w-3.5 h-3.5" />
-            Upload
-          </button>
-
-          {cookieStatus && (
-            <span className={`text-[11px] font-semibold ${
-              cookieStatus.startsWith("Error")
-                ? isLight ? "text-red-500" : "text-red-400"
-                : isLight ? "text-emerald-600" : "text-emerald-400"
-            }`}>
-              {cookieStatus}
-            </span>
-          )}
         </div>
-
-        <div className={`px-4 pb-3 text-[11px] ${isLight ? "text-slate-400" : "text-[#555]"}`}>
-          Export cookies from Brave using EditThisCookie or Cookie-Editor extension → Save as JSON → upload here.
-          The server stores them in Google Drive and injects them before each script run.
-        </div>
-      </div>
+      )}
     </div>
   );
 };
