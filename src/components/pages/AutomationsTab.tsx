@@ -12,6 +12,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Play, Square, RefreshCw, ChevronRight, Upload,
   Terminal, Wifi, WifiOff, AlertCircle, CheckCircle2, Clock,
+  Info, ChevronDown,
 } from "lucide-react";
 
 const RUNNER_BASE = import.meta.env.VITE_AUTOMATION_RUNNER_URL || "http://localhost:8001";
@@ -82,6 +83,7 @@ interface AutomationsTabProps {
 }
 
 export const AutomationsTab: React.FC<AutomationsTabProps> = ({ isLight }) => {
+  const [showGuide, setShowGuide] = useState(false);
   const [activeJob, setActiveJob] = useState<JobState | null>(null);
   const [continueInput, setContinueInput] = useState("y");
   const [runnerOnline, setRunnerOnline] = useState<boolean | null | "waking">(null);
@@ -245,6 +247,75 @@ export const AutomationsTab: React.FC<AutomationsTabProps> = ({ isLight }) => {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-4">
+
+      {/* ── How to use ───────────────────────────────────────────────────── */}
+      <div className={`rounded-xl border overflow-hidden ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"}`}>
+        <button
+          onClick={() => setShowGuide((v) => !v)}
+          className={`w-full flex items-center justify-between px-4 py-3 text-xs font-bold transition-colors ${
+            isLight ? "bg-slate-50 hover:bg-slate-100 text-slate-700 border-b border-slate-200" : "bg-[#0d0f17] hover:bg-[#111420] text-[#aaa] border-b border-[#1a2235]"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Info className="w-3.5 h-3.5 text-[#1a73e8]" />
+            How to use Automation Runner
+          </div>
+          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showGuide ? "rotate-180" : ""} ${isLight ? "text-slate-400" : "text-[#555]"}`} />
+        </button>
+
+        {showGuide && (
+          <div className={`px-5 py-4 space-y-4 text-[12px] leading-relaxed ${isLight ? "text-slate-700" : "text-[#bbb]"}`}>
+
+            <div>
+              <p className={`font-bold mb-1.5 ${isLight ? "text-slate-900" : "text-white"}`}>What is this?</p>
+              <p>The Automation Runner is a background server on Render that runs Python scripts on your behalf — headlessly, without needing your computer on. It logs into Toast, QuickBooks, Amazon, etc. using your saved browser cookies and pastes the results directly into Google Sheets.</p>
+            </div>
+
+            <div>
+              <p className={`font-bold mb-2 ${isLight ? "text-slate-900" : "text-white"}`}>First-time setup — upload cookies</p>
+              <ol className="list-decimal list-inside space-y-1.5 pl-1">
+                <li>Install the <strong>Cookie-Editor</strong> or <strong>EditThisCookie</strong> browser extension in Brave/Chrome.</li>
+                <li>Log in to the site you want (e.g. <span className="font-mono">toasttab.com</span>, <span className="font-mono">quickbooks.intuit.com</span>, <span className="font-mono">sellercentral.amazon.com</span>).</li>
+                <li>Open Cookie-Editor → click <strong>Export → Export as JSON</strong> → save the file.</li>
+                <li>Scroll down to the <strong>Cookie Sync</strong> panel below, pick the matching profile, choose the JSON file, and click <strong>Upload</strong>.</li>
+                <li>The server stores the cookies securely in Google Drive and injects them before each script run.</li>
+              </ol>
+            </div>
+
+            <div>
+              <p className={`font-bold mb-2 ${isLight ? "text-slate-900" : "text-white"}`}>Running a script</p>
+              <ol className="list-decimal list-inside space-y-1.5 pl-1">
+                <li>The runner wakes up automatically when you visit this page — wait for the green <strong>Runner online</strong> banner (up to ~30 s on first load).</li>
+                <li>Click <strong>Run</strong> on any script card. Logs stream in real time in the Live Log panel.</li>
+                <li>If the script needs a date range or confirmation, an amber <strong>Waiting for input</strong> bar appears — type your answer and click <strong>Continue</strong>.</li>
+                <li>When the log shows <span className="font-mono text-emerald-500">[DONE]</span>, the data has been pasted into the Google Sheet automatically.</li>
+              </ol>
+            </div>
+
+            <div>
+              <p className={`font-bold mb-1.5 ${isLight ? "text-slate-900" : "text-white"}`}>Cookie profiles</p>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+                {[
+                  ["toasttab", "Ruby's Toast Recon, Ruby's FTA"],
+                  ["quickbooks", "QBO Report"],
+                  ["amazon", "CPRO Weekly/Monthly Report"],
+                  ["google", "Reserved for future use"],
+                ].map(([profile, used]) => (
+                  <div key={profile} className="flex items-start gap-1.5">
+                    <span className={`font-mono font-bold text-[11px] shrink-0 ${isLight ? "text-violet-600" : "text-violet-400"}`}>{profile}</span>
+                    <span className={`text-[11px] ${isLight ? "text-slate-500" : "text-[#777]"}`}>— {used}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className={`rounded-lg px-3 py-2 text-[11px] ${isLight ? "bg-amber-50 border border-amber-200 text-amber-700" : "bg-amber-950/30 border border-amber-800/40 text-amber-400"}`}>
+              <strong>Cookies expire.</strong> If a script fails with an auth/login error, export fresh cookies from your browser and re-upload them for the affected profile.
+            </div>
+
+          </div>
+        )}
+      </div>
 
       {/* Runner status banner */}
       <div className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl border text-xs font-semibold ${

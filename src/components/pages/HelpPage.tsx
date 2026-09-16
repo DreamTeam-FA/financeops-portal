@@ -103,7 +103,11 @@ const FAQ = [
   },
   {
     q: "What is the Workspace / Member Workspace?",
-    a: "The Workspace is a shared area where team members can upload files directly to Google Drive from inside the portal. Files are organized automatically by category and entity. Members see only their own uploads, while admins can see all uploads across all members. Access it from the Workspace section in the sidebar.",
+    a: "The Workspace section in the sidebar has four areas: Tools & sheets (internal tools like Receipt Renamer, PDF Extractor), Platforms (external SaaS links), Drive Folders (Google Drive shortcuts), and Automations (the Python automation runner). Member Workspaces (Norlan, Micah, Monica) are personal areas for each team member.",
+  },
+  {
+    q: "What is the Automation Runner and how do I use it?",
+    a: "The Automation Runner is a background server (hosted on Render) that runs Python scripts on your behalf — headlessly, no computer required. It logs into Toast, QuickBooks, Amazon, etc. using browser cookies you upload, and pastes results directly into Google Sheets.\n\nTo use it:\n1. Install Cookie-Editor or EditThisCookie in Brave/Chrome.\n2. Log in to the target site (e.g. toasttab.com, quickbooks.intuit.com).\n3. Open Cookie-Editor → Export as JSON → save the file.\n4. In the Automations page, scroll to Cookie Sync, pick the matching profile, upload the JSON.\n5. Click Run on a script card and watch the live log.\n\nCookie profiles: 'toasttab' (Ruby's Toast Recon + FTA), 'quickbooks' (QBO Report), 'amazon' (CPRO Report).\n\nNote: The runner sleeps after 15 minutes of inactivity on the free Render tier. The first load takes ~30 seconds to wake up — the banner shows 'waking up' during that time. Cookies expire periodically; if a script fails with an auth error, re-export and re-upload cookies for that profile.",
   },
   {
     q: "Why does the portal paint data instantly before the Google sync finishes?",
@@ -1031,7 +1035,10 @@ export const HelpPage: React.FC = () => {
                         { r: '"datasync"',             d: 'DataSyncPage — Settings & Data Sync (gear icon)' },
                         { r: '"cc-expenses"',          d: 'CCExpensePage — credit card transactions, adjustments, reconciliation' },
                         { r: '"fouryr-payroll"',       d: 'FourYrPayrollPage — 4YR raw payroll data view' },
-                        { r: '"workspace-*"',          d: 'WorkspacePage — Tools / Platforms / Drive tabbed view' },
+                        { r: '"workspace-tools"',      d: 'WorkspacePage — Tools & Sheets tab (Receipt Renamer, PDF Extractor, etc.)' },
+                        { r: '"workspace-platforms"', d: 'WorkspacePage — Platforms tab (external SaaS links)' },
+                        { r: '"workspace-drive"',     d: 'WorkspacePage — Drive Folders tab (Google Drive shortcuts)' },
+                        { r: '"workspace-automations"', d: 'WorkspacePage — Automations tab (Python script runner, live logs, cookie sync)' },
                         { r: '"member-workspace"',     d: 'MemberWorkspacePage — per-member (Norlan, Micah, Monica) workspace' },
                         { r: '"notes"',                d: 'NotesPage — full notes page (floating widget also shown on all pages)' },
                         { r: '"logs"',                 d: 'LogsPage — action audit log' },

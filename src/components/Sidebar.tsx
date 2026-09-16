@@ -36,6 +36,7 @@ import {
   Wrench,
   Globe,
   Folder,
+  Bot,
   User as UserIcon,
   Plus,
   FolderPlus,
@@ -548,7 +549,7 @@ export const Sidebar: React.FC = () => {
               : isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900 border border-transparent" : "text-[#7a90b0] hover:bg-[#0d1525] hover:text-[#c8d4e8] border border-transparent"
           }`}
         >
-          <Wrench className={`w-3.5 h-3.5 text-orange-500 shrink-0 ${isSidebarFolded ? "w-4 h-4" : ""}`} />
+          <Bot className="w-3.5 h-3.5 text-orange-500 shrink-0" />
           {!isSidebarFolded && <span className="flex-1 text-left truncate font-medium">Automations</span>}
         </button>
         </Tooltip>
