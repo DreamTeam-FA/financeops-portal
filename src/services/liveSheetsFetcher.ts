@@ -600,12 +600,18 @@ export async function fetchFullLiveDataset(accessToken?: string) {
           }
         }
       }
+      if (vendor.toLowerCase().includes("woodbury")) {
+        console.log(`[DEBUG Woodbury Ruby] amount=${amount} status1=`, JSON.stringify(status1), "lines=", lines.length, "payments=", JSON.stringify(payments));
+      }
       if (payments.length > 0) {
         parsedPartialPaid = payments.reduce((s, p) => s + p.amount, 0);
         parsedPartialPayments = payments;
         // Amount col holds the ORIGINAL amount. Only use the additive path when
         // parsedPartialPaid exceeds it (meaning the cell holds the NET remainder instead).
         parsedOriginalAmount = parsedPartialPaid > amount ? amount + parsedPartialPaid : amount;
+        if (vendor.toLowerCase().includes("woodbury")) {
+          console.log(`[DEBUG Woodbury Ruby] parsedPartialPaid=${parsedPartialPaid} parsedOriginalAmount=${parsedOriginalAmount}`);
+        }
       }
     }
 
