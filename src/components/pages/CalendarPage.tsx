@@ -296,7 +296,8 @@ export const CalendarPage: React.FC = () => {
   const [taskTime, setTaskTime] = useState("09:00");
   const [taskCategory, setTaskCategory] = useState<"event" | "task" | "meeting">("event");
   const [taskUrgency, setTaskUrgency] = useState<"critical" | "high" | "normal" | "low">("normal");
-  const [taskAssignee, setTaskAssignee] = useState("");
+  const [taskAssignees, setTaskAssignees] = useState<string[]>([]);
+  const [showAssigneeDropdown, setShowAssigneeDropdown] = useState(false);
   const [taskDesc, setTaskDesc] = useState("");
   const [taskRepeat, setTaskRepeat] = useState<"none" | "daily" | "weekly" | "monthly" | "annually">("none");
   const [taskOccurrences, setTaskOccurrences] = useState(2);
@@ -469,6 +470,8 @@ export const CalendarPage: React.FC = () => {
   // Build assigneeId → color map by scanning all events (mirrors GAS calAssignees lookup)
   const assigneeColorMap = useMemo(() => {
     const map: Record<string, string> = {};
+    // Seed from the assignees list first (name → color, always up-to-date)
+    assignees.forEach((a: any) => { if (a.name && a.color) map[a.name] = a.color; });
     calendarLocalEvents.forEach((ev: any) => {
       if (ev.assigneeId && ev.assigneeColor) map[ev.assigneeId] = ev.assigneeColor;
     });
@@ -476,9 +479,11 @@ export const CalendarPage: React.FC = () => {
       if ((ev as any).assigneeId && (ev as any).assigneeColor) {
         map[(ev as any).assigneeId] = (ev as any).assigneeColor;
       }
+      // Also map by name so names-as-IDs (from portal-created events) resolve to colors
+      if (ev.assignee && ev.assigneeColor) map[ev.assignee] = ev.assigneeColor;
     });
     return map;
-  }, [calendarLocalEvents, sheetEvents]);
+  }, [calendarLocalEvents, sheetEvents, assignees]);
 
   // Get colored bar array for an event chip (one per assignee, like GAS eventPillBars)
   const getEventColorBars = (ev: { assigneeIds?: string[]; assigneeColor?: string }): string[] => {
@@ -825,7 +830,11 @@ export const CalendarPage: React.FC = () => {
       else if (repeat === "weekly") d.setDate(base.getDate() + i * 7);
       else if (repeat === "monthly") d.setMonth(base.getMonth() + i);
       else if (repeat === "annually") d.setFullYear(base.getFullYear() + i);
-      dates.push(d.toISOString().split("T")[0]);
+      // Use local date parts to avoid UTC day-shift (toISOString would give the wrong day in UTC+8)
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      dates.push(`${y}-${m}-${day}`);
     }
     return dates;
   }
@@ -1047,7 +1056,7 @@ export const CalendarPage: React.FC = () => {
               <ChevronDown className={`w-3 h-3 transition-transform ${mobileLegendOpen ? "rotate-180" : ""}`} />
             </button>
           </div>
-          <div className={`${mobileLegendOpen ? "block" : "hidden"} sm:block rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} p-3 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs`}>
+          <div className={`${mobileLegendOpen ? "grid" : "hidden"} sm:grid rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} p-3 grid-cols-1 md:grid-cols-3 gap-3 text-xs`}>
             {/* Urgency */}
             <div className="space-y-1">
               <span className={`text-[10px] font-extrabold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-[#888]"}`}>Urgency Level</span>
@@ -1094,7 +1103,7 @@ export const CalendarPage: React.FC = () => {
           </div>
 
           {/* Calendar Source Filters — hidden on mobile unless legend open */}
-          <div className={`${mobileLegendOpen ? "block" : "hidden"} sm:block p-3 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} flex flex-wrap items-center justify-between gap-2 text-xs`}>
+          <div className={`${mobileLegendOpen ? "flex" : "hidden"} sm:flex p-3 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} flex-wrap items-center justify-between gap-2 text-xs`}>
             <div className="flex items-center gap-2">
               <Filter className="w-3.5 h-3.5 text-[#0d9488]" />
               <span className={`text-[10px] font-extrabold uppercase tracking-wider ${isLight ? "text-slate-500" : "text-[#888]"}`}>Visible Sources:</span>
