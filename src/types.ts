@@ -257,6 +257,7 @@ export type PageRoute =
   | "workspace-tools"
   | "workspace-platforms"
   | "workspace-drive"
+  | "workspace-automations"
   | "member-workspace"
   | "datasync"
   | "notes"

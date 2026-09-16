@@ -538,6 +538,20 @@ export const Sidebar: React.FC = () => {
           {!isSidebarFolded && <span className="flex-1 text-left truncate font-medium">Drive folders</span>}
         </button>
         </Tooltip>
+
+        <Tooltip label="Automations" disabled={!isSidebarFolded}>
+        <button
+          onClick={() => setCurrentPage("workspace-automations")}
+          className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "gap-2.5 px-3 py-1.5"} rounded-md text-[13px] transition-all relative ${
+            currentPage === "workspace-automations"
+              ? isLight ? "bg-orange-50 text-orange-800 font-semibold border border-orange-200" : "bg-orange-950/20 text-orange-200 font-semibold border border-orange-900/40 shadow-[0_1px_8px_rgba(249,115,22,.1)]"
+              : isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900 border border-transparent" : "text-[#7a90b0] hover:bg-[#0d1525] hover:text-[#c8d4e8] border border-transparent"
+          }`}
+        >
+          <Wrench className={`w-3.5 h-3.5 text-orange-500 shrink-0 ${isSidebarFolded ? "w-4 h-4" : ""}`} />
+          {!isSidebarFolded && <span className="flex-1 text-left truncate font-medium">Automations</span>}
+        </button>
+        </Tooltip>
       </div>
 
       {/* MEMBER'S WORKSPACE Section */}

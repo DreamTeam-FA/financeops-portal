@@ -299,9 +299,10 @@ const MobileMoreDrawer: React.FC<{ open: boolean; onClose: () => void; onNav: (p
     {
       label: "Workspace",
       items: [
-        { page: "workspace-tools",     icon: "🛠️", label: "Tools" },
-        { page: "workspace-platforms", icon: "🌐", label: "Platforms" },
-        { page: "workspace-drive",     icon: "📁", label: "Drive" },
+        { page: "workspace-tools",        icon: "🛠️", label: "Tools" },
+        { page: "workspace-platforms",    icon: "🌐", label: "Platforms" },
+        { page: "workspace-drive",        icon: "📁", label: "Drive" },
+        { page: "workspace-automations",  icon: "⚙️", label: "Automations" },
         { page: "notes",               icon: "📝", label: "Notes" },
         { page: "workflows",           icon: "⚡", label: "Workflows" },
         { page: "email-scanner",       icon: "📧", label: "Email" },
@@ -532,6 +533,8 @@ const PortalContent: React.FC = () => {
         return <WorkspacePage initialCategory="platforms" />;
       case "workspace-drive":
         return <WorkspacePage initialCategory="drive" />;
+      case "workspace-automations":
+        return <WorkspacePage initialCategory="automations" />;
       case "member-workspace":
         return (
           <MemberWorkspacePage
