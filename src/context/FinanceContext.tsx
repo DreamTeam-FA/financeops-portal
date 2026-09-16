@@ -1176,7 +1176,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     // ── Main init sequence ───────────────────────────────────────────────
     const init = async () => {
 
-      // Init calendarLocalEvents from dedicated localStorage key (no sheet backing; not in cache)
+      // Init localCalendarEvents (portal tasks) from dedicated localStorage key
+      try {
+        const saved = JSON.parse(localStorage.getItem("financeops_portal_cal_events") || "[]");
+        if (Array.isArray(saved) && saved.length > 0) setLocalCalendarEvents(saved);
+      } catch {}
+      // Init calendarLocalEvents (dashboard sheet events) from dedicated localStorage key
       try {
         const saved = JSON.parse(localStorage.getItem("financeops_local_cal_events") || "[]");
         if (Array.isArray(saved) && saved.length > 0) setCalendarLocalEvents(saved);
@@ -2533,7 +2538,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
     const next = [newEv, ...localCalendarEvents];
     setLocalCalendarEvents(next);
-    persistChanges({ localCalendarEvents: next });
+    try { localStorage.setItem("financeops_portal_cal_events", JSON.stringify(next)); } catch {}
     logAction("Created Calendar Task", `${newEv.title} on ${newEv.date}`);
   };
 
@@ -2541,7 +2546,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!requireToken()) return;
     const next = localCalendarEvents.filter((e) => e.id !== id);
     setLocalCalendarEvents(next);
-    persistChanges({ localCalendarEvents: next });
+    try { localStorage.setItem("financeops_portal_cal_events", JSON.stringify(next)); } catch {}
     logAction("Deleted Calendar Task", `Task ID ${id} removed`);
   };
 
@@ -2549,7 +2554,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!requireToken()) return;
     const next = localCalendarEvents.map((e) => e.id === id ? { ...e, ...updates } : e);
     setLocalCalendarEvents(next);
-    persistChanges({ localCalendarEvents: next });
+    try { localStorage.setItem("financeops_portal_cal_events", JSON.stringify(next)); } catch {}
     logAction("Updated Calendar Task", `Task ID ${id} updated`);
   };
 
