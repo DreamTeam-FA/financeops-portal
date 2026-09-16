@@ -283,31 +283,9 @@ async function syncLiveDataFromSheets(accessToken?: string) {
     // Rule #1: Sheet is ALWAYS source of truth.
     // When the sheet is fetched and returns items, use it DIRECTLY — no merge with stored cache.
     // This ensures bills deleted from the sheet immediately disappear from the portal on Pull All.
-    // Portal-only fields (driveViewUrl, partialPaid, paidDate, originalAmount) are re-applied where
-    // the bill still exists in the sheet.
-    // originalAmount anchors the true pre-payment amount so accumulated partials stay correct even
-    // after Pull All sets b.amount to the sheet's evaluated formula value (e.g. 4000 not 5000).
-    // Parse partial payment history from status1/paidVia text (YYYY.MM.DD - $amount lines).
-    // Sheet is source of truth — derive partialPayments, partialPaid, originalAmount from sheet data.
-    function parsePartialFromSheet(status1: string | undefined, paidVia: string | undefined, remainingAmount: number) {
-      const text = status1 || paidVia || "";
-      if (!text) return null;
-      const lines = text.split("\n").map((l: string) => l.trim()).filter(Boolean);
-      const lineRe = /^(\d{4}\.\d{2}\.\d{2})\s*-\s*\$([0-9,]+(?:\.\d+)?)$/;
-      const payments: { amount: number; date: string }[] = [];
-      for (const line of lines) {
-        const m = line.match(lineRe);
-        if (!m) return null;
-        const date = m[1].replace(/\./g, "-");
-        const amount = parseFloat(m[2].replace(/,/g, ""));
-        if (isNaN(amount) || amount <= 0) return null;
-        payments.push({ amount, date });
-      }
-      if (payments.length === 0) return null;
-      const partialPaid = payments.reduce((s: number, p: { amount: number }) => s + p.amount, 0);
-      const originalAmount = partialPaid + remainingAmount;
-      return { partialPayments: payments, partialPaid, originalAmount };
-    }
+    // Partial-payment fields (partialPayments/partialPaid/originalAmount) are derived ONCE in
+    // liveSheetsFetcher. Do NOT re-derive them here — b.amount is already the original amount,
+    // so adding partialPaid again double-counts (e.g. 25,637.71 + 25,000 = 50,637.71).
 
     // Only store driveViewUrl in JSON — partial tracking comes entirely from the sheet now.
     type StoredPortalFields = { url?: string; name?: string };
@@ -325,12 +303,9 @@ async function syncLiveDataFromSheets(accessToken?: string) {
       ? (liveData.ap || []).map((b: any) => {
           const sk = apBillStableKey(b);
           const pf = portalFieldsMap.get(sk);
-          // Derive partial tracking from sheet status1/paidVia — no JSON dependency
-          const parsed = b.status !== "paid" ? parsePartialFromSheet(b.status1, b.paidVia, b.amount) : null;
           return {
             ...b,
             ...(pf?.url ? { driveViewUrl: pf.url, driveFileName: pf.name } : {}),
-            ...(parsed ? { partialPayments: parsed.partialPayments, partialPaid: parsed.partialPaid, originalAmount: parsed.originalAmount } : {}),
           };
         })
       : current.ap;
