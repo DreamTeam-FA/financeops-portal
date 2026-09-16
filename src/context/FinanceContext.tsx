@@ -266,6 +266,16 @@ const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/15uYsYttv4xSYV
  *  Two items are considered duplicates if they share the same URL (normalised) OR the same name
  *  (case-insensitive). This catches stored custom copies of items later promoted to defaults,
  *  even when URLs differ slightly (different path, casing, etc.). */
+const dedupeStatements = (stmts: BankStatement[]): BankStatement[] => {
+  const seen = new Set<string>();
+  return stmts.filter(s => {
+    const key = `${s.bankName}|${s.statementDate}|${s.entity}|${s.occurrence}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 const dedupeExternalLinks = (links: ExternalLinkItem[]): ExternalLinkItem[] => {
   const defaultIds = new Set(DEFAULT_EXTERNAL_LINKS.map(d => d.id));
   // Put default-ID items first so they win in the dedup check
@@ -1137,7 +1147,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           }, 1500);
         }
       }
-      if (data.statements) setBankStatements(data.statements);
+      if (data.statements) setBankStatements(dedupeStatements(data.statements));
       if (data.statementTemplates) setStatementTemplates(data.statementTemplates);
       if (data.headleys)   setHeadleys(data.headleys);
       if (data.payrollPivot)  setPayrollPivot(data.payrollPivot);
@@ -1969,8 +1979,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setArItems(aggregatedAR);
         persistChanges({ ar: aggregatedAR });
       } else if (mapping.module === "statements" && aggregatedStatements.length > 0) {
-        setBankStatements(aggregatedStatements);
-        persistChanges({ statements: aggregatedStatements });
+        const dedupedStmts = dedupeStatements(aggregatedStatements);
+        setBankStatements(dedupedStmts);
+        persistChanges({ statements: dedupedStmts });
       } else if (mapping.module === "payroll" && Object.keys(aggregatedPayroll).length > 0) {
         setPayrollPivot(aggregatedPayroll);
         persistChanges({ payrollPivot: aggregatedPayroll });
@@ -2100,7 +2111,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (live.banks && live.banks.length > 0) setBankAccounts(live.banks);
         if (live.loans && live.loans.length > 0) setLoans(live.loans);
         if (live.ar && live.ar.length > 0) setArItems(sanitizeAr(live.ar));
-        if (live.statements && live.statements.length > 0) setBankStatements(live.statements);
+        if (live.statements && live.statements.length > 0) setBankStatements(dedupeStatements(live.statements));
         if (live.statementTemplates && live.statementTemplates.length > 0) setStatementTemplates(live.statementTemplates);
         if (live.quickNotes && Array.isArray(live.quickNotes) && live.quickNotes.length > 0) {
           const mergedNotes = (live.quickNotes as DashboardNote[]).map((n) => {
@@ -2883,7 +2894,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       id: `st-${now}-${i}`,
     }));
     setBankStatements(prev => {
-      const nextSt = [...newItems, ...prev];
+      // Skip any new item that duplicates an existing (bankName + statementDate + entity + occurrence)
+      const existingKeys = new Set(prev.map(s => `${s.bankName}|${s.statementDate}|${s.entity}|${s.occurrence}`));
+      const unique = newItems.filter(s => !existingKeys.has(`${s.bankName}|${s.statementDate}|${s.entity}|${s.occurrence}`));
+      if (unique.length === 0) return prev;
+      const nextSt = [...unique, ...prev];
       persistChanges({ statements: nextSt });
       return nextSt;
     });
