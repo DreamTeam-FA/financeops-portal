@@ -4,7 +4,7 @@ import { PageHeader } from "../PageHeader";
 import { APBill, EntityName } from "../../types";
 import { normalizeEntityName } from "../../services/googleSheetsService";
 import { ENTITY_PARENT, entityMatchesFilter } from "../../utils/entityColors";
-import { formatCurrency } from "../../utils/formatters";
+import { formatCurrency, billRemaining } from "../../utils/formatters";
 import { Search, ChevronDown, ChevronRight, PauseCircle, Eye, AlertTriangle, X, Pencil, Trash2, Download } from "lucide-react";
 import { Tooltip } from "../Tooltip";
 import { exportAPBillsCSV } from "../../utils/exportUtils";
@@ -315,13 +315,9 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
   const onHoldBills = filteredBills.filter((b) => b.status === "hold" || b.bucket === "on-hold");
   const paidBills = filteredBills.filter((b) => b.status === "paid");
 
-  // For unpaid/on-hold bills, deduct accumulated partial payments to show true remaining balance.
-  // Uses originalAmount so the math is correct even after Pull All (which sets b.amount to the
-  // sheet's evaluated formula value, e.g. 4000, rather than the original 5000).
-  const effectiveAmt = (b: APBill) =>
-    b.partialPaid && b.partialPaid > 0 && b.status !== "paid"
-      ? (b.originalAmount ?? b.amount) - b.partialPaid
-      : b.amount;
+  // Remaining balance for unpaid/on-hold bills — single shared implementation (src/utils/formatters.ts)
+  // so AP page, both calendars, and bill modals can never drift out of sync again.
+  const effectiveAmt = billRemaining;
 
   const pastDueBills     = unpaidBills.filter((b) => b.bucket === "past-due");
   const thisWeekBills    = unpaidBills.filter((b) => b.bucket === "this-week");

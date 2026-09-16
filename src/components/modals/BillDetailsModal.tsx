@@ -6,6 +6,7 @@ import {
   ChevronDown, ExternalLink, FileImage, Search
 } from "lucide-react";
 import { Tooltip } from "../Tooltip";
+import { billRemaining } from "../../utils/formatters";
 
 interface BillDetailsModalProps {
   vendorBills: APBill[];
@@ -184,7 +185,7 @@ const BillDetail: React.FC<{
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-black" style={{ color: accentColor }}>
               {bill.partialPaid && bill.partialPaid > 0 && bill.status !== "paid"
-                ? fmt((bill.originalAmount ?? bill.amount) - bill.partialPaid)
+                ? fmt(billRemaining(bill))
                 : fmt(bill.amount)}
             </span>
             {bill.partialPaid && bill.partialPaid > 0 && bill.status !== "paid" && (
@@ -478,7 +479,7 @@ const AccordionItem: React.FC<{
         {/* Amount (show remaining if partial) */}
         <span className="text-[14px] font-black shrink-0" style={{ color: accentColor }}>
           {bill.partialPaid && bill.partialPaid > 0 && bill.status !== "paid"
-            ? fmt((bill.originalAmount ?? bill.amount) - bill.partialPaid)
+            ? fmt(billRemaining(bill))
             : fmt(bill.amount)}
         </span>
         {bill.partialPaid && bill.partialPaid > 0 && bill.status !== "paid" && (
@@ -559,7 +560,7 @@ const AccordionItem: React.FC<{
                 </p>
                 {bill.partialPaid && bill.partialPaid > 0 && (
                   <p className={`text-[11px] font-semibold ${isLight ? "text-amber-700" : "text-amber-400"}`}>
-                    Already paid: {fmt(bill.partialPaid)} · Current remaining: {fmt((bill.originalAmount ?? bill.amount) - bill.partialPaid)}
+                    Already paid: {fmt(bill.partialPaid)} · Current remaining: {fmt(billRemaining(bill))}
                   </p>
                 )}
                 <div className="flex gap-2 items-center">
@@ -683,10 +684,7 @@ export const BillDetailsModal: React.FC<BillDetailsModalProps> = ({
   const accentColor = getEntityColor(vendorBills[0].entity);
   // Total should reflect remaining balance for partial-paid bills, not the original amount
   const total = vendorBills.reduce((s, b) => {
-    const effAmt = b.partialPaid && b.partialPaid > 0 && b.status !== "paid"
-      ? (b.originalAmount ?? b.amount) - b.partialPaid
-      : b.amount;
-    return s + effAmt;
+    return s + billRemaining(b);
   }, 0);
   const vendor = vendorBills[0].vendor;
 
@@ -816,7 +814,7 @@ export const BillDetailsModal: React.FC<BillDetailsModalProps> = ({
                   </p>
                   {singleBill.partialPaid && singleBill.partialPaid > 0 && (
                     <p className={`text-[11px] font-semibold ${isLight ? "text-amber-700" : "text-amber-400"}`}>
-                      Already paid: {fmt(singleBill.partialPaid)} · Current remaining: {fmt((singleBill.originalAmount ?? singleBill.amount) - singleBill.partialPaid)}
+                      Already paid: {fmt(singleBill.partialPaid)} · Current remaining: {fmt(billRemaining(singleBill))}
                     </p>
                   )}
                   <div className="flex gap-2 items-center">
