@@ -822,6 +822,14 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const updated = externalLinks.filter((l) => l.id !== id);
     setExternalLinks(updated);
     localStorage.setItem("financeops_external_links", JSON.stringify(updated));
+    // Persist the deletion so server/config-sheet restores can't bring it back
+    try {
+      const deletedIds: string[] = JSON.parse(localStorage.getItem("financeops_deletedLinkIds") || "[]");
+      if (!deletedIds.includes(id)) {
+        deletedIds.push(id);
+        localStorage.setItem("financeops_deletedLinkIds", JSON.stringify(deletedIds));
+      }
+    } catch {}
     persistChanges({ externalLinks: updated });
     const tok = getAccessToken();
     if (tok) writeConfigKey(tok, "externalLinks", updated, userEmail).catch(() => {});
@@ -1152,11 +1160,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (data.externalLinks && Array.isArray(data.externalLinks) && data.externalLinks.length > 0) {
         const lsRaw = (() => { try { return localStorage.getItem("financeops_external_links"); } catch { return null; } })();
         const lsLinks: ExternalLinkItem[] = lsRaw ? (() => { try { return JSON.parse(lsRaw); } catch { return []; } })() : [];
+        const deletedIds: Set<string> = new Set((() => { try { return JSON.parse(localStorage.getItem("financeops_deletedLinkIds") || "[]"); } catch { return []; } })());
         // Only restore from server if localStorage has no user-added items (only defaults or empty)
         const defaultIds = new Set(DEFAULT_EXTERNAL_LINKS.map(d => d.id));
         const hasUserAdded = lsLinks.some(l => !defaultIds.has(l.id));
         if (!hasUserAdded) {
-          const serverOnlyAdded = (data.externalLinks as ExternalLinkItem[]).filter(l => !defaultIds.has(l.id));
+          const serverOnlyAdded = (data.externalLinks as ExternalLinkItem[]).filter(l => !defaultIds.has(l.id) && !deletedIds.has(l.id));
           if (serverOnlyAdded.length > 0) {
             const merged = [...lsLinks.filter(l => defaultIds.has(l.id)), ...serverOnlyAdded];
             setExternalLinks(merged);
@@ -1300,9 +1309,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           const defaultIds = new Set(DEFAULT_EXTERNAL_LINKS.map(d => d.id));
           const lsRaw = (() => { try { return localStorage.getItem("financeops_external_links"); } catch { return null; } })();
           const lsLinks: ExternalLinkItem[] = lsRaw ? (() => { try { return JSON.parse(lsRaw); } catch { return []; } })() : [];
+          const deletedIds: Set<string> = new Set((() => { try { return JSON.parse(localStorage.getItem("financeops_deletedLinkIds") || "[]"); } catch { return []; } })());
           const lsHasUserAdded = lsLinks.some(l => !defaultIds.has(l.id));
           // Config sheet is always authoritative — it has more user-added links than localStorage
-          const cfgUserAdded = (cfg.externalLinks as ExternalLinkItem[]).filter(l => !defaultIds.has(l.id));
+          // But never restore items the user explicitly deleted (tracked in financeops_deletedLinkIds)
+          const cfgUserAdded = (cfg.externalLinks as ExternalLinkItem[]).filter(l => !defaultIds.has(l.id) && !deletedIds.has(l.id));
           if (cfgUserAdded.length > 0 && !lsHasUserAdded) {
             // localStorage has only defaults — restore user links from config sheet
             const merged = dedupeExternalLinks([...DEFAULT_EXTERNAL_LINKS, ...cfgUserAdded]);
