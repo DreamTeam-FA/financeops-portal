@@ -143,7 +143,7 @@ function apBillStableKey(b: any): string {
   return `${n(b.entity)}_${n(b.vendor)}_${n(b.invoiceNo || "")}_${b.dueDate || ""}`;
 }
 
-function mergeDatasets(liveList: any[] | null | undefined, currentList: any[], idKey = "id") {
+function mergeDatasets(liveList: any[] | null | undefined, currentList: any[], idKey = "id", extraForceFields: string[] = []) {
   // null/undefined = live fetch genuinely failed → fall back to stored data
   if (liveList === null || liveList === undefined) return currentList || [];
   // Empty array = sheet returned 0 items. Fall back to stored ONLY if stored is non-empty
@@ -184,7 +184,7 @@ function mergeDatasets(liveList: any[] | null | undefined, currentList: any[], i
       // merge so the spread overwrites any stale value from currentItem.
       // description, category, invoiceNo: must also come from live sheet.
       // If the sheet cell is empty, these must be cleared — never let stale JSON values survive.
-      const ANNOTATION_FIELDS = ["remarks", "paymentInstructions", "status1", "paidVia", "description", "category", "invoiceNo"] as const;
+      const ANNOTATION_FIELDS = ["remarks", "paymentInstructions", "status1", "paidVia", "description", "category", "invoiceNo", ...extraForceFields] as const;
       const liveItemDefined = Object.fromEntries(
         Object.entries(liveItem).filter(([_k, v]) => v !== undefined && v !== null && v !== "")
       );
@@ -321,7 +321,9 @@ async function syncLiveDataFromSheets(accessToken?: string) {
       banks: liveData.banks && liveData.banks.length > 0 ? liveData.banks : current.banks,
       loans: liveData.loans && liveData.loans.length > 0 ? liveData.loans : current.loans,
       ar: mergeDatasets(liveData.ar, current.ar, "id"),
-      statements: mergeDatasets(liveData.statements, current.statements, "id"),
+      // extraForceFields: a blank sheet cell for these must clear the stale JSON value —
+      // never let an old Downloaded/timestamp survive after the sheet cell is cleared.
+      statements: mergeDatasets(liveData.statements, current.statements, "id", ["downloaded", "downloadedAt", "statementDate", "requestDate"]),
       quickNotes: mergeNotes(liveData.quickNotes, current.quickNotes),
       // Calendar events: use live sheet data, then apply stored overrides on top.
       // This makes done/edit/delete survive GViz cache and server restarts.
