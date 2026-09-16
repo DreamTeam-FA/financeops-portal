@@ -182,16 +182,19 @@ export const AutomationsTab: React.FC<AutomationsTabProps> = ({ isLight }) => {
   }, []);
 
   // ── Trigger script ────────────────────────────────────────────────────────
-  const handleRun = async (script: ScriptDef) => {
+  const handleRun = async (script: ScriptDef, dryRun = false) => {
     try {
       const r = await fetch(`${RUNNER_BASE}/run/${script.key}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ params: {} }),
+        body: JSON.stringify({ params: dryRun ? { dry_run: true } : {} }),
       });
       if (!r.ok) throw new Error(await r.text());
       const { job_id } = await r.json();
-      logAction?.("Ran Automation", `${script.label} (job ${job_id}) triggered by ${userEmail || "unknown"}`);
+      logAction?.(
+        dryRun ? "Test Run Automation" : "Ran Automation",
+        `${script.label} (job ${job_id}) ${dryRun ? "[DRY RUN] " : ""}triggered by ${userEmail || "unknown"}`
+      );
       startStream(job_id, script.key);
     } catch (err: any) {
       setActiveJob({
@@ -358,18 +361,32 @@ export const AutomationsTab: React.FC<AutomationsTabProps> = ({ isLight }) => {
                   <div className={`text-[11px] mt-0.5 leading-snug ${isLight ? "text-slate-500" : "text-[#888]"}`}>
                     {script.description}
                   </div>
-                  <button
-                    onClick={() => handleRun(script)}
-                    disabled={!!isRunning}
-                    className={`mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-bold transition-colors ${
-                      isRunning
-                        ? isLight ? "bg-slate-100 text-slate-400 cursor-not-allowed" : "bg-[#1a1a1a] text-[#555] cursor-not-allowed"
-                        : "bg-[#1a73e8] text-white hover:bg-[#1557b0]"
-                    }`}
-                  >
-                    <Play className="w-3 h-3" />
-                    Run
-                  </button>
+                  <div className="mt-2.5 flex items-center gap-2">
+                    <button
+                      onClick={() => handleRun(script)}
+                      disabled={!!isRunning}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-bold transition-colors ${
+                        isRunning
+                          ? isLight ? "bg-slate-100 text-slate-400 cursor-not-allowed" : "bg-[#1a1a1a] text-[#555] cursor-not-allowed"
+                          : "bg-[#1a73e8] text-white hover:bg-[#1557b0]"
+                      }`}
+                    >
+                      <Play className="w-3 h-3" />
+                      Run
+                    </button>
+                    <button
+                      onClick={() => handleRun(script, true)}
+                      disabled={!!isRunning}
+                      title="Runs the full script but skips writing to Google Sheets — safe to test"
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
+                        isRunning
+                          ? isLight ? "border-slate-200 text-slate-400 cursor-not-allowed" : "border-[#222] text-[#555] cursor-not-allowed"
+                          : isLight ? "border-slate-300 text-slate-600 hover:bg-slate-50" : "border-[#2a2a2a] text-[#888] hover:bg-[#0d111a]"
+                      }`}
+                    >
+                      Test Run
+                    </button>
+                  </div>
                 </div>
               </div>
             );
