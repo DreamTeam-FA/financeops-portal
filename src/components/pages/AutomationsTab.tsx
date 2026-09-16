@@ -84,7 +84,7 @@ interface AutomationsTabProps {
 export const AutomationsTab: React.FC<AutomationsTabProps> = ({ isLight }) => {
   const [activeJob, setActiveJob] = useState<JobState | null>(null);
   const [continueInput, setContinueInput] = useState("y");
-  const [runnerOnline, setRunnerOnline] = useState<boolean | null>(null);
+  const [runnerOnline, setRunnerOnline] = useState<boolean | null | "waking">(null);
   const [cookieProfile, setCookieProfile] = useState("toasttab");
   const [cookieFile, setCookieFile] = useState<File | null>(null);
   const [cookieStatus, setCookieStatus] = useState<string>("");
@@ -92,17 +92,20 @@ export const AutomationsTab: React.FC<AutomationsTabProps> = ({ isLight }) => {
   const esRef = useRef<EventSource | null>(null);
 
   // ── Ping runner health ────────────────────────────────────────────────────
+  // Render free tier cold-starts in 30-50s, so we wait up to 65s before
+  // declaring it offline. While waiting we show "waking up" instead of offline.
   useEffect(() => {
     const check = async () => {
+      setRunnerOnline((prev) => (prev === true ? true : "waking"));
       try {
-        const r = await fetch(`${RUNNER_BASE}/`, { signal: AbortSignal.timeout(4000) });
-        setRunnerOnline(r.ok);
+        const r = await fetch(`${RUNNER_BASE}/`, { signal: AbortSignal.timeout(65_000) });
+        setRunnerOnline(r.ok ? true : false);
       } catch {
         setRunnerOnline(false);
       }
     };
     check();
-    const t = setInterval(check, 30_000);
+    const t = setInterval(check, 60_000);
     return () => clearInterval(t);
   }, []);
 
@@ -245,16 +248,20 @@ export const AutomationsTab: React.FC<AutomationsTabProps> = ({ isLight }) => {
 
       {/* Runner status banner */}
       <div className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl border text-xs font-semibold ${
-        runnerOnline === null
-          ? isLight ? "bg-slate-50 border-slate-200 text-slate-400" : "bg-[#0d111a] border-[#1a2235] text-[#666]"
-          : runnerOnline
+        runnerOnline === null || runnerOnline === "waking"
+          ? isLight ? "bg-amber-50 border-amber-200 text-amber-700" : "bg-amber-950/30 border-amber-800/40 text-amber-400"
+          : runnerOnline === true
           ? isLight ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-emerald-950/30 border-emerald-800/40 text-emerald-400"
           : isLight ? "bg-red-50 border-red-200 text-red-600" : "bg-red-950/30 border-red-800/40 text-red-400"
       }`}>
-        {runnerOnline === null ? <Wifi className="w-3.5 h-3.5 animate-pulse" /> :
-         runnerOnline ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
+        {runnerOnline === null || runnerOnline === "waking"
+          ? <Wifi className="w-3.5 h-3.5 animate-pulse" />
+          : runnerOnline === true
+          ? <Wifi className="w-3.5 h-3.5" />
+          : <WifiOff className="w-3.5 h-3.5" />}
         {runnerOnline === null ? "Checking automation runner…" :
-         runnerOnline ? `Runner online — ${RUNNER_BASE}` :
+         runnerOnline === "waking" ? "Runner waking up — Render cold start, please wait (~30s)…" :
+         runnerOnline === true ? `Runner online — ${RUNNER_BASE}` :
          `Runner offline — deploy to Render first (${RUNNER_BASE})`}
       </div>
 
