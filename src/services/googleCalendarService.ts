@@ -464,6 +464,28 @@ function calendarTimestamps(date: string, time?: string, endTime?: string): { st
   return { start, end, allDay };
 }
 
+// Retroactively rewrite the assigneeColor cell (col M) for every existing row belonging
+// to one team member — used when a member picks a new color so past events pick it up
+// too, not just new ones going forward.
+export async function updateAssigneeColorForRows(
+  token: string,
+  tab: string,
+  sheetRows: number[],
+  newColor: string
+): Promise<void> {
+  if (sheetRows.length === 0) return;
+  const data = sheetRows.map(row => ({ range: `${tab}!M${row}`, values: [[newColor]] }));
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${CALENDAR_SPREADSHEET_ID}/values:batchUpdate`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ valueInputOption: "USER_ENTERED", data })
+    }
+  );
+  await assertOk(res);
+}
+
 // Clear a row in the calendar sheet (soft-delete)
 export async function clearCalendarRow(
   token: string,

@@ -41,6 +41,7 @@ import {
   fetchGoogleCalendarEvents,
   fetchCalendarSheetEvents,
   loadCalendarSheet,
+  updateAssigneeColorForRows,
   CalSheetRow,
   ColMap,
   GoogleCalendarEvent,
@@ -873,6 +874,21 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
             showToast("Assignee color saved locally but failed to sync — it may not persist. Try again.", "error", 8000)
           )
         );
+
+        // Retroactively rewrite col M on every EXISTING calendar sheet row for any
+        // member whose color just changed, so old events pick up the new color in
+        // the sheet itself, not just in the portal's live lookup.
+        next.forEach((a: { id: string; name: string; color: string }) => {
+          const prevMatch = prev.find(p => p.id === a.id);
+          if (!prevMatch || prevMatch.color === a.color || !a.name) return;
+          const rows = calSheetEvents.filter(ev => ev.assignee === a.name).map(ev => ev.sheetRow);
+          if (rows.length === 0) return;
+          updateAssigneeColorForRows(tok, calSheetTab, rows, a.color)
+            .then(() => {
+              setCalSheetEvents(evs => evs.map(ev => ev.assignee === a.name ? { ...ev, assigneeColor: a.color } : ev));
+            })
+            .catch(() => showToast(`Updated ${a.name}'s color, but couldn't rewrite their past events in the sheet.`, "error", 8000));
+        });
       }
       return next;
     });
