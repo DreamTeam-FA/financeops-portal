@@ -260,6 +260,7 @@ export const CalendarPage: React.FC = () => {
   const [taskTime, setTaskTime] = useState("09:00");
   const [taskCategory, setTaskCategory] = useState<"event" | "task" | "meeting">("event");
   const [taskUrgency, setTaskUrgency] = useState<"critical" | "high" | "normal" | "low">("normal");
+  const [taskAssignee, setTaskAssignee] = useState("");
   const [taskAssignees, setTaskAssignees] = useState<string[]>([]);
   const [showAssigneeDropdown, setShowAssigneeDropdown] = useState(false);
   const [taskDesc, setTaskDesc] = useState("");

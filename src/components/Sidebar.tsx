@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from "react";
+﻿import React, { useState, useMemo, useEffect } from "react";
 import { getDaysRemaining } from "../utils/formatters";
 import { AlertsBell } from "./AlertsCenter";
 import { Tooltip } from "./Tooltip";
@@ -83,14 +83,26 @@ export const Sidebar: React.FC = () => {
 
   const greetingName = getUserGreetingName(userEmail, googleUser?.displayName);
 
-  // Custom member workspaces state
-  const [memberWorkspaces, setMemberWorkspaces] = useState<
-    { id: string; name: string; color: string }[]
-  >([
+  // Custom member workspaces state — persisted to localStorage so added members
+  // survive a refresh instead of resetting to the 3 hardcoded defaults every time.
+  const DEFAULT_MEMBER_WORKSPACES = [
     { id: "mem-norlan", name: "Norlan", color: "#3b82f6" },
     { id: "mem-micah", name: "Micah", color: "#eab308" },
     { id: "mem-monica", name: "Monica", color: "#ec4899" }
-  ]);
+  ];
+  const [memberWorkspaces, setMemberWorkspaces] = useState<
+    { id: string; name: string; color: string }[]
+  >(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("financeops_member_workspaces") || "null");
+      if (Array.isArray(saved) && saved.length > 0) return saved;
+    } catch {}
+    return DEFAULT_MEMBER_WORKSPACES;
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem("financeops_member_workspaces", JSON.stringify(memberWorkspaces)); } catch {}
+  }, [memberWorkspaces]);
 
   // Modal states for adding workspace items / members
   const [showAddWorkspaceModal, setShowAddWorkspaceModal] = useState(false);
@@ -111,7 +123,10 @@ export const Sidebar: React.FC = () => {
       name: wsName.trim(),
       url: wsUrl.trim() || "https://drive.google.com",
       iconType: wsType === "drive" ? "sheet" : wsType === "tools" ? "users" : "calendar",
-      category: wsType === "drive" ? "entities" : "quicklinks"
+      // Must match WorkspacePage's activeTab filter (item.category === activeTab) —
+      // was hardcoded to "entities"/"quicklinks" so added items never appeared in the
+      // tab the user actually added them from, even though they were saved correctly.
+      category: wsType
     });
     setWsName("");
     setWsUrl("");

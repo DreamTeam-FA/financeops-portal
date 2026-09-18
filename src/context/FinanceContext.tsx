@@ -2795,11 +2795,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Copy ALL current balances → yesterday at 6pm PHT each day
   const copyAllBalancesToYesterday = () => {
     if (!requireToken()) return;
-    const today = todayPHT();
+    // asOf must only change on a manual balance edit (updateBankBalance) — the automatic
+    // EOD copy only moves balance -> yesterday and must leave the existing timestamp alone.
     const nextAccs = bankAccounts.map((a) => ({
       ...a,
       yesterday: a.balance,
-      asOf: today,
     }));
     setBankAccounts(nextAccs);
     persistChanges({ banks: nextAccs });
