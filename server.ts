@@ -2318,14 +2318,18 @@ Schema:
   "dueDate": "YYYY-MM-DD or MM/DD/YYYY or string, null if not found",
   "issueDate": "YYYY-MM-DD or string, null if not found",
   "entity": "string (which company this bill belongs to, e.g. Ruby's, TI, MSDx — infer from context if possible, otherwise empty string)",
+  "category": "string (a short expense category for this bill, e.g. Utilities, Rent, Insurance, Payroll, Food Purchases — infer from the vendor/description, empty string if unclear)",
   "description": "string (short description of what the bill is for)",
-  "remarks": "string (any additional notes, payment instructions, or reference numbers)"
+  "remarks": "string (any additional notes, payment instructions, or reference numbers)",
+  "isPaid": true, false, or null (true only if the document itself shows a clear "PAID" stamp, watermark, or explicit paid-in-full statement; null if there is no such marking — do not infer from context)
 }
 
 Notes:
 - "amount" should be the total due as a number (no $ symbol), null if not clearly readable
 - "invoiceNo" is the invoice number, bill number, or reference number — null if absent
 - "entity" try to infer from the recipient name on the bill
+- "category" is a short expense category label, not a vendor name or description
+- "isPaid" must only be true when the document visibly marks itself as paid (stamp, watermark, "PAID" text, receipt-style confirmation) — never guess based on due date or amount
 - All dates must be in YYYY-MM-DD format (e.g. 2026-08-21). If a date is printed as MM/DD/YYYY or "Month DD, YYYY", convert it
 - If the due date is expressed as a NET term (e.g. "NET 30", "Net 60"), output it literally as "NET 30" — the app will compute the actual date
 - Be as accurate as possible; leave fields null rather than guessing incorrectly`;
@@ -2438,11 +2442,13 @@ app.post("/api/ap/add-scanned-bill", (req, res) => {
     amount: typeof bill.amount === "number" ? bill.amount : 0,
     dueDate: bill.dueDate || "",
     issueDate: bill.issueDate || "",
-    status: "open",
+    // Only an explicit "paid" marking on the scanned document should mark this paid.
+    status: bill.isPaid === true ? "paid" : "open",
     sheet: "Scanned",
     invoiceNo: bill.invoiceNo || "",
     remarks: bill.remarks || "",
     description: bill.description || "",
+    category: bill.category || "",
     createdAt: new Date().toISOString(),
     scanned: true,
   };

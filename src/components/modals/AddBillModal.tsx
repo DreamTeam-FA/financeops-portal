@@ -51,6 +51,7 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
   const [remarksTarget, setRemarksTarget] = useState<"payvia" | "remarks" | "instr" | "status1">("instr");
   const [scanKey, setScanKey] = useState(0);
   const [scanFilled, setScanFilled] = useState(false);
+  const [scannedIsPaid, setScannedIsPaid] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   // "attach-prompt" phase: shown after bill saved when no scan file exists
@@ -91,13 +92,22 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
     return Array.from(set).sort();
   }, [apBills]);
 
+  // A bill's most recent activity date, for ranking vendor-history lookups.
+  // ISO date strings compare correctly with plain string comparison.
+  const billRecencyKey = (b: any): string => b.invoiceDate || b.dueDate || "";
+
+  // Most recent category per vendor (was: arbitrary Set/insertion order — first
+  // category ever seen for a vendor could win over a more recent, different one)
   const vendorCategoriesMap = useMemo(() => {
-    const map: Record<string, Set<string>> = {};
+    const bestDate: Record<string, string> = {};
+    const map: Record<string, string> = {};
     apBills.forEach((b) => {
-      if (b.vendor && b.category) {
-        const key = b.vendor.toLowerCase().trim();
-        if (!map[key]) map[key] = new Set();
-        map[key].add(b.category);
+      if (!b.vendor || !b.category) return;
+      const key = b.vendor.toLowerCase().trim();
+      const date = billRecencyKey(b);
+      if (!(key in bestDate) || date > bestDate[key]) {
+        bestDate[key] = date;
+        map[key] = b.category;
       }
     });
     return map;
@@ -105,10 +115,33 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
 
   // Most-recent description per vendor (for auto-fill)
   const vendorDescriptionMap = useMemo(() => {
+    const bestDate: Record<string, string> = {};
     const map: Record<string, string> = {};
     apBills.forEach((b) => {
-      if (b.vendor && b.description)
-        map[b.vendor.toLowerCase().trim()] = b.description;
+      if (!b.vendor || !b.description) return;
+      const key = b.vendor.toLowerCase().trim();
+      const date = billRecencyKey(b);
+      if (!(key in bestDate) || date > bestDate[key]) {
+        bestDate[key] = date;
+        map[key] = b.description;
+      }
+    });
+    return map;
+  }, [apBills]);
+
+  // Most-recent entity/sheet per vendor, so a scanned bill without a clear
+  // company on the document can fall back to where this vendor was last billed.
+  const vendorEntityMap = useMemo(() => {
+    const bestDate: Record<string, string> = {};
+    const map: Record<string, { entity: string; sheet: string }> = {};
+    apBills.forEach((b) => {
+      if (!b.vendor || !b.entity) return;
+      const key = b.vendor.toLowerCase().trim();
+      const date = billRecencyKey(b);
+      if (!(key in bestDate) || date > bestDate[key]) {
+        bestDate[key] = date;
+        map[key] = { entity: b.entity, sheet: b.sheet || `${b.entity} Bills` };
+      }
     });
     return map;
   }, [apBills]);
@@ -126,9 +159,9 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
   const handleVendorChange = (val: string) => {
     setVendor(val);
     const key = val.toLowerCase().trim();
-    // Auto-fill Category from history (Ruby's / MSDx)
-    const cats = vendorCategoriesMap[key];
-    if (cats && cats.size >= 1) setCategory(Array.from(cats)[0]);
+    // Auto-fill Category from most recent history match (Ruby's / MSDx)
+    const cat = vendorCategoriesMap[key];
+    if (cat) setCategory(cat);
     // Auto-fill Description from most recent matching bill (Ruby's / MSDx)
     if (!isTI) {
       const desc = vendorDescriptionMap[key];
@@ -180,8 +213,14 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
       setVendor(resolvedVendor);
       // Apply the same vendor → category / description / sub-company rules as handleVendorChange
       const key = resolvedVendor.toLowerCase().trim();
-      const cats = vendorCategoriesMap[key];
-      if (cats && cats.size >= 1) setCategory(Array.from(cats)[0]);
+      // Category: prefer what the scan itself extracted; fall back to this vendor's
+      // most recent history match only when the scan didn't return one.
+      if (data.category) {
+        setCategory(String(data.category));
+      } else {
+        const cat = vendorCategoriesMap[key];
+        if (cat) setCategory(cat);
+      }
       // Only fall back to vendor-history description when scan didn't extract one
       if (!data.description && !isTI) {
         const desc = vendorDescriptionMap[key];
@@ -191,10 +230,26 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
         const match = apBills.find((b) => b.vendor?.toLowerCase() === key && b.entity === "TI");
         if (match?.company) setSubCompany(match.company);
       }
+      // Entity/company: trust the scan's inferred entity first (same mapping used for
+      // prefillData below), otherwise fall back to where this vendor was last billed —
+      // previously the scanned/inferred entity was read nowhere and silently discarded,
+      // so the bill always landed on whatever tab the user happened to have selected.
+      const scannedEnt = String(data.entity || "").trim().toLowerCase();
+      let matchedSheet = "";
+      if (scannedEnt.includes("ruby")) matchedSheet = "Ruby's Bills";
+      else if (scannedEnt.includes("msdx") || scannedEnt.includes("ms")) matchedSheet = "MSDx Bills";
+      else if (scannedEnt.includes("ti")) matchedSheet = "TI Bills";
+      if (matchedSheet) setSelectedSheet(matchedSheet);
+      else {
+        const histEnt = vendorEntityMap[key];
+        if (histEnt) setSelectedSheet(histEnt.sheet);
+      }
     }
     if (data.invoiceNo)      setInvoiceNo(String(data.invoiceNo));
     if (data.amount != null) setAmount(String(data.amount));
     if (data.description)    setDescription(data.description);
+    // Only trust an explicit "paid" marking on the document itself — never guess.
+    setScannedIsPaid(data.isPaid === true);
 
     const issueDateISO = toISODate(data.issueDate);
     if (issueDateISO) setInvoiceDate(issueDateISO);
@@ -219,7 +274,7 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
   const resetForm = () => {
     setVendor(""); setAmount(""); setRemarks(""); setInvoiceNo("");
     setInvoiceDate(""); setPaymentDate(""); setDescription(""); setCategory("");
-    setScanKey(k => k + 1); setScanFilled(false); setPendingFile(null);
+    setScanKey(k => k + 1); setScanFilled(false); setPendingFile(null); setScannedIsPaid(false);
   };
 
   const handleAttachUpload = async () => {
@@ -292,10 +347,12 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
       invoiceDate: invoiceDate || undefined,
       dueDate,
       amount: parseFloat(amount) || 0,
-      paymentDate: paymentDate || undefined,
-      paidDate: paymentDate || undefined,
+      paymentDate: paymentDate || (scannedIsPaid ? new Date().toISOString().split("T")[0] : undefined),
+      paidDate: paymentDate || (scannedIsPaid ? new Date().toISOString().split("T")[0] : undefined),
       method: "Manual",
-      status: "unpaid" as const,
+      // Only the scan's explicit "paid" marking on the document can flip this —
+      // previously every scanned/manually-added bill was hardcoded unpaid.
+      status: (scannedIsPaid ? "paid" : "unpaid") as const,
       sheet: selectedSheet,
     };
 
@@ -455,7 +512,10 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
           />
           {scanFilled && (
             <div className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-[11px] font-semibold ${isLight ? "bg-blue-50 border border-blue-200 text-blue-700" : "bg-[#0d1a2e] border border-[#1a3a5c] text-[#4fa3e0]"}`}>
-              <span>✓ Fields auto-filled from scan — verify and adjust before submitting</span>
+              <span>
+                ✓ Fields auto-filled from scan — verify and adjust before submitting
+                {scannedIsPaid && " · Document shows this bill as PAID"}
+              </span>
               <button type="button" onClick={() => { setScanKey(k => k + 1); setScanFilled(false); }} className="text-[10px] underline opacity-70 hover:opacity-100 shrink-0">Scan again</button>
             </div>
           )}

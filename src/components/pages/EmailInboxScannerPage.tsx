@@ -43,8 +43,10 @@ interface ExtractedData {
   dueDate?: string | null;
   issueDate?: string | null;
   entity?: string;
+  category?: string;
   description?: string;
   remarks?: string;
+  isPaid?: boolean;
 }
 
 // ─────────────────────────────────────────── Helpers
@@ -140,7 +142,13 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
           <F label="Issue Date" field="issueDate" />
           <F label="Due Date" field="dueDate" />
           <div className="col-span-2"><F label="Entity (Ruby's / TI / MSDx)" field="entity" /></div>
+          <div className="col-span-2"><F label="Category" field="category" /></div>
           <div className="col-span-2"><F label="Description" field="description" /></div>
+          {form.isPaid && (
+            <div className="col-span-2 text-[11px] font-semibold text-emerald-500">
+              ✓ Document shows this bill as PAID
+            </div>
+          )}
           <div className="col-span-2"><F label="Remarks" field="remarks" /></div>
         </div>
 
@@ -775,8 +783,10 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
         dueDate:     inv.dueDate     || null,
         issueDate:   inv.issueDate   || null,
         entity:      inv.entity      || vendorEntityMap[vendorKey]?.entity || "",
+        category:    inv.category    || vendorCategoriesMap[vendorKey] || "",
         description: inv.description || vendorDescriptionMap[vendorKey] || email.subject,
         remarks:     emailLink,
+        isPaid:      inv.isPaid === true,
       };
 
       // 4. Route based on vendor — Headley's goes to the dedicated import tool
@@ -834,7 +844,9 @@ export const EmailInboxScannerPage: React.FC<EmailInboxScannerPageProps> = ({ on
             dueDate:     data.dueDate     || "",
             issueDate:   data.issueDate   || "",
             description: data.description || "",
+            category:    data.category    || "",
             remarks:     data.remarks     || "",
+            isPaid:      data.isPaid      === true,
           }),
         });
         if (!resp.ok) throw new Error("Failed to create bill");
