@@ -218,6 +218,9 @@ interface FinanceContextType {
   // color choice is shared across every browser/session, not just the one that set it.
   calendarAssignees: { id: string; name: string; color: string }[];
   setCalendarAssignees: (updater: { id: string; name: string; color: string }[] | ((prev: { id: string; name: string; color: string }[]) => { id: string; name: string; color: string }[])) => void;
+  // True once the config-sheet roster has loaded — edits made before this is true are
+  // queued (see setCalendarAssignees) rather than firing against an unverified local guess.
+  calendarAssigneesReady: boolean;
 
   // Quick Notes Management
   quickNotes: DashboardNote[];
@@ -860,8 +863,18 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } catch (e) {}
     return DEFAULT_CALENDAR_ASSIGNEES;
   });
+  // The localStorage-seeded value above is only a fast-paint guess — it can be stale
+  // or incomplete (e.g. from before a member was added). The config sheet fetched in
+  // the init() restore block below is the REAL source of truth. Editing the roster
+  // before that fetch resolves would read+rewrite the stale local list, silently
+  // wiping out anyone the sheet has that localStorage doesn't. This ref gates that:
+  // it flips true once the config-sheet restore has run (found or seeded), and every
+  // edit is queued until then instead of firing against unverified data.
+  const calendarAssigneesReadyRef = React.useRef(false);
+  const [calendarAssigneesReady, setCalendarAssigneesReady] = useState(false);
+  const pendingAssigneeUpdatesRef = React.useRef<((prev: { id: string; name: string; color: string }[]) => { id: string; name: string; color: string }[])[]>([]);
 
-  const setCalendarAssignees = (
+  const applyCalendarAssigneesUpdate = (
     updater: { id: string; name: string; color: string }[] | ((prev: { id: string; name: string; color: string }[]) => { id: string; name: string; color: string }[])
   ) => {
     setCalendarAssigneesState(prev => {
@@ -892,6 +905,31 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
       return next;
     });
+  };
+
+  // Public setter: queues the edit if the config-sheet roster hasn't loaded yet,
+  // so a fast click right after page load can never fire against the unverified
+  // localStorage guess (see calendarAssigneesReadyRef above).
+  const setCalendarAssignees = (
+    updater: { id: string; name: string; color: string }[] | ((prev: { id: string; name: string; color: string }[]) => { id: string; name: string; color: string }[])
+  ) => {
+    if (!calendarAssigneesReadyRef.current) {
+      pendingAssigneeUpdatesRef.current.push(typeof updater === "function" ? updater : () => updater);
+      showToast("Syncing team roster — your change will apply in a moment…", "info", 4000);
+      return;
+    }
+    applyCalendarAssigneesUpdate(updater);
+  };
+
+  // Called once the config-sheet restore has run (found a roster, seeded one, or
+  // failed outright) — flips the gate and replays any edits queued while it loaded.
+  const markCalendarAssigneesReady = () => {
+    if (calendarAssigneesReadyRef.current) return; // idempotent — init() only runs once, but be safe
+    calendarAssigneesReadyRef.current = true;
+    setCalendarAssigneesReady(true);
+    const pending = pendingAssigneeUpdatesRef.current;
+    pendingAssigneeUpdatesRef.current = [];
+    pending.forEach(u => applyCalendarAssigneesUpdate(u));
   };
 
   const addExternalLink = (link: Omit<ExternalLinkItem, "id">) => {
@@ -1518,7 +1556,13 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           const tok2 = getAccessToken();
           if (tok2) writeConfigKey(tok2, "calendarAssignees", calendarAssignees, userEmail).catch(() => {});
         }
-      }).catch(() => {}); // non-fatal — fall back to server JSON / localStorage
+        markCalendarAssigneesReady();
+      }).catch(() => {
+        // Config fetch failed — fall back to whatever localStorage/default already
+        // loaded, but still unblock editing (mirrors the outer non-fatal fallback)
+        // rather than leaving every roster edit queued forever.
+        markCalendarAssigneesReady();
+      });
 
       // Flush pending log rows queued while offline
       try {
@@ -3236,6 +3280,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         deleteExternalLink,
         calendarAssignees,
         setCalendarAssignees,
+        calendarAssigneesReady,
         quickNotes,
         addQuickNote,
         updateQuickNote,

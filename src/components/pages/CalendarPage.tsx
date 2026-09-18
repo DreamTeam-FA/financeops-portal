@@ -156,7 +156,7 @@ export const CalendarPage: React.FC = () => {
     calSheetColMap: sheetColMap, setCalSheetColMap: setSheetColMap, calSheetLoading: sheetLoading, loadCalSheetEvents,
     // Team-assignee roster is config-sheet backed (see FinanceContext) so a member's
     // color choice shows the same in every browser, not just the one that set it.
-    calendarAssignees: assignees, setCalendarAssignees: setAssignees,
+    calendarAssignees: assignees, setCalendarAssignees: setAssignees, calendarAssigneesReady,
   } = useFinance();
 
   const [showAssigneeModal, setShowAssigneeModal] = useState(false);
@@ -2353,6 +2353,12 @@ export const CalendarPage: React.FC = () => {
                 <X className="w-4 h-4" />
               </button>
             </div>
+
+            {!calendarAssigneesReady && (
+              <p className={`text-[11px] font-semibold px-1 ${isLight ? "text-amber-600" : "text-amber-400"}`}>
+                Syncing team roster from the sheet — color/remove will apply once that finishes.
+              </p>
+            )}
 
             {/* Existing assignees */}
             <div className="space-y-2 text-xs">
