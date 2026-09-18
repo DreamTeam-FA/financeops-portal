@@ -3,7 +3,7 @@ import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import { APBill, EntityName } from "../../types";
 import { normalizeEntityName } from "../../services/googleSheetsService";
-import { ENTITY_PARENT, entityMatchesFilter } from "../../utils/entityColors";
+import { ENTITY_PARENT, entityMatchesFilter, getEntityHex } from "../../utils/entityColors";
 import { formatCurrency, billRemaining } from "../../utils/formatters";
 import { Search, ChevronDown, ChevronRight, PauseCircle, Eye, AlertTriangle, X, Pencil, Trash2, Download } from "lucide-react";
 import { Tooltip } from "../Tooltip";
@@ -11,6 +11,7 @@ import { exportAPBillsCSV } from "../../utils/exportUtils";
 import { AddBillModal } from "../modals/AddBillModal";
 import { EditBillModal } from "../modals/EditBillModal";
 import { BillDetailsModal } from "../modals/BillDetailsModal";
+import { BillCopyViewerModal } from "../modals/BillCopyViewerModal";
 
 export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filterEntityOverride }) => {
   const {
@@ -50,6 +51,7 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
 
   const isLight = theme === "light";
 
+  const [viewingCopy, setViewingCopy] = useState<{ url: string; fileName?: string; vendor?: string; accentColor?: string } | null>(null);
   const [activeTab, setActiveTab] = useState<"due" | "paid" | "summary" | "aging">("due");
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -1033,6 +1035,16 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
         onEdit={(b) => setEditingBill(b)}
       />
 
+      {viewingCopy && (
+        <BillCopyViewerModal
+          url={viewingCopy.url}
+          fileName={viewingCopy.fileName}
+          vendor={viewingCopy.vendor}
+          accentColor={viewingCopy.accentColor}
+          onClose={() => setViewingCopy(null)}
+        />
+      )}
+
       {/* Duplicate Bills Modal */}
       {duplicatesModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
@@ -1108,11 +1120,23 @@ export const APPage: React.FC<{ filterEntityOverride?: EntityName }> = ({ filter
                             const fallbackUrl = fallbackText.startsWith("http") ? fallbackText : null;
                             const viewUrl = b.driveViewUrl || fallbackUrl;
                             if (!viewUrl) return null;
+                            const btnClass = `flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border transition-colors ${isLight ? "text-blue-600 border-blue-300 bg-blue-50 hover:bg-blue-100" : "text-blue-400 border-blue-500/40 bg-blue-500/10 hover:bg-blue-500/20"}`;
+                            if (b.driveViewUrl) {
+                              return (
+                                <Tooltip label="View saved bill copy">
+                                  <button
+                                    onClick={() => setViewingCopy({ url: b.driveViewUrl, fileName: b.driveFileName, vendor: b.vendor, accentColor: getEntityHex(b.entity) })}
+                                    className={btnClass}
+                                  >
+                                    <Eye className="w-3 h-3" /> Bill Copy
+                                  </button>
+                                </Tooltip>
+                              );
+                            }
                             return (
-                              <Tooltip label={b.driveViewUrl ? "View saved bill copy" : "View bill link"}>
-                                <a href={viewUrl} target="_blank" rel="noopener noreferrer"
-                                  className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border transition-colors ${isLight ? "text-blue-600 border-blue-300 bg-blue-50 hover:bg-blue-100" : "text-blue-400 border-blue-500/40 bg-blue-500/10 hover:bg-blue-500/20"}`}>
-                                  <Eye className="w-3 h-3" /> {b.driveViewUrl ? "Bill Copy" : "Bill"}
+                              <Tooltip label="View bill link">
+                                <a href={viewUrl} target="_blank" rel="noopener noreferrer" className={btnClass}>
+                                  <Eye className="w-3 h-3" /> Bill
                                 </a>
                               </Tooltip>
                             );

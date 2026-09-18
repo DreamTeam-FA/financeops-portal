@@ -2,6 +2,7 @@
 import { APBill, EntityName } from "../../types";
 import { useFinance } from "../../context/FinanceContext";
 import { X, Check, Paperclip, FileCheck2, ExternalLink } from "lucide-react";
+import { BillCopyViewerModal } from "./BillCopyViewerModal";
 
 interface EditBillModalProps {
   bill: APBill | null;
@@ -42,6 +43,7 @@ export const EditBillModal: React.FC<EditBillModalProps> = ({ bill, isOpen, onCl
   const [status, setStatus] = useState<"unpaid" | "paid" | "hold">("unpaid");
   const [inQBO, setInQBO] = useState(false);
   const [attachFile, setAttachFile] = useState<File | null>(null);
+  const [showCopyModal, setShowCopyModal] = useState(false);
   const [attachUploading, setAttachUploading] = useState(false);
   const [attachError, setAttachError] = useState<string | null>(null);
 
@@ -393,12 +395,20 @@ export const EditBillModal: React.FC<EditBillModalProps> = ({ bill, isOpen, onCl
               <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs ${isLight ? "bg-green-50 border-green-200 text-green-700" : "bg-[#0a1a10] border-[#1a3a20] text-green-400"}`}>
                 <FileCheck2 className="w-4 h-4 shrink-0" />
                 <span className="truncate flex-1">{bill.driveFileName || "Bill copy on file"}</span>
-                <a href={bill.driveViewUrl} target="_blank" rel="noopener noreferrer"
+                <button type="button" onClick={() => setShowCopyModal(true)}
                   className="flex items-center gap-0.5 underline opacity-80 hover:opacity-100 shrink-0">
                   <ExternalLink className="w-3 h-3" /> View
-                </a>
+                </button>
               </div>
             ) : null}
+            {showCopyModal && bill?.driveViewUrl && (
+              <BillCopyViewerModal
+                url={bill.driveViewUrl}
+                fileName={bill.driveFileName}
+                vendor={bill.vendor}
+                onClose={() => setShowCopyModal(false)}
+              />
+            )}
             {attachFile ? (
               <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold ${isLight ? "bg-blue-50 border-blue-200 text-blue-700" : "bg-[#0d1a2e] border-[#1a3a5c] text-[#4fa3e0]"}`}>
                 <FileCheck2 className="w-4 h-4 shrink-0" />

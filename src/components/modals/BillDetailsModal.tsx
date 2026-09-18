@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { Tooltip } from "../Tooltip";
 import { billRemaining } from "../../utils/formatters";
+import { BillCopyViewerModal } from "./BillCopyViewerModal";
 
 interface BillDetailsModalProps {
   vendorBills: APBill[];
@@ -147,6 +148,7 @@ const BillDetail: React.FC<{
   const { toggleBillStatus, updateBill } = useFinance();
   const [localStatus, setLocalStatus] = useState(bill.status || "unpaid");
   const [paidDate, setPaidDate] = useState(bill.paymentDate || bill.paidDate || "");
+  const [showCopyModal, setShowCopyModal] = useState(false);
 
   // Individual note fields — shown as separate labeled rows in the Remarks section
   const remarksText    = bill.remarks || bill.notes || "";
@@ -195,21 +197,44 @@ const BillDetail: React.FC<{
             )}
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            {/* View Bill — prefers uploaded Drive copy; falls back to pasted link in remarks */}
+            {/* View Bill — Drive copies open inline in a themed modal; pasted links (arbitrary external sites) still open in a new tab */}
             {billViewUrl && (
-              <a
-                href={billViewUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-all no-underline ${
-                  isLight
-                    ? "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
-                    : "bg-blue-500/10 border-blue-500/25 text-blue-400 hover:bg-blue-500/20"
-                }`}
-              >
-                <ExternalLink className="w-3 h-3" />
-                {bill.driveViewUrl ? "View Bill Copy" : "View Bill"}
-              </a>
+              bill.driveViewUrl ? (
+                <button
+                  onClick={() => setShowCopyModal(true)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-all ${
+                    isLight
+                      ? "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                      : "bg-blue-500/10 border-blue-500/25 text-blue-400 hover:bg-blue-500/20"
+                  }`}
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  View Bill Copy
+                </button>
+              ) : (
+                <a
+                  href={billViewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-all no-underline ${
+                    isLight
+                      ? "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                      : "bg-blue-500/10 border-blue-500/25 text-blue-400 hover:bg-blue-500/20"
+                  }`}
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  View Bill
+                </a>
+              )
+            )}
+            {showCopyModal && bill.driveViewUrl && (
+              <BillCopyViewerModal
+                url={bill.driveViewUrl}
+                fileName={bill.driveFileName}
+                vendor={bill.vendor}
+                accentColor={accentColor}
+                onClose={() => setShowCopyModal(false)}
+              />
             )}
             <button
               onClick={handleQBO}
