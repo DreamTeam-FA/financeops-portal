@@ -213,6 +213,11 @@ interface FinanceContextType {
   updateExternalLink: (id: string, updates: Partial<ExternalLinkItem>) => void;
   deleteExternalLink: (id: string) => void;
 
+  // Calendar team-assignee roster (name → color) — config-sheet backed so a member's
+  // color choice is shared across every browser/session, not just the one that set it.
+  calendarAssignees: { id: string; name: string; color: string }[];
+  setCalendarAssignees: (updater: { id: string; name: string; color: string }[] | ((prev: { id: string; name: string; color: string }[]) => { id: string; name: string; color: string }[])) => void;
+
   // Quick Notes Management
   quickNotes: DashboardNote[];
   addQuickNote: (note: Omit<DashboardNote, "id">) => void;
@@ -835,6 +840,44 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return DEFAULT_EXTERNAL_LINKS;
   });
 
+  // Calendar Team-Assignee Roster State — config-sheet backed (see calendarAssignees
+  // restore block below) so a member's chosen color is the same in every browser.
+  const DEFAULT_CALENDAR_ASSIGNEES = [
+    { id: "a1", name: "Norlan", color: "#1D6AE5" },
+    { id: "a2", name: "Micah", color: "#8E24AA" },
+    { id: "a3", name: "Monica", color: "#D81B60" },
+    { id: "a4", name: "Iza", color: "#00897b" },
+    { id: "a5", name: "Mark", color: "#F09300" },
+  ];
+  const [calendarAssignees, setCalendarAssigneesState] = useState<{ id: string; name: string; color: string }[]>(() => {
+    try {
+      const saved = localStorage.getItem("calendar_team_assignees");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return DEFAULT_CALENDAR_ASSIGNEES;
+  });
+
+  const setCalendarAssignees = (
+    updater: { id: string; name: string; color: string }[] | ((prev: { id: string; name: string; color: string }[]) => { id: string; name: string; color: string }[])
+  ) => {
+    setCalendarAssigneesState(prev => {
+      const next = typeof updater === "function" ? (updater as any)(prev) : updater;
+      try { localStorage.setItem("calendar_team_assignees", JSON.stringify(next)); } catch (e) {}
+      const tok = getAccessToken();
+      if (tok) {
+        writeConfigKey(tok, "calendarAssignees", next, userEmail).catch(() =>
+          writeConfigKey(tok, "calendarAssignees", next, userEmail).catch(() =>
+            showToast("Assignee color saved locally but failed to sync — it may not persist. Try again.", "error", 8000)
+          )
+        );
+      }
+      return next;
+    });
+  };
+
   const addExternalLink = (link: Omit<ExternalLinkItem, "id">) => {
     if (!requireToken()) return;
     const newLink: ExternalLinkItem = {
@@ -1445,6 +1488,19 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
               if (tok2) writeConfigKey(tok2, "externalLinks", deduped, userEmail).catch(() => {});
             }
           }
+        }
+        // Restore calendarAssignees (team member → color roster) from config sheet —
+        // this is what makes a member's color choice show the same in every browser.
+        // The config sheet is always authoritative when present so a color change made
+        // anywhere is picked up here, not just whichever browser made the change.
+        if (cfg.calendarAssignees && Array.isArray(cfg.calendarAssignees) && cfg.calendarAssignees.length > 0) {
+          setCalendarAssigneesState(cfg.calendarAssignees);
+          try { localStorage.setItem("calendar_team_assignees", JSON.stringify(cfg.calendarAssignees)); } catch (e) {}
+        } else {
+          // Config tab has no roster yet (first run) — seed it from whatever this
+          // browser currently has (localStorage default or built-in defaults).
+          const tok2 = getAccessToken();
+          if (tok2) writeConfigKey(tok2, "calendarAssignees", calendarAssignees, userEmail).catch(() => {});
         }
       }).catch(() => {}); // non-fatal — fall back to server JSON / localStorage
 
@@ -3162,6 +3218,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         addExternalLink,
         updateExternalLink,
         deleteExternalLink,
+        calendarAssignees,
+        setCalendarAssignees,
         quickNotes,
         addQuickNote,
         updateQuickNote,

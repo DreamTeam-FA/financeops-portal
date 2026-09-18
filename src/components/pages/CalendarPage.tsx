@@ -39,14 +39,6 @@ import {
 } from "../../services/googleCalendarService";
 import { PortalCalendarEvent } from "../../types";
 
-const INITIAL_TEAM_ASSIGNEES = [
-  { id: "a1", name: "Norlan", color: "#1D6AE5" },
-  { id: "a2", name: "Micah", color: "#8E24AA" },
-  { id: "a3", name: "Monica", color: "#D81B60" },
-  { id: "a4", name: "Iza", color: "#00897b" },
-  { id: "a5", name: "Mark", color: "#F09300" }
-];
-
 const CALENDAR_OVERRIDES_KEY = "financeops_calendar_overrides";
 
 function readCalendarOverrides(): { done: Record<string, boolean>; deleted: string[] } {
@@ -158,22 +150,14 @@ export const CalendarPage: React.FC = () => {
   const [selectedMobileDay, setSelectedMobileDay] = useState<string | null>(null);
   const [hasGoogleToken, setHasGoogleToken] = useState(() => !!getAccessToken());
   // googleEvents and loadingGoogleCal come from context (loaded globally at app start)
-  const { googleCalEvents: googleEvents, setGoogleCalEvents: setGoogleEvents, loadingGoogleCal, fetchGoogleCalEvents, calSheetEvents: sheetEvents, setCalSheetEvents: setSheetEvents, calSheetTab: sheetTab, setCalSheetTab: setSheetTab, calSheetColMap: sheetColMap, setCalSheetColMap: setSheetColMap, calSheetLoading: sheetLoading, loadCalSheetEvents } = useFinance();
-
-  // Assignees State with localStorage persistence so deletions stick across sessions
-  const [assignees, setAssignees] = useState(() => {
-    try {
-      const saved = localStorage.getItem("calendar_team_assignees");
-      if (saved) return JSON.parse(saved);
-    } catch (e) {}
-    return INITIAL_TEAM_ASSIGNEES;
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem("calendar_team_assignees", JSON.stringify(assignees));
-    } catch (e) {}
-  }, [assignees]);
+  const {
+    googleCalEvents: googleEvents, setGoogleCalEvents: setGoogleEvents, loadingGoogleCal, fetchGoogleCalEvents,
+    calSheetEvents: sheetEvents, setCalSheetEvents: setSheetEvents, calSheetTab: sheetTab, setCalSheetTab: setSheetTab,
+    calSheetColMap: sheetColMap, setCalSheetColMap: setSheetColMap, calSheetLoading: sheetLoading, loadCalSheetEvents,
+    // Team-assignee roster is config-sheet backed (see FinanceContext) so a member's
+    // color choice shows the same in every browser, not just the one that set it.
+    calendarAssignees: assignees, setCalendarAssignees: setAssignees,
+  } = useFinance();
 
   const [showAssigneeModal, setShowAssigneeModal] = useState(false);
   const [newAssigneeName, setNewAssigneeName] = useState("");
@@ -402,11 +386,12 @@ export const CalendarPage: React.FC = () => {
     return "";
   };
 
-  // Build assigneeId → color map by scanning all events (mirrors GAS calAssignees lookup)
+  // Build assigneeId → color map by scanning all events (mirrors GAS calAssignees lookup).
+  // The live `assignees` list always wins — it's seeded LAST so a member's current color
+  // choice overrides any stale color snapshot stored on old events. Event snapshots only
+  // fill in names/ids that no longer exist in the live list (e.g. a removed member).
   const assigneeColorMap = useMemo(() => {
     const map: Record<string, string> = {};
-    // Seed from the assignees list first (name → color, always up-to-date)
-    assignees.forEach((a: any) => { if (a.name && a.color) map[a.name] = a.color; });
     calendarLocalEvents.forEach((ev: any) => {
       if (ev.assigneeId && ev.assigneeColor) map[ev.assigneeId] = ev.assigneeColor;
     });
@@ -417,15 +402,18 @@ export const CalendarPage: React.FC = () => {
       // Also map by name so names-as-IDs (from portal-created events) resolve to colors
       if (ev.assignee && ev.assigneeColor) map[ev.assignee] = ev.assigneeColor;
     });
+    // Live assignees list seeded last so it always overrides stale per-event snapshots.
+    assignees.forEach((a: any) => { if (a.name && a.color) map[a.name] = a.color; });
     return map;
   }, [calendarLocalEvents, sheetEvents, assignees]);
 
   // Get colored bar array for an event chip (one per assignee, like GAS eventPillBars)
-  const getEventColorBars = (ev: { assigneeIds?: string[]; assigneeColor?: string }): string[] => {
+  const getEventColorBars = (ev: { assigneeIds?: string[]; assignee?: string; assigneeColor?: string }): string[] => {
     if (ev.assigneeIds && ev.assigneeIds.length > 0) {
       return ev.assigneeIds.map(id => assigneeColorMap[id] || ev.assigneeColor || "").filter(Boolean);
     }
-    return ev.assigneeColor ? [ev.assigneeColor] : [];
+    const color = (ev.assignee && assigneeColorMap[ev.assignee]) || ev.assigneeColor || "";
+    return color ? [color] : [];
   };
 
   const getChipStyle = (type: string, category?: string, urgency?: string) => {
