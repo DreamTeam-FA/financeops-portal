@@ -194,6 +194,19 @@ interface FinanceContextType {
   fetchGoogleCalEvents: (year: number, month: number) => void;
   loadCalSheetEvents: () => void;
 
+  // Doc Scanner (global — lifted from DocScannerPage local state so an in-progress
+  // scan keeps running and its results survive navigating to another page)
+  docScannerFiles: File[];
+  setDocScannerFiles: React.Dispatch<React.SetStateAction<File[]>>;
+  docScannerResults: any[];
+  setDocScannerResults: React.Dispatch<React.SetStateAction<any[]>>;
+  docScannerScanning: boolean;
+  setDocScannerScanning: React.Dispatch<React.SetStateAction<boolean>>;
+  docScannerFolderName: string;
+  setDocScannerFolderName: React.Dispatch<React.SetStateAction<string>>;
+  docScannerSelectedId: string | null;
+  setDocScannerSelectedId: React.Dispatch<React.SetStateAction<string | null>>;
+
   // External Links Management
   externalLinks: ExternalLinkItem[];
   addExternalLink: (link: Omit<ExternalLinkItem, "id">) => void;
@@ -1043,6 +1056,13 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [calSheetTab, setCalSheetTab] = useState("Events");
   const [calSheetColMap, setCalSheetColMap] = useState<ColMap>(DEFAULT_COL_MAP);
   const [calSheetLoading, setCalSheetLoading] = useState(false);
+
+  // Doc Scanner — lifted from DocScannerPage so scan progress/results survive navigation
+  const [docScannerFiles, setDocScannerFiles] = useState<File[]>([]);
+  const [docScannerResults, setDocScannerResults] = useState<any[]>([]);
+  const [docScannerScanning, setDocScannerScanning] = useState(false);
+  const [docScannerFolderName, setDocScannerFolderName] = useState("");
+  const [docScannerSelectedId, setDocScannerSelectedId] = useState<string | null>(null);
 
   const loadCalSheetEvents = () => {
     const token = getAccessToken();
@@ -3106,6 +3126,16 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         calSheetLoading,
         fetchGoogleCalEvents,
         loadCalSheetEvents,
+        docScannerFiles,
+        setDocScannerFiles,
+        docScannerResults,
+        setDocScannerResults,
+        docScannerScanning,
+        setDocScannerScanning,
+        docScannerFolderName,
+        setDocScannerFolderName,
+        docScannerSelectedId,
+        setDocScannerSelectedId,
         externalLinks,
         addExternalLink,
         updateExternalLink,

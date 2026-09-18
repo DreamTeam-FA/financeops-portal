@@ -431,7 +431,7 @@ export const AutomationsTab: React.FC<AutomationsTabProps> = ({ isLight }) => {
           >
             {!activeJob ? (
               <div className={`flex items-center justify-center h-full ${isLight ? "text-slate-400" : "text-[#444]"}`}>
-                Select a script above and click Run.
+                Click Run on a script below to see its output here.
               </div>
             ) : activeJob.logs.length === 0 ? (
               <div className={`${isLight ? "text-slate-400" : "text-[#444]"}`}>Starting…</div>

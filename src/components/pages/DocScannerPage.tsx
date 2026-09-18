@@ -218,23 +218,35 @@ async function listDriveFiles(folderId: string, token: string, recursive: boolea
   return all;
 }
 
-async function downloadDriveFile(fileId: string, fileName: string, mimeType: string, token: string): Promise<File | null> {
-  const ext = fileName.split(".").pop()?.toLowerCase() ?? "";
-  if (!SUPPORTED_EXTS.has(ext)) return null;
+const GOOGLE_NATIVE_MIMES = new Set([
+  "application/vnd.google-apps.spreadsheet",
+  "application/vnd.google-apps.document",
+]);
 
-  // Google Workspace types need export
+async function downloadDriveFile(fileId: string, fileName: string, mimeType: string, token: string): Promise<File | null> {
+  // Native Google Docs/Sheets usually have no file extension in their Drive name —
+  // only reject on extension when it's NOT one of the native types we export below.
+  const ext = fileName.split(".").pop()?.toLowerCase() ?? "";
+  if (!GOOGLE_NATIVE_MIMES.has(mimeType) && !SUPPORTED_EXTS.has(ext)) return null;
+
+  // Google Workspace types need export — and extractText() dispatches purely by
+  // filename extension, so the exported file needs that extension appended since
+  // native Drive files normally carry none in their name.
   let url = `${DRIVE_API}/files/${fileId}?alt=media`;
+  let exportedName = fileName;
   if (mimeType === "application/vnd.google-apps.spreadsheet") {
     url = `${DRIVE_API}/files/${fileId}/export?mimeType=application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`;
+    exportedName = `${fileName}.xlsx`;
   } else if (mimeType === "application/vnd.google-apps.document") {
     url = `${DRIVE_API}/files/${fileId}/export?mimeType=application/vnd.openxmlformats-officedocument.wordprocessingml.document`;
+    exportedName = `${fileName}.docx`;
   }
 
   try {
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) return null;
     const blob = await res.blob();
-    return new File([blob], fileName, { type: blob.type });
+    return new File([blob], exportedName, { type: blob.type });
   } catch {
     return null;
   }
@@ -242,7 +254,14 @@ async function downloadDriveFile(fileId: string, fileName: string, mimeType: str
 
 /* ── Component ──────────────────────────────────────────────────────── */
 export const DocScannerPage: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
-  const { theme } = useFinance() as any;
+  const {
+    theme,
+    docScannerFiles: allFiles, setDocScannerFiles: setAllFiles,
+    docScannerResults: results, setDocScannerResults: setResults,
+    docScannerScanning: scanning, setDocScannerScanning: setScanning,
+    docScannerFolderName: folderName, setDocScannerFolderName: setFolderName,
+    docScannerSelectedId: selectedId, setDocScannerSelectedId: setSelectedId,
+  } = useFinance() as any;
   const isLight = theme === "light";
   const folderRef = useRef<HTMLInputElement>(null);
 
@@ -259,14 +278,9 @@ export const DocScannerPage: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
   const [driveLoading, setDriveLoading] = useState(false);
   const [driveError, setDriveError] = useState<string | null>(null);
 
-  // Files from selected folder
-  const [allFiles, setAllFiles]   = useState<File[]>([]);
-  const [folderName, setFolderName] = useState("");
-
-  // Scan state
-  const [results, setResults]     = useState<FileResult[]>([]);
-  const [scanning, setScanning]   = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // allFiles/results/scanning/folderName/selectedId now come from FinanceContext
+  // (above) instead of local useState, so an in-progress scan and its results
+  // survive navigating to another page and back.
 
   // Persist keywords
   useEffect(() => {
@@ -333,7 +347,10 @@ export const DocScannerPage: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
 
     try {
       const driveFiles = await listDriveFiles(folderId, token, recursive);
+      // Native Google Docs/Sheets carry no extension in their Drive name — match
+      // them by mimeType too, or they were silently dropped before download ever ran.
       const supported = driveFiles.filter(f => {
+        if (GOOGLE_NATIVE_MIMES.has(f.mimeType)) return true;
         const ext = f.name.split(".").pop()?.toLowerCase() ?? "";
         return SUPPORTED_EXTS.has(ext);
       });
@@ -347,11 +364,20 @@ export const DocScannerPage: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
       const folderLabel = `Drive: ${driveUrl.match(/\/folders\/([^/?]+)/)?.[1]?.slice(0, 12) ?? folderId.slice(0, 12)}…`;
       setFolderName(folderLabel);
 
-      // Download all supported files
+      // Download all supported files — track failures instead of silently dropping them
       const downloaded: File[] = [];
+      let failedCount = 0;
       for (const df of supported) {
         const file = await downloadDriveFile(df.id, df.name, df.mimeType, token);
-        if (file) downloaded.push(file);
+        if (file) downloaded.push(file); else failedCount++;
+      }
+
+      if (failedCount > 0) {
+        setDriveError(
+          downloaded.length > 0
+            ? `Loaded ${downloaded.length} file(s) — ${failedCount} failed to download (permission or format issue) and were skipped.`
+            : "All files in this folder failed to download — check sharing permissions and try again."
+        );
       }
 
       setAllFiles(downloaded);
