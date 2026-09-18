@@ -410,14 +410,17 @@ export const CalendarPage: React.FC = () => {
   // Get colored bar array for an event chip (one per assignee, like GAS eventPillBars)
   const getEventColorBars = (ev: { assigneeIds?: string[]; assignee?: string; assigneeColor?: string }): string[] => {
     if (ev.assigneeIds && ev.assigneeIds.length > 0) {
-      // Single-assignee events carry both a legacy id (assigneeIds[0], often an old
-      // auto-generated id that predates today's roster and will never match it) AND
-      // the person's name (assignee). Prefer the name — resolved against the live
-      // roster — over the id lookup, which can only ever reflect a stale per-event
-      // snapshot for ids no longer in the roster. Only fall back to per-id lookup
-      // for genuine multi-assignee events, where there's no single name to resolve.
-      if (ev.assigneeIds.length === 1 && ev.assignee && assigneeColorMap[ev.assignee]) {
-        return [assigneeColorMap[ev.assignee]];
+      // Every id in assigneeIds carries a legacy auto-generated id (often predating
+      // today's roster ids, so it'll never match them) — but ev.assignee holds the
+      // matching name(s), comma-joined in the SAME order as assigneeIds for
+      // multi-assignee events ("Norlan, Monica, Micah" ↔ 3 ids). Resolve each id by
+      // its name against the live roster first; only fall back to the raw per-id
+      // lookup (a stale per-event snapshot) when the name lists don't line up.
+      const names = (ev.assignee || "").split(",").map(n => n.trim()).filter(Boolean);
+      if (names.length === ev.assigneeIds.length) {
+        return ev.assigneeIds
+          .map((id, i) => assigneeColorMap[names[i]] || assigneeColorMap[id] || ev.assigneeColor || "")
+          .filter(Boolean);
       }
       return ev.assigneeIds.map(id => assigneeColorMap[id] || ev.assigneeColor || "").filter(Boolean);
     }
