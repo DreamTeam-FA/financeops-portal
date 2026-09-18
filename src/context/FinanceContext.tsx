@@ -845,7 +845,17 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setExternalLinks(updated);
     localStorage.setItem("financeops_external_links", JSON.stringify(updated));
     const tok = getAccessToken();
-    if (tok) writeConfigKey(tok, "externalLinks", updated, userEmail).catch(() => {});
+    // The config sheet is the ONLY storage that survives a browser cache clear
+    // or a different device/session — localStorage alone is not durable. If
+    // this write fails, retry once, then surface a visible warning instead of
+    // silently losing the item from durable storage.
+    if (tok) {
+      writeConfigKey(tok, "externalLinks", updated, userEmail).catch(() =>
+        writeConfigKey(tok, "externalLinks", updated, userEmail).catch(() =>
+          showToast(`"${link.name}" saved locally but failed to sync — it may not persist. Try again.`, "error", 8000)
+        )
+      );
+    }
     logAction("Added External Link", `Added '${link.name}' link (${link.url})`);
   };
 
@@ -855,7 +865,13 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setExternalLinks(updated);
     localStorage.setItem("financeops_external_links", JSON.stringify(updated));
     const tok = getAccessToken();
-    if (tok) writeConfigKey(tok, "externalLinks", updated, userEmail).catch(() => {});
+    if (tok) {
+      writeConfigKey(tok, "externalLinks", updated, userEmail).catch(() =>
+        writeConfigKey(tok, "externalLinks", updated, userEmail).catch(() =>
+          showToast("Link update saved locally but failed to sync — it may not persist. Try again.", "error", 8000)
+        )
+      );
+    }
     logAction("Updated External Link", `Updated link ID '${id}'`);
   };
 
@@ -873,7 +889,13 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
     } catch {}
     const tok = getAccessToken();
-    if (tok) writeConfigKey(tok, "externalLinks", updated, userEmail).catch(() => {});
+    if (tok) {
+      writeConfigKey(tok, "externalLinks", updated, userEmail).catch(() =>
+        writeConfigKey(tok, "externalLinks", updated, userEmail).catch(() =>
+          showToast("Deletion saved locally but failed to sync — it may reappear later. Try again.", "error", 8000)
+        )
+      );
+    }
     logAction("Deleted External Link", `Removed link ID '${id}'`);
   };
 
