@@ -790,8 +790,11 @@ export const CalendarPage: React.FC = () => {
 
       const dates = getOccurrenceDates(taskDate, taskRepeat, taskRepeat === "none" ? 1 : taskOccurrences);
       const token = getAccessToken();
-      const appendPromises: Promise<void>[] = [];
-
+      // Appends run SEQUENTIALLY (awaited one at a time), not fired as a burst of
+      // concurrent requests — Google Sheets' API rate-limits bursts like that and
+      // silently rejects most of them, which is why a 20-occurrence repeat could
+      // previously produce only a handful of surviving rows with no visible error.
+      let failedCount = 0;
       for (const date of dates) {
         const newId = `cal-${Date.now()}-${date}`;
 
@@ -819,19 +822,23 @@ export const CalendarPage: React.FC = () => {
         setSheetEvents(prev => [...prev, newSheetRow]);
 
         if (token) {
-          const p = appendCalendarRow(token, sheetTab, {
-            date,
-            time: taskTime,
-            title: fullTitle,
-            notes: taskDesc,
-            entity: "Ruby's",
-            type: taskCategory,
-            assignee: taskAssignee.trim(),
-            assigneeColor: assigneeColorVal,
-            urgency: taskUrgency,
-            id: newId,
-          }).catch(err => console.warn("Sheet append failed:", err));
-          appendPromises.push(p as Promise<void>);
+          try {
+            await appendCalendarRow(token, sheetTab, {
+              date,
+              time: taskTime,
+              title: fullTitle,
+              notes: taskDesc,
+              entity: "Ruby's",
+              type: taskCategory,
+              assignee: taskAssignee.trim(),
+              assigneeColor: assigneeColorVal,
+              urgency: taskUrgency,
+              id: newId,
+            });
+          } catch (err) {
+            failedCount++;
+            console.warn("Sheet append failed:", err);
+          }
         }
 
         if (syncToGoogleCal && token) {
@@ -845,15 +852,20 @@ export const CalendarPage: React.FC = () => {
         }
       }
 
+      if (failedCount > 0) {
+        showToast?.(
+          `${failedCount} of ${dates.length} occurrence(s) failed to save to the sheet — check your connection and try again for those dates.`,
+          "error", 8000
+        );
+      }
+
       // Reload sheet after all appends complete so sheetRow is populated (needed for done sync)
       if (token) {
-        Promise.allSettled(appendPromises).then(() => {
-          loadCalendarSheet(token).then(({ events, tab, colMap }) => {
-            setSheetEvents(events);
-            setSheetTab(tab);
-            setSheetColMap(colMap);
-          }).catch(() => {});
-        });
+        loadCalendarSheet(token).then(({ events, tab, colMap }) => {
+          setSheetEvents(events);
+          setSheetTab(tab);
+          setSheetColMap(colMap);
+        }).catch(() => {});
       }
 
       setTaskTitle("");
