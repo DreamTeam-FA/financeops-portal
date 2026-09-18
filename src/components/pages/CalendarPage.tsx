@@ -410,6 +410,15 @@ export const CalendarPage: React.FC = () => {
   // Get colored bar array for an event chip (one per assignee, like GAS eventPillBars)
   const getEventColorBars = (ev: { assigneeIds?: string[]; assignee?: string; assigneeColor?: string }): string[] => {
     if (ev.assigneeIds && ev.assigneeIds.length > 0) {
+      // Single-assignee events carry both a legacy id (assigneeIds[0], often an old
+      // auto-generated id that predates today's roster and will never match it) AND
+      // the person's name (assignee). Prefer the name — resolved against the live
+      // roster — over the id lookup, which can only ever reflect a stale per-event
+      // snapshot for ids no longer in the roster. Only fall back to per-id lookup
+      // for genuine multi-assignee events, where there's no single name to resolve.
+      if (ev.assigneeIds.length === 1 && ev.assignee && assigneeColorMap[ev.assignee]) {
+        return [assigneeColorMap[ev.assignee]];
+      }
       return ev.assigneeIds.map(id => assigneeColorMap[id] || ev.assigneeColor || "").filter(Boolean);
     }
     const color = (ev.assignee && assigneeColorMap[ev.assignee]) || ev.assigneeColor || "";
