@@ -217,9 +217,14 @@ interface FinanceContextType {
   // Calendar team-assignee roster (name → color) — config-sheet backed so a member's
   // color choice is shared across every browser/session, not just the one that set it.
   calendarAssignees: { id: string; name: string; color: string }[];
-  setCalendarAssignees: (updater: { id: string; name: string; color: string }[] | ((prev: { id: string; name: string; color: string }[]) => { id: string; name: string; color: string }[])) => void;
-  // True once the config-sheet roster has loaded — edits made before this is true are
-  // queued (see setCalendarAssignees) rather than firing against an unverified local guess.
+  // Each edit re-fetches the config sheet fresh and patches only the one thing that
+  // changed — safe even if this tab's own calendarAssignees state is stale, so a
+  // member added/removed in another session can never be silently wiped out.
+  updateCalendarAssigneeColor: (id: string, color: string) => void;
+  removeCalendarAssignee: (id: string) => void;
+  addCalendarAssignee: (name: string, color: string) => void;
+  // True once the config-sheet roster has loaded at least once (informational only —
+  // every write above is safe regardless, see mutateCalendarAssignees).
   calendarAssigneesReady: boolean;
 
   // Quick Notes Management
@@ -872,64 +877,70 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // edit is queued until then instead of firing against unverified data.
   const calendarAssigneesReadyRef = React.useRef(false);
   const [calendarAssigneesReady, setCalendarAssigneesReady] = useState(false);
-  const pendingAssigneeUpdatesRef = React.useRef<((prev: { id: string; name: string; color: string }[]) => { id: string; name: string; color: string }[])[]>([]);
 
-  const applyCalendarAssigneesUpdate = (
-    updater: { id: string; name: string; color: string }[] | ((prev: { id: string; name: string; color: string }[]) => { id: string; name: string; color: string }[])
-  ) => {
-    setCalendarAssigneesState(prev => {
-      const next = typeof updater === "function" ? (updater as any)(prev) : updater;
-      try { localStorage.setItem("calendar_team_assignees", JSON.stringify(next)); } catch (e) {}
-      const tok = getAccessToken();
-      if (tok) {
-        writeConfigKey(tok, "calendarAssignees", next, userEmail).catch(() =>
-          writeConfigKey(tok, "calendarAssignees", next, userEmail).catch(() =>
-            showToast("Assignee color saved locally but failed to sync — it may not persist. Try again.", "error", 8000)
-          )
-        );
+  type CalAssignee = { id: string; name: string; color: string };
 
-        // Retroactively rewrite col M on every EXISTING calendar sheet row for any
-        // member whose color just changed, so old events pick up the new color in
-        // the sheet itself, not just in the portal's live lookup.
-        next.forEach((a: { id: string; name: string; color: string }) => {
-          const prevMatch = prev.find(p => p.id === a.id);
-          if (!prevMatch || prevMatch.color === a.color || !a.name) return;
-          const rows = calSheetEvents.filter(ev => ev.assignee === a.name).map(ev => ev.sheetRow);
-          if (rows.length === 0) return;
-          updateAssigneeColorForRows(tok, calSheetTab, rows, a.color)
-            .then(() => {
-              setCalSheetEvents(evs => evs.map(ev => ev.assignee === a.name ? { ...ev, assigneeColor: a.color } : ev));
-            })
-            .catch(() => showToast(`Updated ${a.name}'s color, but couldn't rewrite their past events in the sheet.`, "error", 8000));
-        });
-      }
-      return next;
+  // Applies ONE well-defined mutation (patch a color, remove one id, add one member)
+  // against a list re-fetched fresh from the config sheet — never against this tab's
+  // possibly-stale in-memory `calendarAssignees`. This is what actually makes the
+  // roster safe from data loss: even if this tab's local state is behind (another
+  // browser added/renamed someone since this tab loaded), the write only ever
+  // touches the one thing the user just did, on top of whatever the sheet currently
+  // holds — it can never silently drop members this tab doesn't know about.
+  const mutateCalendarAssignees = async (mutate: (fresh: CalAssignee[]) => CalAssignee[]) => {
+    const tok = getAccessToken();
+    if (!tok) return;
+    let fresh: CalAssignee[];
+    try {
+      const cfg = await readAllConfig(tok);
+      fresh = Array.isArray(cfg.calendarAssignees) && cfg.calendarAssignees.length > 0
+        ? cfg.calendarAssignees
+        : calendarAssignees;
+    } catch {
+      fresh = calendarAssignees; // sheet unreachable — fall back to this tab's own state
+    }
+    const before = fresh;
+    const next = mutate(fresh);
+    setCalendarAssigneesState(next);
+    try { localStorage.setItem("calendar_team_assignees", JSON.stringify(next)); } catch (e) {}
+    writeConfigKey(tok, "calendarAssignees", next, userEmail).catch(() =>
+      writeConfigKey(tok, "calendarAssignees", next, userEmail).catch(() =>
+        showToast("Assignee change saved locally but failed to sync — it may not persist. Try again.", "error", 8000)
+      )
+    );
+
+    // Retroactively rewrite col M on every EXISTING calendar sheet row for any
+    // member whose color just changed, so old events pick up the new color in
+    // the sheet itself, not just in the portal's live lookup.
+    next.forEach((a) => {
+      const beforeMatch = before.find(p => p.id === a.id);
+      if (!beforeMatch || beforeMatch.color === a.color || !a.name) return;
+      const rows = calSheetEvents.filter(ev => ev.assignee === a.name).map(ev => ev.sheetRow);
+      if (rows.length === 0) return;
+      updateAssigneeColorForRows(tok, calSheetTab, rows, a.color)
+        .then(() => {
+          setCalSheetEvents(evs => evs.map(ev => ev.assignee === a.name ? { ...ev, assigneeColor: a.color } : ev));
+        })
+        .catch(() => showToast(`Updated ${a.name}'s color, but couldn't rewrite their past events in the sheet.`, "error", 8000));
     });
   };
 
-  // Public setter: queues the edit if the config-sheet roster hasn't loaded yet,
-  // so a fast click right after page load can never fire against the unverified
-  // localStorage guess (see calendarAssigneesReadyRef above).
-  const setCalendarAssignees = (
-    updater: { id: string; name: string; color: string }[] | ((prev: { id: string; name: string; color: string }[]) => { id: string; name: string; color: string }[])
-  ) => {
-    if (!calendarAssigneesReadyRef.current) {
-      pendingAssigneeUpdatesRef.current.push(typeof updater === "function" ? updater : () => updater);
-      showToast("Syncing team roster — your change will apply in a moment…", "info", 4000);
-      return;
-    }
-    applyCalendarAssigneesUpdate(updater);
-  };
+  const updateCalendarAssigneeColor = (id: string, color: string) =>
+    mutateCalendarAssignees(fresh => fresh.map(a => a.id === id ? { ...a, color } : a));
 
-  // Called once the config-sheet restore has run (found a roster, seeded one, or
-  // failed outright) — flips the gate and replays any edits queued while it loaded.
+  const removeCalendarAssignee = (id: string) =>
+    mutateCalendarAssignees(fresh => fresh.filter(a => a.id !== id));
+
+  const addCalendarAssignee = (name: string, color: string) =>
+    mutateCalendarAssignees(fresh => [...fresh, { id: `a-${Date.now()}`, name, color }]);
+
+  // Called once the config-sheet restore has run — kept only to gate the initial
+  // paint/edit-ability of the Manage Team Assignees UI; every write itself is now
+  // safe (see mutateCalendarAssignees) regardless of this flag.
   const markCalendarAssigneesReady = () => {
     if (calendarAssigneesReadyRef.current) return; // idempotent — init() only runs once, but be safe
     calendarAssigneesReadyRef.current = true;
     setCalendarAssigneesReady(true);
-    const pending = pendingAssigneeUpdatesRef.current;
-    pendingAssigneeUpdatesRef.current = [];
-    pending.forEach(u => applyCalendarAssigneesUpdate(u));
   };
 
   const addExternalLink = (link: Omit<ExternalLinkItem, "id">) => {
@@ -3279,7 +3290,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         updateExternalLink,
         deleteExternalLink,
         calendarAssignees,
-        setCalendarAssignees,
+        updateCalendarAssigneeColor,
+        removeCalendarAssignee,
+        addCalendarAssignee,
         calendarAssigneesReady,
         quickNotes,
         addQuickNote,

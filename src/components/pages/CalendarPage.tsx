@@ -156,7 +156,7 @@ export const CalendarPage: React.FC = () => {
     calSheetColMap: sheetColMap, setCalSheetColMap: setSheetColMap, calSheetLoading: sheetLoading, loadCalSheetEvents,
     // Team-assignee roster is config-sheet backed (see FinanceContext) so a member's
     // color choice shows the same in every browser, not just the one that set it.
-    calendarAssignees: assignees, setCalendarAssignees: setAssignees, calendarAssigneesReady,
+    calendarAssignees: assignees, updateCalendarAssigneeColor, removeCalendarAssignee, addCalendarAssignee, calendarAssigneesReady,
   } = useFinance();
 
   const [showAssigneeModal, setShowAssigneeModal] = useState(false);
@@ -2388,7 +2388,7 @@ export const CalendarPage: React.FC = () => {
                         {editingColorId === a.id ? "✕ Close" : "🎨 Color"}
                       </button>
                       <button
-                        onClick={() => { setAssignees(prev => prev.filter(item => item.id !== a.id)); setEditingColorId(null); }}
+                        onClick={() => { removeCalendarAssignee(a.id); setEditingColorId(null); }}
                         className="text-red-500 hover:text-red-400 text-[11px] font-semibold cursor-pointer"
                       >
                         Remove
@@ -2403,7 +2403,7 @@ export const CalendarPage: React.FC = () => {
                         {ASSIGNEE_COLORS.map(c => (
                           <button
                             key={c}
-                            onClick={() => { setAssignees(prev => prev.map(item => item.id === a.id ? { ...item, color: c } : item)); setEditingColorId(null); }}
+                            onClick={() => { updateCalendarAssigneeColor(a.id, c); setEditingColorId(null); }}
                             className="w-8 h-8 rounded-lg transition-transform hover:scale-110 hover:shadow-lg relative"
                             style={{ backgroundColor: c }}
                             title={c}
@@ -2456,7 +2456,7 @@ export const CalendarPage: React.FC = () => {
                   onChange={(e) => setNewAssigneeName(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && newAssigneeName.trim()) {
-                      setAssignees(prev => [...prev, { id: `a-${Date.now()}`, name: newAssigneeName.trim(), color: newAssigneeColor }]);
+                      addCalendarAssignee(newAssigneeName.trim(), newAssigneeColor);
                       setNewAssigneeName("");
                     }
                   }}
@@ -2465,7 +2465,7 @@ export const CalendarPage: React.FC = () => {
                 <button
                   onClick={() => {
                     if (!newAssigneeName.trim()) return;
-                    setAssignees(prev => [...prev, { id: `a-${Date.now()}`, name: newAssigneeName.trim(), color: newAssigneeColor }]);
+                    addCalendarAssignee(newAssigneeName.trim(), newAssigneeColor);
                     setNewAssigneeName("");
                   }}
                   className="px-3 py-2 rounded-lg bg-[#0d9488] hover:bg-[#0f766e] text-white font-bold text-xs cursor-pointer transition-colors shrink-0"
