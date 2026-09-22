@@ -439,7 +439,7 @@ async function syncLiveDataFromSheets(accessToken?: string) {
       ar: mergeDatasets(liveData.ar, current.ar, "id"),
       // extraForceFields: a blank sheet cell for these must clear the stale JSON value —
       // never let an old Downloaded/timestamp survive after the sheet cell is cleared.
-      statements: mergeDatasets(liveData.statements, current.statements, "id", ["downloaded", "downloadedAt", "statementDate", "requestDate"]),
+      statements: mergeDatasets(liveData.statements, current.statements, "id", ["downloaded", "downloadedAt", "statementDate", "requestDate", "cutOffDate"]),
       // Reference table (right-side account list, N–T) — sheet is always the source of truth,
       // never merged with a stale cache, so a cleared Cut-Off Date cell actually clears client-side.
       statementTemplates: liveData.statementTemplates && liveData.statementTemplates.length > 0
