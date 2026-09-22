@@ -703,20 +703,29 @@ export const CCExpensePage: React.FC = () => {
     setUploadFile(null);
     setParsedUploadRows(null);
     setUploadPreviewOpen(false);
-    showToast(`Loaded ${csvRows.length} transactions`, "success");
-
-    // Write to CC source sheet so future page loads read this new data
+    // Write to CC source sheet so future page loads (including other users') read this new
+    // data. This used to be silently best-effort — a failed write (expired token, permission
+    // issue) left the uploader with data that looked fine locally but never actually reached
+    // the sheet, so nobody else ever saw it. Now surfaced clearly either way.
     const tok = getAccessToken();
-    if (tok) {
-      try {
-        await fetch("/api/cc-expense/upload", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ accessToken: tok, rows: parsedUploadRows }),
-        });
-      } catch {
-        // Non-fatal — data is already loaded locally; sheet write is best-effort
+    if (!tok) {
+      showToast(`Loaded ${csvRows.length} transactions locally — not signed in, so this did NOT save to the shared sheet. Other users won't see it until you reconnect and re-upload.`, "error", 8000);
+      return;
+    }
+    try {
+      const res = await fetch("/api/cc-expense/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessToken: tok, rows: parsedUploadRows }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || json.ok === false) {
+        showToast(`Loaded ${csvRows.length} transactions locally, but saving to the shared sheet FAILED: ${json.error || res.status}. Other users won't see this until it's retried.`, "error", 10000);
+        return;
       }
+      showToast(`Loaded ${csvRows.length} transactions and saved to the shared sheet ✓`, "success");
+    } catch (err: any) {
+      showToast(`Loaded ${csvRows.length} transactions locally, but saving to the shared sheet FAILED (network error). Other users won't see this until it's retried.`, "error", 10000);
     }
   }, [parsedUploadRows, uploadHeaderRow, showToast]);
 
