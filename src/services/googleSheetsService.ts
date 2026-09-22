@@ -1610,7 +1610,7 @@ export const appendARItem = async (
 // Write a single bank statement to its exact sheet row.
 // Sheet column order: A=Period, B=Entity, C=BankName, D=Occurrence,
 //                     E=Remarks, F=StatementDate, G=RequestDate,
-//                     H=Downloaded, I=DownloadedAt
+//                     H=Downloaded, I=DownloadedAt, J=CutOffDate
 export const writeSingleStatement = async (
   statement: BankStatement,
   mappingRange: string,
@@ -1628,8 +1628,9 @@ export const writeSingleStatement = async (
     statement.requestDate || "",
     statement.downloaded ? "TRUE" : "FALSE",
     statement.downloadedAt || "",
+    statement.cutOffDate || "",
   ];
-  const range = computeSingleItemRange(mappingRange, statement.rowIndex, 9);
+  const range = computeSingleItemRange(mappingRange, statement.rowIndex, 10);
   if (!range) return;
   await updateSheetValues(spreadsheetId, range, [row], accessToken);
 };
@@ -1653,6 +1654,7 @@ export const appendStatement = async (
     statement.requestDate || "",
     statement.downloaded ? "TRUE" : "FALSE",
     statement.downloadedAt || "",
+    statement.cutOffDate || "",
   ];
   await appendSheetValues(spreadsheetId, `${tabPart}!A:A`, [row], accessToken);
 };
@@ -1678,8 +1680,44 @@ export const appendStatementsBatch = async (
     st.requestDate || "",
     st.downloaded ? "TRUE" : "FALSE",
     st.downloadedAt || "",
+    st.cutOffDate || "",
   ]);
   await appendSheetValues(spreadsheetId, `${tabPart}!A:A`, rows, accessToken);
+};
+
+// Backfill the Cut-Off Date (col J) for existing statement rows in ONE API call — used to
+// repair rows that were auto-generated before the column existed, without re-appending them.
+export const updateStatementCutOffDatesBatch = async (
+  updates: Array<{ rowIndex: number; cutOffDate: string }>,
+  mappingRange: string,
+  spreadsheetId: string,
+  accessToken: string
+): Promise<void> => {
+  if (updates.length === 0) return;
+  const cleanId = extractSpreadsheetId(spreadsheetId);
+  if (!cleanId) throw new Error("Invalid or empty Google Spreadsheet ID");
+  const bangIdx = mappingRange.indexOf("!");
+  const tabPart = bangIdx !== -1 ? mappingRange.slice(0, bangIdx) : mappingRange;
+  const cellRange = bangIdx !== -1 ? mappingRange.slice(bangIdx + 1) : "";
+  const startMatch = cellRange.match(/^([A-Za-z]+)(\d+)/);
+  const rangeStartRow = startMatch ? parseInt(startMatch[2], 10) : 1;
+  const data = updates.map(u => ({
+    range: `${tabPart}!J${rangeStartRow + u.rowIndex - 1}`,
+    values: [[u.cutOffDate]],
+  }));
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values:batchUpdate`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ valueInputOption: "USER_ENTERED", data }),
+    }
+  );
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody?.error?.message || `Google Sheets Batch Update Failed (${res.status})`);
+  }
+  bumpApiCounter("write");
 };
 
 /**
@@ -1758,8 +1796,8 @@ export const formatARSheetRows = (items: ARItem[]): any[][] => {
 export const formatStatementSheetRows = (statements: BankStatement[]): any[][] => {
   // Sheet column order: A=Period, B=Entity, C=BankName, D=Occurrence,
   //                     E=Remarks, F=StatementDate, G=RequestDate,
-  //                     H=Downloaded, I=DownloadedAt
-  const header = ["Period", "Entity", "Bank Name", "Occurrence", "Remarks", "Statement Date", "Request Date", "Downloaded", "Downloaded Timestamp"];
+  //                     H=Downloaded, I=DownloadedAt, J=CutOffDate
+  const header = ["Period", "Entity", "Bank Name", "Occurrence", "Remarks", "Statement Date", "Request Date", "Downloaded", "Downloaded Timestamp", "Cut-Off Date"];
   const rows = statements.map((s) => [
     s.period,
     s.entity,
@@ -1770,6 +1808,7 @@ export const formatStatementSheetRows = (statements: BankStatement[]): any[][] =
     s.requestDate || "",
     s.downloaded ? "TRUE" : "FALSE",
     s.downloadedAt || "",
+    s.cutOffDate || "",
   ]);
   return [header, ...rows];
 };

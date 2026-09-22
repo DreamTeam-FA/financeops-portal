@@ -1214,10 +1214,10 @@ export async function fetchFullLiveDataset(accessToken?: string) {
   const statements: any[] = [];
   const rawStatementsTab = dataByTab["Bank Statements Data"] || [];
 
-  // Sheet column order for Bank Statements Data (A–I):
+  // Sheet column order for Bank Statements Data (A–J):
   // A(0)=Period, B(1)=Entity, C(2)=Bank Name, D(3)=Occurrence,
   // E(4)=Remarks, F(5)=Statement Date, G(6)=Request Date,
-  // H(7)=Downloaded, I(8)=Downloaded timestamp
+  // H(7)=Downloaded, I(8)=Downloaded timestamp, J(9)=Cut-Off Date
   if (rawStatementsTab.length > 0) {
     rawStatementsTab.forEach((row, i) => {
       if (!row || row.length < 3) return;
@@ -1262,7 +1262,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
         remarks,
         statementDate,
         requestDate,
-        cutOffDate: "",   // legacy entries have no cut-off date; auto-generated entries will set this
+        cutOffDate: String(row[9] || "").trim(),   // legacy entries have no cut-off date; auto-generated entries set this
         downloaded: isDownloaded,
         downloadedAt,
         rowIndex: i + 1,

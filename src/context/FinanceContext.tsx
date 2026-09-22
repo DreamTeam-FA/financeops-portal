@@ -76,6 +76,7 @@ import {
   writeSingleStatement,
   appendStatement,
   appendStatementsBatch,
+  updateStatementCutOffDatesBatch,
   appendNoteToSheet,
   writeSingleNote,
   clearNoteRow
@@ -3177,6 +3178,37 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       .filter(Boolean) as Array<Omit<BankStatement, "id">>;
 
     if (batch.length > 0) addBankStatementsBatch(batch);
+
+    // Repair pass: entries that were auto-generated before the sheet had a Cut-Off Date
+    // column (or before this column existed at all) landed with a blank cutOffDate and got
+    // stuck showing as Legacy. Backfill it on their existing row instead of re-adding them —
+    // this never creates a duplicate since it only touches rows that already exist.
+    const repairs = bankStatements
+      .filter(s => !s.cutOffDate && s.rowIndex && s.period === period)
+      .map(s => {
+        const t = withCutOff.find(t => t.bank === s.bankName && t.entity === s.entity && (t.cycle || "Monthly") === s.occurrence);
+        if (!t) return null;
+        const day = Math.min(parseCutOffDay(t.cutOffDate)!, lastDay);
+        return { id: s.id, rowIndex: s.rowIndex as number, cutOffDate: `${y}-${mm}-${String(day).padStart(2, "0")}` };
+      })
+      .filter(Boolean) as Array<{ id: string; rowIndex: number; cutOffDate: string }>;
+
+    if (repairs.length > 0) {
+      setBankStatements(prev => prev.map(s => {
+        const r = repairs.find(r => r.id === s.id);
+        return r ? { ...s, cutOffDate: r.cutOffDate } : s;
+      }));
+      const token = getAccessToken();
+      const mapping = sheetMappings.find((mp) => mp.module === "statements");
+      if (token && mapping) {
+        updateStatementCutOffDatesBatch(
+          repairs.map(r => ({ rowIndex: r.rowIndex, cutOffDate: r.cutOffDate })),
+          mapping.range, mapping.spreadsheetIdOrUrl, token
+        )
+          .then(() => showToast(`${repairs.length} statement${repairs.length !== 1 ? "s" : ""} moved to Statement Tracker ✓`, "success", 3000))
+          .catch((err) => handleSheetPushError(err, "statements"));
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statementTemplates, bankStatements]);
 
