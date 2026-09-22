@@ -121,7 +121,7 @@ interface FinanceContextType {
   loans: Loan[];
   arItems: ARItem[];
   bankStatements: BankStatement[];
-  statementTemplates: Array<{ entity: string; bank: string; cycle: string; remarks: string; statementDate: string; requestDate: string; downloaded: boolean }>;
+  statementTemplates: Array<{ entity: string; bank: string; cycle: string; remarks: string; statementDate: string; requestDate: string; downloaded: boolean; cutOffDate: string }>;
   payrollWeeks: PayrollWeek[];
   payrollPivot: PayrollPivot;
   auditLogs: AuditLog[];
@@ -1169,7 +1169,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       i.id !== 'ar-1788266535918' && i.id !== 'ar-1788266562934'
     );
   const [bankStatements, setBankStatements] = useState<BankStatement[]>([]);
-  const [statementTemplates, setStatementTemplates] = useState<Array<{ entity: string; bank: string; cycle: string; remarks: string; statementDate: string; requestDate: string; downloaded: boolean }>>([]);
+  const [statementTemplates, setStatementTemplates] = useState<Array<{ entity: string; bank: string; cycle: string; remarks: string; statementDate: string; requestDate: string; downloaded: boolean; cutOffDate: string }>>([]);
   const [payrollWeeks, setPayrollWeeks] = useState<PayrollWeek[]>([]);
   const [payrollPivot, setPayrollPivot] = useState<PayrollPivot>({});
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
@@ -3127,6 +3127,58 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       } catch (err) { handleSheetPushError(err, "statements"); }
     })();
   };
+
+  /** Parses a reference-table cut-off value ("28th", "8", "2026-09-28") into a day-of-month 1–31. */
+  const parseCutOffDay = (raw: string): number | null => {
+    const m = String(raw || "").match(/(\d{1,2})/);
+    if (!m) return null;
+    const day = parseInt(m[1], 10);
+    return day >= 1 && day <= 31 ? day : null;
+  };
+
+  // Auto-generate this month's tracker entry for every reference-table row that has a
+  // Cut-Off Date filled in — as soon as the cut-off date exists, not 2 days before it.
+  // Runs whenever the reference table or the existing tracker entries change; addBankStatementsBatch's
+  // own (bankName+statementDate+entity+occurrence) dedupe key means re-runs never create duplicates,
+  // but we also pre-check here so a fully-caught-up month never fires a save call or toast at all.
+  useEffect(() => {
+    if (!statementTemplates || statementTemplates.length === 0) return;
+    const withCutOff = statementTemplates.filter(t => t.cutOffDate && parseCutOffDay(t.cutOffDate) !== null);
+    if (withCutOff.length === 0) return;
+
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth();
+    const period = `${y}-${String(m + 1).padStart(2, "0")}`;
+    const lastDay = new Date(y, m + 1, 0).getDate();
+    const mm = String(m + 1).padStart(2, "0");
+    const statementDate = `${y}-${mm}-01|${y}-${mm}-${String(lastDay).padStart(2, "0")}`;
+
+    const existingKeys = new Set(bankStatements.map(s => `${s.bankName}|${s.statementDate}|${s.entity}|${s.occurrence}`));
+
+    const batch = withCutOff
+      .map(t => {
+        const day = Math.min(parseCutOffDay(t.cutOffDate)!, lastDay);
+        const cutOffDate = `${y}-${mm}-${String(day).padStart(2, "0")}`;
+        const key = `${t.bank}|${statementDate}|${t.entity}|${t.cycle || "Monthly"}`;
+        if (existingKeys.has(key)) return null;
+        return {
+          entity: t.entity as EntityName,
+          bankName: t.bank,
+          occurrence: t.cycle || "Monthly",
+          statementDate,
+          requestDate: "",
+          period,
+          downloaded: false,
+          remarks: t.remarks || "",
+          cutOffDate,
+        };
+      })
+      .filter(Boolean) as Array<Omit<BankStatement, "id">>;
+
+    if (batch.length > 0) addBankStatementsBatch(batch);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statementTemplates, bankStatements]);
 
   const updateBankStatement = (updatedStatement: BankStatement) => {
     if (!requireToken()) return;

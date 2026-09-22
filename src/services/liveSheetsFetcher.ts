@@ -1293,10 +1293,11 @@ export async function fetchFullLiveDataset(accessToken?: string) {
   };
 
   // Extract standard bank template list from columns N–T (indices 13–19) of the same tab
-  // N=Entity, O=Bank Name, P=Statement Cycle, Q=Remarks, R=Statement Date, S=Request Date, T=Downloaded
+  // N=Entity, O=Bank Name, P=Statement Cycle, Q=Remarks, R=Cut-Off Date, S=Statement Date, T=Downloaded Timestamp
   const statementTemplates: Array<{
     entity: string; bank: string; cycle: string;
     remarks: string; statementDate: string; requestDate: string; downloaded: boolean;
+    cutOffDate: string;
   }> = [];
   rawStatementsTab.forEach((row) => {
     const entity = String(row[13] || "").trim();
@@ -1307,9 +1308,10 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       bank,
       cycle:         String(row[15] || "Monthly").trim(),
       remarks:       String(row[16] || "").trim(),
-      statementDate: normalizeStmtDate(String(row[17] || "").trim()),
-      requestDate:   String(row[18] || "").trim(),
-      downloaded:    String(row[19] || "").toLowerCase() === "true",
+      cutOffDate:    String(row[17] || "").trim(),
+      statementDate: normalizeStmtDate(String(row[18] || "").trim()),
+      requestDate:   "",
+      downloaded:    false,
     });
   });
 
