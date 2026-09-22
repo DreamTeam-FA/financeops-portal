@@ -272,11 +272,105 @@ function applyCalendarOverrides(events: any[], overrides: { deleted: string[]; d
     });
 }
 
+// Auto-generation of Bank Statement Tracker entries runs HERE — server-side, once per
+// pull-live call, immediately after the freshest possible read of the sheet — instead of as
+// a client-side effect. A client-side version raced across every open tab/page-load: each one
+// fetched its own (possibly slightly stale) copy of `statements`, didn't see another tab's
+// just-written row yet, and appended again. Doing it in one place, right after the read that
+// feeds the dedupe check, closes that race down to this single request's own network round trip.
+// A simple in-flight lock covers the remaining case of two pull-live calls landing at once.
+let autoGenInFlight = false;
+
+async function autoGenerateStatementEntries(liveData: any, accessToken?: string): Promise<void> {
+  if (autoGenInFlight) return;
+  const token = getEffectiveDriveToken(accessToken);
+  if (!token) return; // read-only (GViz) pull — nothing we can write with
+
+  const templates: any[] = liveData.statementTemplates || [];
+  const parseDay = (raw: string): number | null => {
+    const m = String(raw || "").match(/(\d{1,2})/);
+    if (!m) return null;
+    const d = parseInt(m[1], 10);
+    return d >= 1 && d <= 31 ? d : null;
+  };
+  const withCutOff = templates.filter((t) => t.cutOffDate && parseDay(t.cutOffDate) !== null);
+  if (withCutOff.length === 0) return;
+
+  autoGenInFlight = true;
+  try {
+    const now = new Date();
+    const y = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const lastDay = new Date(y, now.getMonth() + 1, 0).getDate();
+    const period = `${y}-${mm}`;
+    const statementDate = `${y}-${mm}-01|${y}-${mm}-${String(lastDay).padStart(2, "0")}`;
+
+    const statements: any[] = liveData.statements || [];
+    const toAppend: any[] = [];
+    const toRepair: Array<{ rowIndex: number; cutOffDate: string }> = [];
+
+    withCutOff.forEach((t) => {
+      const day = Math.min(parseDay(t.cutOffDate)!, lastDay);
+      const cutOffDate = `${y}-${mm}-${String(day).padStart(2, "0")}`;
+      const occurrence = t.cycle || "Monthly";
+      const existing = statements.find((s) =>
+        s.bankName === t.bank && s.entity === t.entity && s.occurrence === occurrence && s.statementDate === statementDate
+      );
+      if (existing) {
+        if (!existing.cutOffDate && existing.rowIndex) toRepair.push({ rowIndex: existing.rowIndex, cutOffDate });
+        return;
+      }
+      toAppend.push({
+        period, entity: t.entity, bankName: t.bank, occurrence,
+        remarks: t.remarks || "", statementDate, requestDate: "",
+        downloaded: false, downloadedAt: "", cutOffDate,
+      });
+    });
+
+    if (toAppend.length === 0 && toRepair.length === 0) return;
+
+    const sid = AP_SPREADSHEET_ID;
+    const tabName = "Bank Statements Data";
+
+    if (toAppend.length > 0) {
+      const rows = toAppend.map((s) => [
+        s.period, s.entity, s.bankName, s.occurrence, s.remarks,
+        s.statementDate, s.requestDate, s.downloaded ? "TRUE" : "FALSE", s.downloadedAt, s.cutOffDate,
+      ]);
+      const appendUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/${encodeURIComponent(`'${tabName}'!A:A`)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+      const r = await fetch(appendUrl, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ values: rows }),
+      });
+      if (r.ok) console.log(`[AutoGen] Appended ${toAppend.length} new statement tracker entries.`);
+      else console.error("[AutoGen] Append failed:", (await r.json().catch(() => ({})))?.error?.message);
+    }
+
+    if (toRepair.length > 0) {
+      const data = toRepair.map((r) => ({ range: `'${tabName}'!J${r.rowIndex}`, values: [[r.cutOffDate]] }));
+      const batchUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sid}/values:batchUpdate`;
+      const r2 = await fetch(batchUrl, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ valueInputOption: "USER_ENTERED", data }),
+      });
+      if (r2.ok) console.log(`[AutoGen] Repaired cutOffDate on ${toRepair.length} existing rows.`);
+      else console.error("[AutoGen] Repair failed:", (await r2.json().catch(() => ({})))?.error?.message);
+    }
+  } catch (err) {
+    console.error("[AutoGen] Failed:", err);
+  } finally {
+    autoGenInFlight = false;
+  }
+}
+
 async function syncLiveDataFromSheets(accessToken?: string) {
   try {
     const method = accessToken ? "Sheets API v4 (FORMATTED_VALUE)" : "GViz public API";
     console.log(`[GoogleSheetSync] Pulling live data from Google Sheets via ${method}...`);
     const liveData = await fetchFullLiveDataset(accessToken);
+    await autoGenerateStatementEntries(liveData, accessToken);
     const liveApCount = liveData.ap?.length || 0;
     console.log(`[GoogleSheetSync] liveData.ap count: ${liveApCount} (token: ${accessToken ? "yes" : "no"})`);
     const current = getStoredData();
@@ -1980,6 +2074,128 @@ app.post("/api/ar/cleanup-bad-rows", async (req, res) => {
 
   console.log(`[AR/cleanup] Deleted ${badRowIndices.length} bad-format rows: ${JSON.stringify(badRowIndices.map(i => i + 1))}`);
   return res.json({ ok: true, deleted: badRowIndices.length, rows: badRowIndices.map(i => i + 1) });
+});
+
+/**
+ * POST /api/statements/dedupe
+ * One-off cleanup: removes duplicate Bank Statement Tracker rows (same Entity+BankName+
+ * Occurrence+StatementDate) that were created by a since-removed client-side auto-generation
+ * race — repeated page loads each independently appended before seeing another load's just-
+ * written row. Keeps the earliest row per group, deletes the rest (bottom-up so indices stay
+ * valid), then backfills Cut-Off Date (col J) on the kept row from the reference table.
+ * Uses the server-cached Drive token so it can be run without a fresh client login.
+ */
+app.post("/api/statements/dedupe", async (req, res) => {
+  const token = getEffectiveDriveToken(req.body?.accessToken);
+  if (!token) return res.status(401).json({ ok: false, error: "No usable Google token (server cache expired and none provided)" });
+
+  const sid = AP_SPREADSHEET_ID;
+  const tabName = "Bank Statements Data";
+
+  const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}/values/`
+    + `${encodeURIComponent("'" + tabName + "'!A1:J1000")}?valueRenderOption=FORMATTED_VALUE&majorDimension=ROWS`;
+  const resp = await fetch(readUrl, { headers: { Authorization: `Bearer ${token}` } });
+  if (!resp.ok) {
+    const e: any = await resp.json().catch(() => ({}));
+    return res.status(500).json({ ok: false, error: `Read failed: ${e?.error?.message || resp.status}` });
+  }
+  const data: any = await resp.json();
+  const rows: any[][] = data.values || [];
+
+  // Group data rows (skip header at index 0) by identity key; keep the first occurrence per group.
+  const groups = new Map<string, number[]>(); // key -> 0-based row indices (in `rows`)
+  for (let ri = 1; ri < rows.length; ri++) {
+    const row = rows[ri] || [];
+    const entity = String(row[1] || "").trim();
+    const bankName = String(row[2] || "").trim();
+    if (!entity || !bankName) continue;
+    const occurrence = String(row[3] || "Monthly").trim();
+    const statementDate = String(row[5] || "").trim();
+    const key = `${entity}|${bankName}|${occurrence}|${statementDate}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(ri);
+  }
+
+  const dupeRowIndices: number[] = []; // 0-based, to delete
+  const keptRows: number[] = []; // 0-based, kept — candidates for cutOffDate backfill
+  groups.forEach((indices) => {
+    keptRows.push(indices[0]);
+    for (let i = 1; i < indices.length; i++) dupeRowIndices.push(indices[i]);
+  });
+
+  let deleted = 0;
+  if (dupeRowIndices.length > 0) {
+    const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}?fields=sheets.properties`;
+    const metaResp = await fetch(metaUrl, { headers: { Authorization: `Bearer ${token}` } });
+    if (!metaResp.ok) return res.status(500).json({ ok: false, error: "Failed to read sheet metadata" });
+    const metaData: any = await metaResp.json();
+    const sheetObj = (metaData.sheets || []).find((s: any) => (s.properties?.title || "").toLowerCase() === tabName.toLowerCase());
+    if (!sheetObj) return res.status(404).json({ ok: false, error: `Tab "${tabName}" not found` });
+    const sheetId: number = sheetObj.properties.sheetId;
+
+    const deleteRequests = [...dupeRowIndices].sort((a, b) => b - a).map((ri) => ({
+      deleteDimension: { range: { sheetId, dimension: "ROWS", startIndex: ri, endIndex: ri + 1 } },
+    }));
+    const batchUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}:batchUpdate`;
+    const delResp = await fetch(batchUrl, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ requests: deleteRequests }),
+    });
+    if (!delResp.ok) {
+      const e: any = await delResp.json().catch(() => ({}));
+      return res.status(500).json({ ok: false, error: `Delete failed: ${e?.error?.message || delResp.status}` });
+    }
+    deleted = dupeRowIndices.length;
+  }
+
+  // Backfill Cut-Off Date on kept rows whose reference-table entry has one and whose own
+  // col J is currently blank. Uses the CURRENT server-cached statementTemplates so it matches
+  // whatever the reference table says right now.
+  const stored = getStoredData();
+  const templates: any[] = stored.statementTemplates || [];
+  const parseDay = (raw: string): number | null => {
+    const m = String(raw || "").match(/(\d{1,2})/);
+    if (!m) return null;
+    const d = parseInt(m[1], 10);
+    return d >= 1 && d <= 31 ? d : null;
+  };
+  const now = new Date();
+  const y = now.getFullYear();
+  const mmNow = String(now.getMonth() + 1).padStart(2, "0");
+  const lastDay = new Date(y, now.getMonth() + 1, 0).getDate();
+
+  const backfillData: any[] = [];
+  keptRows.forEach((ri) => {
+    const row = rows[ri];
+    const rowIndex1Based = ri + 1; // sheet row number (1-based, matches values.get order since header is row 1)
+    const existingCutOff = String(row[9] || "").trim();
+    if (existingCutOff) return;
+    const entity = String(row[1] || "").trim();
+    const bankName = String(row[2] || "").trim();
+    const occurrence = String(row[3] || "Monthly").trim();
+    const t = templates.find((t) => t.bank === bankName && t.entity === entity && (t.cycle || "Monthly") === occurrence && t.cutOffDate);
+    if (!t) return;
+    const day = parseDay(t.cutOffDate);
+    if (day === null) return;
+    const cutOffDate = `${y}-${mmNow}-${String(Math.min(day, lastDay)).padStart(2, "0")}`;
+    backfillData.push({ range: `'${tabName}'!J${rowIndex1Based}`, values: [[cutOffDate]] });
+  });
+
+  let backfilled = 0;
+  if (backfillData.length > 0) {
+    const batchUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sid}/values:batchUpdate`;
+    const bfResp = await fetch(batchUrl, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ valueInputOption: "USER_ENTERED", data: backfillData }),
+    });
+    if (bfResp.ok) backfilled = backfillData.length;
+    else console.error("[Statements/dedupe] Backfill failed:", (await bfResp.json().catch(() => ({})))?.error?.message);
+  }
+
+  console.log(`[Statements/dedupe] Deleted ${deleted} duplicate rows, backfilled Cut-Off Date on ${backfilled} rows.`);
+  return res.json({ ok: true, deleted, backfilled });
 });
 
 /**

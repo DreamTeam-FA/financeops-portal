@@ -76,7 +76,6 @@ import {
   writeSingleStatement,
   appendStatement,
   appendStatementsBatch,
-  updateStatementCutOffDatesBatch,
   appendNoteToSheet,
   writeSingleNote,
   clearNoteRow
@@ -3129,88 +3128,13 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     })();
   };
 
-  /** Parses a reference-table cut-off value ("28th", "8", "2026-09-28") into a day-of-month 1–31. */
-  const parseCutOffDay = (raw: string): number | null => {
-    const m = String(raw || "").match(/(\d{1,2})/);
-    if (!m) return null;
-    const day = parseInt(m[1], 10);
-    return day >= 1 && day <= 31 ? day : null;
-  };
-
-  // Auto-generate this month's tracker entry for every reference-table row that has a
-  // Cut-Off Date filled in — as soon as the cut-off date exists, not 2 days before it.
-  // Runs whenever the reference table or the existing tracker entries change; addBankStatementsBatch's
-  // own (bankName+statementDate+entity+occurrence) dedupe key means re-runs never create duplicates,
-  // but we also pre-check here so a fully-caught-up month never fires a save call or toast at all.
-  useEffect(() => {
-    if (!statementTemplates || statementTemplates.length === 0) return;
-    const withCutOff = statementTemplates.filter(t => t.cutOffDate && parseCutOffDay(t.cutOffDate) !== null);
-    if (withCutOff.length === 0) return;
-
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = now.getMonth();
-    const period = `${y}-${String(m + 1).padStart(2, "0")}`;
-    const lastDay = new Date(y, m + 1, 0).getDate();
-    const mm = String(m + 1).padStart(2, "0");
-    const statementDate = `${y}-${mm}-01|${y}-${mm}-${String(lastDay).padStart(2, "0")}`;
-
-    const existingKeys = new Set(bankStatements.map(s => `${s.bankName}|${s.statementDate}|${s.entity}|${s.occurrence}`));
-
-    const batch = withCutOff
-      .map(t => {
-        const day = Math.min(parseCutOffDay(t.cutOffDate)!, lastDay);
-        const cutOffDate = `${y}-${mm}-${String(day).padStart(2, "0")}`;
-        const key = `${t.bank}|${statementDate}|${t.entity}|${t.cycle || "Monthly"}`;
-        if (existingKeys.has(key)) return null;
-        return {
-          entity: t.entity as EntityName,
-          bankName: t.bank,
-          occurrence: t.cycle || "Monthly",
-          statementDate,
-          requestDate: "",
-          period,
-          downloaded: false,
-          remarks: t.remarks || "",
-          cutOffDate,
-        };
-      })
-      .filter(Boolean) as Array<Omit<BankStatement, "id">>;
-
-    if (batch.length > 0) addBankStatementsBatch(batch);
-
-    // Repair pass: entries that were auto-generated before the sheet had a Cut-Off Date
-    // column (or before this column existed at all) landed with a blank cutOffDate and got
-    // stuck showing as Legacy. Backfill it on their existing row instead of re-adding them —
-    // this never creates a duplicate since it only touches rows that already exist.
-    const repairs = bankStatements
-      .filter(s => !s.cutOffDate && s.rowIndex && s.period === period)
-      .map(s => {
-        const t = withCutOff.find(t => t.bank === s.bankName && t.entity === s.entity && (t.cycle || "Monthly") === s.occurrence);
-        if (!t) return null;
-        const day = Math.min(parseCutOffDay(t.cutOffDate)!, lastDay);
-        return { id: s.id, rowIndex: s.rowIndex as number, cutOffDate: `${y}-${mm}-${String(day).padStart(2, "0")}` };
-      })
-      .filter(Boolean) as Array<{ id: string; rowIndex: number; cutOffDate: string }>;
-
-    if (repairs.length > 0) {
-      setBankStatements(prev => prev.map(s => {
-        const r = repairs.find(r => r.id === s.id);
-        return r ? { ...s, cutOffDate: r.cutOffDate } : s;
-      }));
-      const token = getAccessToken();
-      const mapping = sheetMappings.find((mp) => mp.module === "statements");
-      if (token && mapping) {
-        updateStatementCutOffDatesBatch(
-          repairs.map(r => ({ rowIndex: r.rowIndex, cutOffDate: r.cutOffDate })),
-          mapping.range, mapping.spreadsheetIdOrUrl, token
-        )
-          .then(() => showToast(`${repairs.length} statement${repairs.length !== 1 ? "s" : ""} moved to Statement Tracker ✓`, "success", 3000))
-          .catch((err) => handleSheetPushError(err, "statements"));
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statementTemplates, bankStatements]);
+  // NOTE: Bank Statement Tracker auto-generation (and the Cut-Off Date repair pass for rows
+  // that predate the Cut-Off Date column) runs SERVER-SIDE now, inside syncLiveDataFromSheets
+  // on the server (see autoGenerateStatementEntries in server.ts), not here. A client-side
+  // version raced across every open tab/page-load — each fetched its own snapshot of
+  // bankStatements, didn't see another tab's just-written row yet, and appended again,
+  // producing real duplicate rows in the sheet. Doing it once, server-side, right after the
+  // freshest read, closes that race. Do not re-add a client-side generator for this.
 
   const updateBankStatement = (updatedStatement: BankStatement) => {
     if (!requireToken()) return;
