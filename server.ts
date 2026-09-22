@@ -280,9 +280,14 @@ function applyCalendarOverrides(events: any[], overrides: { deleted: string[]; d
 // feeds the dedupe check, closes that race down to this single request's own network round trip.
 // A simple in-flight lock covers the remaining case of two pull-live calls landing at once.
 let autoGenInFlight = false;
+let lastAutoGenAttemptAt = 0;
+const AUTO_GEN_COOLDOWN_MS = 5 * 60 * 1000; // pull-live can fire many times a minute across tabs;
+// only actually attempt a write once per cooldown window so a burst of calls can't outrun its own
+// dedupe check the way it did before (44 rows written for 11 accounts in one testing session).
 
 async function autoGenerateStatementEntries(liveData: any, accessToken?: string): Promise<void> {
   if (autoGenInFlight) return;
+  if (Date.now() - lastAutoGenAttemptAt < AUTO_GEN_COOLDOWN_MS) return;
   const token = getEffectiveDriveToken(accessToken);
   if (!token) return; // read-only (GViz) pull — nothing we can write with
 
@@ -318,6 +323,7 @@ async function autoGenerateStatementEntries(liveData: any, accessToken?: string)
   };
 
   autoGenInFlight = true;
+  lastAutoGenAttemptAt = Date.now();
   try {
     const now = new Date();
     const statements: any[] = liveData.statements || [];
@@ -2089,6 +2095,138 @@ app.post("/api/ar/cleanup-bad-rows", async (req, res) => {
 
   console.log(`[AR/cleanup] Deleted ${badRowIndices.length} bad-format rows: ${JSON.stringify(badRowIndices.map(i => i + 1))}`);
   return res.json({ ok: true, deleted: badRowIndices.length, rows: badRowIndices.map(i => i + 1) });
+});
+
+/**
+ * POST /api/statements/final-cleanup
+ * Fixes the damage from the two prior one-off scripts, in one auditable pass, read-first:
+ *  1. Any row whose `period` is NOT the current month (real pre-existing entries from other
+ *     periods, e.g. "Aug 2026") but got a Cut-Off Date stamped on it by the earlier buggy
+ *     dedupe backfill (which didn't check period) — clear col J, and reset col F back to a
+ *     plain calendar-month range for THAT row's own period (its real value was already
+ *     overwritten by fix-statement-dates and can't be recovered, so this is a sane rebuild,
+ *     not a true restore). Downloaded (H) and Downloaded Timestamp (I) are never touched.
+ *  2. Among the remaining current-month rows, collapse true duplicates (same Entity+Bank+
+ *     Occurrence+StatementDate) down to the earliest row.
+ * Returns the full before/after picture instead of just counts, so it can be checked instead
+ * of trusted.
+ */
+app.post("/api/statements/final-cleanup", async (req, res) => {
+  const token = getEffectiveDriveToken(req.body?.accessToken);
+  if (!token) return res.status(401).json({ ok: false, error: "No usable Google token (server cache expired and none provided)" });
+
+  const sid = AP_SPREADSHEET_ID;
+  const tabName = "Bank Statements Data";
+
+  const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}/values/`
+    + `${encodeURIComponent("'" + tabName + "'!A1:J1000")}?valueRenderOption=FORMATTED_VALUE&majorDimension=ROWS`;
+  const resp = await fetch(readUrl, { headers: { Authorization: `Bearer ${token}` } });
+  if (!resp.ok) {
+    const e: any = await resp.json().catch(() => ({}));
+    return res.status(500).json({ ok: false, error: `Read failed: ${e?.error?.message || resp.status}` });
+  }
+  const data: any = await resp.json();
+  const rows: any[][] = data.values || [];
+
+  const now = new Date();
+  const currentPeriodLabel = now.toLocaleString("en-US", { month: "short", year: "numeric" }); // e.g. "Sep 2026" — matches how the sheet formats col A
+
+  const MONTHS_SHORT = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+  const calendarRangeForPeriod = (periodLabel: string): string | null => {
+    const m = periodLabel.trim().match(/^([A-Za-z]+)\s+(\d{4})$/);
+    if (!m) return null;
+    const mi = MONTHS_SHORT.indexOf(m[1].toLowerCase().slice(0, 3));
+    if (mi < 0) return null;
+    const y = parseInt(m[2], 10);
+    const lastDay = new Date(y, mi + 1, 0).getDate();
+    const mm = String(mi + 1).padStart(2, "0");
+    return `${y}-${mm}-01|${y}-${mm}-${String(lastDay).padStart(2, "0")}`;
+  };
+
+  // Step 1: clear wrongly-stamped Cut-Off Date + rebuild Statement Date on non-current-period rows
+  const wrongPeriodFixes: any[] = [];
+  const wrongPeriodReport: any[] = [];
+  for (let ri = 1; ri < rows.length; ri++) {
+    const row = rows[ri] || [];
+    const period = String(row[0] || "").trim();
+    const cutOff = String(row[9] || "").trim();
+    if (!cutOff) continue;
+    if (period === currentPeriodLabel) continue; // belongs to this month's auto-gen, leave it
+    const rebuilt = calendarRangeForPeriod(period);
+    const rowIndex1Based = ri + 1;
+    wrongPeriodReport.push({ rowIndex: rowIndex1Based, entity: row[1], bank: row[2], period, before: { statementDate: row[5], cutOffDate: cutOff }, after: { statementDate: rebuilt || row[5], cutOffDate: "" } });
+    wrongPeriodFixes.push({ range: `'${tabName}'!J${rowIndex1Based}`, values: [[""]] });
+    if (rebuilt) wrongPeriodFixes.push({ range: `'${tabName}'!F${rowIndex1Based}`, values: [[rebuilt]] });
+  }
+
+  if (wrongPeriodFixes.length > 0) {
+    const batchUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sid}/values:batchUpdate`;
+    const r = await fetch(batchUrl, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ valueInputOption: "USER_ENTERED", data: wrongPeriodFixes }),
+    });
+    if (!r.ok) {
+      const e: any = await r.json().catch(() => ({}));
+      return res.status(500).json({ ok: false, error: `Step 1 write failed: ${e?.error?.message || r.status}`, wrongPeriodReport });
+    }
+  }
+
+  // Step 2: re-read (step 1 changed things) and dedupe remaining current-period rows
+  const resp2 = await fetch(readUrl, { headers: { Authorization: `Bearer ${token}` } });
+  const data2: any = await resp2.json();
+  const rows2: any[][] = data2.values || [];
+
+  const groups = new Map<string, number[]>();
+  for (let ri = 1; ri < rows2.length; ri++) {
+    const row = rows2[ri] || [];
+    const period = String(row[0] || "").trim();
+    if (period !== currentPeriodLabel) continue;
+    const entity = String(row[1] || "").trim();
+    const bankName = String(row[2] || "").trim();
+    if (!entity || !bankName) continue;
+    const occurrence = String(row[3] || "Monthly").trim();
+    const statementDate = String(row[5] || "").trim();
+    const key = `${entity}|${bankName}|${occurrence}|${statementDate}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(ri);
+  }
+
+  const dupeReport: any[] = [];
+  const dupeRowIndices: number[] = [];
+  groups.forEach((indices, key) => {
+    if (indices.length <= 1) return;
+    const [kept, ...extra] = indices;
+    dupeReport.push({ key, keptRow: kept + 1, deletedRows: extra.map((i) => i + 1) });
+    extra.forEach((i) => dupeRowIndices.push(i));
+  });
+
+  let deleted = 0;
+  if (dupeRowIndices.length > 0) {
+    const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}?fields=sheets.properties`;
+    const metaResp = await fetch(metaUrl, { headers: { Authorization: `Bearer ${token}` } });
+    const metaData: any = await metaResp.json();
+    const sheetObj = (metaData.sheets || []).find((s: any) => (s.properties?.title || "").toLowerCase() === tabName.toLowerCase());
+    if (!sheetObj) return res.status(404).json({ ok: false, error: `Tab "${tabName}" not found`, wrongPeriodReport, dupeReport });
+    const sheetId: number = sheetObj.properties.sheetId;
+    const deleteRequests = [...dupeRowIndices].sort((a, b) => b - a).map((ri) => ({
+      deleteDimension: { range: { sheetId, dimension: "ROWS", startIndex: ri, endIndex: ri + 1 } },
+    }));
+    const batchUrl2 = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}:batchUpdate`;
+    const delResp = await fetch(batchUrl2, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ requests: deleteRequests }),
+    });
+    if (!delResp.ok) {
+      const e: any = await delResp.json().catch(() => ({}));
+      return res.status(500).json({ ok: false, error: `Step 2 delete failed: ${e?.error?.message || delResp.status}`, wrongPeriodReport, dupeReport });
+    }
+    deleted = dupeRowIndices.length;
+  }
+
+  console.log(`[Statements/final-cleanup] Fixed ${wrongPeriodReport.length} wrong-period rows, deleted ${deleted} true duplicates.`);
+  return res.json({ ok: true, wrongPeriodFixed: wrongPeriodReport.length, wrongPeriodReport, duplicatesDeleted: deleted, dupeReport });
 });
 
 /**
