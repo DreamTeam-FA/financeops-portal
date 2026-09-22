@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useFinance } from "../../context/FinanceContext";
 import { PageHeader } from "../PageHeader";
 import {
-  FileText, CheckCircle2, Clock, Trash2, Filter, Edit2, Zap, X, ChevronDown, ChevronRight,
+  FileText, CheckCircle2, Clock, Trash2, Filter, Edit2, Zap, X, ChevronDown, ChevronRight, Info,
 } from "lucide-react";
 import { AddStatementModal, EditStatementModal } from "../modals/AddBankModal";
 import { formatTimestampLocal } from "../../utils/formatters";
@@ -678,13 +678,21 @@ export const BankStatementsPage: React.FC = () => {
             </span>
           </div>
 
+          {/* Auto-generation note */}
+          <div className={`flex items-start gap-2 px-3 py-2 text-[11px] border-b ${isLight ? "bg-blue-50 border-slate-200 text-slate-600" : "bg-blue-500/10 border-[#1a2235] text-[#9ca3af]"}`}>
+            <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-[#1a73e8]" />
+            <span>
+              Entries here are generated automatically — as soon as a bank's Cut-Off Date is filled in on the reference table (Bank Statements Data sheet, columns N–T), the portal creates that month's entry on its own. No manual step needed. It checks for new/changed Cut-Off Dates within 5 minutes of anyone loading the portal.
+            </span>
+          </div>
+
           {/* New entries table or empty state */}
           {filteredNew.length === 0 ? (
             <div className={`flex flex-col items-center justify-center py-12 gap-3 ${isLight ? "text-slate-400" : "text-[#555]"}`}>
               <Zap className="w-8 h-8 opacity-30" />
               <p className={`text-sm font-semibold ${isLight ? "text-slate-500" : "text-[#666]"}`}>No auto-generated entries yet</p>
               <p className="text-xs text-center max-w-xs">
-                New statement entries will appear here once the reference table is complete and auto-generation is set up.
+                New statement entries will appear here automatically once a Cut-Off Date is filled in on the reference table for at least one bank.
               </p>
             </div>
           ) : (
