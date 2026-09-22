@@ -296,22 +296,37 @@ async function autoGenerateStatementEntries(liveData: any, accessToken?: string)
   const withCutOff = templates.filter((t) => t.cutOffDate && parseDay(t.cutOffDate) !== null);
   if (withCutOff.length === 0) return;
 
+  // Statement Date = previous cut-off + 1 day → current cut-off (per the plan in memory —
+  // NOT a calendar month). e.g. cut-off on the 28th → "Jul 29 – Aug 28". Depends on each
+  // account's own cut-off day, so it's computed per-template, not once for everyone.
+  const fmtDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const computeCutoffRange = (day: number, now: Date) => {
+    const y = now.getFullYear();
+    const m = now.getMonth();
+    const lastDay = new Date(y, m + 1, 0).getDate();
+    const clampedDay = Math.min(day, lastDay);
+    const currentCutOff = new Date(y, m, clampedDay);
+    const prevLastDay = new Date(y, m, 0).getDate(); // last day of previous month
+    const prevCutOff = new Date(y, m - 1, Math.min(day, prevLastDay));
+    const start = new Date(prevCutOff);
+    start.setDate(start.getDate() + 1);
+    return {
+      cutOffDate: fmtDate(currentCutOff),
+      statementDate: `${fmtDate(start)}|${fmtDate(currentCutOff)}`,
+      period: `${currentCutOff.getFullYear()}-${String(currentCutOff.getMonth() + 1).padStart(2, "0")}`,
+    };
+  };
+
   autoGenInFlight = true;
   try {
     const now = new Date();
-    const y = now.getFullYear();
-    const mm = String(now.getMonth() + 1).padStart(2, "0");
-    const lastDay = new Date(y, now.getMonth() + 1, 0).getDate();
-    const period = `${y}-${mm}`;
-    const statementDate = `${y}-${mm}-01|${y}-${mm}-${String(lastDay).padStart(2, "0")}`;
-
     const statements: any[] = liveData.statements || [];
     const toAppend: any[] = [];
     const toRepair: Array<{ rowIndex: number; cutOffDate: string }> = [];
 
     withCutOff.forEach((t) => {
-      const day = Math.min(parseDay(t.cutOffDate)!, lastDay);
-      const cutOffDate = `${y}-${mm}-${String(day).padStart(2, "0")}`;
+      const day = parseDay(t.cutOffDate)!;
+      const { cutOffDate, statementDate, period } = computeCutoffRange(day, now);
       const occurrence = t.cycle || "Monthly";
       const existing = statements.find((s) =>
         s.bankName === t.bank && s.entity === t.entity && s.occurrence === occurrence && s.statementDate === statementDate
@@ -2074,6 +2089,90 @@ app.post("/api/ar/cleanup-bad-rows", async (req, res) => {
 
   console.log(`[AR/cleanup] Deleted ${badRowIndices.length} bad-format rows: ${JSON.stringify(badRowIndices.map(i => i + 1))}`);
   return res.json({ ok: true, deleted: badRowIndices.length, rows: badRowIndices.map(i => i + 1) });
+});
+
+/**
+ * POST /api/statements/fix-statement-dates
+ * One-off correction: the first version of auto-generation used a calendar-month Statement
+ * Date ("Sep 1 – Sep 30") instead of the planned previous-cut-off+1 → current-cut-off range
+ * ("Jul 29 – Aug 28"). Recomputes and overwrites col F for every row that has a Cut-Off Date
+ * (col J, i.e. was auto-generated) and whose reference-table entry still has a Cut-Off Date.
+ */
+app.post("/api/statements/fix-statement-dates", async (req, res) => {
+  const token = getEffectiveDriveToken(req.body?.accessToken);
+  if (!token) return res.status(401).json({ ok: false, error: "No usable Google token (server cache expired and none provided)" });
+
+  const sid = AP_SPREADSHEET_ID;
+  const tabName = "Bank Statements Data";
+
+  const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}/values/`
+    + `${encodeURIComponent("'" + tabName + "'!A1:J1000")}?valueRenderOption=FORMATTED_VALUE&majorDimension=ROWS`;
+  const resp = await fetch(readUrl, { headers: { Authorization: `Bearer ${token}` } });
+  if (!resp.ok) {
+    const e: any = await resp.json().catch(() => ({}));
+    return res.status(500).json({ ok: false, error: `Read failed: ${e?.error?.message || resp.status}` });
+  }
+  const data: any = await resp.json();
+  const rows: any[][] = data.values || [];
+
+  const stored = getStoredData();
+  const templates: any[] = stored.statementTemplates || [];
+  const parseDay = (raw: string): number | null => {
+    const m = String(raw || "").match(/(\d{1,2})/);
+    if (!m) return null;
+    const d = parseInt(m[1], 10);
+    return d >= 1 && d <= 31 ? d : null;
+  };
+  const fmtDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const computeCutoffRange = (day: number, now: Date) => {
+    const y = now.getFullYear();
+    const m = now.getMonth();
+    const lastDay = new Date(y, m + 1, 0).getDate();
+    const currentCutOff = new Date(y, m, Math.min(day, lastDay));
+    const prevLastDay = new Date(y, m, 0).getDate();
+    const prevCutOff = new Date(y, m - 1, Math.min(day, prevLastDay));
+    const start = new Date(prevCutOff);
+    start.setDate(start.getDate() + 1);
+    return { cutOffDate: fmtDate(currentCutOff), statementDate: `${fmtDate(start)}|${fmtDate(currentCutOff)}` };
+  };
+
+  const now = new Date();
+  const fixData: any[] = [];
+  const fixed: string[] = [];
+  for (let ri = 1; ri < rows.length; ri++) {
+    const row = rows[ri] || [];
+    const entity = String(row[1] || "").trim();
+    const bankName = String(row[2] || "").trim();
+    const occurrence = String(row[3] || "Monthly").trim();
+    const existingCutOff = String(row[9] || "").trim();
+    if (!entity || !bankName || !existingCutOff) continue; // only auto-generated rows (have col J)
+    const t = templates.find((t) => t.bank === bankName && t.entity === entity && (t.cycle || "Monthly") === occurrence && t.cutOffDate);
+    if (!t) continue;
+    const day = parseDay(t.cutOffDate);
+    if (day === null) continue;
+    const { cutOffDate, statementDate } = computeCutoffRange(day, now);
+    const currentStatementDate = String(row[5] || "").trim();
+    if (currentStatementDate === statementDate && existingCutOff === cutOffDate) continue; // already correct
+    const rowIndex1Based = ri + 1;
+    fixData.push({ range: `'${tabName}'!F${rowIndex1Based}`, values: [[statementDate]] });
+    fixData.push({ range: `'${tabName}'!J${rowIndex1Based}`, values: [[cutOffDate]] });
+    fixed.push(`${entity}/${bankName}`);
+  }
+
+  if (fixData.length === 0) return res.json({ ok: true, fixed: 0, accounts: [] });
+
+  const batchUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sid}/values:batchUpdate`;
+  const r = await fetch(batchUrl, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ valueInputOption: "USER_ENTERED", data: fixData }),
+  });
+  if (!r.ok) {
+    const e: any = await r.json().catch(() => ({}));
+    return res.status(500).json({ ok: false, error: `Fix failed: ${e?.error?.message || r.status}` });
+  }
+  console.log(`[Statements/fix-dates] Corrected Statement Date on ${fixed.length} rows: ${JSON.stringify(fixed)}`);
+  return res.json({ ok: true, fixed: fixed.length, accounts: fixed });
 });
 
 /**
