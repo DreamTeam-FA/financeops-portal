@@ -2236,6 +2236,84 @@ app.post("/api/statements/final-cleanup", async (req, res) => {
  * ("Jul 29 – Aug 28"). Recomputes and overwrites col F for every row that has a Cut-Off Date
  * (col J, i.e. was auto-generated) and whose reference-table entry still has a Cut-Off Date.
  */
+/**
+ * POST /api/statements/remove-generate-monthly-conflicts
+ * The "Generate Monthly" button (removed from the UI 2026-09-22) wrote blank-Cut-Off-Date rows
+ * even for accounts the reference table already has a Cut-Off Date for — landing in Legacy as
+ * a second, duplicate-coverage entry alongside the correct auto-generated Tracker row for the
+ * same statement. Deletes only rows that are ALL of: current month, blank Cut-Off Date (col J),
+ * NOT downloaded (never deletes real completed work), and whose bank/entity DOES have a
+ * Cut-Off Date in the reference table right now. Genuine Legacy history for other periods, or
+ * for accounts with no Cut-Off Date at all, is never touched.
+ */
+app.post("/api/statements/remove-generate-monthly-conflicts", async (req, res) => {
+  const token = getEffectiveDriveToken(req.body?.accessToken);
+  if (!token) return res.status(401).json({ ok: false, error: "No usable Google token (server cache expired and none provided)" });
+
+  const sid = AP_SPREADSHEET_ID;
+  const tabName = "Bank Statements Data";
+
+  const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}/values/`
+    + `${encodeURIComponent("'" + tabName + "'!A1:J1000")}?valueRenderOption=FORMATTED_VALUE&majorDimension=ROWS`;
+  const resp = await fetch(readUrl, { headers: { Authorization: `Bearer ${token}` } });
+  if (!resp.ok) {
+    const e: any = await resp.json().catch(() => ({}));
+    return res.status(500).json({ ok: false, error: `Read failed: ${e?.error?.message || resp.status}` });
+  }
+  const data: any = await resp.json();
+  const rows: any[][] = data.values || [];
+
+  const stored = getStoredData();
+  const templates: any[] = stored.statementTemplates || [];
+  const cutOffBanks = new Set(templates.filter((t) => t.cutOffDate).map((t) => `${t.entity}|${t.bank}`));
+
+  const now = new Date();
+  const currentPeriodLabel = now.toLocaleString("en-US", { month: "short", year: "numeric" });
+
+  const toDelete: number[] = []; // 0-based row indices in `rows`
+  const report: any[] = [];
+  for (let ri = 1; ri < rows.length; ri++) {
+    const row = rows[ri] || [];
+    const period = String(row[0] || "").trim();
+    if (period !== currentPeriodLabel) continue;
+    const cutOff = String(row[9] || "").trim();
+    if (cutOff) continue; // has a Cut-Off Date already — not a Generate Monthly row
+    const downloaded = row[7] === true || /^(true|yes)$/i.test(String(row[7] || ""));
+    if (downloaded) continue; // never delete real completed work
+    const entity = String(row[1] || "").trim();
+    const bankName = String(row[2] || "").trim();
+    if (!cutOffBanks.has(`${entity}|${bankName}`)) continue; // this bank has no Cut-Off Date — genuine Legacy, leave it
+    toDelete.push(ri);
+    report.push({ rowIndex: ri + 1, entity, bank: bankName, period, statementDate: row[5] });
+  }
+
+  if (toDelete.length === 0) return res.json({ ok: true, deleted: 0, report: [] });
+
+  const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}?fields=sheets.properties`;
+  const metaResp = await fetch(metaUrl, { headers: { Authorization: `Bearer ${token}` } });
+  const metaData: any = await metaResp.json();
+  const sheetObj = (metaData.sheets || []).find((s: any) => (s.properties?.title || "").toLowerCase() === tabName.toLowerCase());
+  if (!sheetObj) return res.status(404).json({ ok: false, error: `Tab "${tabName}" not found`, report });
+  const sheetId: number = sheetObj.properties.sheetId;
+
+  const deleteRequests = [...toDelete].sort((a, b) => b - a).map((ri) => ({
+    deleteDimension: { range: { sheetId, dimension: "ROWS", startIndex: ri, endIndex: ri + 1 } },
+  }));
+  const batchUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}:batchUpdate`;
+  const delResp = await fetch(batchUrl, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ requests: deleteRequests }),
+  });
+  if (!delResp.ok) {
+    const e: any = await delResp.json().catch(() => ({}));
+    return res.status(500).json({ ok: false, error: `Delete failed: ${e?.error?.message || delResp.status}`, report });
+  }
+
+  console.log(`[Statements/remove-generate-monthly-conflicts] Deleted ${toDelete.length} rows: ${JSON.stringify(report)}`);
+  return res.json({ ok: true, deleted: toDelete.length, report });
+});
+
 app.post("/api/statements/fix-statement-dates", async (req, res) => {
   const token = getEffectiveDriveToken(req.body?.accessToken);
   if (!token) return res.status(401).json({ ok: false, error: "No usable Google token (server cache expired and none provided)" });

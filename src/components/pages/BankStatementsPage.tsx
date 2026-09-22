@@ -394,7 +394,6 @@ export const BankStatementsPage: React.FC = () => {
   const { bankStatements, selectedEntities, toggleStatementDownload, deleteBankStatement, theme, showConfirm } = useFinance() as any;
 
   const [isAddOpen,         setIsAddOpen]         = useState(false);
-  const [isGenerateOpen,    setIsGenerateOpen]     = useState(false);
   const [editingStatement,  setEditingStatement]   = useState<any | null>(null);
   const [selectedMonth,     setSelectedMonth]      = useState<string>("ALL");
   const [selectedBank,      setSelectedBank]       = useState<string>("ALL");
@@ -599,12 +598,11 @@ export const BankStatementsPage: React.FC = () => {
             <div className={`text-xs ${isLight ? "text-slate-500" : "text-[#888]"}`}>
               Showing {allFiltered.length} of {(bankStatements || []).length} statement(s)
             </div>
-            <button
-              onClick={() => setIsGenerateOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#1a73e8] hover:bg-[#1557b0] text-white transition-colors"
-            >
-              <Zap className="w-3.5 h-3.5" /> Generate Monthly
-            </button>
+            {/* Generate Monthly retired 2026-09-22: it wrote blank-Cut-Off-Date entries that
+                landed in Legacy even for accounts already covered by Cut-Off Date auto-generation,
+                creating duplicate coverage for the same statement via two different paths.
+                Statement Tracker entries are auto-generated from the reference table now — see
+                autoGenerateStatementEntries in server.ts. */}
           </div>
         </div>
 
@@ -706,7 +704,6 @@ export const BankStatementsPage: React.FC = () => {
       </div>
 
       <AddStatementModal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} />
-      <GenerateMonthlyModal isOpen={isGenerateOpen} onClose={() => setIsGenerateOpen(false)} />
       <EditStatementModal
         statement={editingStatement}
         isOpen={!!editingStatement}

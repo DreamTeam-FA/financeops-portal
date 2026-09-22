@@ -75,7 +75,7 @@ const FAQ = [
   },
   {
     q: "How do I track bank statements?",
-    a: "Open the Bank Statements Tracker from the sidebar. The page has two sections: a collapsible Legacy Entries section (frozen — pre-redesign records only, collapsed by default, never auto-touched; surface it manually via the filters for historic lookup) and the main Statement Tracker below it, which is where all current activity happens. As soon as a bank's Cut-Off Date is filled in on the reference table (the account list in columns N–T of the Bank Statements Data sheet tab), the portal automatically creates that month's Statement Tracker entry — no manual step, no waiting period, and it will never create a duplicate for the same bank/entity/month. Use the Month, Bank, and Entity filters at the top to narrow down entries across both sections. Pending entries appear first (sorted A–Z by bank), followed by downloaded entries (sorted by entity). Click 'Mark Downloaded' on any entry once you've retrieved and filed the statement. Use 'Add Entry' to manually log a statement, or 'Generate Monthly' to batch-create entries for all banks at once.",
+    a: "Open the Bank Statements Tracker from the sidebar. The page has two sections: a collapsible Legacy Entries section (frozen — pre-redesign records only, collapsed by default, never auto-touched; surface it manually via the filters for historic lookup) and the main Statement Tracker below it, which is where all current activity happens. As soon as a bank's Cut-Off Date is filled in on the reference table (the account list in columns N–T of the Bank Statements Data sheet tab), the portal automatically creates that month's Statement Tracker entry — no manual step, no waiting period, and it will never create a duplicate for the same bank/entity/month. Use the Month, Bank, and Entity filters at the top to narrow down entries across both sections. Pending entries appear first (sorted A–Z by bank), followed by downloaded entries (sorted by entity). Click 'Mark Downloaded' on any entry once you've retrieved and filed the statement. Use 'Add Entry' to manually log a statement — the old 'Generate Monthly' batch button was removed (it created duplicate coverage for banks already handled by Cut-Off Date auto-generation).",
   },
   {
     q: "How does the Email Invoice Scanner work?",
@@ -318,7 +318,7 @@ const HOWTOS = [
       "Use the Month, Bank, and Entity dropdowns to filter entries across both sections.",
       "Pending entries are shown first (A–Z by bank name). Downloaded entries appear below them, sorted by entity.",
       "When you receive and file a statement, click 'Mark Downloaded' on its entry.",
-      "To manually add an entry, click 'Add Entry'. To batch-create entries for all banks, use 'Generate Monthly'.",
+      "To manually add an entry, click 'Add Entry'. There's no batch-generate button anymore — Statement Tracker entries are created automatically once a bank's Cut-Off Date is filled in on the reference table.",
     ],
   },
   {
