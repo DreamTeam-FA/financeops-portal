@@ -3980,6 +3980,36 @@ app.get("/api/cc-expense/sheet-data", async (req, res) => {
   }
 });
 
+// GET /api/cc-expense/remarks — read back the Remarks column (M) from the Weekly Breakdown
+// tab of the export sheet, keyed by weekStart||vendor. "Sync to Sheet" writes remarks TO this
+// sheet but the app never read them back — remarks only ever lived in this browser's
+// localStorage, so a cleared cache or a different device showed blank even though the real
+// values were safely sitting in the sheet the whole time. This restores them on load.
+app.get("/api/cc-expense/remarks", async (req, res) => {
+  const accessToken = req.headers.authorization?.replace("Bearer ", "") || (req.query.accessToken as string) || getEffectiveDriveToken() || undefined;
+  if (!accessToken) return res.status(401).json({ ok: false, error: "No access token" });
+  const sid = getCCExportSheetId();
+  try {
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}/values/${encodeURIComponent("'Weekly Breakdown'!B2:M2000")}`
+      + `?valueRenderOption=FORMATTED_VALUE&majorDimension=ROWS`;
+    const resp = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!resp.ok) return res.json({ ok: false, error: "Sheet read failed" });
+    const body: any = await resp.json();
+    const rows: string[][] = body.values || [];
+    const remarks: Record<string, string> = {};
+    for (const row of rows) {
+      const weekStart = String(row[0] || "").trim(); // col B
+      const vendor = String(row[1] || "").trim();    // col C
+      const remark = String(row[11] || "").trim();   // col M (B=0,C=1,...,M=11)
+      if (!weekStart || !vendor || !remark) continue;
+      remarks[`${weekStart}||${vendor}`] = remark;
+    }
+    res.json({ ok: true, remarks });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
 // GET /api/cc-expense/export-sheet-info — return shared export sheet info
 // Always returns the fixed shared sheet so all users see Open Sheet / Sync to Sheet from day one.
 app.get("/api/cc-expense/export-sheet-info", (_req, res) => {

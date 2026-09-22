@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   Upload, RefreshCw, ChevronDown, Eye, EyeOff, AlertCircle,
   X, FileText, UploadCloud, CreditCard, Search, Settings, Plus, Trash2, ExternalLink, Share2, Check
@@ -451,6 +451,29 @@ export const CCExpensePage: React.FC = () => {
     setRemarks(updated);
     localStorage.setItem("cc_expense_remarks", JSON.stringify(updated));
   };
+
+  // Restore remarks from the export sheet on load — "Sync to Sheet" writes remarks there but
+  // the app never read them back, so a cleared cache (or a different browser/device) showed
+  // blank even though the real values were safely sitting in the sheet. Sheet values win over
+  // whatever's already in localStorage on this device, since the sheet is the durable copy.
+  useEffect(() => {
+    const tok = getAccessToken();
+    if (!tok) return;
+    (async () => {
+      try {
+        const res = await fetch(`/api/cc-expense/remarks?accessToken=${encodeURIComponent(tok)}`);
+        const json = await res.json();
+        if (json.ok && json.remarks && Object.keys(json.remarks).length > 0) {
+          setRemarks(prev => {
+            const merged = { ...prev, ...json.remarks };
+            localStorage.setItem("cc_expense_remarks", JSON.stringify(merged));
+            return merged;
+          });
+        }
+      } catch { /* non-fatal — keep whatever's in localStorage */ }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── CC account list state (user-managed, replaces hardcoded patterns) ──────
   const [ccList, setCCList] = useState<CCAccount[]>(loadCCList);
