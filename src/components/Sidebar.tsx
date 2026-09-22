@@ -208,9 +208,17 @@ export const Sidebar: React.FC = () => {
       }
       return raw;
     };
+    // Only Statement Tracker entries (have a Cut-Off Date) count toward the badge — Legacy
+    // entries are frozen/retired and shouldn't drive an "action needed" notification anymore.
+    // Cut-Off Date is a clean YYYY-MM-DD, so derive the month from it directly rather than
+    // getStmtMonth (which reads statementDate — a "start|end" range string it can't parse,
+    // so it always falls through to the raw range and never matches a month name).
     const stmtsPending = (bankStatements as any[] || []).filter((s: any) => {
-      const mo = getStmtMonth(s);
-      return mo.toLowerCase().includes(currentMonthYear.toLowerCase()) && s.downloaded === false;
+      if (!s.cutOffDate || s.downloaded !== false) return false;
+      const d = new Date(s.cutOffDate + "T00:00:00");
+      if (isNaN(d.getTime())) return false;
+      const mo = d.toLocaleString("en-US", { month: "long", year: "numeric" });
+      return mo === currentMonthYear;
     }).length;
 
     // Calendar: events within the next 7 days (local + Google Cal + sheet events)
