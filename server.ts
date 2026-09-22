@@ -4010,6 +4010,46 @@ app.get("/api/cc-expense/remarks", async (req, res) => {
   }
 });
 
+// POST /api/cc-expense/remarks — live-save a single remark straight to its cell (col M) in
+// the Weekly Breakdown tab, instead of waiting for the next full "Sync to Sheet" export.
+// Finds the row by matching weekStart (col B) + vendor (col C); that row only exists once
+// this week/vendor has been exported at least once via Sync to Sheet.
+app.post("/api/cc-expense/remarks", async (req, res) => {
+  const { accessToken, weekStart, vendor, remark } = req.body || {};
+  if (!accessToken) return res.status(401).json({ ok: false, error: "No access token" });
+  if (!weekStart || !vendor) return res.status(400).json({ ok: false, error: "weekStart and vendor required" });
+  const sid = getCCExportSheetId();
+  try {
+    const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}/values/${encodeURIComponent("'Weekly Breakdown'!B2:C2000")}`
+      + `?valueRenderOption=FORMATTED_VALUE&majorDimension=ROWS`;
+    const readResp = await fetch(readUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!readResp.ok) {
+      const e: any = await readResp.json().catch(() => ({}));
+      return res.status(readResp.status).json({ ok: false, error: e?.error?.message || "Sheet read failed" });
+    }
+    const readBody: any = await readResp.json();
+    const rows: string[][] = readBody.values || [];
+    const idx = rows.findIndex((row) => String(row[0] || "").trim() === String(weekStart).trim() && String(row[1] || "").trim() === String(vendor).trim());
+    if (idx === -1) {
+      return res.json({ ok: false, error: "This week/vendor hasn't been exported to the sheet yet — run 'Sync to Sheet' once first." });
+    }
+    const rowNum = idx + 2; // rows start at B2, header is row 1
+    const writeUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sid)}/values/${encodeURIComponent(`'Weekly Breakdown'!M${rowNum}`)}?valueInputOption=USER_ENTERED`;
+    const writeResp = await fetch(writeUrl, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ range: `'Weekly Breakdown'!M${rowNum}`, majorDimension: "ROWS", values: [[remark || ""]] }),
+    });
+    if (!writeResp.ok) {
+      const e: any = await writeResp.json().catch(() => ({}));
+      return res.status(writeResp.status).json({ ok: false, error: e?.error?.message || "Sheet write failed" });
+    }
+    res.json({ ok: true });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
 // GET /api/cc-expense/export-sheet-info — return shared export sheet info
 // Always returns the fixed shared sheet so all users see Open Sheet / Sync to Sheet from day one.
 app.get("/api/cc-expense/export-sheet-info", (_req, res) => {

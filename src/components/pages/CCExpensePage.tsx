@@ -500,6 +500,28 @@ export const CCExpensePage: React.FC = () => {
     localStorage.setItem("cc_expense_remarks", JSON.stringify(updated));
   };
 
+  // Live-save a remark to its sheet cell — called on blur (not per-keystroke) so it's one
+  // request per edit, not one per character. Previously remarks only reached the sheet via
+  // a full "Sync to Sheet" export; this writes the single cell immediately instead.
+  const saveRemarkToSheet = (weekStart: string, vendor: string) => {
+    const text = remarks[remarkKey(weekStart, vendor)] || "";
+    const tok = getAccessToken();
+    if (!tok) {
+      showToast("Not signed in — this remark was NOT saved to the shared sheet.", "error", 6000);
+      return;
+    }
+    fetch("/api/cc-expense/remarks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accessToken: tok, weekStart, vendor, remark: text }),
+    })
+      .then(r => r.json())
+      .then((d: any) => {
+        if (!d.ok) showToast(`Remark saved locally, but not to the shared sheet: ${d.error || "unknown error"}`, "error", 8000);
+      })
+      .catch(() => showToast("Remark saved locally, but failed to save to the shared sheet (network error).", "error", 8000));
+  };
+
   // Restore remarks from the export sheet on load — "Sync to Sheet" writes remarks there but
   // the app never read them back, so a cleared cache (or a different browser/device) showed
   // blank even though the real values were safely sitting in the sheet. Sheet values win over
@@ -1556,6 +1578,7 @@ export const CCExpensePage: React.FC = () => {
                             rows={1}
                             value={remarks[remarkKey(selectedWeek, row.vendor)] || ""}
                             onChange={e => setRemark(selectedWeek, row.vendor, e.target.value)}
+                            onBlur={() => saveRemarkToSheet(selectedWeek, row.vendor)}
                             placeholder="Add remark…"
                             className={`w-full min-w-[150px] resize-none rounded px-2 py-1 text-[11px] leading-snug outline-none transition-colors ${
                               isLight
