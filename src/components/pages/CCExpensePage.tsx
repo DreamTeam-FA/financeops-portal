@@ -1152,6 +1152,14 @@ export const CCExpensePage: React.FC = () => {
               </span>
             </div>
           )}
+          {activeTab === "weekly" && (
+            <div className="flex items-center gap-1.5">
+              <span className={`text-[11px] ${isLight ? "text-slate-500" : "text-slate-400"}`}>Remarks:</span>
+              <span className={`text-[12px] ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                {displayTable.filter(r => (remarks[remarkKey(selectedWeek, r.vendor)] || "").trim()).length}
+              </span>
+            </div>
+          )}
         </div>
       )}
 
