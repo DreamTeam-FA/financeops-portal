@@ -58,6 +58,7 @@ const DEFAULT_DATA = {
   loans: [],
   ar: [],
   statements: [],
+  statementTemplates: [],
   // Calendar change overrides — applied on top of live sheet data on every sync/load.
   // Survives GViz cache staleness. Writes to Google Sheet are best-effort background ops.
   calendarOverrides: {
@@ -324,6 +325,11 @@ async function syncLiveDataFromSheets(accessToken?: string) {
       // extraForceFields: a blank sheet cell for these must clear the stale JSON value —
       // never let an old Downloaded/timestamp survive after the sheet cell is cleared.
       statements: mergeDatasets(liveData.statements, current.statements, "id", ["downloaded", "downloadedAt", "statementDate", "requestDate"]),
+      // Reference table (right-side account list, N–T) — sheet is always the source of truth,
+      // never merged with a stale cache, so a cleared Cut-Off Date cell actually clears client-side.
+      statementTemplates: liveData.statementTemplates && liveData.statementTemplates.length > 0
+        ? liveData.statementTemplates
+        : (current.statementTemplates || []),
       quickNotes: mergeNotes(liveData.quickNotes, current.quickNotes),
       // Calendar events: use live sheet data, then apply stored overrides on top.
       // This makes done/edit/delete survive GViz cache and server restarts.
