@@ -426,6 +426,39 @@ export const CCExpensePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"weekly" | "ytd" | "raw">("weekly");
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
 
+  // Adjustments (inline edits + drag-to-transfer) previously lived ONLY in this React state —
+  // no localStorage, no sheet, gone on every reload/navigation and never seen by other users.
+  // The server's adjustments/pull + adjustments/push endpoints (CC Adjustments tab) already
+  // existed but were never called from here. Pull them on mount/sign-in so edits persist and
+  // are shared, same as everything else in this app.
+  const hasFetchedAdjustmentsRef = useRef(false);
+  React.useEffect(() => {
+    const tok = getAccessToken();
+    if (!tok) return;
+    if (hasFetchedAdjustmentsRef.current) return;
+    hasFetchedAdjustmentsRef.current = true;
+    fetch("/api/cc-expense/adjustments/pull", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accessToken: tok }),
+    })
+      .then(r => r.json())
+      .then((d: any) => {
+        if (!d.ok || !Array.isArray(d.rows)) return;
+        const loaded: Adjustment[] = d.rows
+          .filter((row: any[]) => row && row[0] && row[1] && row[2])
+          .map((row: any[]) => ({
+            weekStart: String(row[0]),
+            vendor: String(row[1]),
+            company: String(row[2]),
+            delta: parseFloat(row[3]) || 0,
+          }));
+        if (loaded.length > 0) setAdjustments(loaded);
+      })
+      .catch(() => { hasFetchedAdjustmentsRef.current = false; });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [googleUser]);
+
   // Adjustment helpers
   const getAdjustedValue = (weekStart: string, vendor: string, company: string, rawVal: number): number => {
     const delta = adjustments
@@ -436,6 +469,21 @@ export const CCExpensePage: React.FC = () => {
 
   const pushAdjustment = (adj: Adjustment) => {
     setAdjustments(prev => [...prev, adj]);
+    const tok = getAccessToken();
+    if (!tok) {
+      showToast("Not signed in — this edit was NOT saved to the shared sheet.", "error", 6000);
+      return;
+    }
+    fetch("/api/cc-expense/adjustments/push", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accessToken: tok, rows: [[adj.weekStart, adj.vendor, adj.company, adj.delta]] }),
+    })
+      .then(r => r.json())
+      .then((d: any) => {
+        if (!d.ok) showToast(`Edit saved locally, but failed to save to the shared sheet: ${d.error || "unknown error"}`, "error", 8000);
+      })
+      .catch(() => showToast("Edit saved locally, but failed to save to the shared sheet (network error).", "error", 8000));
   };
 
   // Remarks: keyed by `${weekStart}||${vendor}`, persisted in localStorage
