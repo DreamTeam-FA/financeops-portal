@@ -828,19 +828,27 @@ app.post("/api/pull-live", async (req, res) => {
 app.post("/api/data", (req, res) => {
   const updated = req.body;
   if (updated && typeof updated === "object") {
-    // Preserve server-side fields the React app doesn't manage
+    // This endpoint is boot-config-only BY DESIGN — see the "RULE" comment above
+    // persistChanges() in FinanceContext.tsx: the client deliberately sends
+    // ap/banks/loans/ar/statements/payrollWeeks/payrollPivot/localCalendarEvents/quickNotes/
+    // gasUrls/externalLinks as empty on every single call, specifically so this endpoint never
+    // touches them — the sheet (+ localStorage) is the only real source for that data.
+    // saveStoredData() does a FULL FILE OVERWRITE, not a merge, so this used to spread the
+    // client's payload wholesale and blindly write those empties (and drop any field the
+    // client didn't send at all, e.g. statementTemplates) straight to disk on nearly every
+    // user action — confirmed live via repeated "writing 0 AP bills" log spam. Allowlisted to
+    // only the fields this endpoint actually owns; everything else always comes from disk.
     const existing = getStoredData();
     const merged = {
-      ...updated,
-      calendarLocalEvents: updated.calendarLocalEvents?.length
-        ? updated.calendarLocalEvents
-        : existing.calendarLocalEvents,
-      // Never let a client save-data call wipe logs or the sheet ID reference
-      logsSheetId: existing.logsSheetId || updated.logsSheetId || null,
-      loginLog: existing.loginLog || [],
+      ...existing,
       auditLog: (updated.auditLog?.length ?? 0) >= (existing.auditLog?.length ?? 0)
         ? updated.auditLog
         : existing.auditLog,
+      sheetMappings: updated.sheetMappings || existing.sheetMappings,
+      syncLogs: updated.syncLogs || existing.syncLogs,
+      // Never let a client save-data call wipe logs or the sheet ID reference
+      logsSheetId: existing.logsSheetId || updated.logsSheetId || null,
+      loginLog: existing.loginLog || [],
     };
     saveStoredData(merged);
     res.json({ success: true, timestamp: new Date().toISOString() });
