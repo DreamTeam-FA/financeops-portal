@@ -5609,8 +5609,20 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
+    // The service worker script and its manifest must never be cached by the browser (or any
+    // proxy in between) — if they are, an already-open tab can go a long time before it even
+    // asks the server whether a new version exists, which is what made a deployed fix look like
+    // it hadn't gone out. index.html gets the same treatment since it's what points at the
+    // current hashed JS/CSS bundle filenames.
+    app.use((req, res, next) => {
+      if (req.path === "/sw.js" || req.path === "/registerSW.js" || req.path === "/manifest.webmanifest" || req.path === "/index.html" || req.path === "/") {
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      }
+      next();
+    });
     app.use(express.static(distPath));
     app.get("*", (_req, res) => {
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
       res.sendFile(path.join(distPath, "index.html"));
     });
   }

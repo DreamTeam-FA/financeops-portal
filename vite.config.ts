@@ -11,6 +11,12 @@ export default defineConfig(() => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
+        // We register the service worker ourselves in main.tsx (via virtual:pwa-register) so we
+        // can force an already-open tab to reload once a new version takes control — the default
+        // auto-injected script only registers, it never reloads a tab that's already loaded the
+        // old JS bundle into memory. That gap is why a deployed fix could sit live on the server
+        // for a while before an open tab actually picked it up.
+        injectRegister: false,
         includeAssets: ['favicon.svg', 'icons/*.svg', 'icons/*.png'],
         manifest: {
           name: 'FinanceOps Portal',
