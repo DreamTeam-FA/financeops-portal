@@ -78,7 +78,11 @@ export const ScanToFill: React.FC<Props> = ({ type, isLight, onFill, resetKey })
 
         if (!resp.ok || !json || !json.ok) {
           setState("error");
-          const errMsg = json?.error || json?.details || (resp.status === 413 ? "File is too large (max 50MB)" : `Scan failed (${resp.status})`);
+          // Server always sends { error: "Vision API error", details: <actual reason> } on
+          // failure — details is the useful part (e.g. a rate-limit or quota message from the
+          // underlying API), but it was being shadowed since `error` is always that same
+          // generic literal and came first in this fallback chain.
+          const errMsg = json?.details || json?.error || (resp.status === 413 ? "File is too large (max 50MB)" : `Scan failed (${resp.status})`);
           setError(errMsg);
         } else {
           const data = type === "invoice" ? json.invoice : json.timesheet;
