@@ -2710,6 +2710,27 @@ const GEMINI_MODELS = [
   { version: "v1beta", model: "gemini-1.5-flash"       },
 ];
 
+// One-off diagnostic: lists what the configured Gemini key can actually call right now,
+// per Google's own ListModels endpoint (never returns the key itself). Used to fix the
+// GEMINI_MODELS fallback list above against ground truth instead of guessing model names —
+// gemini-1.5-flash was confirmed dead ("not found for API version v1beta") via a real scan
+// failure on 2026-09-26.
+app.get("/debug/gemini-models", async (_req, res) => {
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (!geminiKey) return res.status(400).json({ ok: false, error: "GEMINI_API_KEY not set" });
+  try {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${geminiKey}`);
+    const body: any = await r.json();
+    if (!r.ok) return res.status(r.status).json({ ok: false, error: body?.error?.message || r.status });
+    const models = (body.models || [])
+      .filter((m: any) => (m.supportedGenerationMethods || []).includes("generateContent"))
+      .map((m: any) => m.name);
+    res.json({ ok: true, count: models.length, models });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
 async function callGemini(apiKey: string, prompt: string, imageBase64: string, mimeType: string, maxTokens: number): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
   const body = {
     contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType || "image/jpeg", data: imageBase64 } }] }],
