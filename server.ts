@@ -2701,35 +2701,22 @@ app.post("/api/drive/remap-all-bill-links", async (req, res) => {
 // Vision LLM helper — tries OpenAI first, falls back to Gemini
 // =============================================================================
 
+// Verified live against Google's own ListModels for this key on 2026-09-26 (via a one-off
+// /debug/gemini-models endpoint, since removed) — gemini-2.0-flash and gemini-1.5-flash are
+// BOTH dead ("not found for API version v1beta"). Since 1.5-flash was last in the old list,
+// any scan whose earlier preferred models hit a transient error fell through the whole chain
+// to this guaranteed-dead model and failed outright — that was the actual cause of the
+// intermittent Vision API errors. The two "-latest" aliases are Google-maintained pointers to
+// whatever their current stable flash model is, kept last as a self-updating safety net so
+// this list doesn't go stale the same way again.
 const GEMINI_MODELS = [
   { version: "v1beta", model: "gemini-2.5-flash"      },
   { version: "v1beta", model: "gemini-2.5-flash-lite"  },
   { version: "v1beta", model: "gemini-3.5-flash"       },
   { version: "v1beta", model: "gemini-3.1-flash-lite"  },
-  { version: "v1beta", model: "gemini-2.0-flash"       },
-  { version: "v1beta", model: "gemini-1.5-flash"       },
+  { version: "v1beta", model: "gemini-flash-latest"    },
+  { version: "v1beta", model: "gemini-flash-lite-latest" },
 ];
-
-// One-off diagnostic: lists what the configured Gemini key can actually call right now,
-// per Google's own ListModels endpoint (never returns the key itself). Used to fix the
-// GEMINI_MODELS fallback list above against ground truth instead of guessing model names —
-// gemini-1.5-flash was confirmed dead ("not found for API version v1beta") via a real scan
-// failure on 2026-09-26.
-app.get("/debug/gemini-models", async (_req, res) => {
-  const geminiKey = process.env.GEMINI_API_KEY;
-  if (!geminiKey) return res.status(400).json({ ok: false, error: "GEMINI_API_KEY not set" });
-  try {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${geminiKey}`);
-    const body: any = await r.json();
-    if (!r.ok) return res.status(r.status).json({ ok: false, error: body?.error?.message || r.status });
-    const models = (body.models || [])
-      .filter((m: any) => (m.supportedGenerationMethods || []).includes("generateContent"))
-      .map((m: any) => m.name);
-    res.json({ ok: true, count: models.length, models });
-  } catch (e: any) {
-    res.status(500).json({ ok: false, error: e?.message || String(e) });
-  }
-});
 
 async function callGemini(apiKey: string, prompt: string, imageBase64: string, mimeType: string, maxTokens: number): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
   const body = {
