@@ -2768,10 +2768,53 @@ async function callGemini(apiKey: string, prompt: string, imageBase64: string, m
   return { ok: false, error: lastError, attempts };
 }
 
+async function callOpenAIVision(
+  prompt: string,
+  imageBase64: string,
+  mimeType: string,
+  maxTokens: number,
+  openaiKey: string
+): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
+  try {
+    // OpenAI vision supports image/* only; treat PDF/unknown as jpeg
+    const imgMime = mimeType.startsWith("image/") ? mimeType : "image/jpeg";
+    const body = {
+      model: "gpt-4o-mini",
+      messages: [{
+        role: "user",
+        content: [
+          { type: "text", text: prompt },
+          { type: "image_url", image_url: { url: `data:${imgMime};base64,${imageBase64}` } }
+        ]
+      }],
+      max_tokens: maxTokens,
+      temperature: 0.1
+    };
+    const r = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${openaiKey}` },
+      body: JSON.stringify(body)
+    });
+    if (r.ok) {
+      const resp = await r.json() as any;
+      const text = resp?.choices?.[0]?.message?.content || "";
+      console.log("[Vision] Used OpenAI gpt-4o-mini (Gemini fallback)");
+      return { ok: true, text };
+    }
+    const err = await r.json().catch(() => ({})) as any;
+    const msg = err?.error?.message || `HTTP ${r.status}`;
+    console.warn("[Vision] OpenAI fallback failed:", msg);
+    return { ok: false, error: msg };
+  } catch (e: any) {
+    return { ok: false, error: e?.message || String(e) };
+  }
+}
+
 /**
  * Unified vision LLM call.
- * Uses OpenAI gpt-4o-mini if OPENAI_API_KEY is set; otherwise falls back to Gemini.
- * PDFs are only supported by Gemini — OpenAI will receive image/jpeg for non-image types.
+ * Gemini (free tier) is always tried first. OpenAI gpt-4o-mini only runs as a paid last resort
+ * when every Gemini model in the fallback chain fails (e.g. a free-tier-wide Google outage) —
+ * this is opt-in: it only fires if OPENAI_API_KEY is set in Render.
  */
 async function callVisionLLM(
   prompt: string,
@@ -2779,46 +2822,23 @@ async function callVisionLLM(
   mimeType: string,
   maxTokens: number
 ): Promise<{ ok: true; text: string } | { ok: false; error: string; attempts?: string[] }> {
+  const geminiKey = process.env.GEMINI_API_KEY;
   const openaiKey = process.env.OPENAI_API_KEY;
 
-  if (openaiKey) {
-    try {
-      // OpenAI vision supports image/* only; treat PDF/unknown as jpeg
-      const imgMime = mimeType.startsWith("image/") ? mimeType : "image/jpeg";
-      const body = {
-        model: "gpt-4o-mini",
-        messages: [{
-          role: "user",
-          content: [
-            { type: "text", text: prompt },
-            { type: "image_url", image_url: { url: `data:${imgMime};base64,${imageBase64}` } }
-          ]
-        }],
-        max_tokens: maxTokens,
-        temperature: 0.1
-      };
-      const r = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${openaiKey}` },
-        body: JSON.stringify(body)
-      });
-      if (r.ok) {
-        const resp = await r.json() as any;
-        const text = resp?.choices?.[0]?.message?.content || "";
-        console.log("[Vision] Used OpenAI gpt-4o-mini");
-        return { ok: true, text };
-      }
-      const err = await r.json().catch(() => ({})) as any;
-      console.warn("[Vision] OpenAI failed:", err?.error?.message || r.status, "— falling back to Gemini");
-    } catch (e: any) {
-      console.warn("[Vision] OpenAI error:", e?.message, "— falling back to Gemini");
-    }
+  if (geminiKey) {
+    const result = await callGemini(geminiKey, prompt, imageBase64, mimeType, maxTokens);
+    if (result.ok) return result;
+    if (!openaiKey) return result; // no paid fallback configured — surface the Gemini error as-is
+    console.warn("[Vision] All Gemini models failed — falling back to OpenAI (paid):", result.error);
+    const openaiResult = await callOpenAIVision(prompt, imageBase64, mimeType, maxTokens, openaiKey);
+    if (openaiResult.ok) return openaiResult;
+    // Both failed — surface the original Gemini attempts plus the OpenAI failure reason.
+    return { ok: false, error: `Gemini: ${result.error} | OpenAI: ${openaiResult.error}`, attempts: result.attempts };
   }
 
-  // Fallback: Gemini
-  const geminiKey = process.env.GEMINI_API_KEY;
-  if (!geminiKey) return { ok: false, error: "No vision API key configured. Set OPENAI_API_KEY or GEMINI_API_KEY in Render." };
-  return callGemini(geminiKey, prompt, imageBase64, mimeType, maxTokens);
+  if (openaiKey) return callOpenAIVision(prompt, imageBase64, mimeType, maxTokens, openaiKey);
+
+  return { ok: false, error: "No vision API key configured. Set GEMINI_API_KEY (and optionally OPENAI_API_KEY as a fallback) in Render." };
 }
 
 // =============================================================================
