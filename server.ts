@@ -2734,12 +2734,13 @@ const GEMINI_MODELS = [
   { version: "v1beta", model: "gemini-flash-lite-latest" },
 ];
 
-async function callGemini(apiKey: string, prompt: string, imageBase64: string, mimeType: string, maxTokens: number): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
+async function callGemini(apiKey: string, prompt: string, imageBase64: string, mimeType: string, maxTokens: number): Promise<{ ok: true; text: string } | { ok: false; error: string; attempts?: string[] }> {
   const body = {
     contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType || "image/jpeg", data: imageBase64 } }] }],
     generationConfig: { temperature: 0.1, maxOutputTokens: maxTokens }
   };
   let lastError = "No available Gemini model";
+  const attempts: string[] = [];
   for (const { version, model } of GEMINI_MODELS) {
     const url = `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${apiKey}`;
     try {
@@ -2753,12 +2754,16 @@ async function callGemini(apiKey: string, prompt: string, imageBase64: string, m
       const errBody = await r.json().catch(() => ({})) as any;
       const status = errBody?.error?.status || "";
       lastError = errBody?.error?.message || `HTTP ${r.status}`;
+      attempts.push(`${model}: HTTP ${r.status} ${status} — ${lastError}`);
       console.warn(`[Vision] Gemini ${model} → ${status || r.status}: ${lastError}`);
       // Always try next model — only hard-stop on auth errors
-      if (r.status === 401 || r.status === 403) return { ok: false, error: lastError };
-    } catch (e: any) { lastError = e?.message || String(e); }
+      if (r.status === 401 || r.status === 403) return { ok: false, error: lastError, attempts };
+    } catch (e: any) {
+      lastError = e?.message || String(e);
+      attempts.push(`${model}: threw — ${lastError}`);
+    }
   }
-  return { ok: false, error: lastError };
+  return { ok: false, error: lastError, attempts };
 }
 
 /**
@@ -2771,7 +2776,7 @@ async function callVisionLLM(
   imageBase64: string,
   mimeType: string,
   maxTokens: number
-): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
+): Promise<{ ok: true; text: string } | { ok: false; error: string; attempts?: string[] }> {
   const openaiKey = process.env.OPENAI_API_KEY;
 
   if (openaiKey) {
@@ -2905,7 +2910,7 @@ Notes:
 
   try {
     const result = await callVisionLLM(prompt, imageBase64, mimeType || "image/jpeg", 4096);
-    if (!result.ok) return res.status(502).json({ error: "Vision API error", details: result.error });
+    if (!result.ok) return res.status(502).json({ error: "Vision API error", details: result.error, attempts: result.attempts });
 
     const raw = result.text;
     const start = raw.indexOf("{");
