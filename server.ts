@@ -2725,9 +2725,11 @@ app.post("/api/drive/remap-all-bill-links", async (req, res) => {
 // intermittent Vision API errors. The two "-latest" aliases are Google-maintained pointers to
 // whatever their current stable flash model is, kept last as a self-updating safety net so
 // this list doesn't go stale the same way again.
+// gemini-2.5-flash / gemini-2.5-flash-lite are retired (confirmed via a live 404 from Google
+// pointing at these exact replacements) — swapped for the models Google's own error told us to use.
 const GEMINI_MODELS = [
-  { version: "v1beta", model: "gemini-2.5-flash"      },
-  { version: "v1beta", model: "gemini-2.5-flash-lite"  },
+  { version: "v1beta", model: "gemini-3.8-flash"       },
+  { version: "v1beta", model: "gemini-3.5-flash-lite"  },
   { version: "v1beta", model: "gemini-3.5-flash"       },
   { version: "v1beta", model: "gemini-3.1-flash-lite"  },
   { version: "v1beta", model: "gemini-flash-latest"    },
