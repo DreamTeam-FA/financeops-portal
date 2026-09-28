@@ -955,7 +955,8 @@ export async function fetchFullLiveDataset(accessToken?: string) {
     // Entity: use raw value from sheet verbatim; no normalisation collapse
     const entity: EntityName = (rawEntity as EntityName) || "Ruby's";
 
-    banks.push({ id: `b-${i + 1}`, entity, bank: name || rawEntity, type: "Operating", acct: "...", balance: bal, yesterday: yestVal, asOf, status: "Active", trend: bal >= yestVal ? "up" : "down" });
+    // row: 1-indexed sheet row, needed so the EOD auto-copy knows which row to write back to.
+    banks.push({ id: `b-${i + 1}`, entity, bank: name || rawEntity, type: "Operating", acct: "...", balance: bal, yesterday: yestVal, asOf, status: "Active", trend: bal >= yestVal ? "up" : "down", row: bankHeaderIdx + i + 2 });
   });
 
   // Loans & Credit Cards
