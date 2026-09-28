@@ -1094,6 +1094,18 @@ async function runEODBankCopy(manual = false): Promise<{ ok?: boolean; skipped?:
   const token = getEffectiveDriveToken();
   if (!token) {
     console.warn("[EOD Bank Copy] No cached OAuth token — skipping. User must sign in first.");
+    try {
+      const freshData = getStoredData();
+      freshData.auditLog = [{
+        timestamp: new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }),
+        user: "server-cron",
+        action: "Bank EOD Copy — SKIPPED",
+        details: `No cached Google sign-in at copy time (PHT date: ${todayStr}). Sign in to the portal once before 6pm PHT so the copy has a valid token.`,
+      }, ...(freshData.auditLog || []).slice(0, 499)];
+      saveStoredData(freshData);
+    } catch (e) {
+      console.warn("[EOD Bank Copy] Could not log skip to audit log:", e);
+    }
     return { skipped: true, reason: "no oauth token — user must sign in" };
   }
 
@@ -1107,11 +1119,13 @@ async function runEODBankCopy(manual = false): Promise<{ ok?: boolean; skipped?:
   // SAFETY: snapshot the current state BEFORE any writes
   saveBankSnapshot(todayStr, banks);
 
-  // Copy balance → yesterday, update asOf
+  // Copy balance → yesterday only. asOf must NOT change here — it only moves on a manual
+  // balance edit (see updateBankBalance in FinanceContext.tsx). Auto-copy just carries the
+  // existing balance into the yesterday column; it never touched the account, so the last
+  // manual-edit timestamp stays as-is.
   const updatedBanks = (data.banks || []).map((acc: any) => ({
     ...acc,
     yesterday: acc.balance,
-    asOf: todayStr,
   }));
 
   // Persist updated state to server JSON first
@@ -1170,16 +1184,18 @@ async function runEODBankCopy(manual = false): Promise<{ ok?: boolean; skipped?:
   return { ok: true, written, failed, date: todayStr };
 }
 
-// Check every 60s — fire when UTC clock is exactly 10:00 (= 6pm PHT)
+// Check every 60s — fire any time at or after 10:00 UTC (6pm PHT) if not already run today.
+// (Was an exact-minute match — a restart/deploy landing on :00 would miss the trigger and
+// skip the whole day. runEODBankCopy's own eodCopyLastRun check keeps this from re-running
+// once it succeeds for the day.)
 function scheduleEODBankCopy() {
   setInterval(() => {
     const now = new Date();
-    if (now.getUTCHours() === 10 && now.getUTCMinutes() === 0) {
-      console.log("[EOD Bank Copy] Scheduled trigger at 10:00 UTC (6:00pm PHT)");
+    if (now.getUTCHours() >= 10) {
       runEODBankCopy(false).catch((e: any) => console.error("[EOD Bank Copy] Unexpected error:", e));
     }
   }, 60_000);
-  console.log("[EOD Bank Copy] Scheduler started — fires daily at 10:00 UTC (6:00pm PHT)");
+  console.log("[EOD Bank Copy] Scheduler started — fires daily at/after 10:00 UTC (6:00pm PHT)");
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
