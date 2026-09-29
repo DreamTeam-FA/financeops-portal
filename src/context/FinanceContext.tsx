@@ -833,8 +833,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const parsed: ExternalLinkItem[] = JSON.parse(saved);
         if (Array.isArray(parsed)) {
           // Merge: keep saved items + inject any new defaults not already present by ID
+          // (but never one the user explicitly deleted — tracked in financeops_deletedLinkIds)
           const savedIds = new Set(parsed.map((l) => l.id));
-          const newDefaults = DEFAULT_EXTERNAL_LINKS.filter((d) => !savedIds.has(d.id));
+          const deletedIds: Set<string> = new Set((() => {
+            try { return JSON.parse(localStorage.getItem("financeops_deletedLinkIds") || "[]"); } catch { return []; }
+          })());
+          const newDefaults = DEFAULT_EXTERNAL_LINKS.filter((d) => !savedIds.has(d.id) && !deletedIds.has(d.id));
           const merged = newDefaults.length > 0 ? [...parsed, ...newDefaults] : parsed;
           // Deduplicate by URL — handles custom entries promoted to defaults (different IDs, same URL)
           const deduped = dedupeExternalLinks(merged);
@@ -1529,8 +1533,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           // But never restore items the user explicitly deleted (tracked in financeops_deletedLinkIds)
           const cfgUserAdded = (cfg.externalLinks as ExternalLinkItem[]).filter(l => !defaultIds.has(l.id) && !deletedIds.has(l.id));
           if (cfgUserAdded.length > 0 && !lsHasUserAdded) {
-            // localStorage has only defaults — restore user links from config sheet
-            const merged = dedupeExternalLinks([...DEFAULT_EXTERNAL_LINKS, ...cfgUserAdded]);
+            // localStorage has only defaults — restore user links from config sheet.
+            // Never re-add a default the user explicitly deleted.
+            const liveDefaults = DEFAULT_EXTERNAL_LINKS.filter((d) => !deletedIds.has(d.id));
+            const merged = dedupeExternalLinks([...liveDefaults, ...cfgUserAdded]);
             setExternalLinks(merged);
             localStorage.setItem("financeops_external_links", JSON.stringify(merged));
             // Write clean list back to config sheet to remove stored duplicates permanently
