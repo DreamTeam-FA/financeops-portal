@@ -106,36 +106,22 @@ const DEFAULT_DATA = {
 // Notes merge: sheet is the EXCLUSIVE source of truth.
 // Only sheet rows are shown. Local data only preserves done-status
 // until it has been written back to the sheet.
-function mergeNotes(liveList: any[], currentList: any[]) {
+// Sheet is always the source of truth (Rule #1) — every field, including status/completedAt,
+// comes from the sheet outright. A previous version OR'd in a cached "done" so a note reopened
+// in the sheet could never come back to "open" once it had ever been marked done anywhere.
+// Local-only notes (not in the sheet) are intentionally excluded.
+function mergeNotes(liveList: any[]) {
   if (!liveList || liveList.length === 0) return [];   // sheet empty → nothing to show
-
-  const currentMap = new Map<string, any>();
-  (currentList || []).forEach((item) => {
-    if (item?.id) currentMap.set(String(item.id), item);
-  });
 
   // Deduplicate sheet rows by id (guards against duplicate rows in the sheet)
   const seen = new Set<string>();
-  return liveList
-    .filter((item) => {
-      if (!item?.id) return true;
-      const id = String(item.id);
-      if (seen.has(id)) return false;
-      seen.add(id);
-      return true;
-    })
-    .map((liveItem) => {
-      const itemId = String(liveItem.id || "");
-      if (itemId && currentMap.has(itemId)) {
-        const currentItem = currentMap.get(itemId)!;
-        // Sheet "done" wins; also preserve local "done" until next write-back
-        const status = liveItem.status === "done" || currentItem.status === "done" ? "done" : "open";
-        const completedAt = status === "done" ? (currentItem.completedAt || liveItem.completedAt) : undefined;
-        return { ...liveItem, status, completedAt };
-      }
-      return liveItem;
-    });
-  // Local-only notes (not in the sheet) are intentionally excluded.
+  return liveList.filter((item) => {
+    if (!item?.id) return true;
+    const id = String(item.id);
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
 }
 
 /** Stable composite key for AP bills (their IDs are random on every fetch). */
@@ -445,7 +431,7 @@ async function syncLiveDataFromSheets(accessToken?: string) {
       statementTemplates: liveData.statementTemplates && liveData.statementTemplates.length > 0
         ? liveData.statementTemplates
         : (current.statementTemplates || []),
-      quickNotes: mergeNotes(liveData.quickNotes, current.quickNotes),
+      quickNotes: mergeNotes(liveData.quickNotes),
       // Calendar events: use live sheet data, then apply stored overrides on top.
       // This makes done/edit/delete survive GViz cache and server restarts.
       calendarLocalEvents: applyCalendarOverrides(

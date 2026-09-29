@@ -1073,6 +1073,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         console.warn("Note sheet sync failed:", msg);
         if (msg.includes("401") || msg.includes("invalid_grant") || msg.includes("unauthorized")) {
           showToast("Google Sheets token expired. Reconnect to sync notes.", "auth-error");
+        } else {
+          // Any other failure (network blip, quota, transient 5xx) was previously silent —
+          // the note looked saved on screen but never reached the sheet, and the next sheet
+          // pull would then show the old value with no indication why it "reverted."
+          showToast("Note change didn't save to the sheet — try again.", "error");
         }
       }
     })();
@@ -2328,19 +2333,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (live.ar && live.ar.length > 0) setArItems(sanitizeAr(live.ar));
         if (live.statements && live.statements.length > 0) setBankStatements(dedupeStatements(live.statements));
         if (live.statementTemplates && live.statementTemplates.length > 0) setStatementTemplates(live.statementTemplates);
+        // Sheet is always the source of truth (Rule #1) — apply it outright. A previous
+        // version let a cached localStorage "done" outrank the sheet, so reopening a note
+        // in the sheet could never show as reopened on the dashboard again.
         if (live.quickNotes && Array.isArray(live.quickNotes) && live.quickNotes.length > 0) {
-          const mergedNotes = (live.quickNotes as DashboardNote[]).map((n) => {
-            const localNotes: DashboardNote[] = (() => {
-              try { return JSON.parse(localStorage.getItem("financeops_quick_notes") || "[]"); } catch { return []; }
-            })();
-            const local = localNotes.find((ln) => ln.id === n.id);
-            if (local?.status === "done" && n.status !== "done") {
-              return { ...n, status: "done" as const, completedAt: local.completedAt };
-            }
-            return n;
-          });
-          setQuickNotes(mergedNotes);
-          localStorage.setItem("financeops_quick_notes", JSON.stringify(mergedNotes));
+          setQuickNotes(live.quickNotes);
+          localStorage.setItem("financeops_quick_notes", JSON.stringify(live.quickNotes));
         }
         if (live.lastSyncedAt) setLastSyncedAt(live.lastSyncedAt);
 
