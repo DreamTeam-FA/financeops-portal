@@ -32,7 +32,8 @@ import {
   appendCalendarRow,
   updateCalendarDone,
   updateCalendarRow,
-  clearCalendarRow,
+  updateCalendarRowsBatch,
+  clearCalendarRowsBatch,
   CalSheetRow,
   ColMap,
   GoogleCalendarEvent
@@ -563,43 +564,31 @@ export const CalendarPage: React.FC = () => {
       const token = getAccessToken();
       if (token) {
         (async () => {
-          let siblingFailed = 0;
           try {
-            await updateCalendarRow(token, sheetTab, selectedEvent.sheetRow!, sheetColMap, {
-              title: editTitle, date: editDate, time: editTime || undefined, endTime: selectedEvent.endTime, notes: editDesc || "", urgency: editUrgency,
-              type: editCategory, assignee: editAssignee || "", assigneeColor: editAssigneeColor, assigneeIds: editAssigneeIds,
-            });
-            // Other occurrences: shared fields only, sequentially — same rate-limit
-            // reasoning as the recurring-create loop (bursts get silently dropped).
-            for (const sib of siblingRows) {
-              if (!sib.sheetRow || sib.sheetRow <= 0) continue;
-              try {
-                await updateCalendarRow(token, sheetTab, sib.sheetRow, sheetColMap, sharedFields);
-                fetch("/api/calendar-action", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ type: "edit", id: sib.id, value: sharedFields })
-                }).catch(err => console.warn("calendar-action edit failed:", err));
-              } catch (err: any) {
-                siblingFailed++;
-                console.warn(`Sheet edit write failed for series sibling row ${sib.sheetRow}:`, err.message);
-              }
-            }
-            if (applyToAll) {
-              if (siblingFailed > 0) {
-                showToast?.(`Updated this event, but ${siblingFailed} of ${siblingRows.length} other occurrence(s) failed to save — try again or edit them individually.`, "error", 8000);
-              } else {
-                showToast?.(`Updated all ${siblingRows.length + 1} events in the series.`, "success");
-              }
-            }
+            // Primary row plus every sibling folded into ONE Sheets batchUpdate request —
+            // one call per sibling (the previous approach) hit Google's per-user write quota
+            // partway through a large series and silently dropped the rest; a single combined
+            // request has no such per-row limit to hit.
+            const rows = [
+              { sheetRow: selectedEvent.sheetRow!, fields: {
+                title: editTitle, date: editDate, time: editTime || undefined, endTime: selectedEvent.endTime, notes: editDesc || "", urgency: editUrgency,
+                type: editCategory, assignee: editAssignee || "", assigneeColor: editAssigneeColor, assigneeIds: editAssigneeIds,
+              } },
+              ...siblingRows.filter(sib => sib.sheetRow && sib.sheetRow > 0).map(sib => ({ sheetRow: sib.sheetRow, fields: sharedFields })),
+            ];
+            await updateCalendarRowsBatch(token, sheetTab, sheetColMap, rows);
+            if (applyToAll) showToast?.(`Updated all ${rows.length} events in the series.`, "success");
           } catch (err: any) {
             console.warn("Sheet edit write failed:", err.message);
-            showToast?.("Failed to save this event to the sheet — try again.", "error", 8000);
+            showToast?.(applyToAll ? "Failed to save the series to the sheet — try again." : "Failed to save this event to the sheet — try again.", "error", 8000);
           } finally {
             loadCalSheetEvents();
           }
         })();
       }
+      // Portal-server override record — kept for the currently-edited event only (survives
+      // GViz cache/refresh for that one); skipped for siblings so a large series doesn't also
+      // fire dozens of extra requests at the portal server on top of the sheet write above.
     } else if (eventId && selectedEvent.isLocalTask) {
       // Portal-only local task — persist to server overrides + FinanceContext
       fetch("/api/calendar-action", {
@@ -2280,24 +2269,27 @@ export const CalendarPage: React.FC = () => {
                     setSheetEvents(prev => prev.filter(e => !targetIds.has(e.id)));
                     // Suppress from calendarLocalEvents display this session
                     setDeletedEventIds(prev => new Set([...prev, ...targetIds]));
-                    const token = getAccessToken();
-                    (async () => {
-                      // Sequential — same Sheets rate-limit reasoning as the recurring-create loop.
+                    // Portal-server override record — only for a single delete. Skipped for a
+                    // series delete so a large series doesn't also fire one request per row at
+                    // the portal server on top of the sheet clear below (same reasoning as the
+                    // "all events in series" edit — see updateCalendarRowsBatch).
+                    if (!deleteAll) {
                       for (const t of targets) {
                         fetch("/api/calendar-action", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({ type: "delete", id: t.id })
                         }).catch(err => console.warn("calendar-action delete failed:", err));
-                        if (token && t.sheetRow && t.sheetRow > 0) {
-                          try { await clearCalendarRow(token, sheetTab, t.sheetRow); }
-                          catch (err: any) { console.warn(`Sheet row clear failed for row ${t.sheetRow}:`, err.message); }
-                        }
-                        // Remove from FinanceContext local tasks (portal-created)
-                        deleteCalendarEvent(t.id);
                       }
-                      if (token) loadCalSheetEvents();
-                    })();
+                    }
+                    for (const t of targets) deleteCalendarEvent(t.id);
+                    const token = getAccessToken();
+                    const rowsToClear = targets.map(t => t.sheetRow).filter((r): r is number => !!r && r > 0);
+                    if (token && rowsToClear.length > 0) {
+                      clearCalendarRowsBatch(token, sheetTab, rowsToClear)
+                        .then(() => loadCalSheetEvents())
+                        .catch((err: any) => console.warn("Sheet row clear failed:", err.message));
+                    }
                   }
                   setConfirmDeleteId(null);
                   setSelectedEvent(null);

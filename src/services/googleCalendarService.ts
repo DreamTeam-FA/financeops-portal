@@ -407,14 +407,9 @@ export async function updateCalendarDone(
   await assertOk(res);
 }
 
-// Update specific fields of an existing calendar row (edit without overwriting other columns)
-export async function updateCalendarRow(
-  token: string,
-  tab: string,
-  sheetRow: number,
-  colMap: ColMap,
-  fields: { title?: string; notes?: string; urgency?: string; type?: string; assignee?: string; assigneeColor?: string; assigneeIds?: string[]; done?: boolean; date?: string; time?: string; endTime?: string }
-): Promise<void> {
+export type CalendarRowFields = { title?: string; notes?: string; urgency?: string; type?: string; assignee?: string; assigneeColor?: string; assigneeIds?: string[]; done?: boolean; date?: string; time?: string; endTime?: string };
+
+function buildRowFieldUpdates(tab: string, sheetRow: number, colMap: ColMap, fields: CalendarRowFields): { range: string; values: any[][] }[] {
   const updates: { range: string; values: any[][] }[] = [];
   const col = (i: number) => String.fromCharCode(65 + i);
   const base = `${tab}!`;
@@ -444,7 +439,44 @@ export async function updateCalendarRow(
     if (colMap.end >= 0) updates.push({ range: `${base}${col(colMap.end)}${sheetRow}`, values: [[end]] });
     if (colMap.allDay >= 0) updates.push({ range: `${base}${col(colMap.allDay)}${sheetRow}`, values: [[allDay]] });
   }
+  return updates;
+}
 
+// Update specific fields of an existing calendar row (edit without overwriting other columns)
+export async function updateCalendarRow(
+  token: string,
+  tab: string,
+  sheetRow: number,
+  colMap: ColMap,
+  fields: CalendarRowFields
+): Promise<void> {
+  const updates = buildRowFieldUpdates(tab, sheetRow, colMap, fields);
+  if (updates.length === 0) return;
+
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${CALENDAR_SPREADSHEET_ID}/values:batchUpdate`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ valueInputOption: "USER_ENTERED", data: updates })
+    }
+  );
+  await assertOk(res);
+}
+
+// Update the SAME fields across many rows in ONE Sheets API request. Editing "all events in
+// series" used to call updateCalendarRow once per occurrence (100+ sequential requests for a
+// long series) — Google's per-user write quota would then reject a large chunk of them outright
+// with no way to tell partial failure from success. Google's batchUpdate already accepts any
+// number of ranges in a single call, so folding every row's writes into one request removes the
+// quota risk entirely instead of just spacing the requests out.
+export async function updateCalendarRowsBatch(
+  token: string,
+  tab: string,
+  colMap: ColMap,
+  rows: { sheetRow: number; fields: CalendarRowFields }[]
+): Promise<void> {
+  const updates = rows.flatMap(({ sheetRow, fields }) => buildRowFieldUpdates(tab, sheetRow, colMap, fields));
   if (updates.length === 0) return;
 
   const res = await fetch(
@@ -513,6 +545,27 @@ export async function clearCalendarRow(
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({})
+    }
+  );
+  await assertOk(res);
+}
+
+// Clear many rows in ONE Sheets API request via batchClear — same rate-limit reasoning as
+// updateCalendarRowsBatch: one call per row silently loses rows past Google's write quota on a
+// long series ("delete all events in series"), a single combined request does not.
+export async function clearCalendarRowsBatch(
+  token: string,
+  tab: string,
+  sheetRows: number[]
+): Promise<void> {
+  if (sheetRows.length === 0) return;
+  const ranges = sheetRows.map(row => `${tab}!A${row}:Z${row}`);
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${CALENDAR_SPREADSHEET_ID}/values:batchClear`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ ranges })
     }
   );
   await assertOk(res);
