@@ -180,6 +180,10 @@ export const CalendarPage: React.FC = () => {
   // IDs of events deleted this session — suppresses them even if still in calendarLocalEvents
   const [deletedEventIds, setDeletedEventIds] = useState<Set<string>>(() => new Set(readCalendarOverrides().deleted));
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  // "this" vs "all" scope for editing/deleting a recurring event — only surfaced in
+  // the UI when the selected event has a seriesId (part of a repeat, not a one-off).
+  const [deleteScope, setDeleteScope] = useState<"this" | "all">("this");
+  const [editScope, setEditScope] = useState<"this" | "all">("this");
 
   // On mount: load server-stored calendar overrides to seed doneOverrides + deletedEventIds
   // so they survive page refresh (server is source of truth, not React state)
@@ -237,6 +241,7 @@ export const CalendarPage: React.FC = () => {
     entity?: string;
     billsList?: typeof apBills;
     arList?: typeof arItems;
+    seriesId?: string;
   } | null>(null);
 
   const [taskTitle, setTaskTitle] = useState("");
@@ -486,14 +491,23 @@ export const CalendarPage: React.FC = () => {
     };
 
     const eventId = selectedEvent.id;
+    // Fields shared across every occurrence when "all events in series" is chosen —
+    // date/time deliberately excluded, each occurrence keeps its own.
+    const sharedFields = { title: editTitle, notes: editDesc || "", urgency: editUrgency, type: editCategory, assignee: editAssignee || "" };
+    const applyToAll = editScope === "all" && !!selectedEvent.seriesId;
+    const siblingRows = applyToAll ? sheetEvents.filter(e => e.seriesId === selectedEvent.seriesId && e.id !== eventId) : [];
 
     if (selectedEvent.sheetRow && selectedEvent.sheetRow > 0) {
       // Sheet-backed event — update local state optimistically
-      setSheetEvents(prev => prev.map(e =>
-        e.id === eventId
-          ? { ...e, title: editTitle, date: editDate, time: editTime || undefined, notes: editDesc, urgency: editUrgency, assignee: editAssignee, type: editCategory }
-          : e
-      ));
+      setSheetEvents(prev => prev.map(e => {
+        if (e.id === eventId) {
+          return { ...e, title: editTitle, date: editDate, time: editTime || undefined, notes: editDesc, urgency: editUrgency, assignee: editAssignee, type: editCategory };
+        }
+        if (applyToAll && e.seriesId === selectedEvent.seriesId) {
+          return { ...e, ...sharedFields };
+        }
+        return e;
+      }));
       // Persist to portal server (survives GViz cache and page refresh)
       if (eventId) {
         fetch("/api/calendar-action", {
@@ -508,12 +522,33 @@ export const CalendarPage: React.FC = () => {
       // Write to Google Sheet, then re-read immediately so state is fresh
       const token = getAccessToken();
       if (token) {
-        updateCalendarRow(token, sheetTab, selectedEvent.sheetRow, sheetColMap, {
-          title: editTitle, date: editDate, time: editTime || undefined, endTime: selectedEvent.endTime, notes: editDesc || "", urgency: editUrgency,
-          type: editCategory, assignee: editAssignee || "",
-        }).then(() => loadCalSheetEvents()).catch((err: Error) => {
-          console.warn("Sheet edit write failed:", err.message);
-        });
+        (async () => {
+          try {
+            await updateCalendarRow(token, sheetTab, selectedEvent.sheetRow!, sheetColMap, {
+              title: editTitle, date: editDate, time: editTime || undefined, endTime: selectedEvent.endTime, notes: editDesc || "", urgency: editUrgency,
+              type: editCategory, assignee: editAssignee || "",
+            });
+            // Other occurrences: shared fields only, sequentially — same rate-limit
+            // reasoning as the recurring-create loop (bursts get silently dropped).
+            for (const sib of siblingRows) {
+              if (!sib.sheetRow || sib.sheetRow <= 0) continue;
+              try {
+                await updateCalendarRow(token, sheetTab, sib.sheetRow, sheetColMap, sharedFields);
+                fetch("/api/calendar-action", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ type: "edit", id: sib.id, value: sharedFields })
+                }).catch(err => console.warn("calendar-action edit failed:", err));
+              } catch (err: any) {
+                console.warn(`Sheet edit write failed for series sibling row ${sib.sheetRow}:`, err.message);
+              }
+            }
+          } catch (err: any) {
+            console.warn("Sheet edit write failed:", err.message);
+          } finally {
+            loadCalSheetEvents();
+          }
+        })();
       }
     } else if (eventId && selectedEvent.isLocalTask) {
       // Portal-only local task — persist to server overrides + FinanceContext
@@ -558,6 +593,7 @@ export const CalendarPage: React.FC = () => {
       sheetRow?: number;
       category?: string;
       entity?: string;
+      seriesId?: string;
     }[];
   } = {};
 
@@ -693,6 +729,7 @@ export const CalendarPage: React.FC = () => {
         done: evDone,
         sheetRow: ev.sheetRow,
         urgency: (ev.urgency || "normal") as "critical" | "high" | "normal" | "low",
+        seriesId: ev.seriesId,
       };
     } else {
       eventsByDate[key].push({
@@ -710,6 +747,7 @@ export const CalendarPage: React.FC = () => {
         done: evDone,
         sheetRow: ev.sheetRow,
         category,
+        seriesId: ev.seriesId,
       });
     }
   });
@@ -790,6 +828,9 @@ export const CalendarPage: React.FC = () => {
 
       const dates = getOccurrenceDates(taskDate, taskRepeat, taskRepeat === "none" ? 1 : taskOccurrences);
       const token = getAccessToken();
+      // Occurrences of the same repeat share one seriesId so "delete/edit all" can find
+      // the rest of the series later. A one-off event (no repeat, or a single occurrence) gets none.
+      const seriesId = taskRepeat !== "none" && dates.length > 1 ? `series-${Date.now()}` : undefined;
       // Appends run SEQUENTIALLY (awaited one at a time), not fired as a burst of
       // concurrent requests — Google Sheets' API rate-limits bursts like that and
       // silently rejects most of them, which is why a 20-occurrence repeat could
@@ -818,6 +859,7 @@ export const CalendarPage: React.FC = () => {
           urgency: taskUrgency,
           done: false,
           sheetRow: -1,
+          seriesId,
         };
         setSheetEvents(prev => [...prev, newSheetRow]);
 
@@ -834,6 +876,7 @@ export const CalendarPage: React.FC = () => {
               assigneeColor: assigneeColorVal,
               urgency: taskUrgency,
               id: newId,
+              seriesId,
             });
           } catch (err) {
             failedCount++;
@@ -1204,6 +1247,7 @@ export const CalendarPage: React.FC = () => {
                                   id: ev.id, isLocalTask: ev.isLocalTask, urgency: ev.urgency,
                                   assignee: ev.assignee, assigneeColor: ev.assigneeColor, assigneeIds: ev.assigneeIds,
                                   done: ev.done, sheetRow: ev.sheetRow, category: ev.category, entity: (ev as any).entity || "",
+                                  seriesId: ev.seriesId,
                                 };
                                 setSelectedEvent(sel);
                                 setEditTitle(cleanLabel);
@@ -1421,6 +1465,7 @@ export const CalendarPage: React.FC = () => {
                                     sheetRow: ev.sheetRow,
                                     category: ev.category,
                                     entity: (ev as any).entity || "",
+                                    seriesId: ev.seriesId,
                                   };
                                   setSelectedEvent(sel);
                                   setEditTitle(sel.title.replace(/^\[[^\]]+\]\s*/, ""));
@@ -1600,6 +1645,7 @@ export const CalendarPage: React.FC = () => {
                                 sheetRow: ev.sheetRow,
                                 category: ev.category,
                                 entity: (ev as any).entity || "",
+                                seriesId: ev.seriesId,
                               };
                               setSelectedEvent(sel);
                               setEditTitle(sel.title.replace(/^\[[^\]]+\]\s*/, ""));
@@ -1716,6 +1762,7 @@ export const CalendarPage: React.FC = () => {
                         id: ev.id, isLocalTask: ev.isLocalTask, urgency: ev.urgency,
                         assignee: ev.assignee, assigneeColor: ev.assigneeColor, assigneeIds: ev.assigneeIds,
                         done: ev.done, sheetRow: ev.sheetRow, category: ev.category, entity: (ev as any).entity || "",
+                        seriesId: ev.seriesId,
                       };
                       setSelectedEvent(sel);
                       setEditTitle(cleanLabel);
@@ -1872,18 +1919,52 @@ export const CalendarPage: React.FC = () => {
                 </div>
               ) : (
                 /* Edit form */
-                <EditFormBody
-                  editDate={editDate} setEditDate={setEditDate}
-                  editTime={editTime} setEditTime={setEditTime}
-                  editCategory={editCategory} setEditCategory={setEditCategory}
-                  editUrgency={editUrgency} setEditUrgency={setEditUrgency}
-                  editAssignee={editAssignee} setEditAssignee={setEditAssignee}
-                  editDesc={editDesc} setEditDesc={setEditDesc}
-                  assignees={assignees}
-                  isLight={isLight}
-                  accentHex={URGENCY_ACCENT[editUrgency].hex}
-                  urgencyPill={URGENCY_PILL}
-                />
+                <>
+                  <EditFormBody
+                    editDate={editDate} setEditDate={setEditDate}
+                    editTime={editTime} setEditTime={setEditTime}
+                    editCategory={editCategory} setEditCategory={setEditCategory}
+                    editUrgency={editUrgency} setEditUrgency={setEditUrgency}
+                    editAssignee={editAssignee} setEditAssignee={setEditAssignee}
+                    editDesc={editDesc} setEditDesc={setEditDesc}
+                    assignees={assignees}
+                    isLight={isLight}
+                    accentHex={URGENCY_ACCENT[editUrgency].hex}
+                    urgencyPill={URGENCY_PILL}
+                  />
+                  {selectedEvent.seriesId && (
+                    <div className={`mt-3 pt-3 border-t ${isLight ? "border-slate-100" : "border-white/8"}`}>
+                      <label className={`block text-[11px] font-bold mb-1.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                        This is part of a repeating event — apply changes to:
+                      </label>
+                      <div className="flex gap-2">
+                        <button type="button" onClick={() => setEditScope("this")}
+                          className={`flex-1 px-3 py-1.5 rounded-lg text-[12px] font-bold border transition-all ${
+                            editScope === "this"
+                              ? "text-white"
+                              : (isLight ? "border-slate-200 text-slate-600 bg-white" : "border-[#2E3340] text-slate-400 bg-[#20242E]")
+                          }`}
+                          style={editScope === "this" ? { background: URGENCY_ACCENT[editUrgency].hex, borderColor: URGENCY_ACCENT[editUrgency].hex } : undefined}>
+                          Only this event
+                        </button>
+                        <button type="button" onClick={() => setEditScope("all")}
+                          className={`flex-1 px-3 py-1.5 rounded-lg text-[12px] font-bold border transition-all ${
+                            editScope === "all"
+                              ? "text-white"
+                              : (isLight ? "border-slate-200 text-slate-600 bg-white" : "border-[#2E3340] text-slate-400 bg-[#20242E]")
+                          }`}
+                          style={editScope === "all" ? { background: URGENCY_ACCENT[editUrgency].hex, borderColor: URGENCY_ACCENT[editUrgency].hex } : undefined}>
+                          All events in series
+                        </button>
+                      </div>
+                      {editScope === "all" && (
+                        <p className={`text-[10.5px] mt-1.5 ${isLight ? "text-slate-400" : "text-slate-500"}`}>
+                          Title, description, urgency, category and assignee will update on every occurrence. Date and time only change for this one.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
@@ -1988,14 +2069,14 @@ export const CalendarPage: React.FC = () => {
                       </div>
                     )}
                     {!selectedEvent.billsList && selectedEvent.isLocalTask && (
-                      <button onClick={() => setIsEditingEvent(true)}
+                      <button onClick={() => { setEditScope("this"); setIsEditingEvent(true); }}
                         className={`px-[14px] py-[7px] rounded-lg text-xs font-bold flex items-center gap-1.5 border transition-all ${isLight ? "border-slate-200 text-slate-700 bg-white hover:bg-slate-50" : "border-[#2E3340] text-slate-300 bg-[#20242E] hover:bg-white/5"}`}>
                         ✏️ Edit
                       </button>
                     )}
                     {!selectedEvent.billsList && selectedEvent.isLocalTask && (
                       <button
-                        onClick={() => setConfirmDeleteId(selectedEvent.id || "__pending__")}
+                        onClick={() => { setDeleteScope("this"); setConfirmDeleteId(selectedEvent.id || "__pending__"); }}
                         className="px-[14px] py-[7px] rounded-lg text-xs font-bold flex items-center gap-1.5 border border-[#FFC9C9] text-[#D92D20] bg-[#FFF0F0] hover:brightness-95 transition-all ml-auto">
                         🗑 Delete
                       </button>
@@ -2097,6 +2178,30 @@ export const CalendarPage: React.FC = () => {
             <p className="text-xs text-slate-500">
               This will permanently remove <span className="font-semibold text-slate-700 dark:text-slate-200">{selectedEvent?.title}</span> from the calendar. This cannot be undone.
             </p>
+            {selectedEvent?.seriesId && (() => {
+              const seriesCount = sheetEvents.filter(e => e.seriesId === selectedEvent.seriesId).length;
+              return (
+                <div>
+                  <label className={`block text-[11px] font-bold mb-1.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                    This is part of a repeating event — delete:
+                  </label>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => setDeleteScope("this")}
+                      className={`flex-1 px-3 py-1.5 rounded-lg text-[12px] font-bold border transition-all ${
+                        deleteScope === "this" ? "bg-[#D92D20] border-[#D92D20] text-white" : (isLight ? "border-slate-200 text-slate-600 bg-white" : "border-[#2E3340] text-slate-400 bg-[#20242E]")
+                      }`}>
+                      Only this event
+                    </button>
+                    <button type="button" onClick={() => setDeleteScope("all")}
+                      className={`flex-1 px-3 py-1.5 rounded-lg text-[12px] font-bold border transition-all ${
+                        deleteScope === "all" ? "bg-[#D92D20] border-[#D92D20] text-white" : (isLight ? "border-slate-200 text-slate-600 bg-white" : "border-[#2E3340] text-slate-400 bg-[#20242E]")
+                      }`}>
+                      All {seriesCount} events in series
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setConfirmDeleteId(null)}
@@ -2106,30 +2211,40 @@ export const CalendarPage: React.FC = () => {
               <button
                 onClick={() => {
                   const evId = confirmDeleteId === "__pending__" ? selectedEvent?.id : confirmDeleteId;
-                  if (evId) {
-                    // Use sheetRow from selectedEvent directly (already merged from eventsByDate)
-                    const sheetRow = selectedEvent?.sheetRow && selectedEvent.sheetRow > 0
-                      ? selectedEvent.sheetRow
-                      : sheetEvents.find(e => e.id === evId)?.sheetRow;
+                  const deleteAll = deleteScope === "all" && !!selectedEvent?.seriesId;
+                  // The whole series (current event included) when deleteAll, else just this one.
+                  const targets = deleteAll
+                    ? sheetEvents.filter(e => e.seriesId === selectedEvent!.seriesId)
+                    : (evId ? [{
+                        id: evId,
+                        sheetRow: (selectedEvent?.sheetRow && selectedEvent.sheetRow > 0)
+                          ? selectedEvent.sheetRow
+                          : sheetEvents.find(e => e.id === evId)?.sheetRow,
+                      } as any] : []);
+                  if (targets.length > 0) {
+                    const targetIds = new Set(targets.map(t => t.id));
                     // Remove from sheetEvents local state
-                    setSheetEvents(prev => prev.filter(e => e.id !== evId));
+                    setSheetEvents(prev => prev.filter(e => !targetIds.has(e.id)));
                     // Suppress from calendarLocalEvents display this session
-                    setDeletedEventIds(prev => new Set([...prev, evId]));
-                    // Persist delete to portal server — PRIMARY persistence (survives GViz cache)
-                    fetch("/api/calendar-action", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ type: "delete", id: evId })
-                    }).catch(err => console.warn("calendar-action delete failed:", err));
-                    // Clear the sheet row, then re-read so deletion is confirmed fresh
+                    setDeletedEventIds(prev => new Set([...prev, ...targetIds]));
                     const token = getAccessToken();
-                    if (token && sheetRow && sheetRow > 0) {
-                      clearCalendarRow(token, sheetTab, sheetRow)
-                        .then(() => loadCalSheetEvents())
-                        .catch(err => console.warn("Sheet row clear failed:", err));
-                    }
-                    // Remove from FinanceContext local tasks (portal-created)
-                    deleteCalendarEvent(evId);
+                    (async () => {
+                      // Sequential — same Sheets rate-limit reasoning as the recurring-create loop.
+                      for (const t of targets) {
+                        fetch("/api/calendar-action", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ type: "delete", id: t.id })
+                        }).catch(err => console.warn("calendar-action delete failed:", err));
+                        if (token && t.sheetRow && t.sheetRow > 0) {
+                          try { await clearCalendarRow(token, sheetTab, t.sheetRow); }
+                          catch (err: any) { console.warn(`Sheet row clear failed for row ${t.sheetRow}:`, err.message); }
+                        }
+                        // Remove from FinanceContext local tasks (portal-created)
+                        deleteCalendarEvent(t.id);
+                      }
+                      if (token) loadCalSheetEvents();
+                    })();
                   }
                   setConfirmDeleteId(null);
                   setSelectedEvent(null);

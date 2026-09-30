@@ -139,12 +139,15 @@ export interface CalSheetRow {
   urgency: string;
   done: boolean;
   sheetRow: number; // 1-indexed row number in the spreadsheet
+  // Shared by every occurrence created together from one repeating event — lets
+  // "delete/edit all" find the rest of the series. Undefined for a one-off event.
+  seriesId?: string;
 }
 
 export interface ColMap {
   date: number; title: number; notes: number; entity: number;
   type: number; assignee: number; urgency: number; done: number; id: number;
-  end: number; allDay: number;
+  end: number; allDay: number; seriesId: number;
 }
 
 // Column map based on actual calendar sheet structure:
@@ -153,7 +156,7 @@ export interface ColMap {
 // L(11)=assigneeName, M(12)=assigneeColor, N(13)=assigneeIds, O(14)=seriesId, P(15)=done
 const DEFAULT_COL_MAP: ColMap = {
   id: 0, title: 2, notes: 3, date: 4, end: 5, allDay: 6, done: 15,
-  entity: 7, urgency: 8, type: 9, assignee: 11
+  entity: 7, urgency: 8, type: 9, assignee: 11, seriesId: 14
 };
 
 // Convert a raw cell value (epoch ms string, Sheets date serial, or date string)
@@ -236,6 +239,7 @@ function detectColMap(header: string[]): ColMap {
     else if (/^urgen|^priority/.test(s)) map.urgency = i;
     else if (/^done|^complet|^status/.test(s)) map.done = i;
     else if (/^id$|^row_id/.test(s)) map.id = i;
+    else if (/^series/.test(s)) map.seriesId = i;
   });
   return map;
 }
@@ -313,6 +317,7 @@ export async function loadCalendarSheet(token: string): Promise<{
 
     const doneRaw = (row[colMap.done] || "").toLowerCase().trim();
     const done = doneRaw === "true" || doneRaw === "yes" || doneRaw === "1" || doneRaw === "done" || doneRaw === "✓";
+    const seriesId = (row[colMap.seriesId] || "").trim() || undefined;
 
     events.push({
       id: row[colMap.id]?.trim() || `calsheet-${rowOffset + i}`,
@@ -330,6 +335,7 @@ export async function loadCalendarSheet(token: string): Promise<{
       urgency: row[colMap.urgency] || "normal",
       done,
       sheetRow: rowOffset + i,
+      seriesId,
     });
   });
 
@@ -353,7 +359,7 @@ async function assertOk(res: Response): Promise<void> {
 export async function appendCalendarRow(
   token: string,
   tab: string,
-  event: { date: string; time?: string; title: string; notes?: string; entity?: string; type?: string; assignee?: string; assigneeColor?: string; urgency?: string; id: string }
+  event: { date: string; time?: string; title: string; notes?: string; entity?: string; type?: string; assignee?: string; assigneeColor?: string; urgency?: string; id: string; seriesId?: string }
 ): Promise<void> {
   const { start, end, allDay } = calendarTimestamps(event.date, event.time);
   // The Calendar source is a structured A:P sheet.  Keep the fixed columns used
@@ -364,7 +370,7 @@ export async function appendCalendarRow(
   const values = [[
     event.id, "portal", event.title, event.notes || "", start, end, allDay,
     event.entity || "Ruby's", event.urgency || "normal", event.type || "task",
-    "", event.assignee || "", event.assigneeColor || "", "", "", "FALSE"
+    "", event.assignee || "", event.assigneeColor || "", "", event.seriesId || "", "FALSE"
   ]];
   const range = `${tab}!A:P`;
   const res = await fetch(
