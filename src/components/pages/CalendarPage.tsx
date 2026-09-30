@@ -50,19 +50,54 @@ function readCalendarOverrides(): { done: Record<string, boolean>; deleted: stri
   }
 }
 
+// Toggleable pill grid for picking one or more team members — shared by the Add-task
+// modal and the Edit form. Selection is by roster id, matching the assigneeIds contract
+// (see getEventColorBars): ids and comma-joined names must stay in the same order.
+const AssigneeMultiSelect: React.FC<{
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+  assignees: { id: string; name: string; color: string }[];
+  isLight: boolean;
+}> = ({ selectedIds, onChange, assignees, isLight }) => {
+  const toggle = (id: string) => {
+    onChange(selectedIds.includes(id) ? selectedIds.filter(x => x !== id) : [...selectedIds, id]);
+  };
+  if (assignees.length === 0) {
+    return <p className={`text-[11px] ${isLight ? "text-slate-400" : "text-slate-500"}`}>No team members yet — add one via Team Assignees.</p>;
+  }
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {assignees.map(a => {
+        const isSel = selectedIds.includes(a.id);
+        return (
+          <button key={a.id} type="button" onClick={() => toggle(a.id)}
+            className={`px-2.5 py-1 rounded-full border text-[11px] font-bold flex items-center gap-1.5 transition-all ${
+              isSel ? "text-white" : (isLight ? "border-slate-200 text-slate-600 bg-white hover:bg-slate-50" : "border-[#2E3340] text-slate-400 bg-[#20242E] hover:bg-white/5")
+            }`}
+            style={isSel ? { background: a.color, borderColor: a.color } : undefined}
+          >
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: isSel ? "#fff" : a.color }} />
+            {a.name}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
 // Extracted edit-form body so we avoid an IIFE inside JSX ternary (invalid in esbuild/vite)
 const EditFormBody: React.FC<{
   editDate: string; setEditDate: (v: string) => void;
   editTime: string; setEditTime: (v: string) => void;
   editCategory: "event"|"task"|"meeting"; setEditCategory: (v: "event"|"task"|"meeting") => void;
   editUrgency: "critical"|"high"|"normal"|"low"; setEditUrgency: (v: "critical"|"high"|"normal"|"low") => void;
-  editAssignee: string; setEditAssignee: (v: string) => void;
+  editAssigneeIds: string[]; setEditAssigneeIds: (v: string[]) => void;
   editDesc: string; setEditDesc: (v: string) => void;
   assignees: { id: string; name: string; color: string }[];
   isLight: boolean;
   accentHex: string;
   urgencyPill: Record<"critical"|"high"|"normal"|"low", { dot: string; active: string; inactive: string }>;
-}> = ({ editDate, setEditDate, editTime, setEditTime, editCategory, setEditCategory, editUrgency, setEditUrgency, editAssignee, setEditAssignee, editDesc, setEditDesc, assignees, isLight, accentHex, urgencyPill }) => {
+}> = ({ editDate, setEditDate, editTime, setEditTime, editCategory, setEditCategory, editUrgency, setEditUrgency, editAssigneeIds, setEditAssigneeIds, editDesc, setEditDesc, assignees, isLight, accentHex, urgencyPill }) => {
   const inputCls = `w-full rounded-lg px-2.5 py-2 border-[1.5px] text-[13px] transition-colors focus:outline-none ${isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#2a2f3e] border-[#3a3f50] text-white"}`;
   const onFocus = (e: React.FocusEvent<HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement>) => { e.target.style.borderColor = accentHex; };
   const onBlur  = (e: React.FocusEvent<HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement>) => { e.target.style.borderColor = ""; };
@@ -106,13 +141,10 @@ const EditFormBody: React.FC<{
           })}
         </div>
       </div>
-      {/* Assignee */}
+      {/* Assignee(s) — multi-select */}
       <div>
-        <label className={lbl}>Assignee</label>
-        <select value={editAssignee} onChange={e => setEditAssignee(e.target.value)} className={inputCls} onFocus={onFocus} onBlur={onBlur}>
-          <option value="">— Unassigned —</option>
-          {assignees.map(a => <option key={a.id} value={a.name}>{a.name}</option>)}
-        </select>
+        <label className={lbl}>Assignee(s)</label>
+        <AssigneeMultiSelect selectedIds={editAssigneeIds} onChange={setEditAssigneeIds} assignees={assignees} isLight={isLight} />
       </div>
       {/* Notes */}
       <div>
@@ -249,9 +281,9 @@ export const CalendarPage: React.FC = () => {
   const [taskTime, setTaskTime] = useState("09:00");
   const [taskCategory, setTaskCategory] = useState<"event" | "task" | "meeting">("event");
   const [taskUrgency, setTaskUrgency] = useState<"critical" | "high" | "normal" | "low">("normal");
-  const [taskAssignee, setTaskAssignee] = useState("");
+  // Roster ids of the selected assignees (multi-select) — comma-joined names + first
+  // assignee's color are derived from this at submit time for the legacy single-value fields.
   const [taskAssignees, setTaskAssignees] = useState<string[]>([]);
-  const [showAssigneeDropdown, setShowAssigneeDropdown] = useState(false);
   const [taskDesc, setTaskDesc] = useState("");
   const [taskRepeat, setTaskRepeat] = useState<"none" | "daily" | "weekly" | "monthly" | "annually">("none");
   const [taskOccurrences, setTaskOccurrences] = useState(2);
@@ -266,7 +298,7 @@ export const CalendarPage: React.FC = () => {
   const [editTime, setEditTime] = useState("");
   const [editCategory, setEditCategory] = useState<"event" | "task" | "meeting">("task");
   const [editUrgency, setEditUrgency] = useState<"critical" | "high" | "normal" | "low">("normal");
-  const [editAssignee, setEditAssignee] = useState("");
+  const [editAssigneeIds, setEditAssigneeIds] = useState<string[]>([]);
   const [editDesc, setEditDesc] = useState("");
 
 
@@ -480,6 +512,11 @@ export const CalendarPage: React.FC = () => {
   // Edit save handler
   const handleSaveEdit = () => {
     if (!selectedEvent) return;
+    // Derive the legacy single-value fields from the multi-select — comma-joined names in
+    // the SAME order as editAssigneeIds (see getEventColorBars' contract), first pick's color.
+    const editAssigneeNames = editAssigneeIds.map(id => assignees.find((a: any) => a.id === id)?.name).filter(Boolean) as string[];
+    const editAssignee = editAssigneeNames.join(", ");
+    const editAssigneeColor = editAssigneeIds.length > 0 ? (assignees.find((a: any) => a.id === editAssigneeIds[0])?.color || "") : "";
     const updates = {
       title: editTitle,
       date: editDate,
@@ -493,7 +530,10 @@ export const CalendarPage: React.FC = () => {
     const eventId = selectedEvent.id;
     // Fields shared across every occurrence when "all events in series" is chosen —
     // date/time deliberately excluded, each occurrence keeps its own.
-    const sharedFields = { title: editTitle, notes: editDesc || "", urgency: editUrgency, type: editCategory, assignee: editAssignee || "" };
+    const sharedFields = {
+      title: editTitle, notes: editDesc || "", urgency: editUrgency, type: editCategory,
+      assignee: editAssignee || "", assigneeColor: editAssigneeColor, assigneeIds: editAssigneeIds,
+    };
     const applyToAll = editScope === "all" && !!selectedEvent.seriesId;
     const siblingRows = applyToAll ? sheetEvents.filter(e => e.seriesId === selectedEvent.seriesId && e.id !== eventId) : [];
 
@@ -501,7 +541,7 @@ export const CalendarPage: React.FC = () => {
       // Sheet-backed event — update local state optimistically
       setSheetEvents(prev => prev.map(e => {
         if (e.id === eventId) {
-          return { ...e, title: editTitle, date: editDate, time: editTime || undefined, notes: editDesc, urgency: editUrgency, assignee: editAssignee, type: editCategory };
+          return { ...e, title: editTitle, date: editDate, time: editTime || undefined, notes: editDesc, urgency: editUrgency, assignee: editAssignee, assigneeColor: editAssigneeColor, assigneeIds: editAssigneeIds, type: editCategory };
         }
         if (applyToAll && e.seriesId === selectedEvent.seriesId) {
           return { ...e, ...sharedFields };
@@ -515,7 +555,7 @@ export const CalendarPage: React.FC = () => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ type: "edit", id: eventId, value: {
             title: editTitle, date: editDate, time: editTime || undefined, notes: editDesc || "", urgency: editUrgency,
-            type: editCategory, assignee: editAssignee || ""
+            type: editCategory, assignee: editAssignee || "", assigneeColor: editAssigneeColor, assigneeIds: editAssigneeIds,
           }})
         }).catch(err => console.warn("calendar-action edit failed:", err));
       }
@@ -523,10 +563,11 @@ export const CalendarPage: React.FC = () => {
       const token = getAccessToken();
       if (token) {
         (async () => {
+          let siblingFailed = 0;
           try {
             await updateCalendarRow(token, sheetTab, selectedEvent.sheetRow!, sheetColMap, {
               title: editTitle, date: editDate, time: editTime || undefined, endTime: selectedEvent.endTime, notes: editDesc || "", urgency: editUrgency,
-              type: editCategory, assignee: editAssignee || "",
+              type: editCategory, assignee: editAssignee || "", assigneeColor: editAssigneeColor, assigneeIds: editAssigneeIds,
             });
             // Other occurrences: shared fields only, sequentially — same rate-limit
             // reasoning as the recurring-create loop (bursts get silently dropped).
@@ -540,11 +581,20 @@ export const CalendarPage: React.FC = () => {
                   body: JSON.stringify({ type: "edit", id: sib.id, value: sharedFields })
                 }).catch(err => console.warn("calendar-action edit failed:", err));
               } catch (err: any) {
+                siblingFailed++;
                 console.warn(`Sheet edit write failed for series sibling row ${sib.sheetRow}:`, err.message);
+              }
+            }
+            if (applyToAll) {
+              if (siblingFailed > 0) {
+                showToast?.(`Updated this event, but ${siblingFailed} of ${siblingRows.length} other occurrence(s) failed to save — try again or edit them individually.`, "error", 8000);
+              } else {
+                showToast?.(`Updated all ${siblingRows.length + 1} events in the series.`, "success");
               }
             }
           } catch (err: any) {
             console.warn("Sheet edit write failed:", err.message);
+            showToast?.("Failed to save this event to the sheet — try again.", "error", 8000);
           } finally {
             loadCalSheetEvents();
           }
@@ -821,10 +871,11 @@ export const CalendarPage: React.FC = () => {
     try {
       // Title stores only the label — assignee is stored in its own sheet column
       const fullTitle = `[${taskCategory.toUpperCase()}] ${taskTitle}`;
-      // Look up the assignee's color from the assignees list
-      const assigneeColorVal = taskAssignee.trim()
-        ? (assignees.find(a => a.name === taskAssignee.trim())?.color || "")
-        : "";
+      // Comma-joined names in the SAME order as taskAssignees (id array) — see
+      // getEventColorBars' contract for why the order has to line up.
+      const assigneeNames = taskAssignees.map(id => assignees.find((a: any) => a.id === id)?.name).filter(Boolean) as string[];
+      const assigneeJoined = assigneeNames.join(", ");
+      const assigneeColorVal = taskAssignees.length > 0 ? (assignees.find((a: any) => a.id === taskAssignees[0])?.color || "") : "";
 
       const dates = getOccurrenceDates(taskDate, taskRepeat, taskRepeat === "none" ? 1 : taskOccurrences);
       const token = getAccessToken();
@@ -854,8 +905,9 @@ export const CalendarPage: React.FC = () => {
           notes: taskDesc,
           entity: "Ruby's",
           type: taskCategory,
-          assignee: taskAssignee.trim(),
+          assignee: assigneeJoined,
           assigneeColor: assigneeColorVal,
+          assigneeIds: taskAssignees,
           urgency: taskUrgency,
           done: false,
           sheetRow: -1,
@@ -872,8 +924,9 @@ export const CalendarPage: React.FC = () => {
               notes: taskDesc,
               entity: "Ruby's",
               type: taskCategory,
-              assignee: taskAssignee.trim(),
+              assignee: assigneeJoined,
               assigneeColor: assigneeColorVal,
+              assigneeIds: taskAssignees,
               urgency: taskUrgency,
               id: newId,
               seriesId,
@@ -912,7 +965,7 @@ export const CalendarPage: React.FC = () => {
       }
 
       setTaskTitle("");
-      setTaskAssignee("");
+      setTaskAssignees([]);
       setTaskDesc("");
       setTaskRepeat("none");
       setTaskOccurrences(2);
@@ -1255,7 +1308,7 @@ export const CalendarPage: React.FC = () => {
                                 setEditTime(sel.time || "");
                                 setEditCategory((sel.category as any) || "task");
                                 setEditUrgency((sel.urgency as any) || "normal");
-                                setEditAssignee(sel.assignee || "");
+                                setEditAssigneeIds(sel.assigneeIds || []);
                                 setEditDesc(sel.description || "");
                                 setIsEditingEvent(false);
                               }}
@@ -1473,7 +1526,7 @@ export const CalendarPage: React.FC = () => {
                                   setEditTime(sel.time || "");
                                   setEditCategory((sel.category as any) || "task");
                                   setEditUrgency((sel.urgency as any) || "normal");
-                                  setEditAssignee(sel.assignee || "");
+                                  setEditAssigneeIds(sel.assigneeIds || []);
                                   setEditDesc(sel.description || "");
                                   setIsEditingEvent(false);
                                 }}
@@ -1653,7 +1706,7 @@ export const CalendarPage: React.FC = () => {
                               setEditTime(sel.time || "");
                               setEditCategory((sel.category as any) || "task");
                               setEditUrgency((sel.urgency as any) || "normal");
-                              setEditAssignee(sel.assignee || "");
+                              setEditAssigneeIds(sel.assigneeIds || []);
                               setEditDesc(sel.description || "");
                               setIsEditingEvent(false);
                             }}
@@ -1770,7 +1823,7 @@ export const CalendarPage: React.FC = () => {
                       setEditTime(sel.time || "");
                       setEditCategory((sel.category as any) || "task");
                       setEditUrgency((sel.urgency as any) || "normal");
-                      setEditAssignee(sel.assignee || "");
+                      setEditAssigneeIds(sel.assigneeIds || []);
                       setEditDesc(sel.description || "");
                       setIsEditingEvent(false);
                     }}
@@ -1925,7 +1978,7 @@ export const CalendarPage: React.FC = () => {
                     editTime={editTime} setEditTime={setEditTime}
                     editCategory={editCategory} setEditCategory={setEditCategory}
                     editUrgency={editUrgency} setEditUrgency={setEditUrgency}
-                    editAssignee={editAssignee} setEditAssignee={setEditAssignee}
+                    editAssigneeIds={editAssigneeIds} setEditAssigneeIds={setEditAssigneeIds}
                     editDesc={editDesc} setEditDesc={setEditDesc}
                     assignees={assignees}
                     isLight={isLight}
@@ -2363,21 +2416,8 @@ export const CalendarPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold mb-1 text-slate-500">Assignee</label>
-                <select
-                  value={taskAssignee}
-                  onChange={(e) => setTaskAssignee(e.target.value)}
-                  className={`w-full ${isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-[#0d111a] border-[#333] text-white"} border rounded-lg px-3 py-1.5 focus:outline-none`}
-                  onFocus={e => (e.target.style.borderColor = accent.hex)}
-                  onBlur={e => (e.target.style.borderColor = "")}
-                >
-                  <option value="">Unassigned</option>
-                  {assignees.map((a) => (
-                    <option key={a.id} value={a.name}>
-                      {a.name}
-                    </option>
-                  ))}
-                </select>
+                <label className="block font-semibold mb-1 text-slate-500">Assignee(s)</label>
+                <AssigneeMultiSelect selectedIds={taskAssignees} onChange={setTaskAssignees} assignees={assignees} isLight={isLight} />
               </div>
 
               <div>

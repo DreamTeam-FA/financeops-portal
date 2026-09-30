@@ -359,7 +359,7 @@ async function assertOk(res: Response): Promise<void> {
 export async function appendCalendarRow(
   token: string,
   tab: string,
-  event: { date: string; time?: string; title: string; notes?: string; entity?: string; type?: string; assignee?: string; assigneeColor?: string; urgency?: string; id: string; seriesId?: string }
+  event: { date: string; time?: string; title: string; notes?: string; entity?: string; type?: string; assignee?: string; assigneeColor?: string; assigneeIds?: string[]; urgency?: string; id: string; seriesId?: string }
 ): Promise<void> {
   const { start, end, allDay } = calendarTimestamps(event.date, event.time);
   // The Calendar source is a structured A:P sheet.  Keep the fixed columns used
@@ -370,7 +370,9 @@ export async function appendCalendarRow(
   const values = [[
     event.id, "portal", event.title, event.notes || "", start, end, allDay,
     event.entity || "Ruby's", event.urgency || "normal", event.type || "task",
-    "", event.assignee || "", event.assigneeColor || "", "", event.seriesId || "", "FALSE"
+    event.assigneeIds?.[0] || "", event.assignee || "", event.assigneeColor || "",
+    event.assigneeIds && event.assigneeIds.length > 0 ? JSON.stringify(event.assigneeIds) : "",
+    event.seriesId || "", "FALSE"
   ]];
   const range = `${tab}!A:P`;
   const res = await fetch(
@@ -411,7 +413,7 @@ export async function updateCalendarRow(
   tab: string,
   sheetRow: number,
   colMap: ColMap,
-  fields: { title?: string; notes?: string; urgency?: string; type?: string; assignee?: string; done?: boolean; date?: string; time?: string; endTime?: string }
+  fields: { title?: string; notes?: string; urgency?: string; type?: string; assignee?: string; assigneeColor?: string; assigneeIds?: string[]; done?: boolean; date?: string; time?: string; endTime?: string }
 ): Promise<void> {
   const updates: { range: string; values: any[][] }[] = [];
   const col = (i: number) => String.fromCharCode(65 + i);
@@ -427,6 +429,12 @@ export async function updateCalendarRow(
     updates.push({ range: `${base}${col(colMap.type)}${sheetRow}`, values: [[fields.type]] });
   if (fields.assignee !== undefined && colMap.assignee >= 0)
     updates.push({ range: `${base}${col(colMap.assignee)}${sheetRow}`, values: [[fields.assignee]] });
+  // assigneeColor (col M) and assigneeIds (col N) are fixed columns, same as appendCalendarRow —
+  // not resolved through colMap since only the assignee display name is header-detected.
+  if (fields.assigneeColor !== undefined)
+    updates.push({ range: `${base}M${sheetRow}`, values: [[fields.assigneeColor]] });
+  if (fields.assigneeIds !== undefined)
+    updates.push({ range: `${base}N${sheetRow}`, values: [[fields.assigneeIds.length > 0 ? JSON.stringify(fields.assigneeIds) : ""]] });
   if (fields.done !== undefined && colMap.done >= 0)
     updates.push({ range: `${base}${col(colMap.done)}${sheetRow}`, values: [[fields.done ? "TRUE" : "FALSE"]] });
 
