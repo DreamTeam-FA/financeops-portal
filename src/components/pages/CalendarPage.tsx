@@ -529,11 +529,14 @@ export const CalendarPage: React.FC = () => {
     };
 
     const eventId = selectedEvent.id;
-    // Fields shared across every occurrence when "all events in series" is chosen —
-    // date/time deliberately excluded, each occurrence keeps its own.
+    // Fields shared across every occurrence when "all events in series" is chosen. The DATE
+    // is deliberately excluded — each occurrence must keep its own, or the series collapses
+    // onto one day — but the time-of-day is a legitimate "same meeting, new time" edit and
+    // does apply to every occurrence, each on its own existing date.
     const sharedFields = {
       title: editTitle, notes: editDesc || "", urgency: editUrgency, type: editCategory,
       assignee: editAssignee || "", assigneeColor: editAssigneeColor, assigneeIds: editAssigneeIds,
+      time: editTime || undefined,
     };
     const applyToAll = editScope === "all" && !!selectedEvent.seriesId;
     const siblingRows = applyToAll ? sheetEvents.filter(e => e.seriesId === selectedEvent.seriesId && e.id !== eventId) : [];
@@ -574,7 +577,12 @@ export const CalendarPage: React.FC = () => {
                 title: editTitle, date: editDate, time: editTime || undefined, endTime: selectedEvent.endTime, notes: editDesc || "", urgency: editUrgency,
                 type: editCategory, assignee: editAssignee || "", assigneeColor: editAssigneeColor, assigneeIds: editAssigneeIds,
               } },
-              ...siblingRows.filter(sib => sib.sheetRow && sib.sheetRow > 0).map(sib => ({ sheetRow: sib.sheetRow, fields: sharedFields })),
+              // date/endTime come from each sibling's OWN row — only the time-of-day is shared —
+              // buildRowFieldUpdates only touches start/end at all when `date` is present, so
+              // it has to be included here even though it's each row's existing, unchanged date.
+              ...siblingRows.filter(sib => sib.sheetRow && sib.sheetRow > 0).map(sib => ({
+                sheetRow: sib.sheetRow, fields: { ...sharedFields, date: sib.date, endTime: sib.endTime },
+              })),
             ];
             await updateCalendarRowsBatch(token, sheetTab, sheetColMap, rows);
             if (applyToAll) showToast?.(`Updated all ${rows.length} events in the series.`, "success");
@@ -2001,7 +2009,7 @@ export const CalendarPage: React.FC = () => {
                       </div>
                       {editScope === "all" && (
                         <p className={`text-[10.5px] mt-1.5 ${isLight ? "text-slate-400" : "text-slate-500"}`}>
-                          Title, description, urgency, category and assignee will update on every occurrence. Date and time only change for this one.
+                          Title, description, urgency, category, assignee(s), and time-of-day will update on every occurrence. Only the date stays unique to each one.
                         </p>
                       )}
                     </div>
