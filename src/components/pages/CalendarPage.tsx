@@ -590,7 +590,20 @@ export const CalendarPage: React.FC = () => {
             console.warn("Sheet edit write failed:", err.message);
             showToast?.(applyToAll ? "Failed to save the series to the sheet — try again." : "Failed to save this event to the sheet — try again.", "error", 8000);
           } finally {
-            loadCalSheetEvents();
+            // Re-derive endTime server-side (calendarTimestamps' end<=start fallback can compute
+            // a different value than what was passed in) and refresh straight into the open modal
+            // instead of just the background sheetEvents list — otherwise the popup kept showing
+            // the pre-save time until it was closed and reopened.
+            try {
+              const fresh = await loadCalendarSheet(token);
+              setSheetEvents(fresh.events);
+              setSheetTab(fresh.tab);
+              setSheetColMap(fresh.colMap);
+              const freshSelf = fresh.events.find(e => e.id === eventId);
+              if (freshSelf) setSelectedEvent(prev => prev ? { ...prev, time: freshSelf.time, endTime: freshSelf.endTime, date: freshSelf.date } : null);
+            } catch (err: any) {
+              console.warn("[handleSaveEdit] reload after save failed:", err.message);
+            }
           }
         })();
       }
