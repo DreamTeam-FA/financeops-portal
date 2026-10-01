@@ -30,6 +30,7 @@ const StatusBadge: React.FC<{ status: Status; isLight: boolean }> = ({ status, i
     due:      { cls: "bg-[#fb923c]/20 text-[#fb923c]", text: "Due" },
     overdue:  { cls: `bg-[#dc2626]/20 ${isLight ? "text-red-600" : "text-[#f87171]"}`, text: "Overdue" },
     upcoming: { cls: isLight ? "bg-slate-200 text-slate-600" : "bg-[#1a2235] text-[#888]", text: "Upcoming" },
+    untracked: { cls: isLight ? "bg-slate-200 text-slate-600" : "bg-[#1a2235] text-[#888]", text: "Not tracked" },
   };
   const m = map[status];
   return <span className={`shrink-0 px-2 py-0.5 rounded text-[10px] font-bold ${m.cls}`}>{m.text}</span>;
@@ -82,7 +83,7 @@ export const ReportTrackerPage: React.FC = () => {
     const status = e instanceof TrackerApiError ? e.status : 0;
     if (status === 429) showToast("Google's per-minute read limit was hit (it is shared with the rest of the portal). Report Tracker will retry on its own in a minute — nothing was lost.", "info", 7000);
     else if (status === 401) showToast("⚠️ Token expired — reconnect Google Sheets before making changes.", "auth-error");
-    else if (status === 403 || status === 404) showToast(`No access to the ${what}. Ask the sheet owner to add your Google account as an Editor.`, "error", 8000);
+    else if (status === 403 || status === 404) showToast(`Couldn't ${what}: no access. Ask the sheet owner to add your Google account as an Editor.`, "error", 8000);
     else showToast(`Couldn't ${what}: ${e?.message || "network error"}`, "error", 8000);
   }, [showToast]);
 

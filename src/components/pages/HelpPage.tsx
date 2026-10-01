@@ -171,7 +171,7 @@ const FAQ = [
   },
   {
     q: "What is the Report Tracker and where does its data live?",
-    a: "Report Tracker (sidebar → Workspace → Report Tracker) shows your recurring reports — FTA Weekly (Tue 5–7 PM PHT), CPRO Weekly (Mon 5–7 PM PHT, ready before 7 PM), CPRO Monthly (3rd, deadline the 6th) and Toast Recon (4th/5th) — with their due windows, a status badge (Upcoming / Due / In Progress / Overdue / Done) and a step list. Every manual checkbox and every task is saved to the shared Google Sheet 'FinanceOps Report Tracker (Portal Data)' (tabs: Checks, Tasks, Log) the moment you click — the sheet is the source of truth, nothing is kept only in the browser. If a save fails the change is undone and a red toast tells you. Use 'Open Source Sheet' (button on the page, or ⋯ → Open Source Sheet in the header) to open it.",
+    a: "Report Tracker (sidebar → Workspace → Report Tracker) shows your recurring reports — FTA Weekly (Tue 5–7 PM PHT), CPRO Weekly (Mon 5–7 PM PHT, ready before 7 PM), CPRO Monthly (3rd, deadline the 6th) and Toast Recon (4th/5th) — with their due windows, a status badge (Upcoming / Due / In Progress / Overdue / Done — or 'Not tracked' for a past cycle whose script output landed but whose manual boxes were never recorded here) and a step list. Every manual checkbox and every task is saved to the shared Google Sheet 'FinanceOps Report Tracker (Portal Data)' (tabs: Checks, Tasks, Log) the moment you click — the sheet is the source of truth, nothing is kept only in the browser. If a save fails the change is undone and a red toast tells you. Use 'Open Source Sheet' (button on the page, or ⋯ → Open Source Sheet in the header) to open it.",
   },
   {
     q: "How does Report Tracker know a report is done?",

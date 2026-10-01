@@ -90,6 +90,24 @@ describe("status rules", () => {
     expect(cycleStatus(rep, c, st, fromPht(2026, 10, 7, 9))).toBe("overdue");
     expect(cycleStatus(rep, c, st, fromPht(2026, 10, 5, 9))).toBe("progress");
   });
+  it("CPRO monthly past the deadline: script ran + nothing tracked here → 'untracked', not overdue", () => {
+    const rep = reportById("cprom");
+    const c = cycleView("cprom", fromPht(2026, 10, 7, 9)).active;
+    const autoDone = Object.fromEntries(rep.steps.map(s => [s.key, s.kind === "auto" ? "done" as const : "open" as const]));
+    expect(cycleStatus(rep, c, autoDone, fromPht(2026, 10, 7, 9))).toBe("untracked");
+    // you started ticking manual boxes here but didn't finish → real overdue
+    expect(cycleStatus(rep, c, { ...autoDone, webstorage: "done" }, fromPht(2026, 10, 7, 9))).toBe("overdue");
+    // an automatic step is genuinely missing (e.g. Ad Spend still $0.00) → overdue
+    expect(cycleStatus(rep, c, { ...autoDone, adspend: "open" }, fromPht(2026, 10, 7, 9))).toBe("overdue");
+    // can't read an auto step (unknown) → never claim overdue
+    expect(cycleStatus(rep, c, { ...autoDone, adspend: "unknown" }, fromPht(2026, 10, 7, 9))).toBe("untracked");
+  });
+  it("Toast Recon past deadline: payouts landed + Micah not recorded → untracked; payouts missing → overdue", () => {
+    const rep = reportById("toast");
+    const c = cycleView("toast", fromPht(2026, 10, 7, 9)).active;
+    expect(cycleStatus(rep, c, { run: "done", micah: "open" }, fromPht(2026, 10, 7, 9))).toBe("untracked");
+    expect(cycleStatus(rep, c, { run: "open", micah: "open" }, fromPht(2026, 10, 7, 9))).toBe("overdue");
+  });
   it("manual steps come from the Checks tab; auto steps from the sheet reads", () => {
     const c = cycleView("cprow", THU_OCT1).active;
     const rep = reportById("cprow");

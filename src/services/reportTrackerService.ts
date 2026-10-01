@@ -252,7 +252,7 @@ export function cycleView(reportId: ReportId, now: number): CycleView {
 export type AutoState = "ok" | "no" | "unknown";
 export interface AutoResult { state: AutoState; detail?: string }
 export type StepState = "done" | "open" | "unknown";
-export type Status = "upcoming" | "due" | "progress" | "overdue" | "done";
+export type Status = "upcoming" | "due" | "progress" | "overdue" | "done" | "untracked";
 
 export function stepStates(
   rep: ReportDef, cycle: Cycle,
@@ -277,11 +277,18 @@ export function cycleStatus(rep: ReportDef, cycle: Cycle, states: Record<string,
   const runStep = rep.steps[0].key;
   const pastDeadline = now > cycle.deadline;
   if (rep.overdueRule === "run") {
-    if (states[runStep] !== "done" && pastDeadline) return "overdue";
-    if (states[runStep] !== "done") return now >= cycle.windowStart && now <= cycle.windowEnd ? "due" : "due";
+    if (states[runStep] !== "done") return pastDeadline ? "overdue" : "due";
     return "progress";
   }
-  if (pastDeadline) return "overdue";
+  if (pastDeadline) {
+    // "Overdue" only when something is genuinely missing: an AUTO step that is open, or manual
+    // tracking that was started here but not finished. A cycle whose automatic steps all
+    // landed and that never had any manual box recorded here (e.g. it predates the tracker)
+    // is "Not tracked", not overdue.
+    const autoOpen = rep.steps.some(s => s.kind === "auto" && states[s.key] === "open");
+    const manualStarted = rep.steps.some(s => s.kind === "manual" && states[s.key] === "done");
+    return autoOpen || manualStarted ? "overdue" : "untracked";
+  }
   const anyDone = rep.steps.some(s => states[s.key] === "done");
   if (now >= cycle.windowStart && now <= cycle.windowEnd && states[runStep] !== "done") return "due";
   return anyDone ? "progress" : "due";
