@@ -8,7 +8,7 @@ import { useFinance } from "../../context/FinanceContext";
 import { getAccessToken } from "../../services/googleAuth";
 import {
   REPORTS, TRACKER_SHEET_URL, TrackerApiError, cycleStatus, cycleView, fmtPht, fmtPhtDate, isoDate, newTaskId,
-  evidenceKind, evidenceText, historyRows, isSkipped, latchedAutoKeys, pendingAutoSteps, plannedCalendarEvents, readTrackerData, relative, runAutoChecks, shouldCarryOver, stepStates, toPht,
+  evidenceKind, evidenceText, historyRows, isSkipped, latchedAutoKeys, weekendShift, pendingAutoSteps, plannedCalendarEvents, readTrackerData, relative, runAutoChecks, shouldCarryOver, stepStates, toPht,
   trackedPeriods, writeAutoConfirmations, writeCheck, writeTask,
   type AutoByPeriod, type AutoResult, type CheckRow, type Confirmation, type Cycle, type ReportDef, type Status, type TaskItem,
 } from "../../services/reportTrackerService";
@@ -415,6 +415,7 @@ export const ReportTrackerPage: React.FC = () => {
                   <li>Each card is <b>one run of one report</b> for one period (for example CPRO Monthly · August 2026). When the next run's window opens, you get a <b>fresh card with every step unticked</b>.</li>
                   <li>All times are <b>Philippine Time</b>. The schedule: FTA Tue 5–7 PM · CPRO Weekly Mon 5–7 PM (ready by 7) · CPRO Monthly the 3rd (deadline the 6th) · Toast Recon the 4th–5th.</li>
                   <li>On the FTA card, <b>No report this week (school break)</b> marks a week as having nothing to run (Undo is one click); otherwise it would show Overdue every Tuesday of a break.</li>
+                  <li><b>Weekends:</b> there is no work on weekends. If the 3rd (CPRO Monthly) or the 4th (Toast Recon) lands on a Saturday or Sunday, the card shows an amber "Weekend" note, the run moves to the following Monday, and the card shows as upcoming (never Overdue) until then. The same applies when a deadline falls on a weekend. The Slack check follows the same rule.</li>
                   <li>A card stays on screen until the next run starts. If you had started ticking it and it is under 14 days old, it stays as a <b>Carry-over</b>.</li>
                 </ul>
                 <div className={`font-bold mt-3 mb-1 ${strong}`}>The status badge</div>
@@ -517,6 +518,11 @@ export const ReportTrackerPage: React.FC = () => {
                   </div>
 
                   <div className={`p-2 ${b.status === "skipped" ? "opacity-50" : ""}`}>
+                    {b.status !== "done" && weekendShift(b.cycle) && (
+                      <div className={`mx-2 mb-1 text-[11px] font-semibold ${isLight ? "text-amber-700" : "text-[#fbbf24]"}`}>
+                        Weekend: {weekendShift(b.cycle)!.note}
+                      </div>
+                    )}
                     {b.status === "skipped" && (
                       <div className={`mx-2 mb-1 text-[11px] font-semibold ${muted}`}>
                         Marked as no report due{checks[`${b.cycle.periodKey}|skip`]?.by ? ` by ${checks[`${b.cycle.periodKey}|skip`].by}` : ""}. No steps are needed this week.

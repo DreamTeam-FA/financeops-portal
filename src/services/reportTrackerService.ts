@@ -63,6 +63,7 @@ export function fromPht(y: number, m: number, d: number, hh = 0, mm = 0): number
 const pad = (n: number) => String(n).padStart(2, "0");
 export const isoDate = (p: { y: number; m: number; d: number }) => `${p.y}-${pad(p.m)}-${pad(p.d)}`;
 const addDays = (p: { y: number; m: number; d: number }, n: number) => toPht(fromPht(p.y, p.m, p.d + n, 12));
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const lastDayOfMonth = (y: number, m: number) => new Date(Date.UTC(y, m, 0)).getUTCDate();
@@ -302,10 +303,37 @@ export function stepStates(
   return out;
 }
 
-export function cycleStatus(rep: ReportDef, cycle: Cycle, states: Record<string, StepState>, now: number): Status {
+/** Move a PHT instant that falls on Saturday/Sunday to the same time on the following Monday. */
+function nextWeekday(ms: number): number {
+  let t = ms;
+  while (toPht(t).dow === 0 || toPht(t).dow === 6) t += 86400_000;
+  return t;
+}
+
+/**
+ * No work on weekends: the monthly reports (CPRO Monthly, Toast Recon) move to the following Monday when their
+ * start or deadline lands on a Saturday/Sunday. The displayed dates stay as scheduled; only the status
+ * ("upcoming"/"overdue") and a note on the card follow the shift. Returns null when nothing shifts.
+ */
+export function weekendShift(cycle: Cycle): { windowStart: number; windowEnd: number; deadline: number; note: string } | null {
+  if (cycle.reportId !== "cprom" && cycle.reportId !== "toast") return null;
+  const windowStart = nextWeekday(cycle.windowStart), windowEnd = Math.max(nextWeekday(cycle.windowEnd), windowStart);
+  const deadline = Math.max(nextWeekday(cycle.deadline), windowStart);
+  if (windowStart === cycle.windowStart && deadline === cycle.deadline) return null;
+  const fmt = (ms: number) => { const p = toPht(ms); return `${DAYS[p.dow]} ${MONTHS[p.m - 1].slice(0, 3)} ${p.d}`; };
+  const parts: string[] = [];
+  if (windowStart !== cycle.windowStart) parts.push(`The scheduled start (${fmt(cycle.windowStart)}) is a weekend, so the run moves to ${fmt(windowStart)}.`);
+  if (deadline !== cycle.deadline) parts.push(`The deadline (${fmt(cycle.deadline)}) is a weekend, so it moves to ${fmt(deadline)}.`);
+  return { windowStart, windowEnd, deadline, note: `${parts.join(" ")} It will not show as overdue before then.` };
+}
+
+export function cycleStatus(rep: ReportDef, cycle0: Cycle, states: Record<string, StepState>, now: number): Status {
+  const sh = weekendShift(cycle0);
+  const cycle = sh ? { ...cycle0, windowStart: sh.windowStart, windowEnd: sh.windowEnd, deadline: sh.deadline } : cycle0;
   const all = rep.steps.every(s => states[s.key] === "done");
   if (all) return "done";
-  if (now < cycle.windowStart) return "upcoming";
+  // Before the (weekend-shifted) start it is "upcoming", unless something was already done early.
+  if (now < cycle.windowStart && !(sh && rep.steps.some(s => states[s.key] === "done"))) return "upcoming";
   const runStep = rep.steps[0].key;
   const pastDeadline = now > cycle.deadline;
   if (rep.overdueRule === "run") {

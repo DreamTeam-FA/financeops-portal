@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import {
   adSpendFromGrid, cycleStatus, cycleView, fmtPht, fromPht, historyRows, isoDate, latestDateIn, plannedCalendarEvents,
-  reportById, stepStates, toPht,
+  reportById, stepStates, toPht, cyclesAround, weekendShift,
 } from "../../src/services/reportTrackerService";
 
 // Thu Oct 1, 2026 3:10 PM PHT  (= 07:10 UTC)
@@ -211,5 +211,22 @@ describe("calendar plan", () => {
     // no duplicates by title+date (the page de-dupes on that key)
     const keys = ev.map(e => `${e.title}|${e.date}`);
     expect(new Set(keys).size).toBe(keys.length);
+  });
+});
+
+describe("weekend shift (monthly reports)", () => {
+  const cyc = (id: "cprom" | "toast", key: string) => cyclesAround(id, Date.UTC(2026, 9, 2, 12)).find(c => c.periodKey === key)!;
+  it("Oct 2026: 3rd (Sat) and 4th (Sun) move to Monday; not overdue or due on the weekend", () => {
+    const cm = cyc("cprom", "cprom:2026-09"), tr = cyc("toast", "toast:2026-09");
+    expect(weekendShift(cm)!.note).toMatch(/weekend/i);
+    expect(weekendShift(tr)!.note).toMatch(/Mon Oct 5/);
+    const sat = fromPht(2026, 10, 3, 18);
+    expect(cycleStatus(reportById("cprom"), cm, stepStates(reportById("cprom"), cm, undefined, {}), sat)).toBe("upcoming");
+    const sun = fromPht(2026, 10, 4, 12);
+    expect(cycleStatus(reportById("toast"), tr, stepStates(reportById("toast"), tr, undefined, {}), sun)).toBe("upcoming");
+  });
+  it("no shift on a weekday cycle", () => {
+    const c = cyclesAround("toast", Date.UTC(2026, 10, 5, 12)).find(x => x.periodKey === "toast:2026-10")!;
+    expect(weekendShift(c)).toBeNull(); // Nov 4 Wed, Nov 5 Thu
   });
 });
