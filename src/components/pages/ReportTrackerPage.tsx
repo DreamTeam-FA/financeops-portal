@@ -491,6 +491,11 @@ export const ReportTrackerPage: React.FC = () => {
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className={`text-sm font-bold ${strong}`}>{rep.name}</h3>
+                          <span
+                            className="px-2 py-0.5 rounded text-[10px] font-bold"
+                            style={{ background: `${rep.entity.hex}33`, color: rep.entity.textHex }}
+                            title={`${rep.entity.label} report`}
+                          >{rep.entity.label}</span>
                           <StatusBadge status={b.status} isLight={isLight} />
                           {b.label === "carry-over" && (
                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${isLight ? "bg-slate-200 text-slate-600" : "bg-[#1a2235] text-[#888]"}`}>Carry-over</span>

@@ -137,6 +137,20 @@ describe("auto-check parsers", () => {
   });
 });
 
+describe("entity colours", () => {
+  it("FTA and Toast Recon use the portal's Ruby's colour; CPRO reports use the sidebar CurcuminPRO amber", async () => {
+    const { ENTITY_COLORS } = await import("../../src/utils/entityColors");
+    for (const id of ["fta", "toast"] as const) {
+      expect(reportById(id).accent).toBe(ENTITY_COLORS["Ruby's"].hex);
+      expect(reportById(id).entity).toMatchObject({ label: "Ruby's", hex: ENTITY_COLORS["Ruby's"].hex });
+    }
+    for (const id of ["cprow", "cprom"] as const) {
+      expect(reportById(id).accent).toBe("#f59e0b");
+      expect(reportById(id).entity.label).toBe("CPRO");
+    }
+  });
+});
+
 describe("history (from the Checks tab only)", () => {
   const rows = (o: Record<string, [boolean, string]>) =>
     Object.fromEntries(Object.entries(o).map(([k, [done, at]]) => [k, { done, at, by: "x", evidence: "" }]));

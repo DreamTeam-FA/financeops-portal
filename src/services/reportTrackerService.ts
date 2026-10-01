@@ -14,6 +14,18 @@
  * All schedule math is Philippine Time (UTC+8, no DST).
  */
 
+import { ENTITY_COLORS, getEntityHex } from "../utils/entityColors";
+
+/**
+ * Report cards follow the portal's entity colours:
+ *  - FTA and Toast Recon are Ruby's  → shared palette (utils/entityColors)
+ *  - CPRO Weekly / Monthly           → the CurcuminPRO amber used by the sidebar entry (#f59e0b / amber-500)
+ */
+export const RUBYS_HEX = getEntityHex("Ruby's");
+export const RUBYS_TEXT_HEX = ENTITY_COLORS["Ruby's"].textHex;
+export const CPRO_HEX = "#f59e0b";
+export const CPRO_TEXT_HEX = "#f59e0b";
+
 // ─── IDs & URLs ──────────────────────────────────────────────────────────────
 
 export const TRACKER_SHEET_ID = "1Olhac_V3mrzDVL7GFs4E3DN5uwscVR91g26zMFILml0";
@@ -80,6 +92,8 @@ export type StepKind = "auto" | "manual";
 export interface StepDef { key: string; label: string; kind: StepKind; hint?: string }
 export interface ReportDef {
   id: ReportId; name: string; cadence: string; script: string; accent: string;
+  /** Entity chip shown on the card */
+  entity: { label: string; hex: string; textHex: string };
   /** "run" = overdue as soon as the first (script) step is missing past the deadline; "all" = every step must be done by the deadline */
   overdueRule: "run" | "all";
   steps: StepDef[];
@@ -88,7 +102,8 @@ export interface ReportDef {
 
 export const REPORTS: ReportDef[] = [
   {
-    id: "fta", name: "FTA Weekly", cadence: "Every Tuesday · 5–7 PM PHT", script: "Rubys_FTA_report.py", accent: "#d81b60",
+    id: "fta", name: "FTA Weekly", cadence: "Every Tuesday · 5–7 PM PHT", script: "Rubys_FTA_report.py", accent: RUBYS_HEX,
+    entity: { label: "Ruby's", hex: RUBYS_HEX, textHex: RUBYS_TEXT_HEX },
     overdueRule: "run",
     steps: [
       { key: "run",       label: "Script run — new Monday tab on the FTA sheet", kind: "auto" },
@@ -105,7 +120,8 @@ export const REPORTS: ReportDef[] = [
     ],
   },
   {
-    id: "cprow", name: "CPRO Weekly", cadence: "Every Monday · 5–7 PM PHT · ready before 7 PM", script: "Cpro_Automated_report.py (weekly)", accent: "#16a34a",
+    id: "cprow", name: "CPRO Weekly", cadence: "Every Monday · 5–7 PM PHT · ready before 7 PM", script: "Cpro_Automated_report.py (weekly)", accent: CPRO_HEX,
+    entity: { label: "CPRO", hex: CPRO_HEX, textHex: CPRO_TEXT_HEX },
     overdueRule: "all",
     steps: [
       { key: "run",       label: "Script run — weekly tab (Sun–Sat) on the Amazon Sales Report", kind: "auto" },
@@ -122,7 +138,8 @@ export const REPORTS: ReportDef[] = [
     ],
   },
   {
-    id: "cprom", name: "CPRO Monthly", cadence: "3rd of the month · 5–7 PM PHT · deadline the 6th", script: "Cpro_Automated_report.py (monthly)", accent: "#7c3aed",
+    id: "cprom", name: "CPRO Monthly", cadence: "3rd of the month · 5–7 PM PHT · deadline the 6th", script: "Cpro_Automated_report.py (monthly)", accent: CPRO_HEX,
+    entity: { label: "CPRO", hex: CPRO_HEX, textHex: CPRO_TEXT_HEX },
     overdueRule: "all",
     steps: [
       { key: "run",        label: "Script run — monthly tab on the Amazon Sales Report", kind: "auto" },
@@ -140,7 +157,8 @@ export const REPORTS: ReportDef[] = [
     ],
   },
   {
-    id: "toast", name: "Toast Recon", cadence: "4th or 5th of the month (data ready on the 4th)", script: "Rubys_Toast_Recon_report.py", accent: "#0891b2",
+    id: "toast", name: "Toast Recon", cadence: "4th or 5th of the month (data ready on the 4th)", script: "Rubys_Toast_Recon_report.py", accent: RUBYS_HEX,
+    entity: { label: "Ruby's", hex: RUBYS_HEX, textHex: RUBYS_TEXT_HEX },
     overdueRule: "all",
     steps: [
       { key: "run",   label: "Script run — payouts through month-end on the Toast Data tab", kind: "auto" },
