@@ -146,6 +146,28 @@ describe("tracker sheet write-through", () => {
   });
 });
 
+describe("auto-confirmations", () => {
+  it("are appended as auto:<step> rows in ONE write, read back, and never count as manual tracking", async () => {
+    const svc = await freshService();
+    await svc.ensureTrackerTabs("tok");
+    calls = [];
+    await svc.writeAutoConfirmations("tok", [{ periodKey: "fta:2026-09-28", step: "run" }, { periodKey: "fta:2026-09-28", step: "invoice" }]);
+    expect(calls.filter(c => c.method !== "GET")).toHaveLength(1); // one batched append
+    const d = await svc.readTrackerData("tok");
+    expect(d.checks["fta:2026-09-28|auto:run"]).toMatchObject({ done: true, by: "auto-check" });
+    expect(d.checks["fta:2026-09-28|auto:invoice"].done).toBe(true);
+    expect(svc.trackedPeriods(d.checks).size).toBe(0);
+    expect(tabs[0].rows).toHaveLength(3); // header + 2
+    for (const c of calls.filter(x => x.method !== "GET")) expect(c.url).toContain(ID); // tracker sheet only
+  });
+  it("writing nothing is free", async () => {
+    const svc = await freshService();
+    calls = [];
+    await svc.writeAutoConfirmations("tok", []);
+    expect(calls).toHaveLength(0);
+  });
+});
+
 describe("quota-friendly reads", () => {
   afterEach(() => { vi.useRealTimers(); });
 

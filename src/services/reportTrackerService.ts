@@ -250,9 +250,22 @@ export function cycleView(reportId: ReportId, now: number): CycleView {
 // ─── Status ──────────────────────────────────────────────────────────────────
 
 export type AutoState = "ok" | "no" | "unknown";
-export interface AutoResult { state: AutoState; detail?: string }
+export type AutoReason = "busy" | "auth" | "access" | "error";
+export interface AutoResult { state: AutoState; detail?: string; reason?: AutoReason }
 export type StepState = "done" | "open" | "unknown";
-export type Status = "upcoming" | "due" | "progress" | "overdue" | "done" | "untracked";
+export type Status = "upcoming" | "due" | "progress" | "overdue" | "done" | "untracked" | "unknown";
+
+export const AUTO_PREFIX = "auto:";
+/** Auto steps already confirmed earlier are stored in the Checks tab as step_key "auto:<step>" (done = TRUE). */
+export function latchedAutoKeys(checks: Record<string, boolean>): Set<string> {
+  const out = new Set<string>();
+  for (const [k, done] of Object.entries(checks)) {
+    if (!done) continue;
+    const [period, step] = k.split("|");
+    if (step && step.startsWith(AUTO_PREFIX)) out.add(`${period}|${step.slice(AUTO_PREFIX.length)}`);
+  }
+  return out;
+}
 
 export function stepStates(
   rep: ReportDef, cycle: Cycle,
@@ -262,8 +275,9 @@ export function stepStates(
   const out: Record<string, StepState> = {};
   for (const s of rep.steps) {
     if (s.kind === "manual") out[s.key] = checks[`${cycle.periodKey}|${s.key}`] ? "done" : "open";
+    else if (checks[`${cycle.periodKey}|${AUTO_PREFIX}${s.key}`]) out[s.key] = "done"; // confirmed earlier: never re-read
     else {
-      const a = auto?.[s.key];
+      const a = auto && auto[s.key];
       out[s.key] = !a || a.state === "unknown" ? "unknown" : a.state === "ok" ? "done" : "open";
     }
   }
@@ -277,6 +291,7 @@ export function cycleStatus(rep: ReportDef, cycle: Cycle, states: Record<string,
   const runStep = rep.steps[0].key;
   const pastDeadline = now > cycle.deadline;
   if (rep.overdueRule === "run") {
+    if (states[runStep] === "unknown") return "unknown";          // couldn't read: never claim overdue
     if (states[runStep] !== "done") return pastDeadline ? "overdue" : "due";
     return "progress";
   }
@@ -413,6 +428,18 @@ export async function writeCheck(token: string, periodKey: string, stepKey: stri
   }).catch(() => {});
 }
 
+export interface Confirmation { periodKey: string; step: string }
+/** Persist auto-confirmed steps (one batched append). Writes ONLY to the tracker sheet. */
+export async function writeAutoConfirmations(token: string, items: Confirmation[]): Promise<void> {
+  if (!items.length) return;
+  await ensureTrackerTabs(token);
+  const now = new Date().toISOString();
+  const rows = items.map(i => [i.periodKey, `${AUTO_PREFIX}${i.step}`, true, now, "auto-check"]);
+  await gfetch(token, `${S}/${TRACKER_SHEET_ID}/values/${q(`${CHECKS}!A:E`)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+    method: "POST", body: JSON.stringify({ values: rows }),
+  });
+}
+
 // ─── Tracker sheet: tasks ────────────────────────────────────────────────────
 
 export interface TaskItem { id: string; title: string; due: string; done: boolean; notes: string }
@@ -443,7 +470,12 @@ export function shouldCarryOver(prev: Cycle, tracked: Set<string>, now: number):
 
 /** Which period keys have at least one recorded manual check (used to decide what is "being tracked"). */
 export function trackedPeriods(checks: Record<string, CheckRow>): Set<string> {
-  return new Set(Object.keys(checks).map(k => k.split("|")[0]));
+  const out = new Set<string>();
+  for (const [k, v] of Object.entries(checks)) {
+    const [period, step] = k.split("|");
+    if (v.done && step && !step.startsWith(AUTO_PREFIX)) out.add(period);
+  }
+  return out;
 }
 
 async function taskRowIndex(token: string, id: string): Promise<number> {
@@ -507,64 +539,95 @@ export function latestDateIn(col: string[][]): number | null {
 }
 
 const settle = async <T,>(p: Promise<T>): Promise<T | { __err: TrackerApiError }> => {
-  try { return await p; } catch (e: any) { return { __err: e instanceof TrackerApiError ? e : new TrackerApiError(String(e?.message || e), 0) }; }
+  try { return await p; } catch (e: any) { return { __err: e instanceof TrackerApiError ? e : new TrackerApiError(String(e && e.message || e), 0) }; }
 };
 const isErr = (v: any): v is { __err: TrackerApiError } => v && typeof v === "object" && "__err" in v;
-const unknown = (e: TrackerApiError): AutoResult => ({ state: "unknown", detail: e.status === 403 || e.status === 404 ? "No access to this file" : e.message });
+export function reasonFor(e: TrackerApiError): AutoReason {
+  if (e.status === 401) return "auth";
+  if (e.status === 403 || e.status === 404) return "access";
+  if (e.status === 0 || e.status === 429 || e.status >= 500) return "busy";
+  return "error";
+}
+const unknown = (e: TrackerApiError): AutoResult => ({ state: "unknown", reason: reasonFor(e), detail: e.message });
 
 export interface AutoCheckOutput { byPeriod: AutoByPeriod; errors: string[] }
 
-/** Runs every auto-check needed for the given cycles. Never writes. */
-export async function runAutoChecks(token: string, cycles: Cycle[]): Promise<AutoCheckOutput> {
+/** Auto steps (per cycle) that still need a read, given the already-confirmed set ("period|step"). */
+export function pendingAutoSteps(cycles: Cycle[], confirmed: Set<string>): { cycle: Cycle; steps: string[] }[] {
+  return cycles
+    .map(c => ({
+      cycle: c,
+      steps: reportById(c.reportId).steps.filter(s => s.kind === "auto" && !confirmed.has(`${c.periodKey}|${s.key}`)).map(s => s.key),
+    }))
+    .filter(x => x.steps.length > 0);
+}
+
+/**
+ * Runs the auto-checks still needed. READ-ONLY against report sheets / Drive.
+ * Steps in `confirmed` ("periodKey|step") are skipped, and a source is only read if some pending step
+ * needs it, so a fully-confirmed report costs zero reads.
+ */
+export async function runAutoChecks(token: string, cycles: Cycle[], confirmed: Set<string> = new Set()): Promise<AutoCheckOutput> {
   const byPeriod: AutoByPeriod = {};
   const errors: string[] = [];
-  const need = (r: ReportId) => cycles.filter(c => c.reportId === r);
+  const pending = pendingAutoSteps(cycles, confirmed);
+  const needs = (rid: ReportId, step: string) => pending.some(p => p.cycle.reportId === rid && p.steps.includes(step));
+  const anyNeeds = (rids: ReportId[], step: string) => rids.some(r => needs(r, step));
+  const none = Promise.resolve(null);
 
-  // Shared reads (once each)
-  const [ftaTabs, amzTabs, usuFiles, allTimeMeta, toastCol] = await Promise.all([
-    need("fta").length ? settle(sheetTitles(token, SRC.ftaSheet)) : Promise.resolve(null),
-    need("cprow").length || need("cprom").length ? settle(sheetTitles(token, SRC.amazonSales)) : Promise.resolve(null),
-    need("fta").length ? settle(gfetch(token, `${D}?q=${q(`'${SRC.usuFolder}' in parents and trashed=false`)}&orderBy=createdTime%20desc&pageSize=15&fields=files(id,name,createdTime)&supportsAllDrives=true&includeItemsFromAllDrives=true`)) : Promise.resolve(null),
-    need("cprow").length || need("cprom").length ? settle(gfetch(token, `${D}/${SRC.salesAllTime}?fields=modifiedTime&supportsAllDrives=true`)) : Promise.resolve(null),
-    need("toast").length ? settle(readRange(token, SRC.toastRecon, "'Toast Data'!E:E")) : Promise.resolve(null),
+  const [ftaTabs, amzTabs, usuFiles, allTimeMeta, toastCol, adGrid] = await Promise.all([
+    needs("fta", "run") ? settle(sheetTitles(token, SRC.ftaSheet)) : none,
+    anyNeeds(["cprow", "cprom"], "run") ? settle(sheetTitles(token, SRC.amazonSales)) : none,
+    needs("fta", "invoice") ? settle(gfetch(token, `${D}?q=${q(`'${SRC.usuFolder}' in parents and trashed=false`)}&orderBy=createdTime%20desc&pageSize=15&fields=files(id,name,createdTime)&supportsAllDrives=true&includeItemsFromAllDrives=true`)) : none,
+    anyNeeds(["cprow", "cprom"], "alltime") ? settle(gfetch(token, `${D}/${SRC.salesAllTime}?fields=modifiedTime&supportsAllDrives=true`)) : none,
+    needs("toast", "run") ? settle(readRange(token, SRC.toastRecon, "'Toast Data'!E:E")) : none,
+    needs("cprom", "adspend") ? settle(readRange(token, SRC.adSpend, "A1:Z30")) : none,
   ]);
-  const adGrid = need("cprom").length ? await settle(readRange(token, SRC.adSpend, "A1:Z30")) : null;
 
-  for (const c of cycles) {
+  for (const { cycle: c, steps } of pending) {
     const m: AutoMap = (byPeriod[c.periodKey] = {});
+    const want = new Set(steps);
     if (c.reportId === "fta") {
-      if (isErr(ftaTabs)) { m.run = unknown(ftaTabs.__err); errors.push("FTA sheet: " + ftaTabs.__err.message); }
-      else if (ftaTabs) m.run = (ftaTabs as any[]).some(t => t.title === c.tabName)
-        ? { state: "ok", detail: `Tab ${c.tabName} found` } : { state: "no", detail: `No tab ${c.tabName} yet` };
-      if (isErr(usuFiles)) { m.invoice = unknown(usuFiles.__err); errors.push("USU folder: " + usuFiles.__err.message); }
-      else if (usuFiles) {
-        const hit = ((usuFiles as any).files || []).find((f: any) => {
-          const t = Date.parse(f.createdTime);
-          return t >= c.windowStart && t < c.nextStart && /^USU\s/i.test(f.name || "");
-        });
-        m.invoice = hit ? { state: "ok", detail: hit.name } : { state: "no", detail: "No new USU invoice in the folder yet" };
+      if (want.has("run")) {
+        if (isErr(ftaTabs)) { m.run = unknown(ftaTabs.__err); errors.push("FTA sheet: " + ftaTabs.__err.message); }
+        else if (ftaTabs) m.run = (ftaTabs as any[]).some(t => t.title === c.tabName)
+          ? { state: "ok", detail: `Tab ${c.tabName} found` } : { state: "no", detail: `No tab ${c.tabName} yet` };
+      }
+      if (want.has("invoice")) {
+        if (isErr(usuFiles)) { m.invoice = unknown(usuFiles.__err); errors.push("USU folder: " + usuFiles.__err.message); }
+        else if (usuFiles) {
+          const hit = ((usuFiles as any).files || []).find((f: any) => {
+            const t = Date.parse(f.createdTime);
+            return t >= c.windowStart && t < c.nextStart && /^USU\s/i.test(f.name || "");
+          });
+          m.invoice = hit ? { state: "ok", detail: hit.name } : { state: "no", detail: "No new USU invoice in the folder yet" };
+        }
       }
     }
     if (c.reportId === "cprow" || c.reportId === "cprom") {
-      if (isErr(amzTabs)) { m.run = unknown(amzTabs.__err); errors.push("Amazon Sales Report: " + amzTabs.__err.message); }
-      else if (amzTabs) m.run = (amzTabs as any[]).some(t => (t.title || "").trim().toUpperCase() === (c.tabName || "").toUpperCase())
-        ? { state: "ok", detail: `Tab ${c.tabName} found` } : { state: "no", detail: `No tab ${c.tabName} yet` };
-      if (isErr(allTimeMeta)) { m.alltime = unknown(allTimeMeta.__err); errors.push("Sales All Time: " + allTimeMeta.__err.message); }
-      else if (allTimeMeta) {
-        const t = Date.parse((allTimeMeta as any).modifiedTime);
-        m.alltime = t >= c.windowStart - 3600_000 ? { state: "ok", detail: `Edited ${fmtPht(t)}` } : { state: "no", detail: `Last edited ${fmtPht(t)}` };
+      if (want.has("run")) {
+        if (isErr(amzTabs)) { m.run = unknown(amzTabs.__err); errors.push("Amazon Sales Report: " + amzTabs.__err.message); }
+        else if (amzTabs) m.run = (amzTabs as any[]).some(t => (t.title || "").trim().toUpperCase() === (c.tabName || "").toUpperCase())
+          ? { state: "ok", detail: `Tab ${c.tabName} found` } : { state: "no", detail: `No tab ${c.tabName} yet` };
+      }
+      if (want.has("alltime")) {
+        if (isErr(allTimeMeta)) { m.alltime = unknown(allTimeMeta.__err); errors.push("Sales All Time: " + allTimeMeta.__err.message); }
+        else if (allTimeMeta) {
+          const t = Date.parse((allTimeMeta as any).modifiedTime);
+          m.alltime = t >= c.windowStart - 3600_000 ? { state: "ok", detail: `Edited ${fmtPht(t)}` } : { state: "no", detail: `Last edited ${fmtPht(t)}` };
+        }
       }
     }
-    if (c.reportId === "cprom" && c.month) {
+    if (c.reportId === "cprom" && c.month && want.has("adspend")) {
       if (isErr(adGrid)) { m.adspend = unknown(adGrid.__err); errors.push("Ad Spend: " + adGrid.__err.message); }
       else if (adGrid) m.adspend = adSpendFromGrid(adGrid as string[][], c.month.y, c.month.m);
     }
-    if (c.reportId === "toast" && c.month) {
+    if (c.reportId === "toast" && c.month && want.has("run")) {
       if (isErr(toastCol)) { m.run = unknown(toastCol.__err); errors.push("Toast Recon: " + toastCol.__err.message); }
       else if (toastCol) {
         const latest = latestDateIn(toastCol as string[][]);
         const monthEnd = Date.UTC(c.month.y, c.month.m - 1, c.month.lastDay);
-        if (latest == null) m.run = { state: "unknown", detail: "No settled dates found" };
+        if (latest == null) m.run = { state: "unknown", reason: "error", detail: "No settled dates found" };
         else {
           const d = new Date(latest);
           const txt = `${pad(d.getUTCMonth() + 1)}/${pad(d.getUTCDate())}/${d.getUTCFullYear()}`;

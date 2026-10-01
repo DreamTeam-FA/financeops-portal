@@ -8,12 +8,17 @@ import { useFinance } from "../../context/FinanceContext";
 import { getAccessToken } from "../../services/googleAuth";
 import {
   REPORTS, TRACKER_SHEET_URL, TrackerApiError, cycleStatus, cycleView, fmtPht, fmtPhtDate, isoDate, newTaskId,
-  plannedCalendarEvents, readTrackerData, relative, runAutoChecks, shouldCarryOver, stepStates, toPht, trackedPeriods, writeCheck, writeTask,
-  type AutoByPeriod, type CheckRow, type Cycle, type ReportDef, type Status, type TaskItem,
+  latchedAutoKeys, pendingAutoSteps, plannedCalendarEvents, readTrackerData, relative, runAutoChecks, shouldCarryOver, stepStates, toPht,
+  trackedPeriods, writeAutoConfirmations, writeCheck, writeTask,
+  type AutoByPeriod, type AutoResult, type CheckRow, type Confirmation, type Cycle, type ReportDef, type Status, type TaskItem,
 } from "../../services/reportTrackerService";
 
 const AUTO_REFRESH_MS = 10 * 60_000;          // background re-check cadence while the page is visible
 const AUTO_CACHE_MS = 4 * 60_000;             // reuse auto-check results this long (navigating back and forth is free)
+const FIRST_LOAD_DELAY_MS = 6_000;            // let the portal's own start-up sync finish before we read the report sheets
+const BUSY_RETRY_MS = 60_000;                 // retry after Google says "busy"
+const MAX_BUSY_RETRIES = 3;
+const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 const AUTO_CACHE_KEY = "report_tracker_auto_cache_v1";
 
 type AutoCache = { at: number; keys: string; data: AutoByPeriod };
@@ -31,6 +36,7 @@ const StatusBadge: React.FC<{ status: Status; isLight: boolean }> = ({ status, i
     overdue:  { cls: `bg-[#dc2626]/20 ${isLight ? "text-red-600" : "text-[#f87171]"}`, text: "Overdue" },
     upcoming: { cls: isLight ? "bg-slate-200 text-slate-600" : "bg-[#1a2235] text-[#888]", text: "Upcoming" },
     untracked: { cls: isLight ? "bg-slate-200 text-slate-600" : "bg-[#1a2235] text-[#888]", text: "Not tracked" },
+    unknown:   { cls: isLight ? "bg-slate-200 text-slate-600" : "bg-[#1a2235] text-[#888]", text: "Can't tell" },
   };
   const m = map[status];
   return <span className={`shrink-0 px-2 py-0.5 rounded text-[10px] font-bold ${m.cls}`}>{m.text}</span>;
@@ -62,6 +68,9 @@ export const ReportTrackerPage: React.FC = () => {
   const loadSeq = useRef(0);
   const inFlight = useRef(false);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const firstLoad = useRef(true);
+  const busyTries = useRef(0);
+  const [busyAttempt, setBusyAttempt] = useState(0);
 
   const signedIn = !!googleUser && !!getAccessToken();
 
@@ -79,40 +88,81 @@ export const ReportTrackerPage: React.FC = () => {
     return out;
   }, [views]);
 
+  const showToastRef = useRef(showToast);
+  showToastRef.current = showToast;
+  const cyclesRef = useRef<Cycle[]>(watchedCycles);
+  cyclesRef.current = watchedCycles;
+
   const reportError = useCallback((what: string, e: any) => {
+    const showToast = showToastRef.current;
     const status = e instanceof TrackerApiError ? e.status : 0;
     if (status === 429) showToast("Google's per-minute read limit was hit (it is shared with the rest of the portal). Report Tracker will retry on its own in a minute — nothing was lost.", "info", 7000);
     else if (status === 401) showToast("⚠️ Token expired — reconnect Google Sheets before making changes.", "auth-error");
     else if (status === 403 || status === 404) showToast(`Couldn't ${what}: no access. Ask the sheet owner to add your Google account as an Editor.`, "error", 8000);
     else showToast(`Couldn't ${what}: ${e?.message || "network error"}`, "error", 8000);
-  }, [showToast]);
+  }, []);
 
-  const loadAll = useCallback(async (opts?: { quiet?: boolean; force?: boolean }) => {
+  const loadAll = useCallback(async (opts?: { quiet?: boolean; force?: boolean; retry?: boolean }) => {
     const token = getAccessToken();
     if (!token || inFlight.current) return;
     inFlight.current = true;
+    if (!opts?.retry) { busyTries.current = 0; setBusyAttempt(0); }
     const seq = ++loadSeq.current;
     setLoading(true);
     let quotaHit = false;
+    let latest: Record<string, CheckRow> | null = null;
     try {
-      // Tracker sheet is the source of truth for checks + tasks (ONE read for both)
+      // Tracker sheet is the source of truth for checks, tasks AND auto-confirmations (ONE read)
       const { checks: c, tasks: t } = await readTrackerData(token);
-      setChecks(c); setTasks(t);
+      setChecks(c); setTasks(t); latest = c;
     } catch (e: any) {
       if (e instanceof TrackerApiError && e.status === 429) quotaHit = true;
       reportError("read the Report Tracker sheet", e);
     }
     try {
-      const keys = watchedCycles.map(c => c.periodKey).join(",");
-      const cached = !opts?.force ? readAutoCache(keys) : null;
-      if (cached && Date.now() - cached.at < AUTO_CACHE_MS) {
-        setAuto(cached.data); setAutoAt(cached.at);
-      } else if (!quotaHit) {
-        const out = await runAutoChecks(token, watchedCycles);
-        if (seq !== loadSeq.current) return;
-        setAuto(out.byPeriod); setAutoAt(Date.now());
-        writeAutoCache({ at: Date.now(), keys, data: out.byPeriod });
-        if (out.errors.length && !opts?.quiet) showToast(`Some auto-checks couldn't be read: ${out.errors.slice(0, 2).join(" · ")}`, "info", 6000);
+      const flat: Record<string, boolean> = {};
+      for (const [k, v] of Object.entries(latest || {})) flat[k] = v.done;
+      const confirmed = latchedAutoKeys(flat);
+      const cycles = cyclesRef.current;
+      const pending = pendingAutoSteps(cycles, confirmed);
+      if (pending.length === 0) {
+        setAutoAt(Date.now());           // everything already confirmed in the sheet: nothing to re-read
+      } else if (latest && !quotaHit) {
+        const keys = cycles.map(c => c.periodKey).join(",") + "|" + [...confirmed].sort().join(",");
+        const cached = !opts?.force ? readAutoCache(keys) : null;
+        if (cached && Date.now() - cached.at < AUTO_CACHE_MS) {
+          setAuto(cached.data); setAutoAt(cached.at);
+        } else {
+          if (firstLoad.current) { firstLoad.current = false; await sleep(FIRST_LOAD_DELAY_MS); }
+          const out = await runAutoChecks(token, cycles, confirmed);
+          if (seq !== loadSeq.current) return;
+          setAuto(prev => ({ ...prev, ...out.byPeriod }));
+          setAutoAt(Date.now());
+          // Remember every newly satisfied step in the tracker sheet so it is never re-read
+          const fresh: Confirmation[] = [];
+          let anyUnknown = false, anyBusy = false;
+          for (const [periodKey, steps] of Object.entries(out.byPeriod)) {
+            for (const [step, r] of Object.entries(steps) as [string, AutoResult][]) {
+              if (r.state === "ok") fresh.push({ periodKey, step });
+              if (r.state === "unknown") { anyUnknown = true; if (r.reason === "busy") anyBusy = true; }
+            }
+          }
+          if (fresh.length) {
+            try {
+              await writeAutoConfirmations(token, fresh);
+              const at = new Date().toISOString();
+              setChecks(c => { const n = { ...c }; for (const f of fresh) n[`${f.periodKey}|auto:${f.step}`] = { done: true, at, by: "auto-check" }; return n; });
+            } catch { /* best effort: it will simply be re-checked next time */ }
+          }
+          if (!anyUnknown) writeAutoCache({ at: Date.now(), keys, data: out.byPeriod });
+          if (anyBusy && busyTries.current < MAX_BUSY_RETRIES) {
+            busyTries.current += 1; setBusyAttempt(busyTries.current);
+            if (retryTimer.current) clearTimeout(retryTimer.current);
+            retryTimer.current = setTimeout(() => loadAll({ quiet: true, retry: true }), BUSY_RETRY_MS);
+          } else if (anyBusy) {
+            setBusyAttempt(MAX_BUSY_RETRIES + 1); // out of retries: show the "press Refresh" wording
+          }
+        }
       }
     } catch (e: any) {
       if (e instanceof TrackerApiError && e.status === 429) quotaHit = true;
@@ -122,10 +172,10 @@ export const ReportTrackerPage: React.FC = () => {
       if (seq === loadSeq.current) { setLoading(false); setLoadedOnce(true); }
       if (quotaHit) {
         if (retryTimer.current) clearTimeout(retryTimer.current);
-        retryTimer.current = setTimeout(() => loadAll({ quiet: true }), 65_000);
+        retryTimer.current = setTimeout(() => loadAll({ quiet: true }), BUSY_RETRY_MS + 5_000);
       }
     }
-  }, [watchedCycles, reportError, showToast]);
+  }, [reportError]);
 
   // Initial load + whenever sign-in state changes; then every 5 minutes while visible
   useEffect(() => { if (signedIn) loadAll({ quiet: true }); }, [signedIn]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -250,6 +300,25 @@ export const ReportTrackerPage: React.FC = () => {
     }
     return rows.filter(r => r.when > now).sort((a, b) => a.when - b.when).slice(0, 6);
   }, [blocks, now]);
+
+  // One-line explanation under an AUTO step
+  const autoLine = (periodKey: string, step: string, a: AutoResult | undefined, chk: Record<string, CheckRow>) => {
+    const latched = chk[`${periodKey}|auto:${step}`];
+    if (latched?.done) return <div className={`text-[11px] ${muted}`}>Confirmed {latched.at ? fmtPht(Date.parse(latched.at), false) : "earlier"} — saved in the tracker sheet, not re-read</div>;
+    if (a?.state === "unknown") {
+      const warn = isLight ? "text-amber-700" : "text-amber-300";
+      const msg =
+        a.reason === "busy" ? (busyAttempt <= MAX_BUSY_RETRIES
+          ? "Couldn't check just now (Google was busy) — retrying automatically in about 1 minute."
+          : "Still busy after 3 tries — press Refresh checks, or it will try again within 10 minutes.")
+        : a.reason === "auth" ? "Sign-in expired — reconnect Google, then press Refresh checks."
+        : a.reason === "access" ? "No access to this file — ask the owner to share it with your Google account."
+        : "Couldn't check just now — it will try again within 10 minutes.";
+      return <div className={`text-[11px] ${warn}`}>⚠ {msg}</div>;
+    }
+    if (a?.detail) return <div className={`text-[11px] ${muted}`}>{a.detail}</div>;
+    return signedIn ? <div className={`text-[11px] ${muted}`}>{loadedOnce ? "Not checked yet" : "Reading sheet…"}</div> : null;
+  };
 
   const todayIso = isoDate(toPht(now));
   const openTasks = tasks.filter(t => !t.done).length;
@@ -388,8 +457,7 @@ export const ReportTrackerPage: React.FC = () => {
                                 <span className={`ml-1.5 px-1.5 py-px rounded text-[9px] font-bold align-middle ${isLight ? "bg-slate-200 text-slate-600" : "bg-[#1a2235] text-[#888]"}`}>AUTO</span>
                               )}
                             </div>
-                            {s.kind === "auto" && a?.detail && <div className={`text-[11px] ${muted}`}>{a.detail}</div>}
-                            {s.kind === "auto" && !a && signedIn && <div className={`text-[11px] ${muted}`}>{loadedOnce ? "Not checked yet" : "Reading sheet…"}</div>}
+                            {s.kind === "auto" && autoLine(b.cycle.periodKey, s.key, a, checks)}
                             {s.kind === "manual" && st === "done" && row?.at && (
                               <div className={`text-[11px] ${muted}`}>Checked {fmtPht(Date.parse(row.at), false)}{row.by ? ` · ${row.by}` : ""}</div>
                             )}
