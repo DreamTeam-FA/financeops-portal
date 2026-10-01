@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle, CalendarPlus, CheckCircle2, CheckSquare, Clock, ExternalLink,
-  Plus, RefreshCw, Square, Trash2, ClipboardCheck, Table2,
+  Plus, RefreshCw, Square, Trash2, ClipboardCheck, Table2, Info, X,
 } from "lucide-react";
 import { PageHeader } from "../PageHeader";
 import { useFinance } from "../../context/FinanceContext";
@@ -43,7 +43,7 @@ const StatusBadge: React.FC<{ status: Status; isLight: boolean }> = ({ status, i
 };
 
 export const ReportTrackerPage: React.FC = () => {
-  const { theme, showToast, googleUser, userEmail, localCalendarEvents, addCalendarEvent } = useFinance();
+  const { theme, showToast, googleUser, userEmail, localCalendarEvents, addCalendarEvent, setCurrentPage } = useFinance();
   const isLight = theme === "light";
 
   const card = `${isLight ? "bg-white border-slate-200" : "bg-[#0d111a] border-[#1a2235]"} border rounded-xl`;
@@ -65,6 +65,7 @@ export const ReportTrackerPage: React.FC = () => {
   const [busy, setBusy] = useState<Set<string>>(new Set());
   const [newTitle, setNewTitle] = useState("");
   const [newDue, setNewDue] = useState("");
+  const [showInfo, setShowInfo] = useState(false);
   const loadSeq = useRef(0);
   const inFlight = useRef(false);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -361,6 +362,13 @@ export const ReportTrackerPage: React.FC = () => {
             <a href={TRACKER_SHEET_URL} target="_blank" rel="noopener noreferrer" className="btn-3d btn-3d-blue inline-flex items-center gap-1.5" title="Open the Google Sheet that stores this page's checks and tasks">
               <Table2 className="w-3.5 h-3.5" /> Open Source Sheet
             </a>
+            <button
+              onClick={() => setShowInfo(v => !v)}
+              className={`btn-3d btn-3d-light inline-flex items-center gap-1.5 ${showInfo ? "ring-1 ring-[#0d9488]" : ""}`}
+              title="How this page works" aria-expanded={showInfo} aria-label="How this page works"
+            >
+              <Info className="w-3.5 h-3.5 text-[#0d9488]" /> How it works
+            </button>
             <button onClick={() => loadAll({ force: true })} disabled={loading || !signedIn} className="btn-3d btn-3d-light inline-flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed" title="Re-read the tracker sheet and re-run the auto-checks">
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh checks
             </button>
@@ -373,6 +381,61 @@ export const ReportTrackerPage: React.FC = () => {
             <div>{autoAt ? `Auto-checks read ${relative(autoAt, now)}` : signedIn ? "Reading sheets…" : "Not signed in"}</div>
           </div>
         </div>
+
+        {showInfo && (
+          <div className={`${card} overflow-hidden shadow-sm`}>
+            <div className={`flex items-center justify-between gap-2 p-3 ${cardHead}`}>
+              <div className="flex items-center gap-2">
+                <Info className="w-4 h-4 text-[#0d9488]" />
+                <h2 className={`text-sm font-bold ${strong}`}>How the Report Tracker works</h2>
+              </div>
+              <button onClick={() => setShowInfo(false)} className={`p-1 rounded ${isLight ? "hover:bg-slate-100" : "hover:bg-white/10"}`} title="Close"><X className="w-4 h-4" /></button>
+            </div>
+            <div className={`p-4 grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-3 text-xs ${isLight ? "text-slate-700" : "text-gray-300"}`}>
+              <div>
+                <div className={`font-bold mb-1 ${strong}`}>What you are looking at</div>
+                <ul className="list-disc pl-4 space-y-1">
+                  <li>Each card is <b>one run of one report</b> for one period (for example CPRO Monthly · August 2026). When the next run's window opens, you get a <b>fresh card with every step unticked</b>.</li>
+                  <li>All times are <b>Philippine Time</b>. The schedule: FTA Tue 5–7 PM · CPRO Weekly Mon 5–7 PM (ready by 7) · CPRO Monthly the 3rd (deadline the 6th) · Toast Recon the 4th–5th.</li>
+                  <li>A card stays on screen until the next run starts. If you had started ticking it and it is under 14 days old, it stays as a <b>Carry-over</b>.</li>
+                </ul>
+                <div className={`font-bold mt-3 mb-1 ${strong}`}>The status badge</div>
+                <ul className="list-disc pl-4 space-y-1">
+                  <li><b>Upcoming / Due</b>: not started, or the window is open.</li>
+                  <li><b>In Progress</b>: the script output landed, follow-ups are still open.</li>
+                  <li><b>Overdue</b>: past the deadline with something genuinely missing.</li>
+                  <li><b>✓ Done</b>: every step is ticked or confirmed.</li>
+                  <li><b>Not tracked</b>: the script output landed but no manual box was ever recorded here (older runs, from before the tracker).</li>
+                  <li><b>Can't tell</b>: Google could not be read just then. It retries by itself and never turns red from a failed read.</li>
+                </ul>
+              </div>
+              <div>
+                <div className={`font-bold mb-1 ${strong}`}>Ticking and saving</div>
+                <ul className="list-disc pl-4 space-y-1">
+                  <li><b>AUTO</b> rows are read from your report sheets and Drive. Once confirmed they are saved and never re-read. Nothing is written to your report sheets.</li>
+                  <li><b>Manual boxes</b> (Slack, Mark, client, dashboard…) save to the <b>Report Tracker sheet</b> the moment you click. If the save fails, the box un-ticks itself and a red message says so.</li>
+                  <li>Click <b>Open Source Sheet</b> to see exactly what is stored: the <b>Checks</b> tab (one row per report, period and step), <b>Tasks</b>, and an append-only <b>Log</b> of every change. That is your history.</li>
+                </ul>
+                <div className={`font-bold mt-3 mb-1 ${strong}`}>Slack proof (nightly check)</div>
+                <ul className="list-disc pl-4 space-y-1">
+                  <li>When the nightly Slack check is switched on, a step it finds shows a green <b>AUTO-FOUND</b> tick with the evidence (who, what, when; never message text). <b>Untick it if it is wrong</b>; your choice always wins.</li>
+                  <li>An amber <b>needs your review</b> or <b>not clear</b> note means it saw something but would not tick for you.</li>
+                </ul>
+                <div className={`font-bold mt-3 mb-1 ${strong}`}>Other buttons</div>
+                <ul className="list-disc pl-4 space-y-1">
+                  <li><b>Refresh checks</b> re-reads the sheets now. <b>Add due dates to calendar</b> adds each run window to this browser's portal calendar.</li>
+                  <li><b>Tasks &amp; Reminders</b> at the bottom is a shared to-do list, also stored in the sheet.</li>
+                </ul>
+                <button
+                  onClick={() => setCurrentPage("help")}
+                  className={`mt-3 inline-flex items-center gap-1 text-[11px] font-semibold ${isLight ? "text-blue-600 hover:text-blue-800" : "text-[#60a5fa] hover:text-[#93c5fd]"}`}
+                >
+                  Full guide in Help &amp; Reference <ExternalLink className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {!signedIn && (
           <div className={`flex items-start gap-2 p-3 rounded-xl border text-xs ${isLight ? "bg-amber-50 border-amber-200 text-amber-800" : "bg-amber-950/20 border-amber-900/40 text-amber-200"}`}>

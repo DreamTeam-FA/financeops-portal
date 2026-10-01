@@ -36,6 +36,9 @@ describe("ReportTrackerPage render", () => {
     expect(html).toContain("btn-3d btn-3d-blue");         // portal button style
     expect(html).toContain("AUTO");
     expect(html).toContain("Philippine Time");
+    expect(html).toContain("How it works");                       // info button (guide is collapsed by default)
+    expect(html).toContain('aria-label="How this page works"');
+    expect(html).not.toContain("How the Report Tracker works");   // panel closed until clicked
   });
   it("renders signed-out with the connect banner and disabled actions (light)", () => {
     signedIn = false; theme = "light";
