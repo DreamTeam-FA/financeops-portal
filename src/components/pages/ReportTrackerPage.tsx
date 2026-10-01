@@ -8,7 +8,7 @@ import { useFinance } from "../../context/FinanceContext";
 import { getAccessToken } from "../../services/googleAuth";
 import {
   REPORTS, TRACKER_SHEET_URL, TrackerApiError, cycleStatus, cycleView, fmtPht, fmtPhtDate, isoDate, newTaskId,
-  latchedAutoKeys, pendingAutoSteps, plannedCalendarEvents, readTrackerData, relative, runAutoChecks, shouldCarryOver, stepStates, toPht,
+  evidenceKind, evidenceText, latchedAutoKeys, pendingAutoSteps, plannedCalendarEvents, readTrackerData, relative, runAutoChecks, shouldCarryOver, stepStates, toPht,
   trackedPeriods, writeAutoConfirmations, writeCheck, writeTask,
   type AutoByPeriod, type AutoResult, type CheckRow, type Confirmation, type Cycle, type ReportDef, type Status, type TaskItem,
 } from "../../services/reportTrackerService";
@@ -151,7 +151,7 @@ export const ReportTrackerPage: React.FC = () => {
             try {
               await writeAutoConfirmations(token, fresh);
               const at = new Date().toISOString();
-              setChecks(c => { const n = { ...c }; for (const f of fresh) n[`${f.periodKey}|auto:${f.step}`] = { done: true, at, by: "auto-check" }; return n; });
+              setChecks(c => { const n = { ...c }; for (const f of fresh) n[`${f.periodKey}|auto:${f.step}`] = { done: true, at, by: "auto-check", evidence: "" }; return n; });
             } catch { /* best effort: it will simply be re-checked next time */ }
           }
           if (!anyUnknown) writeAutoCache({ at: Date.now(), keys, data: out.byPeriod });
@@ -195,7 +195,7 @@ export const ReportTrackerPage: React.FC = () => {
     const prev = checks[key];
     const nextDone = !(prev?.done);
     setBusy(b => new Set(b).add(key));
-    setChecks(c => ({ ...c, [key]: { done: nextDone, at: new Date().toISOString(), by: userEmail || "" } }));
+    setChecks(c => ({ ...c, [key]: { done: nextDone, at: new Date().toISOString(), by: userEmail || "", evidence: "" } }));
     try {
       await writeCheck(token, cycle.periodKey, stepKey, nextDone, userEmail || "");
     } catch (e) {
@@ -458,8 +458,19 @@ export const ReportTrackerPage: React.FC = () => {
                               )}
                             </div>
                             {s.kind === "auto" && autoLine(b.cycle.periodKey, s.key, a, checks)}
-                            {s.kind === "manual" && st === "done" && row?.at && (
+                            {s.kind === "manual" && st === "done" && row?.at && evidenceKind(row) !== "found" && (
                               <div className={`text-[11px] ${muted}`}>Checked {fmtPht(Date.parse(row.at), false)}{row.by ? ` · ${row.by}` : ""}</div>
+                            )}
+                            {s.kind === "manual" && evidenceKind(row) === "found" && st === "done" && (
+                              <div className={`text-[11px] ${isLight ? "text-emerald-700" : "text-[#4ade80]"}`}>
+                                <span className={`mr-1 px-1.5 py-px rounded text-[9px] font-bold align-middle ${isLight ? "bg-emerald-100 text-emerald-700" : "bg-[#16a34a]/20 text-[#4ade80]"}`}>AUTO-FOUND</span>
+                                {evidenceText(row)} <span className={muted}>· untick if wrong</span>
+                              </div>
+                            )}
+                            {s.kind === "manual" && st !== "done" && (evidenceKind(row) === "review" || evidenceKind(row) === "unclear") && (
+                              <div className={`text-[11px] ${isLight ? "text-amber-700" : "text-amber-300"}`}>
+                                ⚠ Slack check ({row ? fmtPht(Date.parse(row.at), false) : ""}): {evidenceKind(row) === "review" ? "needs your review — " : "not clear — "}{evidenceText(row)}
+                              </div>
                             )}
                             {s.hint && st !== "done" && <div className={`text-[11px] ${muted}`}>{s.hint}</div>}
                           </div>

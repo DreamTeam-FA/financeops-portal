@@ -49,9 +49,9 @@ describe("confirmed steps are remembered", () => {
   });
   it("trackedPeriods ignores auto-confirmations and unticked rows (only real manual ticks start tracking)", () => {
     const t = trackedPeriods({
-      [`${cprow.periodKey}|${AUTO_PREFIX}run`]: { done: true, at: "", by: "auto-check" },
-      [`${fta.periodKey}|monica`]: { done: false, at: "", by: "x" },
-      [`${toast.periodKey}|micah`]: { done: true, at: "", by: "x" },
+      [`${cprow.periodKey}|${AUTO_PREFIX}run`]: { done: true, at: "", by: "auto-check", evidence: "" },
+      [`${fta.periodKey}|monica`]: { done: false, at: "", by: "x", evidence: "" },
+      [`${toast.periodKey}|micah`]: { done: true, at: "", by: "x", evidence: "" },
     });
     expect([...t]).toEqual([toast.periodKey]);
   });

@@ -350,7 +350,7 @@ async function readRange(token: string, id: string, range: string): Promise<stri
 // ─── Tracker sheet: tabs ─────────────────────────────────────────────────────
 
 const CHECKS = "Checks", TASKS = "Tasks", LOG = "Log";
-const CHECKS_HDR = ["period_key", "step_key", "done", "updated_at", "updated_by"];
+const CHECKS_HDR = ["period_key", "step_key", "done", "updated_at", "updated_by", "evidence"];
 const TASKS_HDR = ["id", "title", "due", "done", "notes", "deleted", "updated_at", "updated_by"];
 const LOG_HDR = ["timestamp", "user", "period_key", "step_key", "done"];
 
@@ -388,26 +388,47 @@ export async function ensureTrackerTabs(token: string): Promise<void> {
     const range = `${name}!A1:${String.fromCharCode(64 + hdr.length)}1`;
     await gfetch(token, `${S}/${TRACKER_SHEET_ID}/values/${q(range)}?valueInputOption=RAW`, { method: "PUT", body: JSON.stringify({ values: [hdr] }) });
   }
+  // Older tracker sheets have a 5-column Checks tab: add the "evidence" header (column F) once.
+  if (!newHeaders.some(([n]) => n === CHECKS)) {
+    const f1 = await readRange(token, TRACKER_SHEET_ID, `${CHECKS}!F1`).catch(() => [] as string[][]);
+    if (!f1[0] || !f1[0][0]) {
+      await gfetch(token, `${S}/${TRACKER_SHEET_ID}/values/${q(`${CHECKS}!F1`)}?valueInputOption=RAW`, { method: "PUT", body: JSON.stringify({ values: [["evidence"]] }) });
+    }
+  }
   ensured = true;
   sessionSet();
 }
 
 // ─── Tracker sheet: checks ───────────────────────────────────────────────────
 
-export interface CheckRow { done: boolean; at: string; by: string }
+export interface CheckRow { done: boolean; at: string; by: string; evidence: string }
+
+/** Rows written by the nightly Slack-check job use updated_by = "slack-check" and an evidence prefix. */
+export const SLACK_CHECK_USER = "slack-check";
+export type EvidenceKind = "found" | "review" | "unclear";
+export function evidenceKind(row: CheckRow | undefined): EvidenceKind | null {
+  if (!row || row.by !== SLACK_CHECK_USER) return null;
+  const e = (row.evidence || "").trim().toUpperCase();
+  if (e.startsWith("FOUND:")) return "found";
+  if (e.startsWith("REVIEW:")) return "review";
+  if (e.startsWith("UNCLEAR:")) return "unclear";
+  return null;
+}
+/** Evidence text without its FOUND:/REVIEW:/UNCLEAR: prefix. */
+export const evidenceText = (row: CheckRow | undefined) => (row?.evidence || "").replace(/^\s*(FOUND|REVIEW|UNCLEAR):\s*/i, "").trim();
 const truthy = (v: any) => String(v ?? "").trim().toUpperCase() === "TRUE";
 
 function parseChecks(rows: string[][]): Record<string, CheckRow> {
   const out: Record<string, CheckRow> = {};
   for (const r of rows) {
     if (!r[0] || !r[1]) continue;
-    out[`${r[0]}|${r[1]}`] = { done: truthy(r[2]), at: r[3] || "", by: r[4] || "" };
+    out[`${r[0]}|${r[1]}`] = { done: truthy(r[2]), at: r[3] || "", by: r[4] || "", evidence: r[5] || "" };
   }
   return out;
 }
 export async function readChecks(token: string): Promise<Record<string, CheckRow>> {
   await ensureTrackerTabs(token);
-  return parseChecks(await readRange(token, TRACKER_SHEET_ID, `${CHECKS}!A2:E`));
+  return parseChecks(await readRange(token, TRACKER_SHEET_ID, `${CHECKS}!A2:F`));
 }
 
 export async function writeCheck(token: string, periodKey: string, stepKey: string, done: boolean, by: string): Promise<void> {
@@ -415,12 +436,13 @@ export async function writeCheck(token: string, periodKey: string, stepKey: stri
   const now = new Date().toISOString();
   const keys = await readRange(token, TRACKER_SHEET_ID, `${CHECKS}!A2:B`);
   const idx = keys.findIndex(r => r[0] === periodKey && r[1] === stepKey);
-  const row = [periodKey, stepKey, done, now, by];
+  // A human tick/untick always wins: it replaces any slack-check row and clears its evidence (column F).
+  const row = [periodKey, stepKey, done, now, by, ""];
   if (idx >= 0) {
     const n = idx + 2;
-    await gfetch(token, `${S}/${TRACKER_SHEET_ID}/values/${q(`${CHECKS}!A${n}:E${n}`)}?valueInputOption=RAW`, { method: "PUT", body: JSON.stringify({ values: [row] }) });
+    await gfetch(token, `${S}/${TRACKER_SHEET_ID}/values/${q(`${CHECKS}!A${n}:F${n}`)}?valueInputOption=RAW`, { method: "PUT", body: JSON.stringify({ values: [row] }) });
   } else {
-    await gfetch(token, `${S}/${TRACKER_SHEET_ID}/values/${q(`${CHECKS}!A:E`)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, { method: "POST", body: JSON.stringify({ values: [row] }) });
+    await gfetch(token, `${S}/${TRACKER_SHEET_ID}/values/${q(`${CHECKS}!A:F`)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, { method: "POST", body: JSON.stringify({ values: [row] }) });
   }
   // best-effort audit trail
   gfetch(token, `${S}/${TRACKER_SHEET_ID}/values/${q(`${LOG}!A:E`)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
@@ -434,8 +456,8 @@ export async function writeAutoConfirmations(token: string, items: Confirmation[
   if (!items.length) return;
   await ensureTrackerTabs(token);
   const now = new Date().toISOString();
-  const rows = items.map(i => [i.periodKey, `${AUTO_PREFIX}${i.step}`, true, now, "auto-check"]);
-  await gfetch(token, `${S}/${TRACKER_SHEET_ID}/values/${q(`${CHECKS}!A:E`)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+  const rows = items.map(i => [i.periodKey, `${AUTO_PREFIX}${i.step}`, true, now, "auto-check", ""]);
+  await gfetch(token, `${S}/${TRACKER_SHEET_ID}/values/${q(`${CHECKS}!A:F`)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
     method: "POST", body: JSON.stringify({ values: rows }),
   });
 }
@@ -457,7 +479,7 @@ export async function readTasks(token: string): Promise<TaskItem[]> {
 /** Checks + Tasks in ONE Sheets read (batchGet) — keeps us far under Google's per-minute quota. */
 export async function readTrackerData(token: string): Promise<{ checks: Record<string, CheckRow>; tasks: TaskItem[] }> {
   await ensureTrackerTabs(token);
-  const d = await gfetch(token, `${S}/${TRACKER_SHEET_ID}/values:batchGet?ranges=${q(`${CHECKS}!A2:E`)}&ranges=${q(`${TASKS}!A2:H`)}`);
+  const d = await gfetch(token, `${S}/${TRACKER_SHEET_ID}/values:batchGet?ranges=${q(`${CHECKS}!A2:F`)}&ranges=${q(`${TASKS}!A2:H`)}`);
   const vr = d.valueRanges || [];
   return { checks: parseChecks(vr[0]?.values || []), tasks: parseTasks(vr[1]?.values || []) };
 }

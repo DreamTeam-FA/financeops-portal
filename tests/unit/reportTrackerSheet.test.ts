@@ -65,7 +65,12 @@ function installFetch() {
       }
       const values: any[][] = JSON.parse(init.body).values;
       if (isAppend) { for (const v of values) tab.rows.push(v); return json({}); }
-      values.forEach((v, i) => { tab.rows[p.r1 - 1 + i] = v; });
+      values.forEach((v, i) => {
+        const idx = p.r1 - 1 + i;
+        const cur = tab.rows[idx] ? [...tab.rows[idx]] : [];
+        v.forEach((cell: any, j: number) => { cur[p.c1 + j] = cell; });
+        tab.rows[idx] = cur;
+      });
       return json({});
     }
     return json({ error: { message: "unexpected url " + url } }, 500);
@@ -146,6 +151,48 @@ describe("tracker sheet write-through", () => {
   });
 });
 
+describe("slack-check evidence (column F)", () => {
+  it("adds the evidence header to an existing 5-column Checks tab, once", async () => {
+    const svc = await freshService();
+    await svc.ensureTrackerTabs("tok");
+    expect(tabs[0].title).toBe("Checks");
+    expect(tabs[0].rows[0]).toEqual(["period_key", "step_key", "done", "updated_at", "updated_by", "evidence"]);
+  });
+
+  it("reads slack-check rows with their evidence and classifies them", async () => {
+    const svc = await freshService();
+    await svc.ensureTrackerTabs("tok");
+    tabs[0].rows.push(
+      ["fta:2026-09-28", "monica", true, "2026-09-29T11:00:00Z", "slack-check", "FOUND: Norlan → Monica (Team Lutang), image attached, Tue Sep 29 6:05 PM PHT"],
+      ["fta:2026-09-28", "checked", false, "2026-09-29T11:00:00Z", "slack-check", "REVIEW: Invoice received: USU 2026.0022.pdf from Monica, Tue Sep 29 6:09 PM"],
+      ["cprow:2026-09-28", "tonie", false, "2026-09-29T15:00:00Z", "slack-check", "UNCLEAR: no message in window"],
+      ["toast:2026-08", "micah", true, "2026-09-05T15:00:00Z", "me@x.com", "FOUND: typed by a human, not the job"],
+    );
+    const d = await svc.readTrackerData("tok");
+    expect(svc.evidenceKind(d.checks["fta:2026-09-28|monica"])).toBe("found");
+    expect(svc.evidenceKind(d.checks["fta:2026-09-28|checked"])).toBe("review");
+    expect(svc.evidenceKind(d.checks["cprow:2026-09-28|tonie"])).toBe("unclear");
+    expect(svc.evidenceKind(d.checks["toast:2026-08|micah"])).toBeNull(); // only slack-check rows count as auto-found
+    expect(svc.evidenceText(d.checks["fta:2026-09-28|monica"])).toBe("Norlan → Monica (Team Lutang), image attached, Tue Sep 29 6:05 PM PHT");
+    // an auto-found tick counts as done for status purposes, like any manual tick
+    expect(d.checks["fta:2026-09-28|monica"].done).toBe(true);
+  });
+
+  it("a human untick replaces the slack-check row in place and clears its evidence — the job must not re-tick it", async () => {
+    const svc = await freshService();
+    await svc.ensureTrackerTabs("tok");
+    tabs[0].rows.push(["fta:2026-09-28", "monica", true, "2026-09-29T11:00:00Z", "slack-check", "FOUND: Norlan → Monica, image attached"]);
+    await svc.writeCheck("tok", "fta:2026-09-28", "monica", false, "accounting@marktimm.com");
+    const row = tabs[0].rows[1];
+    expect(tabs[0].rows).toHaveLength(2);                 // same row, not a duplicate
+    expect(row[2]).toBe(false);
+    expect(row[4]).toBe("accounting@marktimm.com");       // human now owns the row
+    expect(row[5]).toBe("");                              // evidence cleared
+    const d = await svc.readTrackerData("tok");
+    expect(svc.evidenceKind(d.checks["fta:2026-09-28|monica"])).toBeNull();
+  });
+});
+
 describe("auto-confirmations", () => {
   it("are appended as auto:<step> rows in ONE write, read back, and never count as manual tracking", async () => {
     const svc = await freshService();
@@ -181,8 +228,24 @@ describe("quota-friendly reads", () => {
     expect(d.checks["fta:2026-09-28|monica"].done).toBe(true);
     expect(d.tasks.map(t => t.title)).toEqual(["Call Tonie"]);
     const reads = calls.filter(c => c.method === "GET");
-    expect(reads).toHaveLength(2); // tab list (ensure) + one batchGet — not 14
-    expect(reads[1].url).toContain("values:batchGet");
+    // First open of a browser session: tab list + one-time evidence-header check + ONE batchGet (not 14)
+    expect(reads).toHaveLength(3);
+    expect(reads[reads.length - 1].url).toContain("values:batchGet");
+  });
+
+  it("once confirmed in this browser session, opening the page costs exactly ONE read", async () => {
+    await (await freshService()).ensureTrackerTabs("tok"); // tabs exist (a previous page load created them)
+    const store: Record<string, string> = { report_tracker_tabs_ok_v1: "1" };
+    (globalThis as any).sessionStorage = { getItem: (k: string) => store[k] ?? null, setItem: (k: string, v: string) => { store[k] = v; } };
+    try {
+      const svc = await freshService();
+      await svc.ensureTrackerTabs("tok");
+      calls = [];
+      await svc.readTrackerData("tok");
+      const reads = calls.filter(c => c.method === "GET");
+      expect(reads).toHaveLength(1);
+      expect(reads[0].url).toContain("values:batchGet");
+    } finally { delete (globalThis as any).sessionStorage; }
   });
 
   it("retries a 429 (per-minute quota) with backoff and then succeeds", async () => {
