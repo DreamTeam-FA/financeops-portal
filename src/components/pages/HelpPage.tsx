@@ -992,8 +992,11 @@ export const HelpPage: React.FC = () => {
               >
                 <div className="space-y-2">
                   {[
-                    { key: "GEMINI_API_KEY",    note: "Required — powers all AI scanning (bill, invoice, timesheet, email, PDF). Set in Render dashboard." },
-                    { key: "OPENAI_API_KEY",    note: "Optional — if set, vision-capable image scanning falls back to GPT-4o-mini for non-PDF attachments. Gemini is used for PDFs regardless." },
+                    { key: "GEMINI_API_KEY",    note: "Required — primary vision model for all AI scanning (bill, invoice, timesheet, email, PDF). Tries a fallback chain of free-tier Gemini models before giving up." },
+                    { key: "OPENAI_API_KEY",    note: "Optional, paid last resort — only called if EVERY Gemini model in the fallback chain fails (e.g. a free-tier-wide Google outage). Gemini stays primary either way; this just prevents a total outage when it's set." },
+                    { key: "GOOGLE_CLIENT_ID",     note: "Required for the Gmail token-refresh feature (silently refreshing a connected Gmail inbox's access token server-side). Without it, that refresh is skipped with a console warning — doesn't affect the main Google Sheets/Drive sign-in." },
+                    { key: "GOOGLE_CLIENT_SECRET", note: "Paired with GOOGLE_CLIENT_ID for the same Gmail token-refresh feature." },
+                    { key: "VITE_AUTOMATION_RUNNER_URL", note: "Build-time (Vite) var — base URL the Automations Runner tab calls. Defaults to http://localhost:8001 if unset, which only works for local dev." },
                     { key: "Firebase config",   note: "Hardcoded in src/services/googleAuth.ts — acceptable for public Firebase config (not a secret)." },
                     { key: "GCP OAuth Client",  note: "Client ID: 982066512597-d2gruoitkbcvuha47rdbqk0muaf0bm61.apps.googleusercontent.com — GCP project: gen-lang-client-0190927685. Authorized JS origin must include the Render URL." },
                   ].map((v) => (
@@ -1003,7 +1006,12 @@ export const HelpPage: React.FC = () => {
                     </div>
                   ))}
                 </div>
-                <p className={`text-[10px] mt-4 ${muted}`}>Last updated 2026-08-26 — keep in sync whenever sheet structure or GCP credentials change.</p>
+                <p className={`text-[10px] mt-4 ${muted}`}>
+                  Last updated 2026-10-02 — keep in sync whenever sheet structure or GCP credentials change.
+                  PORT, NODE_ENV, and VERCEL are also read from process.env but are platform-managed
+                  (Render sets PORT/NODE_ENV automatically; VERCEL is a dead leftover check from before
+                  this app moved to Render) — not something you need to set.
+                </p>
               </Section>
 
               {/* ── Tech Stack ── */}
