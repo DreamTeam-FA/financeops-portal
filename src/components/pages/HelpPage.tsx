@@ -170,6 +170,18 @@ const FAQ = [
     a: "They no longer should. A previous version routed any negative-amount TI bill to a separate 'TI Bills' bucket regardless of its sub-entity. This has been fixed — negative-amount bills (credits, refunds) now go to their correct sub-entity bucket (4G, 4YR, E1, Corner, or TI) just like any other bill.",
   },
   {
+    q: "What is the Report Tracker and where does its data live?",
+    a: "Report Tracker (sidebar → Workspace → Report Tracker) shows your recurring reports — FTA Weekly (Tue 5–7 PM PHT), CPRO Weekly (Mon 5–7 PM PHT, ready before 7 PM), CPRO Monthly (3rd, deadline the 6th) and Toast Recon (4th/5th) — with their due windows, a status badge (Upcoming / Due / In Progress / Overdue / Done) and a step list. Every manual checkbox and every task is saved to the shared Google Sheet 'FinanceOps Report Tracker (Portal Data)' (tabs: Checks, Tasks, Log) the moment you click — the sheet is the source of truth, nothing is kept only in the browser. If a save fails the change is undone and a red toast tells you. Use 'Open Source Sheet' (button on the page, or ⋯ → Open Source Sheet in the header) to open it.",
+  },
+  {
+    q: "How does Report Tracker know a report is done?",
+    a: "AUTO rows are read (never written) from your report sheets and Drive: FTA = a tab named for that Monday on the Feeding the Athletes sheet, plus a new 'USU 2026.00NN.pdf' in Drive → Invoices → USU; CPRO weekly/monthly = a tab like '09/20-09/26' or 'SEPTEMBER 1-30,2026' on the CPRO Amazon Sales report and a recent edit on CPRO Sales All Time; CPRO monthly Ad Spend = the month's 'Amazon' cell on the Ad Spend sheet is above $0.00; Toast Recon = the Toast Data tab's latest settled date reaches month-end. Slack steps (Monica, Tonie, Micah), email-to-Mark steps and the CPRO dashboard check can't be seen by the portal, so those are manual checkboxes. Checks re-run on open, on Refresh checks, and every 5 minutes. All times are Philippine Time (UTC+8).",
+  },
+  {
+    q: "What does 'Add due dates to calendar' do on Report Tracker?",
+    a: "It adds each report's run window (and the CPRO monthly deadline on the 6th) to the portal's local calendar as task events, skipping any that already exist (matched by title + date). Per the portal rule, local calendar events live in this browser's localStorage only — they are not written to a sheet.",
+  },
+  {
     q: "What does the Integration Test check?",
     a: "The Portal Integration Test (⚙️ → Settings & Data Sync → 'Run Integration Test') runs 8 server-side checks in real time: (1) server data is loaded, (2) AP bills exist, (3) AP bills span multiple entities, (4) bills have required fields, (5) bank accounts loaded, (6) loans loaded, (7) AR items loaded, (8) last sync timestamp present. Each check shows a green ✅ or red ✗ with a detail note. No OAuth token required — the server checks its own cached data. Use this after a deploy or after making config changes to confirm everything loaded correctly.",
   },
@@ -402,6 +414,8 @@ const BREAKAGE = [
   { symptom: "Marking a calendar event as 'done' does not sync to the sheet", cause: "After the repeat-event refactor, loadCalendarSheet was called before appendCalendarRow finished — the sheetRow for new events was still -1, so updateCalendarDone fell back to portal-only path", fix: "Fixed — appendCalendarRow promises are collected and Promise.allSettled() waits for all of them before calling loadCalendarSheet. sheetRow is now populated correctly for done sync." },
   { symptom: "Calendar month view event chips are truncated to 1–2 characters on mobile — can't read event names", cause: "Month-view day cells are ~53px wide on 375px with 7 columns. Event chips use 'truncate' which clips after a few characters — leaving only the icon or first letter visible", fix: "Fixed — tapping any day cell in month view now opens a mobile day-agenda panel below the calendar showing all events for that day in full (name, time, assignee, urgency). Tapping an event in the panel opens the full event detail modal." },
   { symptom: "Bank Statements 'Statement Date' column shows raw pipe-separated dates like '2026-08-01|2026-08-31'", cause: "QuickBooks-style bank statement exports store date ranges as ISO pipe-separated values — the portal was rendering them as raw strings without formatting", fix: "Fixed in commit 6070eb9 — formatStmtDate() now converts pipe-separated ISO dates to readable ranges like 'Aug 1, 2026 – Aug 31, 2026'." },
+  { symptom: "Report Tracker: a checkbox un-checks itself with a red 'NOT saved to the shared sheet' toast", cause: "The write to the 'FinanceOps Report Tracker (Portal Data)' sheet failed (expired Google token, or the signed-in Google account isn't an Editor on that sheet). The page undoes the change so the sheet always matches what you see", fix: "Click 'Reconnect Google Sheets' if the amber banner shows, or ask the sheet owner (finances@marktimm.com) to share the tracker sheet with your Google account as Editor, then check the box again." },
+  { symptom: "Report Tracker: an AUTO row shows 'No access to this file' or stays grey", cause: "Your Google account can't read that report sheet or the Drive invoices folder (or the token expired)", fix: "Reconnect Google, then press 'Refresh checks'. If it persists, make sure your account has at least Viewer access to the source sheet/folder named in the row." },
 ];
 
 /* ── Sheet reference data ──────────────────────────────────────────────── */
@@ -460,6 +474,23 @@ const SHEETS = [
     tabs: [
       { name: "Events", gid: "0",          note: "Primary calendar events (read & write)" },
       { name: "Notes",  gid: "1248704539", note: "Calendar notes (read-only)" },
+    ],
+  },
+  {
+    name: "Report Tracker (Portal Data)",
+    id: "1Olhac_V3mrzDVL7GFs4E3DN5uwscVR91g26zMFILml0",
+    emoji: "📋",
+    gradient: "from-[#0f3d3a] to-[#071f1d]",
+    glow: "rgba(13,148,136,0.18)",
+    accent: "#2dd4bf",
+    border: "border-teal-500/25",
+    badgeBg: "bg-teal-500/10",
+    badgeText: "text-teal-300",
+    purpose: "Report Tracker page — manual check state and tasks (sheet is the source of truth)",
+    tabs: [
+      { name: "Checks", gid: "dynamic", note: "period_key · step_key · done · updated_at · updated_by — one row per manual checkbox" },
+      { name: "Tasks",  gid: "dynamic", note: "id · title · due · done · notes · deleted · updated_at · updated_by — soft delete via 'deleted'" },
+      { name: "Log",    gid: "dynamic", note: "Append-only audit of every checkbox change" },
     ],
   },
   {
@@ -1039,6 +1070,7 @@ export const HelpPage: React.FC = () => {
                         { r: '"workspace-platforms"', d: 'WorkspacePage — Platforms tab (external SaaS links)' },
                         { r: '"workspace-drive"',     d: 'WorkspacePage — Drive Folders tab (Google Drive shortcuts)' },
                         { r: '"workspace-automations"', d: 'WorkspacePage — Automations tab (Python script runner, live logs, cookie sync)' },
+                        { r: '"workspace-report-tracker"', d: 'ReportTrackerPage — recurring report schedule (PHT), auto-checks from sheets/Drive, manual checkboxes + tasks saved to the Report Tracker sheet' },
                         { r: '"member-workspace"',     d: 'MemberWorkspacePage — per-member (Norlan, Micah, Monica) workspace' },
                         { r: '"notes"',                d: 'NotesPage — full notes page (floating widget also shown on all pages)' },
                         { r: '"logs"',                 d: 'LogsPage — action audit log' },

@@ -273,4 +273,5 @@ export type PageRoute =
   | "doc-scanner"
   | "ap-calendar"
   | "cc-expenses"
-  | "workflows";
+  | "workflows"
+  | "workspace-report-tracker";

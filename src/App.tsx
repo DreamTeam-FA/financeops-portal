@@ -34,6 +34,7 @@ import { EmailInboxScannerPage } from "./components/pages/EmailInboxScannerPage"
 import { DocScannerPage } from "./components/pages/DocScannerPage";
 import { CCExpensePage } from "./components/pages/CCExpensePage";
 import { WorkflowsPage } from "./components/pages/WorkflowsPage";
+import { ReportTrackerPage } from "./components/pages/ReportTrackerPage";
 import { PayablesCalendarPage } from "./components/pages/PayablesCalendarPage";
 import { GlobalSearchModal } from "./components/GlobalSearchModal";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -303,7 +304,8 @@ const MobileMoreDrawer: React.FC<{ open: boolean; onClose: () => void; onNav: (p
         { page: "workspace-platforms",    icon: "🌐", label: "Platforms" },
         { page: "workspace-drive",        icon: "📁", label: "Drive" },
         { page: "workspace-automations",  icon: "⚙️", label: "Automations" },
-        { page: "notes",               icon: "📝", label: "Notes" },
+        { page: "workspace-report-tracker", icon: "📋", label: "Report Tracker" },
+        { page: "notes",              icon: "📝", label: "Notes" },
         { page: "workflows",           icon: "⚡", label: "Workflows" },
         { page: "email-scanner",       icon: "📧", label: "Email" },
       ],
@@ -572,6 +574,8 @@ const PortalContent: React.FC = () => {
         return <CCExpensePage />;
       case "workflows":
         return <WorkflowsPage />;
+      case "workspace-report-tracker":
+        return <ReportTrackerPage />;
       default:
         return <HubPage />;
     }

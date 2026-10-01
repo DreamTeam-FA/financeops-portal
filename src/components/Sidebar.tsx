@@ -48,7 +48,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Search,
-  BookOpen
+  BookOpen,
+  ClipboardCheck
 } from "lucide-react";
 import { PageRoute, ExternalLinkItem } from "../types";
 
@@ -569,6 +570,20 @@ export const Sidebar: React.FC = () => {
         >
           <Bot className="w-3.5 h-3.5 text-orange-500 shrink-0" />
           {!isSidebarFolded && <span className="flex-1 text-left truncate font-medium">Automations</span>}
+        </button>
+        </Tooltip>
+
+        <Tooltip label="Report Tracker" disabled={!isSidebarFolded}>
+        <button
+          onClick={() => setCurrentPage("workspace-report-tracker")}
+          className={`w-full flex items-center ${isSidebarFolded ? "justify-center px-0 py-2" : "gap-2.5 px-3 py-1.5"} rounded-md text-[13px] transition-all relative ${
+            currentPage === "workspace-report-tracker"
+              ? isLight ? "bg-teal-50 text-teal-800 font-semibold border border-teal-200" : "bg-teal-950/20 text-teal-200 font-semibold border border-teal-900/40 shadow-[0_1px_8px_rgba(13,148,136,.1)]"
+              : isLight ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900 border border-transparent" : "text-[#7a90b0] hover:bg-[#0d1525] hover:text-[#c8d4e8] border border-transparent"
+          }`}
+        >
+          <ClipboardCheck className="w-3.5 h-3.5 text-teal-500 shrink-0" />
+          {!isSidebarFolded && <span className="flex-1 text-left truncate font-medium">Report Tracker</span>}
         </button>
         </Tooltip>
       </div>
