@@ -1,14 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle, CalendarPlus, CheckCircle2, CheckSquare, Clock, ExternalLink,
-  Plus, RefreshCw, Square, Trash2, ClipboardCheck, Table2, Info, X,
+  Plus, RefreshCw, Square, Trash2, ClipboardCheck, Table2, Info, X, ChevronDown, ChevronRight, History,
 } from "lucide-react";
 import { PageHeader } from "../PageHeader";
 import { useFinance } from "../../context/FinanceContext";
 import { getAccessToken } from "../../services/googleAuth";
 import {
   REPORTS, TRACKER_SHEET_URL, TrackerApiError, cycleStatus, cycleView, fmtPht, fmtPhtDate, isoDate, newTaskId,
-  evidenceKind, evidenceText, latchedAutoKeys, pendingAutoSteps, plannedCalendarEvents, readTrackerData, relative, runAutoChecks, shouldCarryOver, stepStates, toPht,
+  evidenceKind, evidenceText, historyRows, latchedAutoKeys, pendingAutoSteps, plannedCalendarEvents, readTrackerData, relative, runAutoChecks, shouldCarryOver, stepStates, toPht,
   trackedPeriods, writeAutoConfirmations, writeCheck, writeTask,
   type AutoByPeriod, type AutoResult, type CheckRow, type Confirmation, type Cycle, type ReportDef, type Status, type TaskItem,
 } from "../../services/reportTrackerService";
@@ -66,8 +66,13 @@ export const ReportTrackerPage: React.FC = () => {
   const [newTitle, setNewTitle] = useState("");
   const [newDue, setNewDue] = useState("");
   const [showInfo, setShowInfo] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const loadSeq = useRef(0);
   const inFlight = useRef(false);
+  const addEventRef = useRef(addCalendarEvent);
+  addEventRef.current = addCalendarEvent;
+  const calCountRef = useRef(0);
+  calCountRef.current = (localCalendarEvents || []).length;
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const firstLoad = useRef(true);
   const busyTries = useRef(0);
@@ -250,11 +255,18 @@ export const ReportTrackerPage: React.FC = () => {
   const toAdd = plannedAll.filter(p => !existingKeys.has(`${p.title}|${p.date}`));
   const addToCalendar = async () => {
     if (!toAdd.length) return;
+    // addCalendarEvent builds the new list from the state of the render it belongs to, so each add must
+    // wait for React to re-render and then call the LATEST function (otherwise adds overwrite each other).
+    const startCount = calCountRef.current;
     for (const p of toAdd) {
-      addCalendarEvent({ title: p.title, date: p.date, time: p.time, type: "task", description: p.description, entity: "ALL" });
-      await new Promise(r => setTimeout(r, 8)); // ids are Date.now()-based — keep them unique
+      const before = calCountRef.current;
+      addEventRef.current({ title: p.title, date: p.date, time: p.time, type: "task", description: p.description, entity: "ALL" });
+      for (let i = 0; i < 40 && calCountRef.current === before; i++) await new Promise(r => setTimeout(r, 25));
+      await new Promise(r => setTimeout(r, 5)); // ids are Date.now()-based — keep them unique
     }
-    showToast(`Added ${toAdd.length} report due date${toAdd.length === 1 ? "" : "s"} to the calendar`, "success", 3000);
+    const added = calCountRef.current - startCount;
+    if (added >= toAdd.length) showToast(`Added ${added} report due date${added === 1 ? "" : "s"} to the calendar`, "success", 3000);
+    else showToast(`Added ${added} of ${toAdd.length} due dates — press the button again to add the rest.`, "info", 6000);
   };
 
   // ── Derived view model ─────────────────────────────────────────────────────
@@ -320,6 +332,8 @@ export const ReportTrackerPage: React.FC = () => {
     if (a?.detail) return <div className={`text-[11px] ${muted}`}>{a.detail}</div>;
     return signedIn ? <div className={`text-[11px] ${muted}`}>{loadedOnce ? "Not checked yet" : "Reading sheet…"}</div> : null;
   };
+
+  const history = useMemo(() => historyRows(now, checks), [now, checks]);
 
   const todayIso = isoDate(toPht(now));
   const openTasks = tasks.filter(t => !t.done).length;
@@ -414,7 +428,7 @@ export const ReportTrackerPage: React.FC = () => {
                 <ul className="list-disc pl-4 space-y-1">
                   <li><b>AUTO</b> rows are read from your report sheets and Drive. Once confirmed they are saved and never re-read. Nothing is written to your report sheets.</li>
                   <li><b>Manual boxes</b> (Slack, Mark, client, dashboard…) save to the <b>Report Tracker sheet</b> the moment you click. If the save fails, the box un-ticks itself and a red message says so.</li>
-                  <li>Click <b>Open Source Sheet</b> to see exactly what is stored: the <b>Checks</b> tab (one row per report, period and step), <b>Tasks</b>, and an append-only <b>Log</b> of every change. That is your history.</li>
+                  <li>The <b>History</b> section at the bottom lists past runs with how many steps were recorded. Click <b>Open Source Sheet</b> to see the raw rows: the <b>Checks</b> tab (one row per report, period and step), <b>Tasks</b>, and an append-only <b>Log</b> of every change.</li>
                 </ul>
                 <div className={`font-bold mt-3 mb-1 ${strong}`}>Slack proof (nightly check)</div>
                 <ul className="list-disc pl-4 space-y-1">
@@ -561,6 +575,70 @@ export const ReportTrackerPage: React.FC = () => {
               )}
             </div>
           ))}
+        </div>
+
+        {/* ── History (from the Checks tab) ── */}
+        <div className={`${card} overflow-hidden shadow-sm`}>
+          <button
+            onClick={() => setShowHistory(v => !v)}
+            className={`w-full flex items-center justify-between p-3 text-left transition-colors ${showHistory ? `border-b ${isLight ? "border-slate-200" : "border-[#1a2235]"}` : ""} ${isLight ? "bg-slate-50 hover:bg-slate-100" : "bg-[#0d1117] hover:bg-white/5"}`}
+            aria-expanded={showHistory}
+          >
+            <div className="flex items-center gap-2">
+              {showHistory ? <ChevronDown className={`w-4 h-4 ${isLight ? "text-slate-500" : "text-[#666]"}`} /> : <ChevronRight className={`w-4 h-4 ${isLight ? "text-slate-500" : "text-[#666]"}`} />}
+              <History className="w-4 h-4 text-[#0d9488]" />
+              <h2 className={`text-sm font-bold ${strong}`}>History</h2>
+              <span className={`text-[10px] px-2 py-0.5 rounded font-semibold ${isLight ? "bg-slate-200 text-slate-600" : "bg-[#1a2235] text-[#888]"}`}>
+                {history.filter(h => h.status === "done").length} of {history.length} past runs complete
+              </span>
+            </div>
+            <span className={`text-[11px] ${muted}`}>{showHistory ? "Hide" : "Show"}</span>
+          </button>
+          {showHistory && (
+            <div className="p-3 space-y-4">
+              <div className={`text-[11px] ${muted}`}>
+                Built from the Checks tab of the tracker sheet. Runs from before the tracker existed have nothing recorded and show "No record".
+              </div>
+              {REPORTS.map(rep => {
+                const rows = history.filter(h => h.reportId === rep.id);
+                return (
+                  <div key={rep.id}>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="w-1 h-4 rounded-full" style={{ background: rep.accent }} />
+                      <span className={`text-xs font-bold ${strong}`}>{rep.name}</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className={`text-left ${muted} uppercase text-[10px]`}>
+                            <th className="py-1 pr-3 font-semibold">Period</th>
+                            <th className="py-1 pr-3 font-semibold">Result</th>
+                            <th className="py-1 pr-3 font-semibold">Steps recorded</th>
+                            <th className="py-1 font-semibold">Last recorded</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rows.map(h => (
+                            <tr key={h.periodKey} className={`border-t ${isLight ? "border-slate-100" : "border-[#1a2235]"}`}>
+                              <td className={`py-1.5 pr-3 ${strong}`}>{h.label}</td>
+                              <td className="py-1.5 pr-3">
+                                {h.status === "done" && <span className={`px-2 py-0.5 rounded text-[10px] font-bold bg-[#16a34a]/20 ${isLight ? "text-emerald-600" : "text-[#4ade80]"}`}>✓ Done</span>}
+                                {h.status === "partial" && <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#fb923c]/20 text-[#fb923c]">Partly done</span>}
+                                {h.status === "none" && <span title="No tick or confirmation is stored in the tracker sheet for this run" className={`px-2 py-0.5 rounded text-[10px] font-bold ${isLight ? "bg-slate-200 text-slate-600" : "bg-[#1a2235] text-[#888]"}`}>No record</span>}
+                              </td>
+                              <td className={`py-1.5 pr-3 font-mono-num ${h.status === "none" ? muted : strong}`}>{h.done} of {h.total}</td>
+                              <td className={`py-1.5 ${muted}`}>{h.lastAt ? fmtPht(Date.parse(h.lastAt), false) : "—"}</td>
+                            </tr>
+                          ))}
+                          {rows.length === 0 && <tr><td colSpan={4} className={`py-2 ${muted}`}>No past runs yet.</td></tr>}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* ── Tasks & reminders ── */}

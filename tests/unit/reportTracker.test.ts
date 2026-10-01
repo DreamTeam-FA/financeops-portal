@@ -4,7 +4,7 @@
  */
 import { describe, it, expect } from "vitest";
 import {
-  adSpendFromGrid, cycleStatus, cycleView, fmtPht, fromPht, isoDate, latestDateIn, plannedCalendarEvents,
+  adSpendFromGrid, cycleStatus, cycleView, fmtPht, fromPht, historyRows, isoDate, latestDateIn, plannedCalendarEvents,
   reportById, stepStates, toPht,
 } from "../../src/services/reportTrackerService";
 
@@ -134,6 +134,40 @@ describe("auto-check parsers", () => {
     const d = latestDateIn([["Settled date"], ["3/26/2025"], ["9/4/2026"], ["2026-08-30"], [""]]);
     expect(new Date(d!).toISOString().slice(0, 10)).toBe("2026-09-04");
     expect(latestDateIn([["x"]])).toBeNull();
+  });
+});
+
+describe("history (from the Checks tab only)", () => {
+  const rows = (o: Record<string, [boolean, string]>) =>
+    Object.fromEntries(Object.entries(o).map(([k, [done, at]]) => [k, { done, at, by: "x", evidence: "" }]));
+
+  it("lists past runs newest-first, skips the active run, and shows 'none' where nothing was ever recorded", () => {
+    const h = historyRows(THU_OCT1, {});
+    const fta = h.filter(x => x.reportId === "fta");
+    expect(fta.length).toBe(8);
+    expect(fta[0].periodKey).toBe("fta:2026-09-21");       // active is 09-28 → history starts the week before
+    expect(fta.every(x => x.status === "none" && x.done === 0)).toBe(true);
+    expect(h.filter(x => x.reportId === "cprom")[0].periodKey).toBe("cprom:2026-07"); // active = August
+    expect(h.some(x => x.periodKey === "fta:2026-09-28")).toBe(false);
+  });
+
+  it("counts manual ticks and remembered auto-confirmations; done only when every step is recorded", () => {
+    const at = "2026-09-23T12:00:00.000Z";
+    const checks: Record<string, any> = rows({
+      // CPRO weekly run of Sep 21 (period cprow:2026-09-21): all 5 steps recorded
+      "cprow:2026-09-21|auto:run": [true, at], "cprow:2026-09-21|auto:alltime": [true, at],
+      "cprow:2026-09-21|sheet": [true, at], "cprow:2026-09-21|dashboard": [true, at], "cprow:2026-09-21|tonie": [true, at],
+      // FTA week of Sep 21: only 2 of 7
+      "fta:2026-09-21|auto:run": [true, at], "fta:2026-09-21|monica": [true, "2026-09-22T12:00:00.000Z"],
+      // an unticked row must not count
+      "fta:2026-09-14|monica": [false, at],
+    });
+    const h = historyRows(THU_OCT1, checks);
+    const cp = h.find(x => x.periodKey === "cprow:2026-09-21")!;
+    expect(cp).toMatchObject({ status: "done", done: 5, total: 5, lastAt: at });
+    const f = h.find(x => x.periodKey === "fta:2026-09-21")!;
+    expect(f).toMatchObject({ status: "partial", done: 2, total: 7, lastAt: at }); // newest of the two rows (auto:run is later than the monica tick)
+    expect(h.find(x => x.periodKey === "fta:2026-09-14")!.status).toBe("none");
   });
 });
 

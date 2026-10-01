@@ -661,6 +661,51 @@ export async function runAutoChecks(token: string, cycles: Cycle[], confirmed: S
   return { byPeriod, errors: [...new Set(errors)] };
 }
 
+// ─── History (built only from the Checks tab; no extra reads) ─────────────────
+
+export interface HistoryRow {
+  reportId: ReportId; reportName: string; periodKey: string; label: string;
+  windowStart: number; deadline: number;
+  status: "done" | "partial" | "none";
+  done: number; total: number;
+  lastAt: string;            // ISO of the most recent tick/confirmation recorded for this run ("" if none)
+}
+
+/**
+ * Past runs per report (newest first), computed from what is stored in the tracker sheet.
+ * The currently active run is skipped (it is shown in the cards above).
+ * Runs from before the tracker existed have no rows, so they come back as status "none".
+ */
+export function historyRows(now: number, checks: Record<string, CheckRow>, perReport = 8): HistoryRow[] {
+  const flat: Record<string, boolean> = {};
+  for (const [k, v] of Object.entries(checks)) flat[k] = v.done;
+  const out: HistoryRow[] = [];
+  for (const rep of REPORTS) {
+    const past = cyclesAround(rep.id, now)
+      .filter(c => c.windowStart <= now)
+      .sort((a, b) => b.windowStart - a.windowStart)
+      .slice(1, 1 + perReport);
+    for (const c of past) {
+      const st = stepStates(rep, c, undefined, flat);
+      const done = rep.steps.filter(s => st[s.key] === "done").length;
+      let lastAt = "";
+      for (const s of rep.steps) {
+        for (const key of [`${c.periodKey}|${s.key}`, `${c.periodKey}|${AUTO_PREFIX}${s.key}`]) {
+          const r = checks[key];
+          if (r && r.at && r.at > lastAt) lastAt = r.at;
+        }
+      }
+      out.push({
+        reportId: rep.id, reportName: rep.name, periodKey: c.periodKey, label: c.label,
+        windowStart: c.windowStart, deadline: c.deadline,
+        status: done === rep.steps.length ? "done" : done > 0 ? "partial" : "none",
+        done, total: rep.steps.length, lastAt,
+      });
+    }
+  }
+  return out;
+}
+
 // ─── Calendar events (portal local calendar) ─────────────────────────────────
 
 export interface PlannedEvent { title: string; date: string; time: string; description: string }

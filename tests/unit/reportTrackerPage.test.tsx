@@ -39,6 +39,8 @@ describe("ReportTrackerPage render", () => {
     expect(html).toContain("How it works");                       // info button (guide is collapsed by default)
     expect(html).toContain('aria-label="How this page works"');
     expect(html).not.toContain("How the Report Tracker works");   // panel closed until clicked
+    expect(html).toContain("past runs complete");                 // History header (collapsed by default)
+    expect(html).not.toContain("Runs from before the tracker existed");
   });
   it("renders signed-out with the connect banner and disabled actions (light)", () => {
     signedIn = false; theme = "light";
