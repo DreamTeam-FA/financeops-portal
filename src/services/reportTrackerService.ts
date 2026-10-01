@@ -293,15 +293,24 @@ export class TrackerApiError extends Error {
   status: number;
   constructor(msg: string, status: number) { super(msg); this.status = status; }
 }
+const RETRY_DELAYS_MS = [4_000, 15_000];
+const sleepMs = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
+/** Fetch with Bearer token. Retries 429/503 (Google per-minute quota is shared with the whole portal) with backoff. */
 async function gfetch(token: string, url: string, init?: RequestInit): Promise<any> {
-  const res = await fetch(url, {
-    ...init,
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...(init?.headers || {}) },
-  });
-  let data: any = null;
-  try { data = await res.json(); } catch { /* empty body */ }
-  if (!res.ok) throw new TrackerApiError(data?.error?.message || `Google API ${res.status}`, res.status);
-  return data;
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(url, {
+      ...init,
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...(init?.headers || {}) },
+    });
+    let data: any = null;
+    try { data = await res.json(); } catch { /* empty body */ }
+    if (res.ok) return data;
+    if ((res.status === 429 || res.status === 503) && attempt < RETRY_DELAYS_MS.length) {
+      await sleepMs(RETRY_DELAYS_MS[attempt]);
+      continue;
+    }
+    throw new TrackerApiError(data?.error?.message || `Google API ${res.status}`, res.status);
+  }
 }
 const S = "https://sheets.googleapis.com/v4/spreadsheets";
 const D = "https://www.googleapis.com/drive/v3/files";
@@ -323,13 +332,22 @@ const CHECKS_HDR = ["period_key", "step_key", "done", "updated_at", "updated_by"
 const TASKS_HDR = ["id", "title", "due", "done", "notes", "deleted", "updated_at", "updated_by"];
 const LOG_HDR = ["timestamp", "user", "period_key", "step_key", "done"];
 
+const ENSURED_KEY = "report_tracker_tabs_ok_v1";
 let ensured = false;
-/** Idempotent. Renames the CSV-imported first tab to "Checks"; adds missing Tasks / Log tabs with headers. */
+const sessionGet = () => { try { return typeof sessionStorage !== "undefined" && sessionStorage.getItem(ENSURED_KEY) === "1"; } catch { return false; } };
+const sessionSet = () => { try { if (typeof sessionStorage !== "undefined") sessionStorage.setItem(ENSURED_KEY, "1"); } catch { /* ignore */ } };
+
+/**
+ * Idempotent. Normal case costs ONE read (the tab list) — and zero once confirmed this session.
+ * First run only: renames the CSV-imported first tab to "Checks"; adds missing Tasks / Log tabs and writes
+ * their header rows (no header reads needed: we only write headers for tabs we just created).
+ */
 export async function ensureTrackerTabs(token: string): Promise<void> {
-  if (ensured) return;
+  if (ensured || sessionGet()) { ensured = true; return; }
   const tabs = await sheetTitles(token, TRACKER_SHEET_ID);
   const have = new Set(tabs.map(t => t.title));
   const requests: any[] = [];
+  const newHeaders: [string, string[]][] = [];
   if (!have.has(CHECKS) && tabs.length > 0) {
     const first = tabs[0];
     const a1 = await readRange(token, TRACKER_SHEET_ID, `'${first.title}'!A1`).catch(() => [] as string[][]);
@@ -338,22 +356,18 @@ export async function ensureTrackerTabs(token: string): Promise<void> {
       have.add(CHECKS);
     }
   }
-  for (const name of [CHECKS, TASKS, LOG]) {
-    if (!have.has(name)) requests.push({ addSheet: { properties: { title: name } } });
+  for (const [name, hdr] of [[CHECKS, CHECKS_HDR], [TASKS, TASKS_HDR], [LOG, LOG_HDR]] as [string, string[]][]) {
+    if (!have.has(name)) { requests.push({ addSheet: { properties: { title: name } } }); newHeaders.push([name, hdr]); }
   }
   if (requests.length) {
     await gfetch(token, `${S}/${TRACKER_SHEET_ID}:batchUpdate`, { method: "POST", body: JSON.stringify({ requests }) });
   }
-  const hdrs: [string, string[]][] = [[CHECKS, CHECKS_HDR], [TASKS, TASKS_HDR], [LOG, LOG_HDR]];
-  for (const [name, hdr] of hdrs) {
-    const row1 = await readRange(token, TRACKER_SHEET_ID, `${name}!A1:${String.fromCharCode(64 + hdr.length)}1`).catch(() => [] as string[][]);
-    if (!row1[0] || row1[0][0] !== hdr[0]) {
-      await gfetch(token, `${S}/${TRACKER_SHEET_ID}/values/${q(`${name}!A1:${String.fromCharCode(64 + hdr.length)}1`)}?valueInputOption=RAW`, {
-        method: "PUT", body: JSON.stringify({ values: [hdr] }),
-      });
-    }
+  for (const [name, hdr] of newHeaders) {
+    const range = `${name}!A1:${String.fromCharCode(64 + hdr.length)}1`;
+    await gfetch(token, `${S}/${TRACKER_SHEET_ID}/values/${q(range)}?valueInputOption=RAW`, { method: "PUT", body: JSON.stringify({ values: [hdr] }) });
   }
   ensured = true;
+  sessionSet();
 }
 
 // ─── Tracker sheet: checks ───────────────────────────────────────────────────
@@ -361,15 +375,17 @@ export async function ensureTrackerTabs(token: string): Promise<void> {
 export interface CheckRow { done: boolean; at: string; by: string }
 const truthy = (v: any) => String(v ?? "").trim().toUpperCase() === "TRUE";
 
-export async function readChecks(token: string): Promise<Record<string, CheckRow>> {
-  await ensureTrackerTabs(token);
-  const rows = await readRange(token, TRACKER_SHEET_ID, `${CHECKS}!A2:E`);
+function parseChecks(rows: string[][]): Record<string, CheckRow> {
   const out: Record<string, CheckRow> = {};
   for (const r of rows) {
     if (!r[0] || !r[1]) continue;
     out[`${r[0]}|${r[1]}`] = { done: truthy(r[2]), at: r[3] || "", by: r[4] || "" };
   }
   return out;
+}
+export async function readChecks(token: string): Promise<Record<string, CheckRow>> {
+  await ensureTrackerTabs(token);
+  return parseChecks(await readRange(token, TRACKER_SHEET_ID, `${CHECKS}!A2:E`));
 }
 
 export async function writeCheck(token: string, periodKey: string, stepKey: string, done: boolean, by: string): Promise<void> {
@@ -394,12 +410,33 @@ export async function writeCheck(token: string, periodKey: string, stepKey: stri
 
 export interface TaskItem { id: string; title: string; due: string; done: boolean; notes: string }
 
-export async function readTasks(token: string): Promise<TaskItem[]> {
-  await ensureTrackerTabs(token);
-  const rows = await readRange(token, TRACKER_SHEET_ID, `${TASKS}!A2:H`);
+function parseTasks(rows: string[][]): TaskItem[] {
   return rows
     .filter(r => r[0] && !truthy(r[5]))
     .map(r => ({ id: r[0], title: r[1] || "", due: r[2] || "", done: truthy(r[3]), notes: r[4] || "" }));
+}
+export async function readTasks(token: string): Promise<TaskItem[]> {
+  await ensureTrackerTabs(token);
+  return parseTasks(await readRange(token, TRACKER_SHEET_ID, `${TASKS}!A2:H`));
+}
+
+/** Checks + Tasks in ONE Sheets read (batchGet) — keeps us far under Google's per-minute quota. */
+export async function readTrackerData(token: string): Promise<{ checks: Record<string, CheckRow>; tasks: TaskItem[] }> {
+  await ensureTrackerTabs(token);
+  const d = await gfetch(token, `${S}/${TRACKER_SHEET_ID}/values:batchGet?ranges=${q(`${CHECKS}!A2:E`)}&ranges=${q(`${TASKS}!A2:H`)}`);
+  const vr = d.valueRanges || [];
+  return { checks: parseChecks(vr[0]?.values || []), tasks: parseTasks(vr[1]?.values || []) };
+}
+
+const CARRY_OVER_MAX_AGE_MS = 14 * 86_400_000;
+/** A previous cycle is only shown (as "carry-over") if it is recent AND you already started tracking it here. */
+export function shouldCarryOver(prev: Cycle, tracked: Set<string>, now: number): boolean {
+  return tracked.has(prev.periodKey) && now - prev.deadline < CARRY_OVER_MAX_AGE_MS;
+}
+
+/** Which period keys have at least one recorded manual check (used to decide what is "being tracked"). */
+export function trackedPeriods(checks: Record<string, CheckRow>): Set<string> {
+  return new Set(Object.keys(checks).map(k => k.split("|")[0]));
 }
 
 async function taskRowIndex(token: string, id: string): Promise<number> {

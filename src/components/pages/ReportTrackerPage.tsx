@@ -8,11 +8,19 @@ import { useFinance } from "../../context/FinanceContext";
 import { getAccessToken } from "../../services/googleAuth";
 import {
   REPORTS, TRACKER_SHEET_URL, TrackerApiError, cycleStatus, cycleView, fmtPht, fmtPhtDate, isoDate, newTaskId,
-  plannedCalendarEvents, readChecks, readTasks, relative, runAutoChecks, stepStates, toPht, writeCheck, writeTask,
+  plannedCalendarEvents, readTrackerData, relative, runAutoChecks, shouldCarryOver, stepStates, toPht, trackedPeriods, writeCheck, writeTask,
   type AutoByPeriod, type CheckRow, type Cycle, type ReportDef, type Status, type TaskItem,
 } from "../../services/reportTrackerService";
 
-const AUTO_REFRESH_MS = 5 * 60_000;
+const AUTO_REFRESH_MS = 10 * 60_000;          // background re-check cadence while the page is visible
+const AUTO_CACHE_MS = 4 * 60_000;             // reuse auto-check results this long (navigating back and forth is free)
+const AUTO_CACHE_KEY = "report_tracker_auto_cache_v1";
+
+type AutoCache = { at: number; keys: string; data: AutoByPeriod };
+const readAutoCache = (keys: string): AutoCache | null => {
+  try { const c = JSON.parse(sessionStorage.getItem(AUTO_CACHE_KEY) || "null") as AutoCache | null; return c && c.keys === keys ? c : null; } catch { return null; }
+};
+const writeAutoCache = (c: AutoCache) => { try { sessionStorage.setItem(AUTO_CACHE_KEY, JSON.stringify(c)); } catch { /* ignore */ } };
 
 // ─── Status badge (same palette as Bank Statements "Done" / "Pending") ───────
 const StatusBadge: React.FC<{ status: Status; isLight: boolean }> = ({ status, isLight }) => {
@@ -51,6 +59,8 @@ export const ReportTrackerPage: React.FC = () => {
   const [newTitle, setNewTitle] = useState("");
   const [newDue, setNewDue] = useState("");
   const loadSeq = useRef(0);
+  const inFlight = useRef(false);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const signedIn = !!googleUser && !!getAccessToken();
 
@@ -70,38 +80,55 @@ export const ReportTrackerPage: React.FC = () => {
 
   const reportError = useCallback((what: string, e: any) => {
     const status = e instanceof TrackerApiError ? e.status : 0;
-    if (status === 401) showToast("⚠️ Token expired — reconnect Google Sheets before making changes.", "auth-error");
+    if (status === 429) showToast("Google's per-minute read limit was hit (it is shared with the rest of the portal). Report Tracker will retry on its own in a minute — nothing was lost.", "info", 7000);
+    else if (status === 401) showToast("⚠️ Token expired — reconnect Google Sheets before making changes.", "auth-error");
     else if (status === 403 || status === 404) showToast(`No access to the ${what}. Ask the sheet owner to add your Google account as an Editor.`, "error", 8000);
     else showToast(`Couldn't ${what}: ${e?.message || "network error"}`, "error", 8000);
   }, [showToast]);
 
-  const loadAll = useCallback(async (opts?: { quiet?: boolean }) => {
+  const loadAll = useCallback(async (opts?: { quiet?: boolean; force?: boolean }) => {
     const token = getAccessToken();
-    if (!token) return;
+    if (!token || inFlight.current) return;
+    inFlight.current = true;
     const seq = ++loadSeq.current;
     setLoading(true);
+    let quotaHit = false;
     try {
-      // Tracker sheet is the source of truth for checks + tasks
-      const [c, t] = await Promise.all([readChecks(token), readTasks(token)]);
-      if (seq !== loadSeq.current) return;
+      // Tracker sheet is the source of truth for checks + tasks (ONE read for both)
+      const { checks: c, tasks: t } = await readTrackerData(token);
       setChecks(c); setTasks(t);
-    } catch (e) {
+    } catch (e: any) {
+      if (e instanceof TrackerApiError && e.status === 429) quotaHit = true;
       reportError("read the Report Tracker sheet", e);
     }
     try {
-      const out = await runAutoChecks(token, watchedCycles);
-      if (seq !== loadSeq.current) return;
-      setAuto(out.byPeriod); setAutoAt(Date.now());
-      if (out.errors.length && !opts?.quiet) showToast(`Some auto-checks couldn't be read: ${out.errors.slice(0, 2).join(" · ")}`, "info", 6000);
-    } catch (e) {
+      const keys = watchedCycles.map(c => c.periodKey).join(",");
+      const cached = !opts?.force ? readAutoCache(keys) : null;
+      if (cached && Date.now() - cached.at < AUTO_CACHE_MS) {
+        setAuto(cached.data); setAutoAt(cached.at);
+      } else if (!quotaHit) {
+        const out = await runAutoChecks(token, watchedCycles);
+        if (seq !== loadSeq.current) return;
+        setAuto(out.byPeriod); setAutoAt(Date.now());
+        writeAutoCache({ at: Date.now(), keys, data: out.byPeriod });
+        if (out.errors.length && !opts?.quiet) showToast(`Some auto-checks couldn't be read: ${out.errors.slice(0, 2).join(" · ")}`, "info", 6000);
+      }
+    } catch (e: any) {
+      if (e instanceof TrackerApiError && e.status === 429) quotaHit = true;
       reportError("run the auto-checks", e);
     } finally {
+      inFlight.current = false;
       if (seq === loadSeq.current) { setLoading(false); setLoadedOnce(true); }
+      if (quotaHit) {
+        if (retryTimer.current) clearTimeout(retryTimer.current);
+        retryTimer.current = setTimeout(() => loadAll({ quiet: true }), 65_000);
+      }
     }
   }, [watchedCycles, reportError, showToast]);
 
   // Initial load + whenever sign-in state changes; then every 5 minutes while visible
   useEffect(() => { if (signedIn) loadAll({ quiet: true }); }, [signedIn]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => { if (retryTimer.current) clearTimeout(retryTimer.current); }, []);
   useEffect(() => {
     if (!signedIn) return;
     const t = setInterval(() => { if (document.visibilityState === "visible") loadAll({ quiet: true }); }, AUTO_REFRESH_MS);
@@ -183,6 +210,7 @@ export const ReportTrackerPage: React.FC = () => {
   const blocks = useMemo(() => {
     const flat: Record<string, boolean> = {};
     for (const [k, v] of Object.entries(checks)) flat[k] = v.done;
+    const tracked = trackedPeriods(checks);
     return views.map(({ rep, view }) => {
       const mk = (cycle: Cycle, label: Block["label"]): Block => {
         const states = stepStates(rep, cycle, auto[cycle.periodKey], flat);
@@ -190,7 +218,9 @@ export const ReportTrackerPage: React.FC = () => {
       };
       const active = mk(view.active, "current");
       const list: Block[] = [active];
-      if (view.previous) {
+      // Carry over the previous cycle only if it is recent AND you already started tracking it here.
+      // Weeks from before the tracker existed have no checks and must never show as overdue.
+      if (view.previous && shouldCarryOver(view.previous, tracked, now)) {
         const prev = mk(view.previous, "carry-over");
         if (prev.status !== "done") list.push(prev);
       }
@@ -261,7 +291,7 @@ export const ReportTrackerPage: React.FC = () => {
             <a href={TRACKER_SHEET_URL} target="_blank" rel="noopener noreferrer" className="btn-3d btn-3d-blue inline-flex items-center gap-1.5" title="Open the Google Sheet that stores this page's checks and tasks">
               <Table2 className="w-3.5 h-3.5" /> Open Source Sheet
             </a>
-            <button onClick={() => loadAll()} disabled={loading || !signedIn} className="btn-3d btn-3d-light inline-flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed" title="Re-read the tracker sheet and re-run the auto-checks">
+            <button onClick={() => loadAll({ force: true })} disabled={loading || !signedIn} className="btn-3d btn-3d-light inline-flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed" title="Re-read the tracker sheet and re-run the auto-checks">
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh checks
             </button>
             <button onClick={addToCalendar} disabled={!toAdd.length} className="btn-3d btn-3d-light inline-flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed" title="Adds each report's run window and the CPRO monthly deadline to the portal calendar (this browser)">

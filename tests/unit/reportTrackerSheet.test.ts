@@ -4,7 +4,7 @@
  * place on re-toggle, never duplicated), tasks soft-delete, the audit Log is appended, and API
  * failures surface as TrackerApiError (so the page can undo + toast).
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const ID = "1Olhac_V3mrzDVL7GFs4E3DN5uwscVR91g26zMFILml0";
 
@@ -36,6 +36,15 @@ function installFetch() {
         if (rq.updateSheetProperties) tabs.find(t => t.sheetId === rq.updateSheetProperties.properties.sheetId)!.title = rq.updateSheetProperties.properties.title;
       }
       return json({});
+    }
+    if (url.startsWith(base + "/values:batchGet?")) {
+      const ranges = [...new URL(url).searchParams.getAll("ranges")];
+      return json({ valueRanges: ranges.map(rg => {
+        const p = parseRange(rg); const tab = tabs.find(t => t.title === p.name)!;
+        const out: any[][] = [];
+        for (let r = p.r1; r <= Math.min(p.r2, tab.rows.length); r++) out.push((tab.rows[r - 1] || []).slice(p.c1, p.c2 + 1).map(v => (typeof v === "boolean" ? (v ? "TRUE" : "FALSE") : String(v))));
+        return { range: rg, values: out };
+      }) });
     }
     const vm = url.startsWith(base + "/values/") ? decodeURIComponent(url.slice((base + "/values/").length)) : null;
     if (vm) {
@@ -134,5 +143,59 @@ describe("tracker sheet write-through", () => {
     const writes = calls.filter(c => c.method !== "GET");
     expect(writes.length).toBeGreaterThan(0);
     for (const w of writes) expect(w.url).toContain(ID);
+  });
+});
+
+describe("quota-friendly reads", () => {
+  afterEach(() => { vi.useRealTimers(); });
+
+  it("readTrackerData fetches Checks + Tasks in ONE read; ensure costs one read on later loads", async () => {
+    const svc = await freshService();
+    await svc.writeCheck("tok", "fta:2026-09-28", "monica", true, "me@x.com");
+    await svc.writeTask("tok", { id: "t-9", title: "Call Tonie", due: "", done: false, notes: "" }, "me@x.com");
+    calls = [];
+    const svc2 = await freshService(); // fresh page load
+    const d = await svc2.readTrackerData("tok");
+    expect(d.checks["fta:2026-09-28|monica"].done).toBe(true);
+    expect(d.tasks.map(t => t.title)).toEqual(["Call Tonie"]);
+    const reads = calls.filter(c => c.method === "GET");
+    expect(reads).toHaveLength(2); // tab list (ensure) + one batchGet — not 14
+    expect(reads[1].url).toContain("values:batchGet");
+  });
+
+  it("retries a 429 (per-minute quota) with backoff and then succeeds", async () => {
+    vi.useFakeTimers();
+    const svc = await freshService();
+    await svc.ensureTrackerTabs("tok");
+    const real = (globalThis as any).fetch;
+    let hits = 0;
+    (globalThis as any).fetch = vi.fn(async (u: any, i: any) => {
+      if (String(u).includes("values:batchGet") && hits++ < 2) return { ok: false, status: 429, json: async () => ({ error: { message: "Quota exceeded" } }) };
+      return real(u, i);
+    });
+    const p = svc.readTrackerData("tok");
+    await vi.advanceTimersByTimeAsync(4_000);
+    await vi.advanceTimersByTimeAsync(15_000);
+    await expect(p).resolves.toMatchObject({ tasks: [] });
+    expect(hits).toBe(3);
+  });
+
+  it("gives up after the retries and reports status 429", async () => {
+    vi.useFakeTimers();
+    const svc = await freshService();
+    await svc.ensureTrackerTabs("tok");
+    (globalThis as any).fetch = vi.fn(async () => ({ ok: false, status: 429, json: async () => ({ error: { message: "Quota exceeded" } }) }));
+    const p = svc.readTrackerData("tok").catch(e => e);
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(await p).toMatchObject({ status: 429 });
+  });
+
+  it("carry-over only for recent cycles you already started tracking", async () => {
+    const svc = await freshService();
+    const now = Date.UTC(2026, 9, 1, 7, 10);
+    const prev = svc.cycleView("cprow", now).previous!;
+    expect(svc.shouldCarryOver(prev, new Set(), now)).toBe(false);                    // never tracked → no nagging about old weeks
+    expect(svc.shouldCarryOver(prev, new Set([prev.periodKey]), now)).toBe(true);     // tracked + recent
+    expect(svc.shouldCarryOver(prev, new Set([prev.periodKey]), now + 30 * 86_400_000)).toBe(false); // too old
   });
 });
