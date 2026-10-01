@@ -196,29 +196,16 @@ export const Sidebar: React.FC = () => {
       return days <= 3;
     }).length;
 
-    // Bank Statements: pending in the current month (matches page default filter)
-    const currentMonthYear = new Date().toLocaleString("en-US", { month: "long", year: "numeric" });
-    const getStmtMonth = (s: any) => {
-      const raw = s.requestDate || s.statementDate || s.downloadedAt || s.period;
-      if (!raw) return "";
-      const parts = String(raw).trim().split("-");
-      if (parts.length === 3 && parts[0].length === 4) {
-        const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-        if (!isNaN(d.getTime())) return d.toLocaleString("en-US", { month: "long", year: "numeric" });
-      }
-      return raw;
-    };
-    // Only Statement Tracker entries (have a Cut-Off Date) count toward the badge — Legacy
-    // entries are frozen/retired and shouldn't drive an "action needed" notification anymore.
-    // Cut-Off Date is a clean YYYY-MM-DD, so derive the month from it directly rather than
-    // getStmtMonth (which reads statementDate — a "start|end" range string it can't parse,
-    // so it always falls through to the raw range and never matches a month name).
+    // Bank Statements: only Statement Tracker entries (have a Cut-Off Date) count toward the
+    // badge — Legacy entries are frozen/retired and shouldn't drive an "action needed"
+    // notification anymore. "Pending" means the cut-off has actually passed (the bank would have issued the
+    // statement by now) and it's still not downloaded — not just "falls somewhere in this
+    // calendar month," which also counted statements weeks away from even being ready.
     const stmtsPending = (bankStatements as any[] || []).filter((s: any) => {
       if (!s.cutOffDate || s.downloaded !== false) return false;
       const d = new Date(s.cutOffDate + "T00:00:00");
       if (isNaN(d.getTime())) return false;
-      const mo = d.toLocaleString("en-US", { month: "long", year: "numeric" });
-      return mo === currentMonthYear;
+      return d <= today;
     }).length;
 
     // Calendar: events within the next 7 days (local + Google Cal + sheet events)
