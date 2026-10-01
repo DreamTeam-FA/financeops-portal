@@ -155,14 +155,30 @@ describe("history (from the Checks tab only)", () => {
   const rows = (o: Record<string, [boolean, string]>) =>
     Object.fromEntries(Object.entries(o).map(([k, [done, at]]) => [k, { done, at, by: "x", evidence: "" }]));
 
-  it("lists past runs newest-first, skips the active run, and shows 'none' where nothing was ever recorded", () => {
+  it("lists past runs since June 2026, newest first, skips the active run, and shows 'none' where nothing was ever recorded", () => {
     const h = historyRows(THU_OCT1, {});
     const fta = h.filter(x => x.reportId === "fta");
-    expect(fta.length).toBe(8);
+    expect(fta.length).toBe(17);                            // Mondays Jun 1 … Sep 21
     expect(fta[0].periodKey).toBe("fta:2026-09-21");       // active is 09-28 → history starts the week before
+    expect(fta[fta.length - 1].periodKey).toBe("fta:2026-06-01");
     expect(fta.every(x => x.status === "none" && x.done === 0)).toBe(true);
-    expect(h.filter(x => x.reportId === "cprom")[0].periodKey).toBe("cprom:2026-07"); // active = August
+    expect(h.filter(x => x.reportId === "cprom").map(x => x.periodKey)).toEqual(["cprom:2026-07", "cprom:2026-06"]); // active = August; nothing before June data
+    expect(h.filter(x => x.reportId === "toast").map(x => x.periodKey)).toEqual(["toast:2026-07", "toast:2026-06"]);
+    expect(h.filter(x => x.reportId === "cprow").at(-1)!.periodKey).toBe("cprow:2026-06-01");
     expect(h.some(x => x.periodKey === "fta:2026-09-28")).toBe(false);
+    expect(h.some(x => x.periodKey === "fta:2026-05-25")).toBe(false);   // before tracking start
+  });
+
+  it("a run marked with the skip step is 'skipped' (no report due), and weekly runs group under the month their week starts in", () => {
+    const at = "2026-10-01T17:20:00.000Z";
+    const h = historyRows(THU_OCT1, rows({ "fta:2026-08-24|skip": [true, at], "fta:2026-08-17|skip": [false, at] }));
+    expect(h.find(x => x.periodKey === "fta:2026-08-24")).toMatchObject({ status: "skipped", lastAt: at });
+    expect(h.find(x => x.periodKey === "fta:2026-08-17")!.status).toBe("none");   // an undone skip does not count
+    expect(h.find(x => x.periodKey === "fta:2026-08-31")).toMatchObject({ groupKey: "2026-08", groupLabel: "August 2026" });
+    expect(h.find(x => x.periodKey === "fta:2026-09-07")).toMatchObject({ groupKey: "2026-09", groupLabel: "September 2026" });
+    // CPRO weekly run on Mon Sep 7 covers Sun Aug 30 – Sat Sep 5 → grouped under August (where its label starts)
+    expect(h.find(x => x.periodKey === "cprow:2026-09-07")).toMatchObject({ groupKey: "2026-08", groupLabel: "August 2026" });
+    expect(h.find(x => x.reportId === "cprom")!.groupKey).toBe("");           // monthly reports are not grouped
   });
 
   it("counts manual ticks and remembered auto-confirmations; done only when every step is recorded", () => {

@@ -8,7 +8,7 @@ import { useFinance } from "../../context/FinanceContext";
 import { getAccessToken } from "../../services/googleAuth";
 import {
   REPORTS, TRACKER_SHEET_URL, TrackerApiError, cycleStatus, cycleView, fmtPht, fmtPhtDate, isoDate, newTaskId,
-  evidenceKind, evidenceText, historyRows, latchedAutoKeys, pendingAutoSteps, plannedCalendarEvents, readTrackerData, relative, runAutoChecks, shouldCarryOver, stepStates, toPht,
+  evidenceKind, evidenceText, historyRows, isSkipped, latchedAutoKeys, pendingAutoSteps, plannedCalendarEvents, readTrackerData, relative, runAutoChecks, shouldCarryOver, stepStates, toPht,
   trackedPeriods, writeAutoConfirmations, writeCheck, writeTask,
   type AutoByPeriod, type AutoResult, type CheckRow, type Confirmation, type Cycle, type ReportDef, type Status, type TaskItem,
 } from "../../services/reportTrackerService";
@@ -37,6 +37,7 @@ const StatusBadge: React.FC<{ status: Status; isLight: boolean }> = ({ status, i
     upcoming: { cls: isLight ? "bg-slate-200 text-slate-600" : "bg-[#1a2235] text-[#888]", text: "Upcoming" },
     untracked: { cls: isLight ? "bg-slate-200 text-slate-600" : "bg-[#1a2235] text-[#888]", text: "Not tracked" },
     unknown:   { cls: isLight ? "bg-slate-200 text-slate-600" : "bg-[#1a2235] text-[#888]", text: "Can't tell" },
+    skipped:   { cls: isLight ? "bg-slate-200 text-slate-600" : "bg-[#1a2235] text-[#888]", text: "No report due" },
   };
   const m = map[status];
   return <span className={`shrink-0 px-2 py-0.5 rounded text-[10px] font-bold ${m.cls}`}>{m.text}</span>;
@@ -67,6 +68,7 @@ export const ReportTrackerPage: React.FC = () => {
   const [newDue, setNewDue] = useState("");
   const [showInfo, setShowInfo] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [monthOpen, setMonthOpen] = useState<Record<string, boolean>>({});
   const loadSeq = useRef(0);
   const inFlight = useRef(false);
   const addEventRef = useRef(addCalendarEvent);
@@ -278,7 +280,8 @@ export const ReportTrackerPage: React.FC = () => {
     return views.map(({ rep, view }) => {
       const mk = (cycle: Cycle, label: Block["label"]): Block => {
         const states = stepStates(rep, cycle, auto[cycle.periodKey], flat);
-        return { rep, cycle, status: cycleStatus(rep, cycle, states, now), states, label };
+        const skipped = isSkipped(checks, cycle.periodKey);
+        return { rep, cycle, status: skipped ? "skipped" as Status : cycleStatus(rep, cycle, states, now), states, label };
       };
       const active = mk(view.active, "current");
       const list: Block[] = [active];
@@ -286,7 +289,7 @@ export const ReportTrackerPage: React.FC = () => {
       // Weeks from before the tracker existed have no checks and must never show as overdue.
       if (view.previous && shouldCarryOver(view.previous, tracked, now)) {
         const prev = mk(view.previous, "carry-over");
-        if (prev.status !== "done") list.push(prev);
+        if (prev.status !== "done" && prev.status !== "skipped") list.push(prev);
       }
       return { rep, next: view.next, list };
     });
@@ -411,6 +414,7 @@ export const ReportTrackerPage: React.FC = () => {
                 <ul className="list-disc pl-4 space-y-1">
                   <li>Each card is <b>one run of one report</b> for one period (for example CPRO Monthly · August 2026). When the next run's window opens, you get a <b>fresh card with every step unticked</b>.</li>
                   <li>All times are <b>Philippine Time</b>. The schedule: FTA Tue 5–7 PM · CPRO Weekly Mon 5–7 PM (ready by 7) · CPRO Monthly the 3rd (deadline the 6th) · Toast Recon the 4th–5th.</li>
+                  <li>On the FTA card, <b>No report this week (school break)</b> marks a week as having nothing to run (Undo is one click); otherwise it would show Overdue every Tuesday of a break.</li>
                   <li>A card stays on screen until the next run starts. If you had started ticking it and it is under 14 days old, it stays as a <b>Carry-over</b>.</li>
                 </ul>
                 <div className={`font-bold mt-3 mb-1 ${strong}`}>The status badge</div>
@@ -428,7 +432,7 @@ export const ReportTrackerPage: React.FC = () => {
                 <ul className="list-disc pl-4 space-y-1">
                   <li><b>AUTO</b> rows are read from your report sheets and Drive. Once confirmed they are saved and never re-read. Nothing is written to your report sheets.</li>
                   <li><b>Manual boxes</b> (Slack, Mark, client, dashboard…) save to the <b>Report Tracker sheet</b> the moment you click. If the save fails, the box un-ticks itself and a red message says so.</li>
-                  <li>The <b>History</b> section at the bottom lists past runs with how many steps were recorded. Click <b>Open Source Sheet</b> to see the raw rows: the <b>Checks</b> tab (one row per report, period and step), <b>Tasks</b>, and an append-only <b>Log</b> of every change.</li>
+                  <li>The <b>History</b> section at the bottom lists past runs <b>since June 2026</b> (weekly reports fold by month) with how many steps were recorded, and marks weeks with nothing to run as <b>No report due</b>. Click <b>Open Source Sheet</b> to see the raw rows: the <b>Checks</b> tab (one row per report, period and step), <b>Tasks</b>, and an append-only <b>Log</b> of every change.</li>
                 </ul>
                 <div className={`font-bold mt-3 mb-1 ${strong}`}>Slack proof (nightly check)</div>
                 <ul className="list-disc pl-4 space-y-1">
@@ -512,7 +516,12 @@ export const ReportTrackerPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="p-2">
+                  <div className={`p-2 ${b.status === "skipped" ? "opacity-50" : ""}`}>
+                    {b.status === "skipped" && (
+                      <div className={`mx-2 mb-1 text-[11px] font-semibold ${muted}`}>
+                        Marked as no report due{checks[`${b.cycle.periodKey}|skip`]?.by ? ` by ${checks[`${b.cycle.periodKey}|skip`].by}` : ""}. No steps are needed this week.
+                      </div>
+                    )}
                     {rep.steps.map(s => {
                       const st = b.states[s.key];
                       const key = `${b.cycle.periodKey}|${s.key}`;
@@ -563,6 +572,16 @@ export const ReportTrackerPage: React.FC = () => {
 
                   <div className={`px-3 py-2 border-t flex flex-wrap items-center gap-x-3 gap-y-1 ${isLight ? "border-slate-200" : "border-[#1a2235]"}`}>
                     <span className={`text-[11px] ${muted}`}>{rep.script}</span>
+                    {rep.id === "fta" && (
+                      <button
+                        onClick={() => toggleCheck(b.cycle, "skip")}
+                        disabled={!signedIn || busy.has(`${b.cycle.periodKey}|skip`)}
+                        className={`px-2 py-0.5 rounded text-[10px] font-semibold border disabled:opacity-40 disabled:cursor-not-allowed ${isLight ? "border-slate-300 text-slate-600 hover:bg-slate-100" : "border-[#1a2235] text-gray-300 hover:bg-white/5"}`}
+                        title={b.status === "skipped" ? "Undo: this week does have a report" : "Nothing is due this week (for example a school break). Saved to the tracker sheet; you can undo it."}
+                      >
+                        {b.status === "skipped" ? "Undo: report is due" : "No report this week (school break)"}
+                      </button>
+                    )}
                     <span className="flex-1" />
                     {rep.links.map(l => (
                       <a key={l.label} href={l.url} target="_blank" rel="noopener noreferrer"
@@ -594,7 +613,8 @@ export const ReportTrackerPage: React.FC = () => {
               <History className="w-4 h-4 text-[#0d9488]" />
               <h2 className={`text-sm font-bold ${strong}`}>History</h2>
               <span className={`text-[10px] px-2 py-0.5 rounded font-semibold ${isLight ? "bg-slate-200 text-slate-600" : "bg-[#1a2235] text-[#888]"}`}>
-                {history.filter(h => h.status === "done").length} of {history.length} past runs complete
+                {history.filter(h => h.status === "done").length} of {history.filter(h => h.status !== "skipped").length} past runs complete since June
+                {history.some(h => h.status === "skipped") ? ` · ${history.filter(h => h.status === "skipped").length} with no report due` : ""}
               </span>
             </div>
             <span className={`text-[11px] ${muted}`}>{showHistory ? "Hide" : "Show"}</span>
@@ -602,43 +622,81 @@ export const ReportTrackerPage: React.FC = () => {
           {showHistory && (
             <div className="p-3 space-y-4">
               <div className={`text-[11px] ${muted}`}>
-                Built from the Checks tab of the tracker sheet. Runs from before the tracker existed have nothing recorded and show "No record".
+                Tracking starts June 2026. Built from the Checks tab of the tracker sheet. Weekly reports fold by month (the latest month is open). "No report due" marks weeks with nothing to run, such as a school break.
               </div>
               {REPORTS.map(rep => {
                 const rows = history.filter(h => h.reportId === rep.id);
+                const weekly = rep.id === "fta" || rep.id === "cprow";
+                const groups: { key: string; label: string; rows: typeof rows }[] = [];
+                if (weekly) {
+                  for (const r of rows) {
+                    let g = groups.find(x => x.key === r.groupKey);
+                    if (!g) { g = { key: r.groupKey, label: r.groupLabel, rows: [] }; groups.push(g); }
+                    g.rows.push(r);
+                  }
+                } else groups.push({ key: "", label: "", rows });
+                const table = (list: typeof rows) => (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className={`text-left ${muted} uppercase text-[10px]`}>
+                          <th className="py-1 pr-3 font-semibold">Period</th>
+                          <th className="py-1 pr-3 font-semibold">Result</th>
+                          <th className="py-1 pr-3 font-semibold">Steps recorded</th>
+                          <th className="py-1 font-semibold">Last recorded</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {list.map(h => (
+                          <tr key={h.periodKey} className={`border-t ${isLight ? "border-slate-100" : "border-[#1a2235]"}`}>
+                            <td className={`py-1.5 pr-3 ${strong}`}>{h.label}</td>
+                            <td className="py-1.5 pr-3">
+                              {h.status === "done" && <span className={`px-2 py-0.5 rounded text-[10px] font-bold bg-[#16a34a]/20 ${isLight ? "text-emerald-600" : "text-[#4ade80]"}`}>✓ Done</span>}
+                              {h.status === "partial" && <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#fb923c]/20 text-[#fb923c]">Partly done</span>}
+                              {h.status === "skipped" && <span title="Nothing was due this week (for example a school break)" className={`px-2 py-0.5 rounded text-[10px] font-bold ${isLight ? "bg-slate-200 text-slate-600" : "bg-[#1a2235] text-[#888]"}`}>No report due</span>}
+                              {h.status === "none" && <span title="No tick or confirmation is stored in the tracker sheet for this run" className={`px-2 py-0.5 rounded text-[10px] font-bold ${isLight ? "bg-slate-200 text-slate-600" : "bg-[#1a2235] text-[#888]"}`}>No record</span>}
+                            </td>
+                            <td className={`py-1.5 pr-3 font-mono-num ${h.status === "none" || h.status === "skipped" ? muted : strong}`}>{h.status === "skipped" ? "—" : `${h.done} of ${h.total}`}</td>
+                            <td className={`py-1.5 ${muted}`}>{h.lastAt ? fmtPht(Date.parse(h.lastAt), false) : "—"}</td>
+                          </tr>
+                        ))}
+                        {list.length === 0 && <tr><td colSpan={4} className={`py-2 ${muted}`}>No past runs yet.</td></tr>}
+                      </tbody>
+                    </table>
+                  </div>
+                );
                 return (
                   <div key={rep.id}>
                     <div className="flex items-center gap-2 mb-1.5">
                       <span className="w-1 h-4 rounded-full" style={{ background: rep.accent }} />
                       <span className={`text-xs font-bold ${strong}`}>{rep.name}</span>
                     </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className={`text-left ${muted} uppercase text-[10px]`}>
-                            <th className="py-1 pr-3 font-semibold">Period</th>
-                            <th className="py-1 pr-3 font-semibold">Result</th>
-                            <th className="py-1 pr-3 font-semibold">Steps recorded</th>
-                            <th className="py-1 font-semibold">Last recorded</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {rows.map(h => (
-                            <tr key={h.periodKey} className={`border-t ${isLight ? "border-slate-100" : "border-[#1a2235]"}`}>
-                              <td className={`py-1.5 pr-3 ${strong}`}>{h.label}</td>
-                              <td className="py-1.5 pr-3">
-                                {h.status === "done" && <span className={`px-2 py-0.5 rounded text-[10px] font-bold bg-[#16a34a]/20 ${isLight ? "text-emerald-600" : "text-[#4ade80]"}`}>✓ Done</span>}
-                                {h.status === "partial" && <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#fb923c]/20 text-[#fb923c]">Partly done</span>}
-                                {h.status === "none" && <span title="No tick or confirmation is stored in the tracker sheet for this run" className={`px-2 py-0.5 rounded text-[10px] font-bold ${isLight ? "bg-slate-200 text-slate-600" : "bg-[#1a2235] text-[#888]"}`}>No record</span>}
-                              </td>
-                              <td className={`py-1.5 pr-3 font-mono-num ${h.status === "none" ? muted : strong}`}>{h.done} of {h.total}</td>
-                              <td className={`py-1.5 ${muted}`}>{h.lastAt ? fmtPht(Date.parse(h.lastAt), false) : "—"}</td>
-                            </tr>
-                          ))}
-                          {rows.length === 0 && <tr><td colSpan={4} className={`py-2 ${muted}`}>No past runs yet.</td></tr>}
-                        </tbody>
-                      </table>
-                    </div>
+                    {!weekly && table(rows)}
+                    {weekly && groups.map((g, gi) => {
+                      const mk = `${rep.id}|${g.key}`;
+                      const open = monthOpen[mk] ?? gi === 0;
+                      const doneN = g.rows.filter(r => r.status === "done").length;
+                      const skipN = g.rows.filter(r => r.status === "skipped").length;
+                      const dueN = g.rows.length - skipN;
+                      return (
+                        <div key={mk} className={`mb-1.5 rounded-lg border ${isLight ? "border-slate-200" : "border-[#1a2235]"}`}>
+                          <button
+                            onClick={() => setMonthOpen(m => ({ ...m, [mk]: !open }))}
+                            className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 text-left ${isLight ? "bg-slate-50 hover:bg-slate-100" : "bg-[#0d1117] hover:bg-white/5"} ${open ? "rounded-t-lg" : "rounded-lg"}`}
+                            aria-expanded={open}
+                          >
+                            <span className="flex items-center gap-1.5">
+                              {open ? <ChevronDown className={`w-3.5 h-3.5 ${muted}`} /> : <ChevronRight className={`w-3.5 h-3.5 ${muted}`} />}
+                              <span className={`text-xs font-bold ${strong}`}>{g.label}</span>
+                            </span>
+                            <span className={`text-[11px] ${muted}`}>
+                              {g.rows.length} week{g.rows.length === 1 ? "" : "s"} · {doneN} of {dueN} done{skipN ? ` · ${skipN} no report due` : ""}
+                            </span>
+                          </button>
+                          {open && <div className="px-2.5 pb-2">{table(g.rows)}</div>}
+                        </div>
+                      );
+                    })}
                   </div>
                 );
               })}

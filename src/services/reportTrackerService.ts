@@ -235,7 +235,7 @@ export function cyclesAround(reportId: ReportId, now: number): Cycle[] {
   const out: Cycle[] = [];
   const t = toPht(now);
   if (reportId === "fta" || reportId === "cprow") {
-    for (let i = -11; i <= 11; i++) {
+    for (let i = -30; i <= 11; i++) {
       const day = addDays(t, i * 7);
       // snap to the cycle weekday in that week
       const want = reportId === "fta" ? 2 : 1;
@@ -244,7 +244,7 @@ export function cyclesAround(reportId: ReportId, now: number): Cycle[] {
       out.push(reportId === "fta" ? ftaCycle(d) : cpro1Weekly(d));
     }
   } else {
-    for (let i = -3; i <= 3; i++) {
+    for (let i = -8; i <= 3; i++) {
       const mm = t.m + i;
       const y = t.y + Math.floor((mm - 1) / 12);
       const m = ((mm - 1) % 12 + 12) % 12 + 1;
@@ -271,7 +271,7 @@ export type AutoState = "ok" | "no" | "unknown";
 export type AutoReason = "busy" | "auth" | "access" | "error";
 export interface AutoResult { state: AutoState; detail?: string; reason?: AutoReason }
 export type StepState = "done" | "open" | "unknown";
-export type Status = "upcoming" | "due" | "progress" | "overdue" | "done" | "untracked" | "unknown";
+export type Status = "upcoming" | "due" | "progress" | "overdue" | "done" | "untracked" | "unknown" | "skipped";
 
 export const AUTO_PREFIX = "auto:";
 /** Auto steps already confirmed earlier are stored in the Checks tab as step_key "auto:<step>" (done = TRUE). */
@@ -681,43 +681,61 @@ export async function runAutoChecks(token: string, cycles: Cycle[], confirmed: S
 
 // ─── History (built only from the Checks tab; no extra reads) ─────────────────
 
+/** Tracking starts on this date (Philippine time). Earlier runs are not listed in History. */
+export const TRACKING_START_MS = fromPht(2026, 6, 1, 0, 0);
+
+/** step_key used to mark a run as "No report due" (for example an FTA school-break week). */
+export const SKIP_STEP = "skip";
+export const isSkipped = (checks: Record<string, { done: boolean }>, periodKey: string) => !!checks[`${periodKey}|${SKIP_STEP}`]?.done;
+
 export interface HistoryRow {
   reportId: ReportId; reportName: string; periodKey: string; label: string;
   windowStart: number; deadline: number;
-  status: "done" | "partial" | "none";
+  status: "done" | "partial" | "none" | "skipped";
   done: number; total: number;
   lastAt: string;            // ISO of the most recent tick/confirmation recorded for this run ("" if none)
+  groupKey: string;          // "YYYY-MM" the week belongs to (weekly reports only; "" for monthly reports)
+  groupLabel: string;        // "September 2026"
+}
+
+/** Month a weekly run is grouped under = the month its displayed week starts in. */
+export function weeklyGroup(periodKey: string): { key: string; label: string } {
+  const [kind, date] = periodKey.split(":");
+  const [y, m, d] = date.split("-").map(Number);
+  const start = kind === "cprow" ? toPht(fromPht(y, m, d - 8, 12)) : { y, m, d };
+  return { key: `${start.y}-${pad(start.m)}`, label: `${MONTHS[start.m - 1]} ${start.y}` };
 }
 
 /**
- * Past runs per report (newest first), computed from what is stored in the tracker sheet.
- * The currently active run is skipped (it is shown in the cards above).
- * Runs from before the tracker existed have no rows, so they come back as status "none".
+ * Past runs since TRACKING_START_MS (newest first), computed from what is stored in the tracker sheet.
+ * The currently active run is skipped (it is shown in the cards above). Runs from before the tracker
+ * existed have no rows, so they come back as status "none". A run marked with the "skip" step is "skipped".
  */
-export function historyRows(now: number, checks: Record<string, CheckRow>, perReport = 8): HistoryRow[] {
+export function historyRows(now: number, checks: Record<string, CheckRow>, startMs: number = TRACKING_START_MS): HistoryRow[] {
   const flat: Record<string, boolean> = {};
   for (const [k, v] of Object.entries(checks)) flat[k] = v.done;
+  const startMonth = toPht(startMs);
   const out: HistoryRow[] = [];
   for (const rep of REPORTS) {
-    const past = cyclesAround(rep.id, now)
-      .filter(c => c.windowStart <= now)
-      .sort((a, b) => b.windowStart - a.windowStart)
-      .slice(1, 1 + perReport);
+    const started = cyclesAround(rep.id, now).filter(c => c.windowStart <= now).sort((a, b) => b.windowStart - a.windowStart);
+    const past = started.slice(1).filter(c =>
+      c.month ? (c.month.y * 12 + c.month.m >= startMonth.y * 12 + startMonth.m) : c.windowStart >= startMs);
     for (const c of past) {
       const st = stepStates(rep, c, undefined, flat);
       const done = rep.steps.filter(s => st[s.key] === "done").length;
       let lastAt = "";
-      for (const s of rep.steps) {
-        for (const key of [`${c.periodKey}|${s.key}`, `${c.periodKey}|${AUTO_PREFIX}${s.key}`]) {
+      for (const s of [...rep.steps.map(x => x.key), SKIP_STEP]) {
+        for (const key of [`${c.periodKey}|${s}`, `${c.periodKey}|${AUTO_PREFIX}${s}`]) {
           const r = checks[key];
           if (r && r.at && r.at > lastAt) lastAt = r.at;
         }
       }
+      const g = c.month ? { key: "", label: "" } : weeklyGroup(c.periodKey);
       out.push({
         reportId: rep.id, reportName: rep.name, periodKey: c.periodKey, label: c.label,
         windowStart: c.windowStart, deadline: c.deadline,
-        status: done === rep.steps.length ? "done" : done > 0 ? "partial" : "none",
-        done, total: rep.steps.length, lastAt,
+        status: isSkipped(checks, c.periodKey) ? "skipped" : done === rep.steps.length ? "done" : done > 0 ? "partial" : "none",
+        done, total: rep.steps.length, lastAt, groupKey: g.key, groupLabel: g.label,
       });
     }
   }
