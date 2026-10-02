@@ -2948,6 +2948,89 @@ Notes:
   }
 });
 
+// POST /api/invoice/scan-multi — same extraction as /api/invoice/scan, but for a document that
+// lists MANY bills (a vendor statement, an invoice register, a spreadsheet screenshot). Returns
+// { ok, invoices: [...] } with one entry per bill row instead of a single invoice object.
+app.post("/api/invoice/scan-multi", async (req, res) => {
+  const { imageBase64, mimeType } = req.body || {};
+  if (!imageBase64) return res.status(400).json({ error: "imageBase64 required" });
+
+  const prompt = `This image/document contains a LIST of bills/invoices (for example a vendor statement, an invoice register, or a spreadsheet/table of invoices) — possibly many rows. Extract EVERY bill as its own entry. Respond with ONLY a raw JSON object — no markdown fences, no explanation — shaped exactly like:
+
+{ "invoices": [ { ...one bill... }, { ...next bill... } ] }
+
+Each bill object uses this schema:
+{
+  "vendor": "string",
+  "invoiceNo": "string or null",
+  "amount": number or null,
+  "dueDate": "YYYY-MM-DD or null",
+  "issueDate": "YYYY-MM-DD or null",
+  "entity": "string (which company this bill belongs to, e.g. Ruby's, TI, MSDx — infer from context if possible, otherwise empty string)",
+  "category": "string (short expense category, empty string if unclear)",
+  "description": "string (short description of what the bill is for, empty string if none)",
+  "remarks": "string (any extra notes, empty string if none)",
+  "isPaid": true, false, or null (true ONLY if that row visibly shows PAID / paid-in-full; otherwise null — never infer)
+}
+
+Rules:
+- One entry per bill/invoice row. Do NOT merge rows, do NOT skip rows, and do NOT invent rows. Do NOT include header rows, subtotals, or grand totals.
+- If the document is actually just ONE bill, return an array with a single entry.
+- "amount" is that row's amount as a plain number (no $ or commas). If a column is labeled "Orig Amount"/"Original Amount" use it; otherwise use the amount due for that row.
+- All dates in YYYY-MM-DD. If a date is printed as MM/DD/YYYY or "Month DD, YYYY", convert it. If the due date is a NET term (e.g. "NET 30"), output it literally as "NET 30".
+- If a vendor name is shown once for the whole list (or in a column repeated on every row), use it on every entry.
+- Leave a field null/empty rather than guessing.`;
+
+  try {
+    const result = await callVisionLLM(prompt, imageBase64, mimeType || "image/jpeg", 16384);
+    if (!result.ok) return res.status(502).json({ error: "Vision API error", details: result.error, attempts: result.attempts });
+
+    let cleaned = result.text
+      .replace(/(\d+)½/g, (_, n) => String(parseFloat(n) + 0.5))
+      .replace(/(\d+)¼/g, (_, n) => String(parseFloat(n) + 0.25))
+      .replace(/(\d+)¾/g, (_, n) => String(parseFloat(n) + 0.75))
+      .replace(/½/g, "0.5").replace(/¼/g, "0.25").replace(/¾/g, "0.75");
+    const s = cleaned.indexOf("{");
+    const e = cleaned.lastIndexOf("}");
+    cleaned = s !== -1 && e > s ? cleaned.slice(s, e + 1) : cleaned.trim();
+
+    let invoices: any[] | null = null;
+    try {
+      const parsed = JSON.parse(cleaned);
+      invoices = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.invoices) ? parsed.invoices : null;
+    } catch {
+      // A very long list can hit the output limit mid-object — salvage every COMPLETE entry
+      // before the cut instead of failing the whole scan.
+      const arrStart = cleaned.indexOf("[");
+      const lastObjEnd = cleaned.lastIndexOf("}");
+      if (arrStart !== -1 && lastObjEnd > arrStart) {
+        try {
+          const salvaged = JSON.parse(cleaned.slice(arrStart, lastObjEnd + 1).replace(/,\s*$/, "") + "]");
+          if (Array.isArray(salvaged)) invoices = salvaged;
+        } catch { /* fall through to the 422 below */ }
+      }
+    }
+    if (!invoices) {
+      console.error(`[InvoiceScanMulti] could not parse response (first 500): ${cleaned.slice(0, 500)}`);
+      return res.status(422).json({ error: "Could not parse response as JSON", raw: result.text.slice(0, 500) });
+    }
+
+    const storedForVendor = getStoredData();
+    const knownVendors = [...new Set(((storedForVendor.ap || []) as any[]).map((b: any) => b.vendor).filter(Boolean))] as string[];
+    const shaped = invoices
+      .filter((inv) => inv && typeof inv === "object")
+      .map((inv) => {
+        const vendorMatch = bestMatch(inv.vendor || "", knownVendors);
+        if (!vendorMatch.isNew && vendorMatch.matched) inv.vendor = vendorMatch.matched;
+        return { ...inv, vendorMatch };
+      });
+    console.log(`[InvoiceScanMulti] extracted ${shaped.length} bill(s)`);
+    res.json({ ok: true, invoices: shaped });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || String(err) });
+  }
+});
+
 // POST /api/headleys/scan — Gemini Vision extracts raw Headley's statement text from image/PDF
 app.post("/api/headleys/scan", async (req, res) => {
   const { imageBase64, mimeType } = req.body || {};

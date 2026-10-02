@@ -223,6 +223,17 @@ const HOWTOS = [
     ],
   },
   {
+    title: "Add Many Bills at Once from a List (Scan Multiple)",
+    steps: [
+      "On the AP page click '+ Add Bill', then click 'Have a list of many bills? Scan multiple at once →' under the single-bill scan box.",
+      "Drop or choose ONE image or PDF that contains the whole list — a vendor statement, an invoice register, or a screenshot of a spreadsheet of invoices. Long lists can take up to a minute to read.",
+      "A review table opens with one row per bill found: vendor, invoice #, issue date, due date, amount, sheet, and a Paid? checkbox. Every cell is editable — fix anything the scan got wrong.",
+      "Rows whose vendor + invoice # already exist in the portal (or appear twice in the scan) are flagged 'Possible duplicate' and UNCHECKED by default, so re-scanning the same list doesn't double-add. Re-check a row only if it really is a new bill.",
+      "A row needs a vendor and an amount to be added. 'Paid?' is only pre-checked when the document itself visibly marks that row paid.",
+      "Click 'Add N bills'. All selected bills are saved to the portal and written to the Google Sheet in one batch (one write per entity tab). The scanned file is not attached to the individual bills — attach bill copies afterward with the 📎 icon if needed.",
+    ],
+  },
+  {
     title: "Add a New Bill",
     steps: [
       "On the AP page, click the '+ Add Bill' button in the top-right header.",

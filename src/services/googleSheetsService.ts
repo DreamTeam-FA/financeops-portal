@@ -1371,6 +1371,70 @@ export const appendAPBill = async (
   return nextRow;
 };
 
+// Append MANY new bills in one go: a single read to find the first empty row, ONE contiguous
+// write for every bill, and ONE checkbox-validation call spanning the block. Looping
+// appendAPBill instead would race — each call independently reads "the next empty row," so
+// concurrent calls all pick the same row and overwrite each other — and burns ~4 API
+// requests per bill. Returns each bill's sheet row (same order as the input).
+export const appendAPBillsBatch = async (
+  bills: APBill[],
+  entity: string,
+  spreadsheetId: string,
+  accessToken: string
+): Promise<number[]> => {
+  if (bills.length === 0) return [];
+  const map = getAPColMap(entity);
+  const cleanId = extractSpreadsheetId(spreadsheetId);
+  if (!cleanId) throw new Error("Invalid spreadsheet ID");
+
+  const tabName = map.dataRange.split("!")[0];
+  const dataStart = parseInt(map.dataRange.split("!")[1].replace(/^[A-Z]+/, ""));
+  const vendorCol = String.fromCharCode(65 + map.vendor);
+  const lastDataCol = colNumToLetter(map.totalCols);
+
+  const vendorRange = `${tabName}!${vendorCol}${dataStart}:${vendorCol}`;
+  const readRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/${encodeURIComponent(vendorRange)}?majorDimension=ROWS`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!readRes.ok) throw new Error(`Failed to read vendor column: ${readRes.status}`);
+  const readData = await readRes.json();
+  const firstRow = dataStart + ((readData.values || []) as any[][]).length;
+  const lastRow = firstRow + bills.length - 1;
+  const rows = bills.map((_, i) => firstRow + i);
+
+  const writeRange = `${tabName}!A${firstRow}:${lastDataCol}${lastRow}`;
+  await updateSheetValues(spreadsheetId, writeRange, bills.map((b) => buildAPBillRow(b, entity)), accessToken);
+
+  // Checkbox validation on the inQBO cell of every new row. Non-fatal if it fails — the data is written.
+  try {
+    const metaRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}?fields=sheets.properties`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (metaRes.ok) {
+      const meta = await metaRes.json();
+      const tabTitle = tabName.replace(/^'|'$/g, "").replace(/''/g, "'");
+      const sheetMeta = (meta.sheets || []).find((s: any) => s.properties?.title === tabTitle);
+      if (sheetMeta) {
+        await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${cleanId}:batchUpdate`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            requests: [{
+              setDataValidation: {
+                range: { sheetId: sheetMeta.properties.sheetId, startRowIndex: firstRow - 1, endRowIndex: lastRow, startColumnIndex: map.inQBO, endColumnIndex: map.inQBO + 1 },
+                rule: { condition: { type: "BOOLEAN" }, strict: true, showCustomUi: true }
+              }
+            }]
+          })
+        });
+      }
+    }
+  } catch { /* validation is cosmetic */ }
+  return rows;
+};
+
 // Delete a bill's row from the sheet (removes the row, shifting rows above down)
 export const clearSingleAPBill = async (
   bill: APBill,

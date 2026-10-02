@@ -65,6 +65,7 @@ import {
   formatPayrollSheetRows,
   writeSingleAPBill,
   appendAPBill,
+  appendAPBillsBatch,
   clearSingleAPBill,
   fetchAvailableAPTabs,
   writeSingleBankAccount,
@@ -138,6 +139,7 @@ interface FinanceContextType {
 
   // CRUD Actions
   addBill: (bill: Omit<APBill, "id">) => APBill;
+  addBillsBatch: (bills: Omit<APBill, "id">[]) => Promise<{ added: number; sheetFailed: boolean }>;
   updateBill: (bill: APBill) => void;
   toggleBillStatus: (id: string, status: "unpaid" | "paid" | "hold", paidDate?: string) => void;
   markBillPartial: (id: string, amountPaid: number, paidDate: string) => void;
@@ -1188,7 +1190,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [headleys, setHeadleys] = useState<HeadleysItem[]>([]);
 
   // Google Calendar + Sheet events — global so notifications/other pages can read them
-  const DEFAULT_COL_MAP: ColMap = { date: 4, end: 5, allDay: 6, title: 2, notes: 3, entity: 7, type: 9, assignee: 11, urgency: 8, done: 15, id: 0 };
+  const DEFAULT_COL_MAP: ColMap = { date: 4, end: 5, allDay: 6, title: 2, notes: 3, entity: 7, type: 9, assignee: 11, urgency: 8, done: 15, id: 0, seriesId: 14 };
   const [googleCalEvents, setGoogleCalEvents] = useState<GoogleCalendarEvent[]>([]);
   const [loadingGoogleCal, setLoadingGoogleCal] = useState(false);
   const [calSheetEvents, setCalSheetEvents] = useState<CalSheetRow[]>([]);
@@ -2827,6 +2829,47 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return newBill;
   };
 
+  // Add several bills at once (multi-bill scan). Can't just loop addBill: each call reads the
+  // same stale `apBills` closure (so every call but the last would be overwritten in state),
+  // ids built from Date.now() collide within a millisecond, and every append independently
+  // picks "the next empty sheet row" so concurrent ones overwrite each other in the sheet.
+  const addBillsBatch = async (billsData: Omit<APBill, "id">[]): Promise<{ added: number; sheetFailed: boolean }> => {
+    if (billsData.length === 0 || !requireToken()) return { added: 0, sheetFailed: false };
+    const stamp = Date.now();
+    const newBills: APBill[] = billsData.map((b, i) => ({
+      ...b,
+      id: `ap-${stamp}-${i}`,
+      bucket: computeBucket(b.dueDate, b.status),
+    }));
+    const nextBills = [...newBills, ...apBills];
+    setApBills(nextBills);
+    persistChanges({ ap: nextBills });
+    logAction("Added Bills (multi-scan)", `${newBills.length} bills — ${Array.from(new Set(newBills.map((b) => b.vendor))).join(", ")}`);
+
+    const token = getAccessToken();
+    const mapping = sheetMappings.find((m) => m.module === "ap");
+    if (!token || !mapping) {
+      setNeedsAuth(true);
+      showToast("Connect Google Sheets to save these bills to the sheet.", "error", 5000);
+      return { added: newBills.length, sheetFailed: true };
+    }
+    // One sheet write per entity tab (a batch can mix Ruby's / TI / MSDx).
+    const byEntity = new Map<string, APBill[]>();
+    newBills.forEach((b) => { const arr = byEntity.get(b.entity) || []; arr.push(b); byEntity.set(b.entity, arr); });
+    let sheetFailed = false;
+    for (const [entity, group] of byEntity) {
+      try {
+        const rows = await appendAPBillsBatch(group, entity, mapping.spreadsheetIdOrUrl, token);
+        const rowById = new Map(group.map((b, i) => [b.id, rows[i]] as [string, number]));
+        setApBills((prev) => prev.map((b) => (rowById.has(b.id) ? ({ ...b, row: rowById.get(b.id)! } as APBill) : b)));
+      } catch (err: any) {
+        sheetFailed = true;
+        handleSheetPushError(err, `AP batch (${entity})`);
+      }
+    }
+    return { added: newBills.length, sheetFailed };
+  };
+
   const updateBill = (updatedBill: APBill) => {
     if (!requireToken()) return;
     const bucket = computeBucket(updatedBill.dueDate, updatedBill.status);
@@ -3244,6 +3287,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setPaymentMethodFilter,
         availableAPEntities,
         addBill,
+        addBillsBatch,
         updateBill,
         toggleBillStatus,
         markBillPartial,

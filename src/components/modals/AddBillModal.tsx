@@ -3,6 +3,7 @@ import { useFinance } from "../../context/FinanceContext";
 import { EntityName } from "../../types";
 import { X, Check, Paperclip, FileCheck2 } from "lucide-react";
 import { ScanToFill } from "../ScanToFill";
+import { MultiBillScanModal } from "./MultiBillScanModal";
 import { fuzzyBest } from "../../utils/fuzzyMatch";
 
 interface AddBillModalProps {
@@ -58,6 +59,7 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
   const [savedBillId, setSavedBillId] = useState<string | null>(null);
   const [attachPhase, setAttachPhase] = useState(false);
   const [attachFile, setAttachFile] = useState<File | null>(null);
+  const [showMultiScan, setShowMultiScan] = useState(false);
 
   useEffect(() => {
     setSelectedSheet(`${defaultEntity} Bills`);
@@ -432,6 +434,13 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
 
   return (
     <>
+    {showMultiScan && (
+      <MultiBillScanModal
+        defaultSheet={selectedSheet}
+        onClose={() => setShowMultiScan(false)}
+        onDone={() => { setShowMultiScan(false); onClose(); }}
+      />
+    )}
     {/* Attach-phase: shown after bill is saved when no scan file was used */}
     {attachPhase && (
       <div className="fixed inset-0 z-60 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -519,6 +528,10 @@ export const AddBillModal: React.FC<AddBillModalProps> = ({ isOpen, onClose, def
               <button type="button" onClick={() => { setScanKey(k => k + 1); setScanFilled(false); }} className="text-[10px] underline opacity-70 hover:opacity-100 shrink-0">Scan again</button>
             </div>
           )}
+          <button type="button" onClick={() => setShowMultiScan(true)}
+            className={`-mt-2 text-[11px] font-semibold underline underline-offset-2 ${isLight ? "text-[#1a73e8] hover:text-[#1557b0]" : "text-[#4fa3e0] hover:text-[#7bbcf0]"}`}>
+            Have a list of many bills? Scan multiple at once →
+          </button>
 
           {/* Company — TI only */}
           {isTI && (
