@@ -140,6 +140,8 @@ export function FourYrPayrollPage() {
   const [filterBarOpen, setFilterBarOpen] = useState(false);
   const [collapsed,     setCollapsed]     = useState<Record<string, boolean>>({});
   const [typeFilters,   setTypeFilters]   = useState<Set<string>>(new Set());
+  // Detail Log column sort — null = the sheet's own row order. Click cycles asc → desc → off.
+  const [detailSort,    setDetailSort]    = useState<{ key: "date"|"name"|"job"|"hours"|"total"|"remarks"; dir: "asc"|"desc" } | null>(null);
 
   // ── Filter STATE (for rendering) ──────────────────────────────────────────
   const [yearFilter,    setYearFilter]    = useState(currentYear());
@@ -1003,11 +1005,60 @@ export function FourYrPayrollPage() {
     );
   };
 
+  type DetailSortKey = "date"|"name"|"job"|"hours"|"total"|"remarks";
+  const DETAIL_SORT_COLS: Record<string, DetailSortKey> = { Date:"date", Name:"name", Job:"job", Hrs:"hours", Amount:"total", Remarks:"remarks" };
+  const toggleDetailSort = (key: DetailSortKey) =>
+    setDetailSort(prev => !prev || prev.key !== key ? { key, dir: "asc" } : prev.dir === "asc" ? { key, dir: "desc" } : null);
+
+  const sortDetailRows = (list: RawRow[]): RawRow[] => {
+    if (!detailSort) return list;
+    const { key, dir } = detailSort;
+    const m = dir === "asc" ? 1 : -1;
+    const str = (a: string, b: string) => (a || "").localeCompare(b || "", undefined, { sensitivity: "base" });
+    return [...list].sort((a, b) => {
+      let c = 0;
+      switch (key) {
+        case "date":    c = (a.dateISO || "").localeCompare(b.dateISO || ""); break;
+        case "name":    c = str(a.name, b.name); break;
+        case "job":     c = str(a.job, b.job); break;
+        case "hours":   c = a.hours - b.hours; break;
+        case "total":   c = a.total - b.total; break;
+        case "remarks": {
+          // Empty remarks always sink to the bottom, whichever direction is active.
+          const ea = !a.remarks, eb = !b.remarks;
+          if (ea || eb) return ea && eb ? 0 : ea ? 1 : -1;
+          c = str(a.remarks, b.remarks);
+          break;
+        }
+      }
+      if (c !== 0) return c * m;
+      // Stable, direction-independent tie-break so equal values keep a sensible order.
+      return (a.dateISO || "").localeCompare(b.dateISO || "") || a.rowIndex - b.rowIndex;
+    });
+  };
+
   const renderDetail = () => (
     <div className="flex flex-col gap-3 flex-1 min-h-0 overflow-hidden">
       <div className={`shrink-0 pb-2 border-b ${bdr} flex flex-wrap items-center gap-2`}>
         <span className={`font-bold text-sm ${txt}`}>Detailed Time Log</span>
         <span className={`text-xs ${txt2}`}>{rows.length} records</span>
+        {/* Mobile sort (desktop sorts by clicking the column headers) */}
+        <select
+          className={`md:hidden text-[11px] rounded border px-1.5 py-1 ${isLight ? "bg-white border-slate-300 text-slate-700" : "bg-[#1c1c1c] border-[#333] text-slate-200"}`}
+          value={detailSort ? `${detailSort.key}:${detailSort.dir}` : ""}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (!v) { setDetailSort(null); return; }
+            const [key, dir] = v.split(":") as [DetailSortKey, "asc" | "desc"];
+            setDetailSort({ key, dir });
+          }}
+        >
+          <option value="">Sort: sheet order</option>
+          {(Object.entries(DETAIL_SORT_COLS) as [string, DetailSortKey][]).flatMap(([label, key]) => [
+            <option key={`${key}:asc`} value={`${key}:asc`}>{label} ▲</option>,
+            <option key={`${key}:desc`} value={`${key}:desc`}>{label} ▼</option>,
+          ])}
+        </select>
         {/* Type filter toggles (GAS style) */}
         <div className="flex flex-wrap items-center gap-3">
           {[
@@ -1037,7 +1088,7 @@ export function FourYrPayrollPage() {
           });
           if (mFiltered.length === 0)
             return <div className={`text-center py-12 text-sm italic ${txt2}`}>{dataLoaded ? "No records match current filters." : "Loading…"}</div>;
-          return mFiltered.map(row => {
+          return sortDetailRows(mFiltered).map(row => {
             const isDed  = row.total < 0 || /deduct|loan|rent|penalty|withhold/i.test(row.job+row.subCat);
             const isNP   = !isDed && /reimburse|adjustment|allowance|bonus|incentive|extra|misc/i.test(row.subCat);
             const rowBg  = isDed ? DED_BG : isNP ? NP_BG : undefined;
@@ -1092,10 +1143,16 @@ export function FourYrPayrollPage() {
             <tr style={{ background:TH1 }}>
               {(["Date","Name","Job","Sub Cat","Start","End","Hrs","Rate","Amount","Co","Remarks",""] as const).map((h,i) => {
                 const align = ["text-left","text-left","text-left","text-left","text-left","text-left","text-right","text-right","text-right","text-center","text-left","text-center"][i];
+                const sortKey = DETAIL_SORT_COLS[h];
+                const active = !!sortKey && detailSort?.key === sortKey;
                 return (
-                  <th key={h||i} className={`py-2 px-2 text-[10px] font-bold text-white uppercase tracking-wide ${align}`}
+                  <th key={h||i} className={`py-2 px-2 text-[10px] font-bold text-white uppercase tracking-wide ${align} ${sortKey ? "cursor-pointer select-none hover:bg-white/10" : ""}`}
+                    onClick={sortKey ? () => toggleDetailSort(sortKey) : undefined}
+                    title={sortKey ? `Sort by ${h.toLowerCase()}` : undefined}
+                    aria-sort={active ? (detailSort!.dir === "asc" ? "ascending" : "descending") : undefined}
                     style={{ minWidth:[100,130,130,110,75,75,65,80,90,50,145,56][i], position:"sticky", top:0, background:TH1, zIndex:2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
                     {h}
+                    {sortKey && <span className={`ml-1 text-[9px] ${active ? "opacity-100" : "opacity-30"}`}>{active ? (detailSort!.dir === "asc" ? "▲" : "▼") : "↕"}</span>}
                   </th>
                 );
               })}
@@ -1111,7 +1168,7 @@ export function FourYrPayrollPage() {
                 if (typeFilters.has("payroll")    && !isDed && !isNP) return true;
                 return false;
               });
-              return filtered.map(row => {
+              return sortDetailRows(filtered).map(row => {
                 const isDed  = row.total < 0 || /deduct|loan|rent|penalty|withhold/i.test(row.job+row.subCat);
                 const isNP   = !isDed && /reimburse|adjustment|allowance|bonus|incentive|extra|misc/i.test(row.subCat);
                 const rowBg  = isDed ? DED_BG : isNP ? NP_BG : undefined;

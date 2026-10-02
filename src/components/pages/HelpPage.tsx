@@ -234,6 +234,17 @@ const HOWTOS = [
     ],
   },
   {
+    title: "Sort the 4YR Payroll Detail Log",
+    steps: [
+      "Open the 4YR Payroll page and switch to the Detail Log tab.",
+      "Click a column header — Date, Name, Job, Hrs, Amount, or Remarks — to sort by it. A ▲ means ascending, ▼ descending; the faint ↕ marks columns you can sort.",
+      "Click the same header again to flip the direction, and a third time to clear the sort and go back to the sheet's own row order.",
+      "Rows with an empty Remarks cell always stay at the bottom when sorting by Remarks. Equal values fall back to date order.",
+      "On mobile there are no column headers — use the 'Sort:' dropdown next to the record count instead.",
+      "Sorting only changes how the list is displayed; it never changes the sheet, and the Payroll / Deduction / Non-Payroll filters still apply on top of it.",
+    ],
+  },
+  {
     title: "Add a New Bill",
     steps: [
       "On the AP page, click the '+ Add Bill' button in the top-right header.",
