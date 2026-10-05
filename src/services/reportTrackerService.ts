@@ -37,6 +37,7 @@ export const SRC = {
   amazonSales:    "1UK1n3sTGYpg5j7TdidpMH5HxYOtwKks5gckMWMui_XQ", // CPRO Amazon Sales report
   salesAllTime:   "1Vd_QvQHxuaibBW8BZt5EMZzHKDcztqXLqBNTH5DpROY", // CPRO SALES ALL TIME
   adSpend:        "1RoYMLak4KUTglvUuKNDgQ4MoAuPB4q1Cnyy33zfHcWU", // CPRO Ad Spend
+  webStorage:     "1H-p3QiiADLjJ2ayNemwQZnSMvGfQjlB_5bXIRk7PWKs", // CPRO Website & Storage (link only; never read)
   brandPayout:    "1WvEhME2946z-XQiuG0pTnurKvN_xCPbso3ahAAvZTTU", // CPRO Brand Payout Sheet (link only; never read)
   hub:            "1wg2ESvNe7v9itWpsZOXiqqLSBRHnpdsZdZcNGrOE8RE", // #CURCUMINPRO HUB
   usuFolder:      "1mqy0QiNBkYuR5Lwn7Us0-ztGeu2pNMOc",            // Invoices / USU
@@ -155,6 +156,7 @@ export const REPORTS: ReportDef[] = [
     links: [
       { label: "Amazon Sales Report", url: sheetUrl(SRC.amazonSales) },
       { label: "Ad Spend", url: sheetUrl(SRC.adSpend) },
+      { label: "Website & Storage", url: sheetUrl(SRC.webStorage) },
       { label: "Brand Payout", url: sheetUrl(SRC.brandPayout) },
       { label: "CPRO Dashboard", url: CPRO_DASHBOARD_URL },
     ],
