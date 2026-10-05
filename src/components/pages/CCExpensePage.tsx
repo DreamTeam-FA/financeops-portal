@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   Upload, RefreshCw, ChevronDown, Eye, EyeOff, AlertCircle,
-  X, FileText, UploadCloud, CreditCard, Search, Settings, Plus, Trash2, ExternalLink, Share2, Check
+  X, FileText, UploadCloud, CreditCard, Search, Settings, Plus, Trash2, ExternalLink, Share2, Check, Edit2
 } from "lucide-react";
 import { useFinance } from "../../context/FinanceContext";
 import { getAccessToken } from "../../services/googleAuth";
@@ -544,6 +544,89 @@ export const CCExpensePage: React.FC = () => {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── Vendor rename ────────────────────────────────────────────────────────────
+  // A vendor's shown name = vendorMap[rawName] || rawName, where vendorMap is the sheet's
+  // "_Vendor Map" tab — so renaming writes THAT tab (server: /api/cc-expense/vendor-rename),
+  // applies to every week/transaction under that vendor, and survives Raw Data re-uploads.
+  // Local state only changes after the sheet write succeeds (sheet is the source of truth).
+  const [editingVendor, setEditingVendor] = useState<string | null>(null);
+  const [vendorDraft, setVendorDraft] = useState("");
+  const [renamingVendor, setRenamingVendor] = useState(false);
+  const vendorEditCancelled = useRef(false);
+
+  const startVendorEdit = (vendor: string) => {
+    if (renamingVendor) return;
+    vendorEditCancelled.current = false;
+    setVendorDraft(vendor);
+    setEditingVendor(vendor);
+  };
+  const cancelVendorEdit = () => { vendorEditCancelled.current = true; setEditingVendor(null); };
+
+  const commitVendorRename = async () => {
+    if (vendorEditCancelled.current || editingVendor === null || renamingVendor) return;
+    // Consume this edit session right away: Enter submits and then the unmounting input can also
+    // fire onBlur, which would otherwise submit the same rename a second time.
+    vendorEditCancelled.current = true;
+    const oldVendor = editingVendor;
+    let newVendor = vendorDraft.trim().replace(/\s+/g, " ");
+    setEditingVendor(null);
+    if (!newVendor || newVendor === oldVendor) return;
+    if (oldVendor === "(unknown)") { showToast("Transactions with no vendor name can't be renamed.", "error", 5000); return; }
+    const tok = getAccessToken();
+    if (!tok) { showToast("Not signed in — a vendor rename can't be saved to the shared sheet.", "error", 6000); return; }
+
+    // Every raw transaction name currently displayed under this vendor, across ALL weeks.
+    const rawNames = new Set<string>();
+    rawRows.forEach(r => { if (r.name && (vendorMap[r.name] || r.name) === oldVendor) rawNames.add(r.name); });
+    Object.entries(vendorMap).forEach(([raw, clean]) => { if (clean === oldVendor) rawNames.add(raw); });
+    if (rawNames.size === 0) { showToast(`Couldn't find any transactions under "${oldVendor}" to rename.`, "error", 5000); return; }
+
+    // Renaming onto a name another vendor already uses = merge. Reuse that vendor's exact spelling.
+    const clash = rawRows
+      .map(r => vendorMap[r.name] || r.name)
+      .find(v => v && v !== oldVendor && v.toLowerCase() === newVendor.toLowerCase());
+    if (clash) {
+      if (!window.confirm(`"${clash}" already exists.\n\nMerge "${oldVendor}" into it? All their transactions will be combined under "${clash}" in every week.`)) return;
+      newVendor = clash;
+    }
+
+    setRenamingVendor(true);
+    try {
+      const res = await fetch("/api/cc-expense/vendor-rename", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessToken: tok, oldVendor, newVendor, rawNames: [...rawNames] }),
+      });
+      const d: any = await res.json().catch(() => ({}));
+      if (!res.ok || !d.ok) { showToast(`Rename failed — nothing was changed: ${d.error || res.status}`, "error", 9000); return; }
+
+      setVendorMap(prev => { const next = { ...prev }; rawNames.forEach(r => { next[r] = newVendor; }); return next; });
+      setAdjustments(prev => prev.map(a => (a.vendor === oldVendor ? { ...a, vendor: newVendor } : a)));
+      setRemarks(prev => {
+        const next = { ...prev };
+        Object.keys(prev).forEach(k => {
+          const sep = k.indexOf("||");
+          if (sep === -1 || k.slice(sep + 2) !== oldVendor) return;
+          const nk = `${k.slice(0, sep)}||${newVendor}`;
+          const moved = prev[k] || "";
+          delete next[k];
+          const there = (next[nk] || "").trim();
+          next[nk] = !there ? moved : (moved.trim() && moved.trim() !== there ? `${there} · ${moved.trim()}` : there);
+        });
+        try { localStorage.setItem("cc_expense_remarks", JSON.stringify(next)); } catch { /* non-fatal */ }
+        return next;
+      });
+      showToast(`Renamed "${oldVendor}" → "${newVendor}" everywhere ✓`, "success", 4000);
+      if (Array.isArray(d.errors) && d.errors.length > 0) {
+        showToast(`Renamed, but part of the follow-up didn't save (${d.errors.join("; ")}). Run Sync to Sheet to refresh the report tabs.`, "error", 10000);
+      }
+    } catch (e: any) {
+      showToast(`Rename failed — nothing was changed (network error${e?.message ? `: ${e.message}` : ""}).`, "error", 9000);
+    } finally {
+      setRenamingVendor(false);
+    }
+  };
 
   // ── CC account list state (user-managed, replaces hardcoded patterns) ──────
   const [ccList, setCCList] = useState<CCAccount[]>(loadCCList);
@@ -1542,6 +1625,24 @@ export const CCExpensePage: React.FC = () => {
                           ? isLight ? "bg-pink-50 text-pink-900" : "bg-pink-950/20 text-pink-200"
                           : isLight ? "bg-white text-slate-800" : "bg-[#0a0c10] text-slate-200"
                       }`}>
+                        {editingVendor === row.vendor ? (
+                          <input
+                            autoFocus
+                            value={vendorDraft}
+                            onChange={e => setVendorDraft(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === "Enter") { e.preventDefault(); commitVendorRename(); }
+                              else if (e.key === "Escape") { e.preventDefault(); cancelVendorEdit(); }
+                            }}
+                            onBlur={commitVendorRename}
+                            maxLength={120}
+                            title="Renames this vendor in every week. Enter to save, Esc to cancel."
+                            className={`w-full min-w-[160px] rounded px-2 py-0.5 text-[12px] font-medium outline-none border ${
+                              isLight ? "bg-white border-blue-400 text-slate-800" : "bg-[#1a2030] border-[#4f9cf9]/60 text-slate-100"
+                            }`}
+                          />
+                        ) : (
+                        <div className="group/vn flex items-center gap-1.5">
                         {activeTab === "weekly" ? (() => {
                           const vendorRows = (currentWeek?.rows || []).filter(r =>
                             (vendorMap[r.name] || r.name) === row.vendor
@@ -1570,6 +1671,19 @@ export const CCExpensePage: React.FC = () => {
                           );
                         })() : (
                           row.vendor
+                        )}
+                        {row.vendor !== "(unknown)" && (
+                          <button
+                            type="button"
+                            onClick={() => startVendorEdit(row.vendor)}
+                            disabled={renamingVendor}
+                            title="Rename vendor (applies to every week)"
+                            className="shrink-0 opacity-40 md:opacity-0 md:group-hover/vn:opacity-60 hover:!opacity-100 focus:opacity-100 transition-opacity disabled:cursor-wait"
+                          >
+                            <Edit2 className="w-3 h-3" />
+                          </button>
+                        )}
+                        </div>
                         )}
                       </td>
                       {activeTab === "weekly" && (

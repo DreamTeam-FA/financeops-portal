@@ -234,6 +234,17 @@ const HOWTOS = [
     ],
   },
   {
+    title: "Rename a Vendor in CC Expenses",
+    steps: [
+      "Open CC Expenses (Weekly or YTD tab) and hover a vendor name — a small pencil icon appears next to it (always visible on mobile). Click it.",
+      "Type the new name and press Enter to save, or Esc to cancel. Clicking away also saves.",
+      "The rename applies to that vendor in EVERY week and in YTD, not just the week you're looking at. It is written to the '_Vendor Map' tab of the CC Expenses source sheet (raw transaction name → display name), so it's shared with everyone and survives re-uploading the Raw Data CSV. Raw Data itself is never edited.",
+      "The vendor's remarks and its drag/inline adjustments move with the new name automatically (CC Adjustments tab and the Weekly Breakdown rows are updated). Run 'Sync to Sheet' afterward to refresh the YTD/Vendor tabs of the report sheet.",
+      "Renaming a vendor to a name another vendor already uses MERGES them — you'll be asked to confirm, and all their transactions are then combined under the existing name.",
+      "If the sheet write fails you'll see an error and nothing changes on screen — the portal only updates after the sheet accepted the new name. 'Not signed in' also blocks it, since there'd be no way to save it.",
+    ],
+  },
+  {
     title: "Sort the 4YR Payroll Detail Log",
     steps: [
       "Open the 4YR Payroll page and switch to the Detail Log tab.",

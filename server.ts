@@ -4081,6 +4081,120 @@ app.post("/api/cc-expense/adjustments/push", async (req, res) => {
   }
 });
 
+// ── CC Vendor rename ─────────────────────────────────────────────────────────────
+// A vendor's displayed name is vendorMap[rawName] || rawName (see buildWeekTable), where the map
+// is the source sheet's "_Vendor Map" tab (A = raw name, B = display name) — so a rename is a
+// write to THAT tab, not to Raw Data (which every upload wipes and rewrites). Everything else
+// keyed by the old display name is moved over too so it doesn't get orphaned:
+//   • "CC Adjustments" (source sheet)   — col B vendor
+//   • "Weekly Breakdown" (export sheet) — col C vendor, which is what each week's remark hangs off
+// Only the _Vendor Map write is required; the other two are best-effort and reported back.
+app.post("/api/cc-expense/vendor-rename", async (req, res) => {
+  const { accessToken, oldVendor, newVendor, rawNames } = req.body || {};
+  if (!accessToken) return res.status(401).json({ ok: false, error: "No access token" });
+  const oldV = String(oldVendor || "").trim();
+  const newV = String(newVendor || "").trim();
+  const raws: string[] = Array.from(new Set((Array.isArray(rawNames) ? rawNames : []).map((s: any) => String(s).trim()).filter(Boolean)));
+  if (!oldV || !newV) return res.status(400).json({ ok: false, error: "oldVendor and newVendor required" });
+  if (oldV === newV) return res.status(400).json({ ok: false, error: "New name is the same as the current one" });
+  if (newV.length > 120 || /[\r\n]/.test(newV)) return res.status(400).json({ ok: false, error: "Vendor name must be a single line of 120 characters or fewer" });
+  if (raws.length === 0) return res.status(400).json({ ok: false, error: "No transaction names to map for this vendor" });
+
+  const base = "https://sheets.googleapis.com/v4/spreadsheets";
+  const H = { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
+  const srcId = getCCSheetId();
+  const expId = getCCExportSheetId();
+  const errors: string[] = [];
+  const out = { adjustmentsUpdated: 0, remarkRowsUpdated: 0 };
+
+  // 1) _Vendor Map upsert (required)
+  try {
+    const metaResp = await fetch(`${base}/${srcId}?fields=sheets.properties.title`, { headers: H });
+    if (!metaResp.ok) throw new Error(`sheet metadata ${metaResp.status}`);
+    const meta: any = await metaResp.json();
+    const titles: string[] = (meta.sheets || []).map((s: any) => s.properties?.title || "");
+    if (!titles.includes("_Vendor Map")) {
+      const add = await fetch(`${base}/${srcId}:batchUpdate`, {
+        method: "POST", headers: H,
+        body: JSON.stringify({ requests: [{ addSheet: { properties: { title: "_Vendor Map" } } }] }),
+      });
+      if (!add.ok) throw new Error(`could not create the _Vendor Map tab (${add.status})`);
+      const hdr = await fetch(`${base}/${srcId}/values/${encodeURIComponent("'_Vendor Map'!A1:B1")}?valueInputOption=RAW`, {
+        method: "PUT", headers: H,
+        body: JSON.stringify({ range: "'_Vendor Map'!A1:B1", majorDimension: "ROWS", values: [["Raw Name", "Vendor Name"]] }),
+      });
+      if (!hdr.ok) throw new Error(`could not write the _Vendor Map header (${hdr.status})`);
+    }
+    const readResp = await fetch(`${base}/${srcId}/values/${encodeURIComponent("'_Vendor Map'!A:B")}?valueRenderOption=UNFORMATTED_VALUE`, { headers: H });
+    if (!readResp.ok) throw new Error(`read _Vendor Map ${readResp.status}`);
+    const existing: any[][] = ((await readResp.json()) as any).values || [];
+    const rowByRaw = new Map<string, number>();
+    existing.forEach((r, i) => { const k = String(r?.[0] ?? "").trim(); if (k && !rowByRaw.has(k)) rowByRaw.set(k, i + 1); });
+
+    const updates = raws.filter((r) => rowByRaw.has(r)).map((r) => ({ range: `'_Vendor Map'!B${rowByRaw.get(r)}`, values: [[newV]] }));
+    const appends = raws.filter((r) => !rowByRaw.has(r)).map((r) => [r, newV]);
+    if (updates.length > 0) {
+      const u = await fetch(`${base}/${srcId}/values:batchUpdate`, {
+        method: "POST", headers: H, body: JSON.stringify({ valueInputOption: "RAW", data: updates }),
+      });
+      if (!u.ok) throw new Error(`update _Vendor Map ${u.status}`);
+    }
+    if (appends.length > 0) {
+      const a = await fetch(`${base}/${srcId}/values/${encodeURIComponent("'_Vendor Map'!A:B")}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+        method: "POST", headers: H, body: JSON.stringify({ majorDimension: "ROWS", values: appends }),
+      });
+      if (!a.ok) throw new Error(`append to _Vendor Map ${a.status}`);
+    }
+  } catch (e: any) {
+    console.error("[CC vendor-rename] _Vendor Map step failed:", e?.message);
+    return res.status(502).json({ ok: false, error: `Could not save the new name to the _Vendor Map tab: ${e?.message || e}` });
+  }
+
+  // 2) CC Adjustments: move this vendor's adjustment rows to the new name (best-effort)
+  try {
+    const r = await fetch(`${base}/${srcId}/values/${encodeURIComponent("'CC Adjustments'!A2:D")}`, { headers: H });
+    if (r.ok) {
+      const rows: any[][] = ((await r.json()) as any).values || [];
+      const data = rows
+        .map((row, i) => ({ row, i }))
+        .filter(({ row }) => String(row?.[1] ?? "").trim() === oldV)
+        .map(({ i }) => ({ range: `'CC Adjustments'!B${i + 2}`, values: [[newV]] }));
+      if (data.length > 0) {
+        const u = await fetch(`${base}/${srcId}/values:batchUpdate`, { method: "POST", headers: H, body: JSON.stringify({ valueInputOption: "RAW", data }) });
+        if (!u.ok) throw new Error(`update CC Adjustments ${u.status}`);
+        out.adjustmentsUpdated = data.length;
+      }
+    } // 400/404 = tab doesn't exist yet → nothing to move
+  } catch (e: any) {
+    errors.push(`adjustments: ${e?.message || e}`);
+  }
+
+  // 3) Weekly Breakdown (export sheet): move this vendor's rows so their remarks follow the name.
+  //    If the new name already has a row for the same week (a merge), leave that week's old row
+  //    alone — two rows with one key would make the remark lookup ambiguous; the next
+  //    "Sync to Sheet" rebuilds the tab from the merged data anyway.
+  try {
+    const r = await fetch(`${base}/${expId}/values/${encodeURIComponent("'Weekly Breakdown'!B2:C2000")}`, { headers: H });
+    if (r.ok) {
+      const rows: any[][] = ((await r.json()) as any).values || [];
+      const weeksWithNew = new Set(rows.filter((row) => String(row?.[1] ?? "").trim() === newV).map((row) => String(row?.[0] ?? "").trim()));
+      const data = rows
+        .map((row, i) => ({ row, i }))
+        .filter(({ row }) => String(row?.[1] ?? "").trim() === oldV && !weeksWithNew.has(String(row?.[0] ?? "").trim()))
+        .map(({ i }) => ({ range: `'Weekly Breakdown'!C${i + 2}`, values: [[newV]] }));
+      if (data.length > 0) {
+        const u = await fetch(`${base}/${expId}/values:batchUpdate`, { method: "POST", headers: H, body: JSON.stringify({ valueInputOption: "RAW", data }) });
+        if (!u.ok) throw new Error(`update Weekly Breakdown ${u.status}`);
+        out.remarkRowsUpdated = data.length;
+      }
+    }
+  } catch (e: any) {
+    errors.push(`remarks: ${e?.message || e}`);
+  }
+
+  res.json({ ok: true, ...out, errors });
+});
+
 // ── CC Export: persistent report sheet — create once, sync forever ────────────
 // On first call: creates a new spreadsheet with Dashboard + 3 content tabs,
 // stores the spreadsheetId in sheetIdOverrides.ccExport.
