@@ -303,6 +303,21 @@ export function stepStates(
   return out;
 }
 
+/**
+ * Does an Amazon Sales Report tab title belong to this cycle? Weekly tabs are "MM/DD-MM/DD". Monthly tabs are typed by
+ * hand and vary ("SEPTEMBER 1-30,2026", "SEPTEMBER 1-30, 2026", "JAN 1-31 2026", "FEB 1-28,2026"), so a monthly tab matches
+ * on month name (full or first 3 letters), day range and year, ignoring spaces and commas.
+ */
+export function amazonTabMatches(title: string, c: Cycle): boolean {
+  const t = title.trim().toUpperCase();
+  if (!c.month) return t.replace(/\s+/g, "") === (c.tabName || "").toUpperCase().replace(/\s+/g, "");
+  const mt = /^([A-Z]+)\s*(\d{1,2})\s*-\s*(\d{1,2})\s*,?\s*(\d{4})$/.exec(t);
+  if (!mt) return false;
+  const name = MONTHS[c.month.m - 1].toUpperCase();
+  const [, mon, from, to, year] = mt;
+  return name.startsWith(mon) && mon.length >= 3 && +from === 1 && +to === c.month.lastDay && +year === c.month.y;
+}
+
 /** Move a PHT instant that falls on Saturday/Sunday to the same time on the following Monday. */
 function nextWeekday(ms: number): number {
   let t = ms;
@@ -675,7 +690,7 @@ export async function runAutoChecks(token: string, cycles: Cycle[], confirmed: S
     if (c.reportId === "cprow" || c.reportId === "cprom") {
       if (want.has("run")) {
         if (isErr(amzTabs)) { m.run = unknown(amzTabs.__err); errors.push("Amazon Sales Report: " + amzTabs.__err.message); }
-        else if (amzTabs) m.run = (amzTabs as any[]).some(t => (t.title || "").trim().toUpperCase() === (c.tabName || "").toUpperCase())
+        else if (amzTabs) m.run = (amzTabs as any[]).some(t => amazonTabMatches(t.title || "", c))
           ? { state: "ok", detail: `Tab ${c.tabName} found` } : { state: "no", detail: `No tab ${c.tabName} yet` };
       }
       if (want.has("alltime")) {

@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import {
   adSpendFromGrid, cycleStatus, cycleView, fmtPht, fromPht, historyRows, isoDate, latestDateIn, plannedCalendarEvents,
-  reportById, stepStates, toPht, cyclesAround, weekendShift,
+  reportById, stepStates, toPht, cyclesAround, weekendShift, amazonTabMatches,
 } from "../../src/services/reportTrackerService";
 
 // Thu Oct 1, 2026 3:10 PM PHT  (= 07:10 UTC)
@@ -228,5 +228,13 @@ describe("weekend shift (monthly reports)", () => {
   it("no shift on a weekday cycle", () => {
     const c = cyclesAround("toast", Date.UTC(2026, 10, 5, 12)).find(x => x.periodKey === "toast:2026-10")!;
     expect(weekendShift(c)).toBeNull(); // Nov 4 Wed, Nov 5 Thu
+  });
+});
+
+describe("Amazon monthly tab matching (hand-typed tab names)", () => {
+  const sep = cyclesAround("cprom", Date.UTC(2026, 9, 5, 12)).find(c => c.periodKey === "cprom:2026-09")!;
+  it("accepts spacing/abbreviation variants, rejects other months", () => {
+    for (const ok of ["SEPTEMBER 1-30,2026", "SEPTEMBER 1-30, 2026", "september 1-30 2026", "SEP 1-30,2026"]) expect(amazonTabMatches(ok, sep)).toBe(true);
+    for (const no of ["AUGUST 1-31,2026", "SEPTEMBER 1-30,2025", "09/27-10/03", "SEPTEMBER 1-29,2026"]) expect(amazonTabMatches(no, sep)).toBe(false);
   });
 });
