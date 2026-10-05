@@ -563,31 +563,24 @@ export const CCExpensePage: React.FC = () => {
   };
   const cancelVendorEdit = () => { vendorEditCancelled.current = true; setEditingVendor(null); };
 
-  const commitVendorRename = async () => {
-    if (vendorEditCancelled.current || editingVendor === null || renamingVendor) return;
-    // Consume this edit session right away: Enter submits and then the unmounting input can also
-    // fire onBlur, which would otherwise submit the same rename a second time.
-    vendorEditCancelled.current = true;
-    const oldVendor = editingVendor;
-    let newVendor = vendorDraft.trim().replace(/\s+/g, " ");
-    setEditingVendor(null);
-    if (!newVendor || newVendor === oldVendor) return;
-    if (oldVendor === "(unknown)") { showToast("Transactions with no vendor name can't be renamed.", "error", 5000); return; }
+  // Shared core. `rawNames` = the bank-feed names being (re)mapped to `newVendorInput`.
+  // `moveRelated` = also carry the OLD vendor's adjustments + remarks to the new name — true when
+  // the whole vendor is being renamed, false when only some of its names move away (the rest of
+  // that vendor keeps its adjustments/remarks). Returns whether the sheet accepted the change.
+  const applyVendorRename = async (oldVendor: string, newVendorInput: string, rawNames: string[], moveRelated: boolean): Promise<boolean> => {
+    let newVendor = newVendorInput.trim().replace(/\s+/g, " ");
+    if (!newVendor || newVendor === oldVendor) return false;
+    if (oldVendor === "(unknown)") { showToast("Transactions with no vendor name can't be renamed.", "error", 5000); return false; }
     const tok = getAccessToken();
-    if (!tok) { showToast("Not signed in — a vendor rename can't be saved to the shared sheet.", "error", 6000); return; }
-
-    // Every raw transaction name currently displayed under this vendor, across ALL weeks.
-    const rawNames = new Set<string>();
-    rawRows.forEach(r => { if (r.name && (vendorMap[r.name] || r.name) === oldVendor) rawNames.add(r.name); });
-    Object.entries(vendorMap).forEach(([raw, clean]) => { if (clean === oldVendor) rawNames.add(raw); });
-    if (rawNames.size === 0) { showToast(`Couldn't find any transactions under "${oldVendor}" to rename.`, "error", 5000); return; }
+    if (!tok) { showToast("Not signed in — a vendor rename can't be saved to the shared sheet.", "error", 6000); return false; }
+    if (rawNames.length === 0) { showToast(`Couldn't find any transactions under "${oldVendor}" to rename.`, "error", 5000); return false; }
 
     // Renaming onto a name another vendor already uses = merge. Reuse that vendor's exact spelling.
     const clash = rawRows
       .map(r => vendorMap[r.name] || r.name)
       .find(v => v && v !== oldVendor && v.toLowerCase() === newVendor.toLowerCase());
     if (clash) {
-      if (!window.confirm(`"${clash}" already exists.\n\nMerge "${oldVendor}" into it? All their transactions will be combined under "${clash}" in every week.`)) return;
+      if (!window.confirm(`"${clash}" already exists.\n\nCombine these transactions under "${clash}" in every week?`)) return false;
       newVendor = clash;
     }
 
@@ -596,36 +589,67 @@ export const CCExpensePage: React.FC = () => {
       const res = await fetch("/api/cc-expense/vendor-rename", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken: tok, oldVendor, newVendor, rawNames: [...rawNames] }),
+        body: JSON.stringify({ accessToken: tok, oldVendor, newVendor, rawNames, moveRelated }),
       });
       const d: any = await res.json().catch(() => ({}));
-      if (!res.ok || !d.ok) { showToast(`Rename failed — nothing was changed: ${d.error || res.status}`, "error", 9000); return; }
+      if (!res.ok || !d.ok) { showToast(`Rename failed — nothing was changed: ${d.error || res.status}`, "error", 9000); return false; }
 
-      setVendorMap(prev => { const next = { ...prev }; rawNames.forEach(r => { next[r] = newVendor; }); return next; });
-      setAdjustments(prev => prev.map(a => (a.vendor === oldVendor ? { ...a, vendor: newVendor } : a)));
-      setRemarks(prev => {
-        const next = { ...prev };
-        Object.keys(prev).forEach(k => {
-          const sep = k.indexOf("||");
-          if (sep === -1 || k.slice(sep + 2) !== oldVendor) return;
-          const nk = `${k.slice(0, sep)}||${newVendor}`;
-          const moved = prev[k] || "";
-          delete next[k];
-          const there = (next[nk] || "").trim();
-          next[nk] = !there ? moved : (moved.trim() && moved.trim() !== there ? `${there} · ${moved.trim()}` : there);
-        });
-        try { localStorage.setItem("cc_expense_remarks", JSON.stringify(next)); } catch { /* non-fatal */ }
-        return next;
+      const nextMap = { ...vendorMap };
+      rawNames.forEach(r => { nextMap[r] = newVendor; });
+      setVendorMap(nextMap);
+      // Keep an open transactions popup in step: after a full rename it follows the vendor to its
+      // new name (rows rebuilt against the new map so a merge shows the combined set); after a
+      // partial move it stays on the old vendor while that still has rows this week.
+      const weekRows = currentWeek?.rows || [];
+      setVendorModal(prev => {
+        if (!prev || prev.vendor !== oldVendor) return prev;
+        const stay = weekRows.filter(r => (nextMap[r.name] || r.name) === oldVendor);
+        if (!moveRelated && stay.length > 0) return { vendor: oldVendor, rows: stay };
+        return { vendor: newVendor, rows: weekRows.filter(r => (nextMap[r.name] || r.name) === newVendor) };
       });
-      showToast(`Renamed "${oldVendor}" → "${newVendor}" everywhere ✓`, "success", 4000);
+      if (moveRelated) {
+        setAdjustments(prev => prev.map(a => (a.vendor === oldVendor ? { ...a, vendor: newVendor } : a)));
+        setRemarks(prev => {
+          const next = { ...prev };
+          Object.keys(prev).forEach(k => {
+            const sep = k.indexOf("||");
+            if (sep === -1 || k.slice(sep + 2) !== oldVendor) return;
+            const nk = `${k.slice(0, sep)}||${newVendor}`;
+            const moved = prev[k] || "";
+            delete next[k];
+            const there = (next[nk] || "").trim();
+            next[nk] = !there ? moved : (moved.trim() && moved.trim() !== there ? `${there} · ${moved.trim()}` : there);
+          });
+          try { localStorage.setItem("cc_expense_remarks", JSON.stringify(next)); } catch { /* non-fatal */ }
+          return next;
+        });
+      }
+      showToast(`Renamed "${oldVendor}" → "${newVendor}" in every week ✓`, "success", 4000);
       if (Array.isArray(d.errors) && d.errors.length > 0) {
         showToast(`Renamed, but part of the follow-up didn't save (${d.errors.join("; ")}). Run Sync to Sheet to refresh the report tabs.`, "error", 10000);
       }
+      return true;
     } catch (e: any) {
       showToast(`Rename failed — nothing was changed (network error${e?.message ? `: ${e.message}` : ""}).`, "error", 9000);
+      return false;
     } finally {
       setRenamingVendor(false);
     }
+  };
+
+  // Whole-vendor rename — from the table pencil or the popup title.
+  const commitVendorRename = async () => {
+    if (vendorEditCancelled.current || editingVendor === null || renamingVendor) return;
+    // Consume this edit session right away: Enter submits and then the unmounting input can also
+    // fire onBlur, which would otherwise submit the same rename a second time.
+    vendorEditCancelled.current = true;
+    const oldVendor = editingVendor;
+    setEditingVendor(null);
+    // Every raw transaction name currently displayed under this vendor, across ALL weeks.
+    const rawNames = new Set<string>();
+    rawRows.forEach(r => { if (r.name && (vendorMap[r.name] || r.name) === oldVendor) rawNames.add(r.name); });
+    Object.entries(vendorMap).forEach(([raw, clean]) => { if (clean === oldVendor) rawNames.add(raw); });
+    await applyVendorRename(oldVendor, vendorDraft, [...rawNames], true);
   };
 
   // ── CC account list state (user-managed, replaces hardcoded patterns) ──────
@@ -694,6 +718,30 @@ export const CCExpensePage: React.FC = () => {
     setWeeks(grouped);
     setModalEditKey(null);
     setModalEditValue("");
+  };
+
+  // Name cell in the popup: remaps THIS row's bank-feed name (so every transaction sharing that name,
+  // in every week, shows the new one) and saves it to the sheet's _Vendor Map. The vendor's remarks
+  // and adjustments only move too when no other bank-feed name is still grouped under it.
+  const nameEditCancelled = useRef(false);
+  const nameCommitting = useRef(false);
+  const commitNameCellEdit = async (row: RawRow) => {
+    // Enter commits and the unmounting input then fires blur too — only let one through. Escape
+    // flags a cancel so its follow-up blur doesn't commit.
+    if (nameCommitting.current) return;
+    if (nameEditCancelled.current) { nameEditCancelled.current = false; return; }
+    nameCommitting.current = true;
+    const newName = modalEditValue;
+    setModalEditKey(null);
+    setModalEditValue("");
+    try {
+      if (!row.name) return;
+      const oldDisplay = vendorMap[row.name] || row.name;
+      const othersRemain = rawRows.some(r => r.name !== row.name && (vendorMap[r.name] || r.name) === oldDisplay);
+      await applyVendorRename(oldDisplay, newName, [row.name], !othersRemain);
+    } finally {
+      nameCommitting.current = false;
+    }
   };
 
   // Drag state
@@ -1388,10 +1436,39 @@ export const CCExpensePage: React.FC = () => {
           }`}>
             {/* Modal header */}
             <div className={`flex items-center justify-between px-5 py-3.5 border-b ${isLight ? "border-slate-200" : "border-[#1e2535]"}`}>
-              <div>
-                <h2 className={`text-[15px] font-semibold ${isLight ? "text-slate-800" : "text-white"}`}>
-                  {vendorModal.vendor}
-                </h2>
+              <div className="min-w-0">
+                {editingVendor === vendorModal.vendor ? (
+                  <input
+                    autoFocus
+                    value={vendorDraft}
+                    onChange={e => setVendorDraft(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === "Enter") { e.preventDefault(); commitVendorRename(); }
+                      else if (e.key === "Escape") { e.preventDefault(); cancelVendorEdit(); }
+                    }}
+                    onBlur={commitVendorRename}
+                    maxLength={120}
+                    title="Renames this vendor in every week. Enter to save, Esc to cancel."
+                    className={`w-full min-w-[260px] rounded px-2 py-0.5 text-[15px] font-semibold outline-none border ${
+                      isLight ? "bg-white border-blue-400 text-slate-800" : "bg-[#1a2030] border-[#4f9cf9]/60 text-white"
+                    }`}
+                  />
+                ) : (
+                  <h2 className={`group/vm flex items-center gap-2 text-[15px] font-semibold ${isLight ? "text-slate-800" : "text-white"}`}>
+                    {vendorModal.vendor}
+                    {vendorModal.vendor !== "(unknown)" && (
+                      <button
+                        type="button"
+                        onClick={() => startVendorEdit(vendorModal.vendor)}
+                        disabled={renamingVendor}
+                        title="Rename vendor (applies to every week)"
+                        className="shrink-0 opacity-60 hover:!opacity-100 focus:opacity-100 transition-opacity disabled:cursor-wait"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </h2>
+                )}
                 <p className={`text-[12px] mt-0.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
                   {currentWeek?.weekLabel} · {vendorModal.rows.length} transaction{vendorModal.rows.length !== 1 ? "s" : ""} ·{" "}
                   <span className="font-semibold">
@@ -1453,8 +1530,23 @@ export const CCExpensePage: React.FC = () => {
                                 className={editCls} style={{width: 110}} />
                             ) : r.transactionDate}
                           </td>
-                          {/* Name — read-only (from bank feed) */}
-                          <td className="px-3 py-1.5 whitespace-nowrap font-medium">{r.name}</td>
+                          {/* Name — editable: renames this vendor name in every week (saved to the sheet's _Vendor Map tab) */}
+                          {(() => {
+                            const displayName = vendorMap[r.name] || r.name;
+                            return (
+                              <td className={`px-3 py-1.5 whitespace-nowrap font-medium ${r.name ? cellHint : ""}`}
+                                title={displayName !== r.name ? `Bank-feed name: ${r.name}` : "Click to rename (applies to every week)"}
+                                onClick={() => { if (r.name && modalEditKey !== mk("name")) { nameEditCancelled.current = false; setModalEditKey(mk("name")); setModalEditValue(displayName); } }}>
+                                {modalEditKey === mk("name") ? (
+                                  <input autoFocus type="text" value={modalEditValue} onChange={e => setModalEditValue(e.target.value)}
+                                    onBlur={() => commitNameCellEdit(r)}
+                                    onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); commitNameCellEdit(r); } if (e.key === "Escape") { nameEditCancelled.current = true; setModalEditKey(null); } }}
+                                    maxLength={120}
+                                    className={editCls} style={{width: 230}} />
+                                ) : displayName}
+                              </td>
+                            );
+                          })()}
                           {/* Description — editable */}
                           <td className={`px-3 py-1.5 max-w-[320px] ${isLight ? "text-slate-600" : "text-slate-400"} ${cellHint}`} title={r.description}
                             onClick={() => { if (modalEditKey !== mk("description")) { setModalEditKey(mk("description")); setModalEditValue(r.description); } }}>
@@ -1625,7 +1717,7 @@ export const CCExpensePage: React.FC = () => {
                           ? isLight ? "bg-pink-50 text-pink-900" : "bg-pink-950/20 text-pink-200"
                           : isLight ? "bg-white text-slate-800" : "bg-[#0a0c10] text-slate-200"
                       }`}>
-                        {editingVendor === row.vendor ? (
+                        {editingVendor === row.vendor && !vendorModal ? (
                           <input
                             autoFocus
                             value={vendorDraft}
@@ -1678,7 +1770,7 @@ export const CCExpensePage: React.FC = () => {
                             onClick={() => startVendorEdit(row.vendor)}
                             disabled={renamingVendor}
                             title="Rename vendor (applies to every week)"
-                            className="shrink-0 opacity-40 md:opacity-0 md:group-hover/vn:opacity-60 hover:!opacity-100 focus:opacity-100 transition-opacity disabled:cursor-wait"
+                            className="shrink-0 opacity-60 hover:!opacity-100 focus:opacity-100 transition-opacity disabled:cursor-wait"
                           >
                             <Edit2 className="w-3 h-3" />
                           </button>

@@ -238,6 +238,7 @@ const HOWTOS = [
     steps: [
       "Open CC Expenses (Weekly or YTD tab) and hover a vendor name — a small pencil icon appears next to it (always visible on mobile). Click it.",
       "Type the new name and press Enter to save, or Esc to cancel. Clicking away also saves.",
+      "In the Weekly tab you can also click a vendor to open its transactions popup and rename it there: click the pencil next to the popup title (renames the whole vendor), or click the Name cell of a transaction row (renames that bank-feed name — every transaction with the same name, in every week, shows the new one).",
       "The rename applies to that vendor in EVERY week and in YTD, not just the week you're looking at. It is written to the '_Vendor Map' tab of the CC Expenses source sheet (raw transaction name → display name), so it's shared with everyone and survives re-uploading the Raw Data CSV. Raw Data itself is never edited.",
       "The vendor's remarks and its drag/inline adjustments move with the new name automatically (CC Adjustments tab and the Weekly Breakdown rows are updated). Run 'Sync to Sheet' afterward to refresh the YTD/Vendor tabs of the report sheet.",
       "Renaming a vendor to a name another vendor already uses MERGES them — you'll be asked to confirm, and all their transactions are then combined under the existing name.",

@@ -4090,8 +4090,11 @@ app.post("/api/cc-expense/adjustments/push", async (req, res) => {
 //   • "Weekly Breakdown" (export sheet) — col C vendor, which is what each week's remark hangs off
 // Only the _Vendor Map write is required; the other two are best-effort and reported back.
 app.post("/api/cc-expense/vendor-rename", async (req, res) => {
-  const { accessToken, oldVendor, newVendor, rawNames } = req.body || {};
+  const { accessToken, oldVendor, newVendor, rawNames, moveRelated } = req.body || {};
   if (!accessToken) return res.status(401).json({ ok: false, error: "No access token" });
+  // moveRelated:false = only some of the old vendor's bank-feed names are moving away, so its
+  // adjustments + remark rows must stay where they are (default true = whole-vendor rename).
+  const moveRel = moveRelated !== false;
   const oldV = String(oldVendor || "").trim();
   const newV = String(newVendor || "").trim();
   const raws: string[] = Array.from(new Set((Array.isArray(rawNames) ? rawNames : []).map((s: any) => String(s).trim()).filter(Boolean)));
@@ -4149,6 +4152,8 @@ app.post("/api/cc-expense/vendor-rename", async (req, res) => {
     console.error("[CC vendor-rename] _Vendor Map step failed:", e?.message);
     return res.status(502).json({ ok: false, error: `Could not save the new name to the _Vendor Map tab: ${e?.message || e}` });
   }
+
+  if (!moveRel) return res.json({ ok: true, ...out, errors });
 
   // 2) CC Adjustments: move this vendor's adjustment rows to the new name (best-effort)
   try {
