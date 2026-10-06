@@ -254,7 +254,13 @@ const BillDetail: React.FC<{
 
       {/* Info grid */}
       <div className="flex flex-wrap gap-2">
-        <InfoCard label="Company Entity" value={bill.entity} accent={accentColor} isLight={isLight} />
+        {/* TI bills belong to a sub-entity (TI, 4G, 4YR, E1, Corner Property Group…) held in bill.company */}
+        <InfoCard
+          label="Company Entity"
+          value={bill.entity === "TI" ? `TI - ${(bill.company || "").trim() || "TI"}` : bill.entity}
+          accent={accentColor}
+          isLight={isLight}
+        />
         <InfoCard label="Due Date" value={fmtDate(bill.dueDate) || "—"} isLight={isLight} />
         <InfoCard label="Invoice Number" value={bill.invoiceNo || "—"} isLight={isLight} />
       </div>
