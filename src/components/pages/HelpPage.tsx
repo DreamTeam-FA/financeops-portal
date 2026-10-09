@@ -246,6 +246,15 @@ const HOWTOS = [
     ],
   },
   {
+    title: "Choose the company for a 4YR Deduction or Adjustment",
+    steps: [
+      "On the 4YR Payroll page, click Add Record and set Record Type to Deduction or Non-Payroll / Adjustment.",
+      "The Company field becomes a picker — choose 4YR or TI (or type another). Leave it blank to default to 4YR.",
+      "Regular Payroll entries are unchanged: Company is still set automatically from Job / Location (TI for Timm Barn / Skating Rink, otherwise 4YR).",
+      "The chosen company is written to the Company column of the raw sheet.",
+    ],
+  },
+  {
     title: "Sort the 4YR Payroll Detail Log",
     steps: [
       "Open the 4YR Payroll page and switch to the Detail Log tab.",

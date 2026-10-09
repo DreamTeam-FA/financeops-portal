@@ -1312,7 +1312,17 @@ export function FourYrPayrollPage() {
             } else if (f.recordType === "deduction" && f.job === "Deductions") {
               job = "";
             }
-            return { ...f, recordType, job };
+            // Add mode: payroll derives company from job; deduction/adjustment lets user pick
+            let company = f.company;
+            if (!isEditMode) {
+              if (recordType === "payroll") {
+                const jl = job.trim().toLowerCase();
+                company = (jl === "timm barn" || jl === "skating rink") ? "TI" : job.trim() ? "4YR" : "";
+              } else if (f.recordType === "payroll") {
+                company = "";
+              }
+            }
+            return { ...f, recordType, job, company };
           });
         }}
           className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${inp}`}>
@@ -1354,6 +1364,13 @@ export function FourYrPayrollPage() {
                 className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${inp}`} placeholder="e.g. 4YR or TI" />
               <p className={`text-[10px] italic mt-0.5 ${txt2}`}>Company is auto-derived from Job / Location. Enter a value here only to override that logic for this row.</p>
             </>
+          : (form.recordType === "deduction" || form.recordType === "nonpayroll")
+          ? <>
+              <input list="en-companies" value={form.company} onChange={e=>setForm(f=>({...f,company:e.target.value}))}
+                className={`w-full rounded border text-xs px-2.5 py-2 outline-none ${inp}`} placeholder="Choose company (4YR or TI)" />
+              <datalist id="en-companies"><option value="4YR"/><option value="TI"/></datalist>
+              <p className={`text-[10px] italic mt-0.5 ${txt2}`}>Leave blank to default to 4YR.</p>
+            </>
           : <div className={`w-full rounded border text-xs px-2.5 py-2 flex items-center justify-between gap-2 ${isLight?"bg-slate-50 border-slate-200 text-slate-400":"bg-[#1a1a1a] border-[#2a2a2a] text-slate-500"}`}>
               <span>🔗 Auto-set from Job / Location — No input needed.</span>
               {form.company && <span className="font-bold shrink-0" style={{color:"#1a6b36",fontSize:13}}>→ {form.company}</span>}
@@ -1373,7 +1390,7 @@ export function FourYrPayrollPage() {
             const jl = job.trim().toLowerCase();
             // Mirror GAS autoFillCompanyPreview: TI for Timm Barn / Skating Rink, else 4YR
             const co = !isEditMode
-              ? ((jl === "timm barn" || jl === "skating rink") ? "TI" : job.trim() ? "4YR" : "")
+              ? (form.recordType === "nonpayroll" ? form.company : (jl === "timm barn" || jl === "skating rink") ? "TI" : job.trim() ? "4YR" : "")
               : form.company; // edit mode keeps manual override
             setForm(f => ({ ...f, job, company: co }));
           }}

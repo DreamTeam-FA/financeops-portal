@@ -641,34 +641,31 @@ export const ReportTrackerPage: React.FC = () => {
                     g.rows.push(r);
                   }
                 } else groups.push({ key: "", label: "", rows });
+                const histCols = "grid grid-cols-[minmax(0,1fr)_112px_104px_118px] sm:grid-cols-[minmax(0,1fr)_120px_110px_132px] gap-2";
                 const table = (list: typeof rows) => (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className={`text-left ${muted} uppercase text-[10px]`}>
-                          <th className="py-1 pr-3 font-semibold">Period</th>
-                          <th className="py-1 pr-3 font-semibold">Result</th>
-                          <th className="py-1 pr-3 font-semibold">Steps recorded</th>
-                          <th className="py-1 font-semibold">Last recorded</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {list.map(h => (
-                          <tr key={h.periodKey} className={`border-t ${isLight ? "border-slate-100" : "border-[#1a2235]"}`}>
-                            <td className={`py-1.5 pr-3 ${strong}`}>{h.label}</td>
-                            <td className="py-1.5 pr-3">
-                              {h.status === "done" && <span className={`px-2 py-0.5 rounded text-[10px] font-bold bg-[#16a34a]/20 ${isLight ? "text-emerald-600" : "text-[#4ade80]"}`}>✓ Done</span>}
-                              {h.status === "partial" && <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#fb923c]/20 text-[#fb923c]">Partly done</span>}
-                              {h.status === "skipped" && <span title="Nothing was due this week (for example a school break)" className={`px-2 py-0.5 rounded text-[10px] font-bold ${isLight ? "bg-slate-200 text-slate-600" : "bg-[#1a2235] text-[#888]"}`}>No report due</span>}
-                              {h.status === "none" && <span title="No tick or confirmation is stored in the tracker sheet for this run" className={`px-2 py-0.5 rounded text-[10px] font-bold ${isLight ? "bg-slate-200 text-slate-600" : "bg-[#1a2235] text-[#888]"}`}>No record</span>}
-                            </td>
-                            <td className={`py-1.5 pr-3 font-mono-num ${h.status === "none" || h.status === "skipped" ? muted : strong}`}>{h.status === "skipped" ? "—" : `${h.done} of ${h.total}`}</td>
-                            <td className={`py-1.5 ${muted}`}>{h.lastAt ? fmtPht(Date.parse(h.lastAt), false) : "—"}</td>
-                          </tr>
-                        ))}
-                        {list.length === 0 && <tr><td colSpan={4} className={`py-2 ${muted}`}>No past runs yet.</td></tr>}
-                      </tbody>
-                    </table>
+                  <div className={`rounded-lg border overflow-hidden ${isLight ? "border-slate-100" : "border-[#1a2235]"}`}>
+                    <div className={`${histCols} px-3 py-1.5 ${isLight ? "bg-slate-50" : "bg-[#0d1117]"} text-[10px] font-semibold uppercase tracking-wide ${muted}`}>
+                      <span>Period</span>
+                      <span>Result</span>
+                      <span className="text-right">Steps recorded</span>
+                      <span className="text-right">Last recorded</span>
+                    </div>
+                    <div className={isLight ? "divide-y divide-slate-100" : "divide-y divide-[#1a2235]"}>
+                      {list.map(h => (
+                        <div key={h.periodKey} className={`${histCols} items-center px-3 py-1.5 text-xs ${isLight ? "hover:bg-slate-50" : "hover:bg-white/5"}`}>
+                          <span className={`truncate font-medium ${strong}`}>{h.label}</span>
+                          <span>
+                            {h.status === "done" && <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-[#16a34a]/20 ${isLight ? "text-emerald-600" : "text-[#4ade80]"}`}>✓ Done</span>}
+                            {h.status === "partial" && <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-[#fb923c]/20 text-[#fb923c]">Partly done</span>}
+                            {h.status === "skipped" && <span title="Nothing was due this week (for example a school break)" className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${isLight ? "bg-slate-200 text-slate-600" : "bg-[#1a2235] text-[#888]"}`}>No report due</span>}
+                            {h.status === "none" && <span title="No tick or confirmation is stored in the tracker sheet for this run" className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${isLight ? "bg-slate-200 text-slate-600" : "bg-[#1a2235] text-[#888]"}`}>No record</span>}
+                          </span>
+                          <span className={`text-right tabular-nums font-mono-num ${h.status === "none" || h.status === "skipped" ? muted : strong}`}>{h.status === "skipped" ? "—" : `${h.done} of ${h.total}`}</span>
+                          <span className={`text-right tabular-nums ${muted}`}>{h.lastAt ? fmtPht(Date.parse(h.lastAt), false) : "—"}</span>
+                        </div>
+                      ))}
+                      {list.length === 0 && <div className={`px-3 py-2 ${muted}`}>No past runs yet.</div>}
+                    </div>
                   </div>
                 );
                 return (
