@@ -211,6 +211,36 @@ function apDueSoon(s: CalcSnapshot, a: ToolArgs): ToolResult {
   return { tool: "ap_due_soon", title: "Bills due soon", lines: r.lines, links: AP_LINK, source: "Accounts Payable sheet", asOf: asOfText(s), data: { days, entityFilter: a.entity || null, ...billFactsBlock(r.sm, r.shown, today) } };
 }
 
+/** A full, human description of one bill (used when a search narrows to a specific invoice). */
+function billDetailLines(b: APBill, today: Date): string[] {
+  const d = dueDate(b);
+  const diff = d ? Math.round((d.getTime() - today.getTime()) / DAY) : null;
+  const rem = billRemaining(b);
+  const orig = b.originalAmount ?? b.amount;
+  const statusText = b.status === "paid"
+    ? `paid${b.paidDate || b.paymentDate ? " on " + (b.paidDate || b.paymentDate) : ""}${b.paidVia ? " via " + b.paidVia : ""}${b.confirmationNo ? " (confirmation " + b.confirmationNo + ")" : ""}`
+    : b.status === "hold" ? "on hold" : "unpaid";
+  const dueText = !d ? (b.dueDate || "no due date")
+    : `${b.dueDate}${b.status === "paid" ? "" : diff! < 0 ? ` (${-diff!} days overdue)` : diff === 0 ? " (due today)" : ` (in ${diff} days)`}`;
+  const out: string[] = [
+    `**${b.vendor}** (${entityLabel(b)}), invoice **${b.invoiceNo || "n/a"}**: ${b.status === "paid" ? money(orig) : money(rem)}${b.status === "paid" ? "" : " still to pay"}, ${statusText}.`,
+    `• Due: ${dueText}`,
+  ];
+  if (b.invoiceDate) out.push(`• Invoice date: ${b.invoiceDate}`);
+  if (b.partialPaid && b.partialPaid > 0 && b.status !== "paid") out.push(`• Partially paid: ${money(b.partialPaid)} of ${money(orig)} so far`);
+  const what = [b.description, b.category, b.subcategory].filter(Boolean).join(" / ");
+  if (what) out.push(`• What it is: ${what}`);
+  if (b.method) out.push(`• Payment method: ${b.method}${b.paymentType && lc(b.paymentType) !== lc(b.method) ? " (" + b.paymentType + ")" : ""}`);
+  if (b.inQBO !== undefined) out.push(`• In QuickBooks: ${b.inQBO ? "yes" : "no"}`);
+  const noteParts = [b.remarks, b.notes].filter(Boolean).map(x => String(x).trim());
+  const noteLinks = noteParts.filter(x => /^https?:\/\/\S+$/.test(x));
+  const noteText = noteParts.filter(x => !/^https?:\/\/\S+$/.test(x)).join(" | ");
+  if (noteText) out.push(`• Notes: ${noteText.slice(0, 200)}`);
+  noteLinks.forEach(u => out.push(`• Linked ${/mail\.google/.test(u) ? "email" : "page"}: [open it](${u.replace(/\)/g, "%29")})`));
+  out.push(`• Bill copy: ${b.driveViewUrl ? `[open the attached file](${b.driveViewUrl})` : "no file attached"}`);
+  return out;
+}
+
 function apSearch(s: CalcSnapshot, a: ToolArgs): ToolResult {
   const today = startOfDay(s.now);
   const v = lc(a.vendor), inv = lc(a.invoiceNo), st = lc(a.status);
@@ -227,6 +257,13 @@ function apSearch(s: CalcSnapshot, a: ToolArgs): ToolResult {
   const byLabel = dueBy !== null ? (Number(a.dueByDays) === 0 ? "today" : fmtDay(new Date(dueBy))) : "";
   if (hits.length === 0)
     return { tool: "ap_search", title: "Bill search", lines: [dueBy !== null ? `${who ? who + " has" : "There are"} no open bills due on or before ${byLabel}.` : "I couldn't find any bills matching that."], links: AP_LINK, source: "Accounts Payable sheet", asOf: asOfText(s), data: { count: 0, totalRemaining: 0 } };
+  if (inv && hits.length <= 3) {
+    const lines: string[] = hits.length === 1
+      ? billDetailLines(hits[0], today)
+      : [`I found **${plural(hits.length, "bill")}** with invoice number ${a.invoiceNo}:`, "", ...hits.flatMap(b => [...billDetailLines(b, today), ""])];
+    return { tool: "ap_search", title: "Bill details", lines, links: AP_LINK, source: "Accounts Payable sheet", asOf: asOfText(s),
+      data: { count: hits.length, bills: hits.map(b => ({ ...billFact(b, today), invoiceDate: b.invoiceDate || "", paidDate: b.paidDate || b.paymentDate || "", paidVia: b.paidVia || "", method: b.method, category: b.category || "", description: b.description || "", remarks: b.remarks || "", inQBO: b.inQBO ?? null, hasFile: !!b.driveViewUrl, originalAmount: b.originalAmount ?? b.amount, partialPaid: b.partialPaid || 0 })) } };
+  }
   const total = hits.reduce((t, b) => t + billRemaining(b), 0);
   const subject = who ? `**${who}**` : "Those bills";
   const headline = dueBy !== null
@@ -440,7 +477,7 @@ function briefing(s: CalcSnapshot, _a: ToolArgs): ToolResult {
 export const CALC_TOOLS: Record<string, CalcToolDef> = {
   ap_overdue:        { description: "Unpaid bills whose due date has passed.", args: "{entity?: string, vendor?: string, list?: boolean (true ONLY if the user asks to list/show the bills)}", run: apOverdue },
   ap_due_soon:       { description: "Unpaid bills due from today through the next N days.", args: "{days?: number (default 7), entity?: string, vendor?: string, list?: boolean}", run: apDueSoon },
-  ap_search:         { description: "Find bills by vendor, invoice number, status (unpaid|paid|hold) or entity.", args: "{vendor?: string, invoiceNo?: string, status?: string (unpaid|paid|hold), entity?: string, openOnly?: boolean, dueByDays?: number (open bills due on or before today+N days, overdue included — use for \"how much do we owe X by this week\"), list?: boolean (true ONLY if the user asks to list/show the bills)}", run: apSearch },
+  ap_search:         { description: "Find bills by vendor, invoice number, status (unpaid|paid|hold) or entity.", args: "{vendor?: string, invoiceNo?: string (use when the user gives an invoice number; returns that bill's full details), status?: string (unpaid|paid|hold), entity?: string, openOnly?: boolean, dueByDays?: number (open bills due on or before today+N days, overdue included — use for \"how much do we owe X by this week\"), list?: boolean (true ONLY if the user asks to list/show the bills)}", run: apSearch },
   ap_summary:        { description: "Counts and totals of unpaid bills, grouped by entity.", args: "{entity?: string}", run: apSummary },
   bank_balances:     { description: "Current bank account balances, yesterday's balance, as-of time, low (<$500) and stale (2+ days) flags.", args: "{entity?: string, bank?: string, list?: boolean (true ONLY if asked for every account)}", run: bankBalances },
   statements_pending:{ description: "Bank statements whose cut-off has passed and are not downloaded yet.", args: "{list?: boolean}", run: statementsPending },
@@ -487,6 +524,10 @@ export function routeQuestion(q: string, s: CalcSnapshot): { tool: string; args:
   const base: ToolArgs = entity ? { entity } : {};
   if (/\b(list|show|which|itemi[sz]e|every|each|all of them|all the bills)\b/.test(t)) base.list = true;
   if (/\bbriefing\b|catch me up|what.?s (going on|happening|new)|good morning|summary of today/.test(t)) return [{ tool: "briefing", args: {} }];
+
+  // An invoice number anywhere in the question → find that exact bill.
+  const invMatch = t.match(/\b(?:invoice|inv)\s*(?:number|no\.?|num|#)?\s*[:#]?\s*([a-z0-9-]*\d[a-z0-9-]{3,})/) || t.match(/\b(\d{6,})\b/);
+  if (invMatch) return [{ tool: "ap_search", args: { invoiceNo: invMatch[1], ...(entity ? { entity } : {}) } }];
 
   // "Where do I log in to X" / "link for X" → Platforms Directory, before any vendor guess.
   if (/platform|portal link|log ?in|sign ?in|website|\blink\b|\burl\b|where (is|do i find|can i find)/.test(t) && !/\b(bill|bills|owe|overdue|invoice)\b/.test(t)) {
