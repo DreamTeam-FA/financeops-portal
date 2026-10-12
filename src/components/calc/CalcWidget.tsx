@@ -205,6 +205,7 @@ export const CalcWidget: React.FC = () => {
     const last = lastCallsRef.current;
     if (!last) return null;
     const t = q.trim().toLowerCase();
+    if (/^(are there|is there|any|got|do you have)( any)? ?(more|others?|other ones|else)\b|^(what|anything|show me) else\b|^(and )?(more|the rest)\b[ ?.!]*$/.test(t)) return last.map(c => ({ ...c, args: { ...c.args, list: true } }));
     if (/^(yes|yeah|yep|sure|ok|okay|please)\b[ ,.!]*(please|list|show)?[ a-z]*[.!?]*$/.test(t) || /^(please )?(list|show|itemi[sz]e)( me)?( them| these| those| it| all| the bills)?( all)?( of them)?( please)?[.!?]*$/.test(t))
       return last.map(c => ({ ...c, args: { ...c.args, list: true } }));
     return null;
