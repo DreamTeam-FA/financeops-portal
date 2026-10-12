@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 
 /* ── FAQ data ─────────────────────────────────────────────────────────── */
-const FAQ = [
+export const FAQ = [
   {
     q: "Why is the portal taking 30–60 seconds to load?",
     a: "The portal runs on Render's free tier, which spins the server down after 15 minutes of inactivity. The first request after sleep wakes it up — that cold-start delay is normal. Once it's up, navigation is instant. Upgrade to Render Starter ($7/mo) to keep it always-on.",
@@ -200,7 +200,20 @@ const FAQ = [
 ];
 
 /* ── How-To data ──────────────────────────────────────────────────────── */
-const HOWTOS = [
+export const HOWTOS = [
+  {
+    title: "Ask Calc, the portal assistant",
+    steps: [
+      "Click Calc, the calculator mascot at the bottom-right of any page, to open the chat. Press Esc or the X to close it.",
+      "Ask in plain language, e.g. 'How much do we owe Alsco this week?', 'What's overdue for TI?', 'Any statements to download?', 'How much cash do we have?', 'What's on the calendar today?', 'Where do I log in to Gusto?' or 'How do I record a partial payment?'",
+      "Calc leads with the total and the key takeaways, and only lists individual bills when you ask ('list them'). The quick buttons under the greeting answer instantly without waiting on the AI.",
+      "The first time you open Calc each day it greets you with a daily briefing: overdue bills, what's due this week, statements to download, cash, today's calendar and open notes. Type 'briefing' any time to get it again.",
+      "Calc reads the portal's sheet-synced data and names the source and the last-synced time under every answer. If a number looks stale, run Pull All first.",
+      "Calc is read-only for now: it cannot add, edit or delete anything. Amounts use the same remaining-balance rule as the AP page, so partial payments are already subtracted.",
+      "Your chats are private: they are saved only in your own browser, tied to your account, never stored on a server and never visible to anyone else. They are wiped when you sign out. Use the clock icon to reopen or delete past chats, and the + icon to start a new one.",
+      "If the AI is busy or unavailable, Calc still answers common questions with a plain lookup and says so. You must be signed in with Google to chat.",
+    ],
+  },
   {
     title: "Upload or View a Bill Copy",
     steps: [
@@ -433,7 +446,7 @@ const HOWTOS = [
 ];
 
 /* ── Breakage data ─────────────────────────────────────────────────────── */
-const BREAKAGE = [
+export const BREAKAGE = [
   { symptom: "AP bills load empty",    cause: "Tab renamed from Ruby's / TI / MSDx Bills",  fix: "Restore exact tab name OR update AP_COL_MAPS.dataRange in googleSheetsService.ts" },
   { symptom: "AP amounts show wrong",  cause: "Column added/removed in AP tab",              fix: "Update the relevant entry in AP_COL_MAPS (0-indexed)" },
   { symptom: "Notes don't sync",       cause: "Meeting Notes tab renamed",                   fix: "Restore tab name OR update tabName default in appendNoteToSheet / writeSingleNote" },

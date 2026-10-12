@@ -39,6 +39,7 @@ import { PayablesCalendarPage } from "./components/pages/PayablesCalendarPage";
 import { GlobalSearchModal } from "./components/GlobalSearchModal";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { NotesFloatingWidget } from "./components/modals/NotesFloatingWidget";
+import { CalcWidget } from "./components/calc/CalcWidget";
 import { AlertsProvider, AlertsToasts } from "./components/AlertsCenter";
 import { TooltipProvider } from "./components/Tooltip";
 
@@ -603,6 +604,9 @@ const PortalContent: React.FC = () => {
 
       {/* Floating Notes Widget */}
       <NotesFloatingWidget />
+
+      {/* Calc — read-only assistant (Phase 1) */}
+      <CalcWidget />
 
       {/* Alert Toasts — fires on login for critical/warn items */}
       <AlertsToasts isLight={theme === "light"} />

@@ -1,3 +1,4 @@
+import "dotenv/config"; // local testing: lets a gitignored .env supply GEMINI_API_KEY etc. (no-op on Render, which sets real env vars)
 import express from "express";
 import path from "path";
 import fs from "fs";
@@ -2826,6 +2827,195 @@ async function callVisionLLM(
 
   return { ok: false, error: "No vision API key configured. Set GEMINI_API_KEY (and optionally OPENAI_API_KEY as a fallback) in Render." };
 }
+
+// =============================================================================
+// Calc — in-portal assistant (Phase 1: read-only)
+// =============================================================================
+// The browser already holds the sheet-synced data, so Calc's data lookups run THERE (src/services/calcTools.ts).
+// This server only does two things: (1) check the caller is a signed-in Google user, and
+// (2) run the AI steps — "plan" (which lookups answer the question?) and "answer" (phrase the results).
+// Nothing here reads or writes the sheets, and the question text is never logged.
+
+type CalcMsg = { role: "user" | "calc"; text: string };
+
+async function callGeminiChat(apiKey: string, system: string, msgs: CalcMsg[], maxTokens: number, json: boolean, temperature: number): Promise<{ ok: true; text: string } | { ok: false; error: string; attempts: string[] }> {
+  const body: any = {
+    systemInstruction: { parts: [{ text: system }] },
+    contents: msgs.map(m => ({ role: m.role === "calc" ? "model" : "user", parts: [{ text: m.text }] })),
+    generationConfig: { temperature, maxOutputTokens: maxTokens, ...(json ? { responseMimeType: "application/json" } : {}) },
+  };
+  const attempts: string[] = [];
+  let lastError = "No available Gemini model";
+  for (const { version, model } of GEMINI_MODELS) {
+    try {
+      const r = await fetch(`https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${apiKey}`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      });
+      if (r.ok) {
+        const resp = await r.json() as any;
+        const text = (resp?.candidates?.[0]?.content?.parts || []).map((p: any) => p?.text || "").join("");
+        if (text.trim()) return { ok: true, text };
+        attempts.push(`${model}: empty response`);
+        continue;
+      }
+      const eb = await r.json().catch(() => ({})) as any;
+      lastError = eb?.error?.message || `HTTP ${r.status}`;
+      attempts.push(`${model}: HTTP ${r.status} — ${lastError}`);
+      if (r.status === 401 || r.status === 403) return { ok: false, error: lastError, attempts };
+    } catch (e: any) {
+      lastError = e?.message || String(e);
+      attempts.push(`${model}: threw — ${lastError}`);
+    }
+  }
+  return { ok: false, error: lastError, attempts };
+}
+
+async function callOpenAIChat(apiKey: string, system: string, msgs: CalcMsg[], maxTokens: number, json: boolean, temperature: number): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
+  try {
+    const r = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: "gpt-4o-mini", temperature, max_tokens: maxTokens,
+        ...(json ? { response_format: { type: "json_object" } } : {}),
+        messages: [{ role: "system", content: system }, ...msgs.map(m => ({ role: m.role === "calc" ? "assistant" : "user", content: m.text }))],
+      }),
+    });
+    if (!r.ok) { const e = await r.json().catch(() => ({})) as any; return { ok: false, error: e?.error?.message || `HTTP ${r.status}` }; }
+    const resp = await r.json() as any;
+    return { ok: true, text: resp?.choices?.[0]?.message?.content || "" };
+  } catch (e: any) { return { ok: false, error: e?.message || String(e) }; }
+}
+
+/** Gemini (free) first; OpenAI (paid) only as the last resort, same policy as the scanners. */
+async function callChatLLM(system: string, msgs: CalcMsg[], maxTokens: number, json: boolean, temperature: number): Promise<{ ok: true; text: string; via: string } | { ok: false; error: string }> {
+  const gk = process.env.GEMINI_API_KEY, ok_ = process.env.OPENAI_API_KEY;
+  if (!gk && !ok_) return { ok: false, error: "No AI key configured on the server." };
+  let gErr = "";
+  if (gk) {
+    const g = await callGeminiChat(gk, system, msgs, maxTokens, json, temperature);
+    if (g.ok) return { ok: true, text: g.text, via: "gemini" };
+    gErr = g.error;
+    console.warn("[Calc] Gemini chain failed:", g.attempts.slice(0, 3).join(" | "));
+  }
+  if (ok_) {
+    const o = await callOpenAIChat(ok_, system, msgs, maxTokens, json, temperature);
+    if (o.ok) return { ok: true, text: o.text, via: "openai" };
+    return { ok: false, error: `Gemini: ${gErr || "n/a"} | OpenAI: ${o.error}` };
+  }
+  return { ok: false, error: gErr || "AI unavailable" };
+}
+
+// Verify a Google access token (cached 5 min) so only signed-in portal users can spend AI quota.
+const calcTokenCache = new Map<string, { email: string; exp: number }>();
+async function calcVerifyUser(token: string, remoteAddr?: string): Promise<string | null> {
+  // Local testing only: a request whose TCP peer is this machine's own loopback address may skip the token.
+  // On Render every request arrives via the platform proxy (never loopback), so this can't apply there.
+  if (!token && remoteAddr && /^(::1|127\.0\.0\.1|::ffff:127\.0\.0\.1)$/.test(remoteAddr)) return "local-dev";
+  if (!token) return null;
+  const hit = calcTokenCache.get(token);
+  if (hit && hit.exp > Date.now()) return hit.email;
+  try {
+    const r = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(token)}`);
+    if (!r.ok) return null;
+    const j = await r.json() as any;
+    const email = String(j?.email || j?.sub || "").toLowerCase();
+    if (!email) return null;
+    calcTokenCache.set(token, { email, exp: Date.now() + 5 * 60_000 });
+    if (calcTokenCache.size > 200) for (const k of calcTokenCache.keys()) { calcTokenCache.delete(k); break; }
+    return email;
+  } catch { return null; }
+}
+
+const calcHits = new Map<string, number[]>();
+function calcRateOk(user: string): boolean {
+  const now = Date.now(), win = 5 * 60_000, max = 40;
+  const arr = (calcHits.get(user) || []).filter(t => now - t < win);
+  if (arr.length >= max) { calcHits.set(user, arr); return false; }
+  arr.push(now); calcHits.set(user, arr); return true;
+}
+
+const CALC_PERSONA = `You are Calc, the friendly, lively calculator-mascot assistant inside the FinanceOps Portal used by a small finance/ops team. You are great at math, balancing and keeping things in order. Warm and brief; never gushing.`;
+
+function calcParseJson(text: string): any | null {
+  const t = String(text || "").replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+  try { return JSON.parse(t); } catch { /* fall through */ }
+  const m = t.match(/\{[\s\S]*\}/);
+  if (m) { try { return JSON.parse(m[0]); } catch { /* ignore */ } }
+  return null;
+}
+
+app.post("/api/calc/ask", async (req, res) => {
+  const started = Date.now();
+  try {
+    const { phase, accessToken, question, history, toolCatalog, today, results } = req.body || {};
+    const user = await calcVerifyUser(String(accessToken || ""), req.socket?.remoteAddress);
+    if (!user) return res.status(401).json({ ok: false, code: "auth", error: "Sign in with Google to chat with Calc." });
+    if (!calcRateOk(user)) return res.status(429).json({ ok: false, code: "rate", error: "That's a lot of questions in a short time. Give it a minute and try again." });
+    const q = String(question || "").slice(0, 600);
+    if (!q.trim()) return res.status(400).json({ ok: false, error: "Empty question." });
+    const hist: CalcMsg[] = (Array.isArray(history) ? history : []).slice(-6)
+      .map((m: any) => ({ role: m?.role === "calc" ? "calc" : "user", text: String(m?.text || "").slice(0, 500) })) as CalcMsg[];
+
+    if (phase === "plan") {
+      const system = `${CALC_PERSONA}
+
+Decide which read-only lookups answer the user's latest question. Today is ${String(today || new Date().toDateString())}.
+Available lookups:
+${String(toolCatalog || "").slice(0, 3000)}
+
+Reply with ONLY JSON: {"calls":[{"tool":"<name>","args":{...}}],"direct":"<text or empty>"}
+Rules:
+- Pick 1 to 3 lookups. Use only the lookup names above. Put filters in args (entity like "TI", "Ruby's", "MSDx"; vendor names; day counts).
+- Follow-ups ("list them", "just the overdue ones", "what about TI?", "and next week?") refer to the earlier conversation: reuse the same vendor/entity/period from it and change only what the user changed. "List them / show me" means set list: true.
+- "How much do we owe X" or "outstanding for X" means open bills for that vendor (ap_search with openOnly true); add dueByDays when a time limit is given ("this week" = 7).
+- Use several lookups when the question spans topics (e.g. cash vs. what's due).
+- If the message is a greeting, thanks, or small talk, return calls:[] and put a short friendly reply in "direct".
+- If the user asks for something these lookups can't do (accounts receivable, loans, payroll or credit-card figures, changing or adding anything), return calls:[] and in "direct" say plainly that Calc can't do that yet and what it can do (bills, bank balances, bank statements, calendar, notes, platforms directory, how-to help, daily briefing). Calc cannot make changes yet.
+- Never invent lookup names or numbers.`;
+      const msgs: CalcMsg[] = [...hist, { role: "user", text: q }];
+      const r = await callChatLLM(system, msgs, 400, true, 0);
+      if (!r.ok) return res.status(503).json({ ok: false, code: /^No AI key/.test(r.error) ? "nokey" : "busy", error: r.error });
+      const j = calcParseJson(r.text);
+      if (!j) return res.status(502).json({ ok: false, code: "parse", error: "Couldn't read the plan." });
+      const calls = (Array.isArray(j.calls) ? j.calls : []).slice(0, 3)
+        .map((c: any) => ({ tool: String(c?.tool || ""), args: (c?.args && typeof c.args === "object") ? c.args : {} }));
+      console.log(`[Calc] plan via ${r.via} in ${Date.now() - started}ms, calls=${calls.length}`);
+      return res.json({ ok: true, calls, direct: typeof j.direct === "string" ? j.direct : "" });
+    }
+
+    if (phase === "answer") {
+      const system = `${CALC_PERSONA}
+
+Answer the user's question using ONLY the lookup results provided. Today is ${String(today || new Date().toDateString())}.
+How to answer — like a sharp, friendly human assistant talking to a coworker:
+- Lead with the answer in the first sentence. If they ask "how much" or "how many", the first sentence states the total (and the count). Never open with a list.
+- Then add what a smart assistant would volunteer: the 1-3 most useful observations from the data (biggest chunk, which entity, how much is already overdue, the heaviest due date, anything on hold). Use the breakdown fields (byEntity, byAge, overdue, busiestDay, onHold) when present.
+- Do NOT dump individual bills. Mention at most 3 examples, and only if they help. List bills one per line ONLY if the user asked to list/show them.
+- Talk naturally, in first and second person ("You have…", "I found…"). Short paragraphs or a few bullets, light **bold** on the key figures. No headings, no tables, no corporate filler.
+- End with one short, specific offer of a next step when it's natural (e.g. "Want me to list them, or just the overdue ones?"). Skip it for simple lookups.
+- If the question is vague, give your best reading of it, and say what you assumed in a few words.
+- Compare or calculate when it helps (shares, differences, what's left), but only with numbers found in the results; show the figures you used.
+
+Strict rules:
+- Every number, name, date and amount must come from the results. Never guess, estimate or add figures that are not there. Copy dollar amounts exactly as given.
+- If the results don't contain the answer, say so plainly ("I couldn't find that") and say what you did look at.
+- Finish with one small line naming the source and as-of time, e.g. "Source: Accounts Payable sheet, last synced 3:05 PM." Use the source/asOf fields.
+- If a result has an error field, say you hit a problem reading that data.
+- You can't change anything yet; if asked to, say so kindly.`;
+      const ctx = JSON.stringify(results || []).slice(0, 14000);
+      const msgs: CalcMsg[] = [...hist, { role: "user", text: `${q}\n\n[Lookup results — the only facts you may use]\n${ctx}` }];
+      const r = await callChatLLM(system, msgs, 700, false, 0.2);
+      if (!r.ok) return res.status(503).json({ ok: false, code: "busy", error: r.error });
+      console.log(`[Calc] answer via ${r.via} in ${Date.now() - started}ms`);
+      return res.json({ ok: true, text: r.text.trim() });
+    }
+    return res.status(400).json({ ok: false, error: "Unknown phase." });
+  } catch (e: any) {
+    console.error("[Calc] error:", e?.message || e);
+    return res.status(500).json({ ok: false, code: "error", error: "Calc hit a snag." });
+  }
+});
 
 // =============================================================================
 // Timesheet Scanner — Gemini Vision API
