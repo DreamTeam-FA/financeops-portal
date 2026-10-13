@@ -208,16 +208,28 @@ function apOverdue(s: CalcSnapshot, a: ToolArgs): ToolResult {
 function apDueSoon(s: CalcSnapshot, a: ToolArgs): ToolResult {
   const today = startOfDay(s.now);
   const days = Math.min(Math.max(Number(a.days) || 7, 1), 60);
-  const end = today.getTime() + days * DAY;
+  // Weeks run Monday–Sunday, exactly like the AP page's "This Week" / "Next Week" sections.
+  const wk = lc(a.week);
+  const dow = today.getDay();
+  const mon = new Date(today); mon.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  const nMon = new Date(mon); nMon.setDate(mon.getDate() + 7);
+  const nSun = new Date(sun); nSun.setDate(sun.getDate() + 7);
+  let lo = today.getTime(), hi = today.getTime() + days * DAY, label = `in the next ${days} days`;
+  if (wk === "this") { lo = mon.getTime(); hi = sun.getTime(); label = `this week (${fmtDay(mon)} to ${fmtDay(sun)})`; }
+  else if (wk === "next") { lo = nMon.getTime(); hi = nSun.getTime(); label = `next week (${fmtDay(nMon)} to ${fmtDay(nSun)})`; }
   const soon = s.apBills.filter(b => isOpenBill(b) && entityMatches(b, a.entity) && (!a.vendor || lc(b.vendor).includes(lc(a.vendor))))
-    .filter(b => { const d = dueDate(b); return !!d && d.getTime() >= today.getTime() && d.getTime() <= end; });
+    .filter(b => { const d = dueDate(b); return !!d && d.getTime() >= lo && d.getTime() <= hi; });
   const scope = (a.entity ? ` for ${a.entity}` : "") + (a.vendor ? ` from ${a.vendor}` : "");
   if (soon.length === 0)
-    return { tool: "ap_due_soon", title: "Bills due soon", lines: [`Nothing comes due in the next ${days} days${scope}.`], links: AP_LINK, source: "Accounts Payable sheet", asOf: asOfText(s), data: { days, count: 0, totalRemaining: 0 } };
+    return { tool: "ap_due_soon", title: "Bills due soon", lines: [`Nothing comes due ${label}${scope}.`], links: AP_LINK, source: "Accounts Payable sheet", asOf: asOfText(s), data: { window: label, count: 0, totalRemaining: 0 } };
   const total = soon.reduce((t, b) => t + billRemaining(b), 0);
-  const r = billAnswerLines(`**${money(total)} comes due in the next ${days} days${scope}**, across **${plural(soon.length, "bill")}**.`, soon, today,
+  const r = billAnswerLines(`**${money(total)} comes due ${label}${scope}**, across **${plural(soon.length, "bill")}**.`, soon, today,
     { list: !!a.list, limit: Number(a.limit) || 25, insight: { age: false, busiest: true }, followUp: "Want them all listed by due date?" });
-  return { tool: "ap_due_soon", title: "Bills due soon", lines: r.lines, links: AP_LINK, source: "Accounts Payable sheet", asOf: asOfText(s), data: { days, entityFilter: a.entity || null, ...billFactsBlock(r.sm, r.shown, today) } };
+  // This lookup covers ONLY this window; say so explicitly so nothing outside it gets claimed.
+  const lateInWindow = soon.filter(b => dueDate(b)!.getTime() < today.getTime()).length;
+  return { tool: "ap_due_soon", title: "Bills due soon", lines: r.lines, links: AP_LINK, source: "Accounts Payable sheet", asOf: asOfText(s),
+    data: { window: label, coverage: "ONLY open bills due inside this window; says nothing about bills due outside it", alreadyPastDueInsideWindow: lateInWindow, entityFilter: a.entity || null, ...billFactsBlock(r.sm, r.shown, today) } };
 }
 
 /** A full, human description of one bill (used when a search narrows to a specific invoice). */
@@ -250,6 +262,29 @@ function billDetailLines(b: APBill, today: Date): string[] {
   return out;
 }
 
+/** Tiny edit-distance for "did you mean" vendor suggestions. */
+function lev(a: string, b: string): number {
+  const m = a.length, n = b.length; if (!m) return n; if (!n) return m;
+  const d: number[] = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) { let prev = d[0]; d[0] = i; for (let j = 1; j <= n; j++) { const t = d[j]; d[j] = Math.min(d[j] + 1, d[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1)); prev = t; } }
+  return d[n];
+}
+function similarVendors(s: CalcSnapshot, term: string): string[] {
+  const t = lc(term).replace(/[^a-z0-9 ]/g, " ").trim(); if (!t) return [];
+  const toks = t.split(/\s+/).filter(x => x.length >= 3);
+  const names = Array.from(new Set(s.apBills.map(b => String(b.vendor || "").trim()).filter(Boolean)));
+  const scored = names.map(n => {
+    const ln = lc(n); const words = ln.split(/[^a-z0-9]+/).filter(Boolean);
+    let sc = 99;
+    for (const tk of toks) {
+      if (ln.includes(tk)) sc = Math.min(sc, 0);
+      for (const w of words) { const dist = lev(tk, w.slice(0, Math.max(tk.length, 3))); if (dist <= Math.max(1, Math.floor(tk.length / 4))) sc = Math.min(sc, dist + 1); }
+    }
+    return { n, sc };
+  }).filter(x => x.sc < 99).sort((x, y) => x.sc - y.sc || x.n.length - y.n.length);
+  return scored.slice(0, 5).map(x => x.n);
+}
+
 function apSearch(s: CalcSnapshot, a: ToolArgs): ToolResult {
   const today = startOfDay(s.now);
   const v = lc(a.vendor), inv = lc(a.invoiceNo), st = lc(a.status);
@@ -262,6 +297,20 @@ function apSearch(s: CalcSnapshot, a: ToolArgs): ToolResult {
     (!openOnly || isOpenBill(b)) &&
     (dueBy === null || (dueDate(b) !== null && dueDate(b)!.getTime() <= dueBy)) &&
     entityMatches(b, a.entity));
+  // Nothing matched the "vendor"? It may be an entity / TI sub-entity ("Corner Property"), or a typo ("Alsko").
+  if (hits.length === 0 && v && !inv) {
+    if (s.apBills.some(b => entityMatches(b, a.vendor))) {
+      const res = apSearch(s, { ...a, vendor: undefined, entity: a.vendor });
+      res.lines.unshift(`No vendor is called "${a.vendor}", but it matches an entity, so here are that entity's bills.`, "");
+      return res;
+    }
+    const sim = similarVendors(s, String(a.vendor));
+    if (sim.length) {
+      return { tool: "ap_search", title: "Bill search", lines: [`I couldn't find a vendor called "${a.vendor}". Did you mean ${sim.slice(0, 5).join(", ")}?`], links: AP_LINK, source: "Accounts Payable sheet", asOf: asOfText(s),
+        data: { count: 0, totalRemaining: 0, noVendorMatchFor: a.vendor, similarVendors: sim },
+        suggest: sim.slice(0, 4).map(n => ({ label: n, tool: "ap_search", args: { vendor: n, openOnly: true } })) };
+    }
+  }
   const who = a.vendor ? String(a.vendor).replace(/\b\w/g, c => c.toUpperCase()) : "";
   const byLabel = dueBy !== null ? (Number(a.dueByDays) === 0 ? "today" : fmtDay(new Date(dueBy))) : "";
   if (hits.length === 0)
@@ -515,7 +564,7 @@ function briefing(s: CalcSnapshot, _a: ToolArgs): ToolResult {
   } else lines.push("• **Coming up:** no bills due in the next 7 days.");
   lines.push(st.data.pendingCount
     ? `• **Statements:** ${plural(st.data.pendingCount, "statement")} ready to download.`
-    : "• **Statements:** all caught up.");
+    : s.bankStatements.length === 0 ? "• **Statements:** I can't see the statements tracker right now." : "• **Statements:** all caught up.");
   const warn: string[] = [];
   if (bk.data.lowUnder500.length) warn.push(`${bk.data.lowUnder500.length} under $500`);
   if (bk.data.staleTwoDaysPlus.length) warn.push(`${bk.data.staleTwoDaysPlus.length} not updated in 2+ days`);
@@ -523,7 +572,7 @@ function briefing(s: CalcSnapshot, _a: ToolArgs): ToolResult {
   if (cal.data.count) {
     lines.push(`• **Today's calendar:** ${plural(cal.data.count, "item")}`);
     cal.data.events.slice(0, 5).forEach((e: any) => lines.push(`  – ${e.time ? e.time + " " : ""}${e.title}${e.assignee ? " (" + e.assignee + ")" : ""}`));
-  } else lines.push("• **Today's calendar:** nothing scheduled.");
+  } else lines.push(s.events.length === 0 ? "• **Today's calendar:** I can't see calendar data right now (it may not have loaded)." : "• **Today's calendar:** nothing scheduled.");
   lines.push(`• **Notes:** ${nt.data.count ? plural(nt.data.count, "open note") : "none open"}.`);
   lines.push("", "Want me to dig into any of these?");
   return { tool: "briefing", title: "Daily briefing", lines, source: "AP, Bank Balances, Bank Statements, Calendar and Notes sheets", asOf: asOfText(s),
@@ -533,7 +582,7 @@ function briefing(s: CalcSnapshot, _a: ToolArgs): ToolResult {
 
 export const CALC_TOOLS: Record<string, CalcToolDef> = {
   ap_overdue:        { description: "Unpaid bills whose due date has passed.", args: "{entity?: string, vendor?: string, list?: boolean (true ONLY if the user asks to list/show the bills)}", run: apOverdue },
-  ap_due_soon:       { description: "Unpaid bills due from today through the next N days.", args: "{days?: number (default 7), entity?: string, vendor?: string, list?: boolean}", run: apDueSoon },
+  ap_due_soon:       { description: "Unpaid bills due from today through the next N days.", args: "{days?: number (default 7), week?: 'this'|'next' (calendar weeks, Monday to Sunday, same as the AP page; use for \"this week\" / \"next week\"), entity?: string (also TI sub-entities like Corner Property, 4G, E1, 4YR), vendor?: string, list?: boolean}", run: apDueSoon },
   ap_search:         { description: "Find bills by vendor, invoice number, status (unpaid|paid|hold) or entity.", args: "{vendor?: string, invoiceNo?: string (use when the user gives an invoice number; returns that bill's full details), status?: string (unpaid|paid|hold), entity?: string, openOnly?: boolean, dueByDays?: number (open bills due on or before today+N days, overdue included — use for \"how much do we owe X by this week\"), list?: boolean (true ONLY if the user asks to list/show the bills)}", run: apSearch },
   ap_top_vendors:    { description: "Which vendors we owe the most (open bills by vendor, with overdue part and share of total).", args: "{n?: number, entity?: string}", run: apTopVendors },
   ap_summary:        { description: "Counts and totals of unpaid bills, grouped by entity.", args: "{entity?: string}", run: apSummary },
@@ -547,6 +596,7 @@ export const CALC_TOOLS: Record<string, CalcToolDef> = {
 };
 
 function addSuggestions(res: ToolResult, a: ToolArgs): ToolResult {
+  if (res.suggest && res.suggest.length) return res;
   const sug: { label: string; tool: string; args: ToolArgs }[] = [];
   const d = res.data || {};
   const ents = d.byEntity ? Object.entries(d.byEntity as Record<string, { total: number }>).sort((x, y) => y[1].total - x[1].total).map(([k]) => k) : [];
@@ -581,9 +631,25 @@ function addSuggestions(res: ToolResult, a: ToolArgs): ToolResult {
   return sug.length ? { ...res, suggest: sug.slice(0, 4) } : res;
 }
 
+/** If the data a lookup depends on never loaded (not signed in, sync failed), say so; never report "none" or "$0". */
+function missingData(name: string, snap: CalcSnapshot): { what: string; page: string } | null {
+  if (/^ap_/.test(name) && snap.apBills.length === 0) return { what: "the Accounts Payable bills", page: "AP" };
+  if (name === "bank_balances" && snap.bankAccounts.length === 0) return { what: "the bank balances", page: "Bank Balances" };
+  if (name === "statements_pending" && snap.bankStatements.length === 0) return { what: "the bank statements tracker", page: "Bank Statements" };
+  if (name === "calendar" && snap.events.length === 0) return { what: "the calendar", page: "Calendar" };
+  if (name === "briefing" && snap.apBills.length === 0 && snap.bankAccounts.length === 0) return { what: "the portal data", page: "Hub" };
+  return null;
+}
+
 export function runTool(name: string, snap: CalcSnapshot, args: ToolArgs): ToolResult | null {
   const t = CALC_TOOLS[name];
   if (!t) return null;
+  const miss = missingData(name, snap);
+  if (miss) {
+    return { tool: name, title: t.description, source: "", asOf: "",
+      lines: [`I can't see ${miss.what} right now, so I can't answer that reliably. The data may not have loaded: sign in with Google and run Pull All from the Data Sync page, then ask me again.`],
+      data: { dataNotLoaded: true, missing: miss.what, note: "The data did not load. Do NOT say there are none/zero; say the data isn't available and how to fix it." } };
+  }
   try { return addSuggestions(t.run(snap, args || {}), args || {}); } catch (e: any) {
     return { tool: name, title: name, lines: [`I hit a problem reading that data (${e?.message || "unknown error"}).`], data: { error: String(e?.message || e) }, source: "", asOf: "" };
   }
@@ -649,7 +715,7 @@ export function routeQuestion(q: string, s: CalcSnapshot): { tool: string; args:
   }
 
   if (/overdue|past due|late bill|behind on|\blate\b/.test(t)) return [{ tool: "ap_overdue", args: base }];
-  if (/due (this|next|in|within)|coming due|upcoming bill|due soon|due today|this week.*bill|bills.*this week/.test(t)) return [{ tool: "ap_due_soon", args: { ...base, days: /next week|14/.test(t) ? 14 : 7 } }];
+  if (/due (this|next|in|within)|coming due|upcoming bill|due soon|due today|this week.*bill|bills.*this week/.test(t)) return [{ tool: "ap_due_soon", args: { ...base, ...(/next week/.test(t) ? { week: "next" } : /this week/.test(t) ? { week: "this" } : { days: /14/.test(t) ? 14 : 7 }) } }];
   if (/statement/.test(t)) return [{ tool: "statements_pending", args: { list: !!base.list } }];
   if (/balance|how much (cash|money)|bank account|cash on hand/.test(t)) return [{ tool: "bank_balances", args: base }];
   if (/calendar|schedule|meeting|event|appointment|what.?s on (today|tomorrow)/.test(t)) return [{ tool: "calendar", args: { days: /month/.test(t) ? 30 : /today/.test(t) ? 1 : /tomorrow/.test(t) ? 2 : 7, ...base } }];

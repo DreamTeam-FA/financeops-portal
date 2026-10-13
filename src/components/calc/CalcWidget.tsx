@@ -12,7 +12,7 @@ import { getAccessToken } from "../../services/googleAuth";
 import { verifyAmounts } from "../../services/calcVerify";
 import { CalcAvatar, CalcAvatarState } from "./CalcAvatar";
 import {
-  CalcEvent, CalcLink, CalcSnapshot, ToolResult, routeQuestion, runTool, toolCatalogText,
+  CalcEvent, CalcLink, CalcSnapshot, ToolResult, entityLabel, routeQuestion, runTool, toolCatalogText,
 } from "../../services/calcTools";
 
 interface Suggest { label: string; tool: string; args: any }
@@ -256,7 +256,7 @@ export const CalcWidget: React.FC = () => {
       let planNote = "The AI is busy right now, so here's the straight lookup:";
       let aiNoKey = false;
       try {
-        const { status, j } = await askServer({ phase: "plan", accessToken: IS_LOCAL ? "" : token, question: q, history, today, toolCatalog: toolCatalogText() });
+        const { status, j } = await askServer({ phase: "plan", accessToken: IS_LOCAL ? "" : token, question: q, history, today, toolCatalog: toolCatalogText(), entities: Array.from(new Set(snapshot.apBills.map(b => entityLabel(b)).filter(Boolean))) });
         if (status === 401) {
           const calls = routeQuestion(q, snapshot);
           if (calls && runLocal(calls, "Your Google session has expired, so I used the direct lookup. Sign in again for full chat:")) return;

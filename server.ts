@@ -2971,7 +2971,7 @@ function calcParseJson(text: string): any | null {
 app.post("/api/calc/ask", async (req, res) => {
   const started = Date.now();
   try {
-    const { phase, accessToken, question, history, toolCatalog, today, results } = req.body || {};
+    const { phase, accessToken, question, history, toolCatalog, today, results, entities } = req.body || {};
     const user = await calcVerifyUser(String(accessToken || ""), req.socket?.remoteAddress);
     if (!user) return res.status(401).json({ ok: false, code: "auth", error: "Sign in with Google to chat with Calc." });
     if (!calcRateOk(user)) return res.status(429).json({ ok: false, code: "rate", error: "That's a lot of questions in a short time. Give it a minute and try again." });
@@ -2985,8 +2985,8 @@ app.post("/api/calc/ask", async (req, res) => {
 
 Decide which read-only lookups answer the user's latest question. Today is ${String(today || new Date().toDateString())}.
 Available lookups:
-${String(toolCatalog || "").slice(0, 3000)}
-
+${String(toolCatalog || "").slice(0, 3200)}
+${Array.isArray(entities) && entities.length ? `Entities in this portal (an entity filter accepts any of these, or a distinctive part such as "Corner Property"): ${entities.slice(0, 20).map((e: any) => String(e).slice(0, 40)).join("; ")}.\nIf the user names one of these (Ruby's, MSDx, TI, Corner Property, 4G, E1, 4YR...), filter with entity, not vendor.\n` : ""}
 Reply with ONLY JSON: {"calls":[{"tool":"<name>","args":{...}}],"direct":"<text or empty>"}
 Rules:
 - Pick 1 to 3 lookups. Use only the lookup names above. Put filters in args (entity like "TI", "Ruby's", "MSDx"; vendor names; day counts).
@@ -2996,7 +2996,7 @@ Rules:
 - Narrowing words ("just the overdue ones", "only TI", "only this week") change the filters; they do NOT mean list: true. Set list: true only for "list", "show me", "itemize", "every one", "all of them".
 - If the message is a greeting, thanks, or small talk, return calls:[] and put a short friendly reply in "direct".
 - If the user asks for something these lookups can't do (accounts receivable, loans, payroll or credit-card figures, changing or adding anything), return calls:[] and in "direct" say plainly that Calc can't do that yet and what it can do (bills, bank balances, bank statements, calendar, notes, platforms directory, how-to help, daily briefing). Calc cannot make changes yet.
-- Never invent lookup names or numbers.`;
+- Pass vendor names as the user wrote them; partial names are fine. Never invent lookup names or numbers.`;
       const msgs: CalcMsg[] = [...hist, { role: "user", text: q }];
       const r = await callChatLLM(system, msgs, 400, true, 0);
       if (!r.ok) return res.status(503).json({ ok: false, code: /^No AI key/.test(r.error) ? "nokey" : "busy", error: r.error });
@@ -3022,6 +3022,8 @@ How to answer — like a sharp, friendly human assistant talking to a coworker:
 - Compare or calculate when it helps (shares, differences, what's left), but only with numbers found in the results; show the figures you used.
 
 Strict rules:
+- Only describe what the lookup actually covered. Never claim something is zero, absent, "on track" or "none" unless a result field says so (e.g. count: 0). If a result lists a coverage or window, state answers in terms of that window only; do not comment on bills outside it.
+- When the user says "next week" or "this week", use the window label given in the results.
 - Every number, name, date and amount must come from the results. Never guess, estimate or add figures that are not there. Copy dollar amounts exactly as given.
 - If the results don't contain the answer, say so plainly ("I couldn't find that") and say what you did look at.
 - Finish with one small line naming the source and as-of time, e.g. "Source: Accounts Payable sheet, last synced 3:05 PM." Use the source/asOf fields.
@@ -6084,8 +6086,14 @@ async function startServer() {
     console.log(`FinanceOps Hub running on http://0.0.0.0:${PORT}`);
     // Auto-fetch live data from Google Sheets on boot
     syncLiveDataFromSheets();
-    // Start the daily 6pm PHT bank balance EOD copy scheduler
-    scheduleEODBankCopy();
+    // Start the daily 6pm PHT bank balance EOD copy scheduler.
+    // Only on the real host: a copy of the server running on someone's computer (npm run dev) must never
+    // run scheduled WRITES against the live Google Sheet next to Render. Set ALLOW_LOCAL_SCHEDULERS=1 to override.
+    if (process.env.RENDER || process.env.NODE_ENV === "production" || process.env.ALLOW_LOCAL_SCHEDULERS === "1") {
+      scheduleEODBankCopy();
+    } else {
+      console.log("[Local] Scheduled jobs (EOD bank copy) are OFF on this machine — they only run on Render.");
+    }
   });
 }
 
