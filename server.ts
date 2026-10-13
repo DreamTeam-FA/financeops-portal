@@ -2881,7 +2881,7 @@ async function callGeminiChat(apiKey: string, system: string, msgs: CalcMsg[], m
         attempts.push(`${model}: HTTP ${r.status} — ${String(lastError).slice(0, 80)}`);
         if (r.status === 401 || r.status === 403) return { ok: false, error: lastError, attempts };
         // Model rejects the thinking switch? retry the same model once without it; any other error → next model.
-        if (thinkingOff && r.status === 400 && /thinking/i.test(String(lastError))) continue;
+        if (thinkingOff && r.status === 400) continue;
         break;
       } catch (e: any) {
         lastError = e?.name === "AbortError" ? "timed out" : (e?.message || String(e));
