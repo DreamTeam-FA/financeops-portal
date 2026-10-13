@@ -42,6 +42,8 @@ export interface ToolResult {
   source: string;
   asOf: string;
   links?: CalcLink[];
+  /** Clickable follow-ups shown under the answer (each re-runs a lookup, no AI needed). */
+  suggest?: { label: string; tool: string; args: Record<string, any> }[];
 }
 
 type ToolArgs = Record<string, any>;
@@ -81,6 +83,10 @@ const billLine = (b: APBill, today: Date) => {
   const inv = b.invoiceNo ? ` · inv ${b.invoiceNo}` : "";
   const part = b.partialPaid && b.partialPaid > 0 && b.status !== "paid" ? ` (partially paid ${money(b.partialPaid)})` : "";
   const hold = b.status === "hold" ? " · ON HOLD" : "";
+  if (b.status === "paid") {
+    const pd = b.paidDate || b.paymentDate;
+    return `• **${b.vendor}** (${entityLabel(b)}): ${money(b.originalAmount ?? b.amount)}, paid ${pd || "(date not recorded)"}${inv}`;
+  }
   return `• **${b.vendor}** (${entityLabel(b)}) — ${money(billRemaining(b))}${part}, ${when}${inv}${hold}`;
 };
 
@@ -155,21 +161,24 @@ function insightLines(sm: BillSummary, opts: { age: boolean; busiest: boolean })
   return out;
 }
 
-function billAnswerLines(headline: string, bills: APBill[], today: Date, o: { list: boolean; limit: number; insight: { age: boolean; busiest: boolean }; followUp: string }): { lines: string[]; sm: BillSummary; shown: APBill[] } {
+function billAnswerLines(headline: string, bills: APBill[], today: Date, o: { list: boolean; limit: number; insight: { age: boolean; busiest: boolean }; followUp: string; recent?: boolean }): { lines: string[]; sm: BillSummary; shown: APBill[] } {
   const sm = summarizeBills(bills, today);
   const lines: string[] = [headline];
   insightLines(sm, o.insight).forEach(t => lines.push(t));
-  const sorted = [...bills].sort(o.list
-    ? (x, y) => (dueDate(x)?.getTime() ?? 0) - (dueDate(y)?.getTime() ?? 0)
-    : (x, y) => billRemaining(y) - billRemaining(x));
+  const paidKey = (b: APBill) => String(b.paidDate || b.paymentDate || "");
+  const sorted = [...bills].sort(o.recent
+    ? (x, y) => paidKey(y).localeCompare(paidKey(x))
+    : o.list
+      ? (x, y) => (dueDate(x)?.getTime() ?? 0) - (dueDate(y)?.getTime() ?? 0)
+      : (x, y) => billRemaining(y) - billRemaining(x));
   const k = o.list ? Math.min(o.limit, 25) : Math.min(3, sorted.length);
   const shown = sorted.slice(0, k);
   if (o.list && shown.length) {
-    lines.push("", `**${shown.length >= bills.length ? "All of them" : `The ${shown.length} oldest by due date`}:**`);
+    lines.push("", `**${shown.length >= bills.length ? "All of them" : o.recent ? `The ${shown.length} most recent` : `The ${shown.length} oldest by due date`}:**`);
     shown.forEach(b => lines.push(billLine(b, today)));
     if (bills.length > shown.length) lines.push(`…plus ${bills.length - shown.length} more.`);
   } else if (shown.length) {
-    lines.push("", `**Biggest ${shown.length === 1 ? "one" : shown.length}:**`);
+    lines.push("", `**${o.recent ? "Most recent" : "Biggest"} ${shown.length === 1 ? "one" : shown.length}:**`);
     shown.forEach(b => lines.push(billLine(b, today)));
     lines.push("", o.followUp);
   }
@@ -266,13 +275,55 @@ function apSearch(s: CalcSnapshot, a: ToolArgs): ToolResult {
   }
   const total = hits.reduce((t, b) => t + billRemaining(b), 0);
   const subject = who ? `**${who}**` : "Those bills";
-  const headline = dueBy !== null
+  const isPaidSearch = st === "paid";
+  const headline = isPaidSearch
+    ? `${subject} ${who ? "has been paid" : "were paid"} **${money(hits.reduce((t, b) => t + (b.originalAmount ?? b.amount), 0))}** across **${plural(hits.length, "bill")}**.`
+    : dueBy !== null
     ? `${subject} ${who ? "has" : "total"} **${money(total)} outstanding** across **${plural(hits.length, "open bill")}** due on or before ${byLabel} (overdue ones included).`
     : openOnly
       ? `${subject} ${who ? "has" : "total"} **${money(total)} still to pay** across **${plural(hits.length, "open bill")}**.`
       : `I found **${plural(hits.length, "bill")}**${who ? ` for ${who}` : ""} totaling **${money(total)}**${st ? ` (${st})` : ""}.`;
-  const r = billAnswerLines(headline, hits, today, { list: !!a.list, limit: Number(a.limit) || 25, insight: { age: openOnly, busiest: false }, followUp: "Want me to list them all?" });
+  const r = billAnswerLines(headline, hits, today, { list: !!a.list, limit: Number(a.limit) || 25, insight: { age: openOnly, busiest: false }, followUp: "Want me to list them all?", recent: isPaidSearch });
+  let lastPayment: { date: string; total: number; bills: number } | null = null;
+  if (v && st !== "paid") {
+    const paidAll = s.apBills.filter(b => b.status === "paid" && lc(b.vendor).includes(v) && (b.paidDate || b.paymentDate))
+      .sort((x, y) => String(y.paidDate || y.paymentDate).localeCompare(String(x.paidDate || x.paymentDate)));
+    if (paidAll.length) {
+      const day = String(paidAll[0].paidDate || paidAll[0].paymentDate);
+      const same = paidAll.filter(b => String(b.paidDate || b.paymentDate) === day);
+      lastPayment = { date: day, total: same.reduce((t, b) => t + (b.originalAmount ?? b.amount), 0), bills: same.length };
+      r.lines.splice(1, 0, `Last payment to ${who || "them"}: ${money(lastPayment.total)} on ${day}${same.length > 1 ? ` (${plural(same.length, "bill")})` : ""}.`);
+    }
+  }
   return { tool: "ap_search", title: "Bill search", lines: r.lines, links: AP_LINK, source: "Accounts Payable sheet", asOf: asOfText(s), data: billFactsBlock(r.sm, r.shown, today) };
+}
+
+function apTopVendors(s: CalcSnapshot, a: ToolArgs): ToolResult {
+  const today = startOfDay(s.now);
+  const n = Math.min(Math.max(Number(a.n) || 5, 1), 15);
+  const open = s.apBills.filter(b => isOpenBill(b) && entityMatches(b, a.entity));
+  const by: Record<string, { vendor: string; total: number; count: number; overdue: number }> = {};
+  open.forEach(b => {
+    const k = lc(b.vendor); if (!k) return;
+    const x = (by[k] ||= { vendor: String(b.vendor).trim(), total: 0, count: 0, overdue: 0 });
+    const r = billRemaining(b); x.total += r; x.count++;
+    const d = dueDate(b); if (d && d.getTime() < today.getTime()) x.overdue += r;
+  });
+  const list = Object.values(by).sort((x, y) => y.total - x.total);
+  const grand = list.reduce((t, x) => t + x.total, 0);
+  const scope = a.entity ? ` for ${a.entity}` : "";
+  const lines: string[] = [];
+  if (list.length === 0) lines.push(`There are no open bills${scope}.`);
+  else {
+    const top = list[0];
+    lines.push(`You owe the most to **${top.vendor}**: **${money(top.total)}** across ${plural(top.count, "bill")}${top.overdue ? `, ${money(top.overdue)} of it overdue` : ""}. That's ${pct(top.total, grand)}% of everything open${scope} (${money(grand)}).`);
+    const shown = list.slice(0, n);
+    const topShare = shown.reduce((t, x) => t + x.total, 0);
+    lines.push(`The top ${shown.length} vendors account for ${pct(topShare, grand)}% of the total.`, "", `**Top ${shown.length} by amount owed:**`);
+    shown.forEach((x, i) => lines.push(`${i + 1}. **${x.vendor}**: ${money(x.total)} (${plural(x.count, "bill")}${x.overdue ? `, ${money(x.overdue)} overdue` : ""})`));
+  }
+  return { tool: "ap_top_vendors", title: "Top vendors owed", lines, links: AP_LINK, source: "Accounts Payable sheet", asOf: asOfText(s),
+    data: { openTotal: grand, vendorCount: list.length, top: list.slice(0, n) } };
 }
 
 function apSummary(s: CalcSnapshot, a: ToolArgs): ToolResult {
@@ -308,6 +359,12 @@ function bankBalances(s: CalcSnapshot, a: ToolArgs): ToolResult {
   else {
     const scope = a.entity ? ` for ${a.entity}` : a.bank ? ` at ${a.bank}` : "";
     lines.push(`You have **${money(grand)}** in cash${scope} across ${plural(accts.length, "active account")}.`);
+    const withY = accts.filter(b => b.yesterday !== undefined && b.yesterday !== null);
+    if (withY.length === accts.length) {
+      const yTot = accts.reduce((t, b) => t + (Number(b.yesterday) || 0), 0);
+      const delta = Math.round((grand - yTot) * 100) / 100;
+      if (delta !== 0) lines.push(`That's ${delta > 0 ? "up" : "down"} ${money(Math.abs(delta))} from yesterday's balances (${money(yTot)}).`);
+    }
     const ents = Object.entries(byEntity).sort((x, y) => y[1] - x[1]);
     if (ents.length > 1) lines.push("By entity: " + ents.map(([k, v]) => `${k} ${money(v)}`).join(" · ") + ".");
     if (low.length) lines.push("", `**Heads up, ${plural(low.length, "account")} under $500:**`, ...low.map(b => "• " + acctLine(b)));
@@ -478,6 +535,7 @@ export const CALC_TOOLS: Record<string, CalcToolDef> = {
   ap_overdue:        { description: "Unpaid bills whose due date has passed.", args: "{entity?: string, vendor?: string, list?: boolean (true ONLY if the user asks to list/show the bills)}", run: apOverdue },
   ap_due_soon:       { description: "Unpaid bills due from today through the next N days.", args: "{days?: number (default 7), entity?: string, vendor?: string, list?: boolean}", run: apDueSoon },
   ap_search:         { description: "Find bills by vendor, invoice number, status (unpaid|paid|hold) or entity.", args: "{vendor?: string, invoiceNo?: string (use when the user gives an invoice number; returns that bill's full details), status?: string (unpaid|paid|hold), entity?: string, openOnly?: boolean, dueByDays?: number (open bills due on or before today+N days, overdue included — use for \"how much do we owe X by this week\"), list?: boolean (true ONLY if the user asks to list/show the bills)}", run: apSearch },
+  ap_top_vendors:    { description: "Which vendors we owe the most (open bills by vendor, with overdue part and share of total).", args: "{n?: number, entity?: string}", run: apTopVendors },
   ap_summary:        { description: "Counts and totals of unpaid bills, grouped by entity.", args: "{entity?: string}", run: apSummary },
   bank_balances:     { description: "Current bank account balances, yesterday's balance, as-of time, low (<$500) and stale (2+ days) flags.", args: "{entity?: string, bank?: string, list?: boolean (true ONLY if asked for every account)}", run: bankBalances },
   statements_pending:{ description: "Bank statements whose cut-off has passed and are not downloaded yet.", args: "{list?: boolean}", run: statementsPending },
@@ -488,10 +546,45 @@ export const CALC_TOOLS: Record<string, CalcToolDef> = {
   briefing:          { description: "The daily briefing: overdue, due soon, statements, balances, today's calendar, notes.", args: "{}", run: briefing },
 };
 
+function addSuggestions(res: ToolResult, a: ToolArgs): ToolResult {
+  const sug: { label: string; tool: string; args: ToolArgs }[] = [];
+  const d = res.data || {};
+  const ents = d.byEntity ? Object.entries(d.byEntity as Record<string, { total: number }>).sort((x, y) => y[1].total - x[1].total).map(([k]) => k) : [];
+  switch (res.tool) {
+    case "ap_overdue": case "ap_due_soon": case "ap_search":
+      if (d.bills && d.bills.length === 1) break;
+      if (d.count > 3 && !a.list) sug.push({ label: "List them all", tool: res.tool, args: { ...a, list: true } });
+      if (ents.length > 1 && !a.entity) sug.push({ label: `Just ${ents[0]}`, tool: res.tool, args: { ...a, entity: ents[0] } });
+      if (res.tool === "ap_overdue" && !a.vendor) sug.push({ label: "Due this week", tool: "ap_due_soon", args: { days: 7, ...(a.entity ? { entity: a.entity } : {}) } });
+      if (res.tool === "ap_search" && a.vendor && !a.invoiceNo) {
+        sug.push({ label: "Only overdue", tool: "ap_overdue", args: { vendor: a.vendor } });
+        if (a.status !== "paid") sug.push({ label: "Payment history", tool: "ap_search", args: { vendor: a.vendor, status: "paid" } });
+      }
+      break;
+    case "ap_top_vendors":
+      if (d.top && d.top[0]) sug.push({ label: `Details: ${d.top[0].vendor}`, tool: "ap_search", args: { vendor: d.top[0].vendor, openOnly: true } });
+      sug.push({ label: "Overdue bills", tool: "ap_overdue", args: {} });
+      break;
+    case "statements_pending":
+      if (d.pendingCount > 5 && !a.list) sug.push({ label: "List them all", tool: res.tool, args: { list: true } });
+      break;
+    case "bank_balances":
+      if (!a.list) sug.push({ label: "Account by account", tool: res.tool, args: { ...a, list: true } });
+      break;
+    case "calendar":
+      if (d.count > 3 && !a.list) sug.push({ label: "List every event", tool: res.tool, args: { ...a, list: true } });
+      break;
+    case "briefing":
+      sug.push({ label: "Overdue details", tool: "ap_overdue", args: {} }, { label: "Due this week", tool: "ap_due_soon", args: { days: 7 } }, { label: "Statements", tool: "statements_pending", args: {} });
+      break;
+  }
+  return sug.length ? { ...res, suggest: sug.slice(0, 4) } : res;
+}
+
 export function runTool(name: string, snap: CalcSnapshot, args: ToolArgs): ToolResult | null {
   const t = CALC_TOOLS[name];
   if (!t) return null;
-  try { return t.run(snap, args || {}); } catch (e: any) {
+  try { return addSuggestions(t.run(snap, args || {}), args || {}); } catch (e: any) {
     return { tool: name, title: name, lines: [`I hit a problem reading that data (${e?.message || "unknown error"}).`], data: { error: String(e?.message || e) }, source: "", asOf: "" };
   }
 }
@@ -501,7 +594,7 @@ export const toolCatalogText = () =>
   Object.entries(CALC_TOOLS).map(([n, t]) => `- ${n} ${t.args}: ${t.description}`).join("\n");
 
 // ── keyword router: works with NO AI, used for quick chips and as the fallback when the AI is busy ──
-const ROUTER_STOP = new Set(["this","that","week","next","much","many","amount","amounts","outstanding","until","pay","paid","payment","payments","owe","owed","bill","bills","invoice","invoices","unpaid","balance","balances","overdue","total","what","whats","with","have","from","about","show","tell","give","need","vendor","vendors","month","today","tomorrow","when","does","there","their","them","they","into","please","calc","still","remaining","left","open","status","due","how","where","which","would","could","should","your","ours","cash","money","bank","banks","account","accounts","statement","statements","calendar","note","notes","platform","platforms","event","events","schedule","meeting","meetings","list","tasks","task","download","downloaded","sign","login","password","link","links","help","guide","portal"]);
+const ROUTER_STOP = new Set(["this","that","week","next","much","many","amount","amounts","outstanding","until","pay","paid","payment","payments","owe","owed","bill","bills","invoice","invoices","unpaid","balance","balances","overdue","total","what","whats","with","have","from","about","show","tell","give","need","vendor","vendors","month","today","tomorrow","when","does","there","their","them","they","into","please","calc","still","remaining","left","open","status","due","how","where","which","would","could","should","your","ours","most","biggest","largest","top","owe","owed","cash","money","bank","banks","account","accounts","statement","statements","calendar","note","notes","platform","platforms","event","events","schedule","meeting","meetings","list","tasks","task","download","downloaded","sign","login","password","link","links","help","guide","portal"]);
 
 /** Vendor named in the question: longest word (4+ letters) that appears inside a vendor name. */
 function vendorFromQuestion(t: string, s: CalcSnapshot): string | null {
@@ -525,6 +618,12 @@ export function routeQuestion(q: string, s: CalcSnapshot): { tool: string; args:
   if (/\b(list|show|which|itemi[sz]e|every|each|all of them|all the bills)\b/.test(t)) base.list = true;
   if (/\bbriefing\b|catch me up|what.?s (going on|happening|new)|good morning|summary of today/.test(t)) return [{ tool: "briefing", args: {} }];
 
+  // "Who do we owe the most?" / "biggest vendors"
+  if (/who do we owe|owe the most|biggest vendors?|largest vendors?|top (\d+ )?vendors?|most (money )?(owed|overdue)|which vendors?.*(most|biggest|highest)/.test(t)) {
+    const nm = t.match(/top (\d+)/);
+    return [{ tool: "ap_top_vendors", args: { ...(nm ? { n: Number(nm[1]) } : {}), ...(entity ? { entity } : {}) } }];
+  }
+
   // An invoice number anywhere in the question → find that exact bill.
   const invMatch = t.match(/\b(?:invoice|inv)\s*(?:number|no\.?|num|#)?\s*[:#]?\s*([a-z0-9-]*\d[a-z0-9-]{3,})/) || t.match(/\b(\d{6,})\b/);
   if (invMatch) return [{ tool: "ap_search", args: { invoiceNo: invMatch[1], ...(entity ? { entity } : {}) } }];
@@ -539,6 +638,7 @@ export function routeQuestion(q: string, s: CalcSnapshot): { tool: string; args:
   const vendor = vendorFromQuestion(t, s);
   if (vendor) {
     const args: ToolArgs = { vendor, ...base };
+    if (/payment history|last paid|last payment|when did we (last )?pay|have we paid|did we pay|paid so far|how much (have|did) we (pay|paid)/.test(t)) { args.status = "paid"; return [{ tool: "ap_search", args }]; }
     if (/this week|until|by (the )?end|next 7|due soon|owe|outstanding|still (to )?pay|unpaid|remaining|how much/.test(t)) {
       args.openOnly = true;
       if (/this week|until|by (the )?end of (the )?week|next 7/.test(t)) args.dueByDays = 7;

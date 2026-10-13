@@ -14,7 +14,8 @@ import {
   CalcEvent, CalcLink, CalcSnapshot, ToolResult, routeQuestion, runTool, toolCatalogText,
 } from "../../services/calcTools";
 
-interface Msg { id: string; role: "user" | "calc"; text: string; links?: CalcLink[]; ts: number }
+interface Suggest { label: string; tool: string; args: any }
+interface Msg { id: string; role: "user" | "calc"; text: string; links?: CalcLink[]; suggest?: Suggest[]; ts: number }
 interface Chat { id: string; title: string; updatedAt: number; messages: Msg[] }
 
 const KEY_PREFIX = "calc_chats_v1:";
@@ -69,13 +70,14 @@ const RenderText: React.FC<{ text: string }> = ({ text }) => (
   </div>
 );
 
-const formatResults = (rs: ToolResult[]): { text: string; links: CalcLink[] } => {
+const formatResults = (rs: ToolResult[]): { text: string; links: CalcLink[]; suggest: Suggest[] } => {
   const blocks = rs.map(r => r.lines.join("\n"));
   const seen = new Set<string>(); const links: CalcLink[] = [];
   rs.forEach(r => (r.links || []).forEach(l => { if (!seen.has(l.page)) { seen.add(l.page); links.push(l); } }));
   const srcs = Array.from(new Set(rs.filter(r => r.source).map(r => `${r.source}, ${r.asOf}`)));
   const src = srcs.length ? `\nSource: ${srcs.join(" · ")}.` : "";
-  return { text: blocks.join("\n\n") + src, links: links.slice(0, 3) };
+  const suggest = (rs.find(r => r.suggest && r.suggest.length)?.suggest || []).slice(0, 4);
+  return { text: blocks.join("\n\n") + src, links: links.slice(0, 3), suggest };
 };
 
 export const CalcWidget: React.FC = () => {
@@ -156,8 +158,8 @@ export const CalcWidget: React.FC = () => {
   }, []);
 
   // reveal a Calc answer gradually while the avatar "talks"
-  const reveal = useCallback((text: string, links?: CalcLink[]) => {
-    const msg = push({ role: "calc", text, links });
+  const reveal = useCallback((text: string, links?: CalcLink[], suggest?: Suggest[]) => {
+    const msg = push({ role: "calc", text, links, suggest });
     const total = text.length, step = Math.max(2, Math.ceil(total / 90));
     let n = 0;
     setTyping({ id: msg.id, n: 0 }); setAvFor("talk");
@@ -216,7 +218,7 @@ export const CalcWidget: React.FC = () => {
     if (!rs.length) return false;
     lastCallsRef.current = calls;
     const f = formatResults(rs);
-    reveal((note ? note + "\n\n" : "") + f.text, f.links);
+    reveal((note ? note + "\n\n" : "") + f.text, f.links, f.suggest);
     return true;
   }, [snapshot, reveal]);
 
@@ -247,7 +249,11 @@ export const CalcWidget: React.FC = () => {
       let aiNoKey = false;
       try {
         const { status, j } = await askServer({ phase: "plan", accessToken: token, question: q, history, today, toolCatalog: toolCatalogText() });
-        if (status === 401) { fail("Your Google session expired. Sign in again and I'll be right here."); return; }
+        if (status === 401) {
+          const calls = routeQuestion(q, snapshot);
+          if (calls && runLocal(calls, "Your Google session has expired, so I used the direct lookup. Sign in again for full chat:")) return;
+          fail("Your Google session expired. Sign in again and I'll be right here."); return;
+        }
         if (status === 429) { fail(j?.error || "Slow down a little — try again in a minute."); return; }
         if (j?.ok) plan = { calls: j.calls || [], direct: j.direct || "" };
         else if (j?.code === "nokey") { aiNoKey = true; planNote = "The AI isn't set up on this server yet, so here's the straight lookup:"; }
@@ -272,9 +278,9 @@ export const CalcWidget: React.FC = () => {
           phase: "answer", accessToken: token, question: q, history, today,
           results: results.map(r => ({ tool: r.tool, title: r.title, source: r.source, asOf: r.asOf, data: r.data })),
         });
-        if (j?.ok && j.text) { reveal(j.text, f.links); return; }
+        if (j?.ok && j.text) { reveal(j.text, f.links, f.suggest); return; }
       } catch { /* use the plain lookup */ }
-      reveal("The AI is busy, so here's the straight lookup:\n\n" + f.text, f.links);
+      reveal("The AI is busy, so here's the straight lookup:\n\n" + f.text, f.links, f.suggest);
     } catch (e: any) {
       fail("Something went wrong on my side. Try again in a moment.");
     } finally {
@@ -361,6 +367,16 @@ export const CalcWidget: React.FC = () => {
                   <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                     <div className={`max-w-[88%] rounded-2xl px-3 py-2 text-[13px] leading-snug ${m.role === "user" ? "bg-[#2f6fc9] text-white" : bubbleCalc}`}>
                       {m.role === "user" ? shown : <RenderText text={shown} />}
+                      {m.role === "calc" && m.suggest && m.suggest.length > 0 && !(typing && typing.id === m.id) && m.id === messages[messages.length - 1]?.id && (
+                        <div className="flex flex-wrap gap-1.5 pt-2">
+                          {m.suggest.map(sg => (
+                            <button key={sg.label} disabled={busy} onClick={() => send(sg.label, { tool: sg.tool, args: sg.args })}
+                              className={`text-[12px] px-2.5 py-1 rounded-full border ${isLight ? "border-slate-300 bg-white hover:bg-slate-50" : "border-[#3a3a3a] hover:bg-[#262626]"}`}>
+                              {sg.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                       {m.role === "calc" && m.links && m.links.length > 0 && !(typing && typing.id === m.id) && (
                         <div className="flex flex-wrap gap-1.5 pt-2">
                           {m.links.map(l => (
