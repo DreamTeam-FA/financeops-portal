@@ -388,6 +388,7 @@ const HOWTOS = [
       "New auto-generated entries appear in the main 'Statement Tracker' section below. Legacy (pre-redesign) entries are in the collapsible 'Legacy Entries' section above — click to expand it.",
       "Use the Month, Bank, and Entity dropdowns to filter entries across both sections.",
       "Pending entries are shown first (A–Z by bank name). Downloaded entries appear below them, sorted by entity.",
+      "A red DUE tag next to 'Pending' means the bank's Cut-Off Date has passed (today or earlier) and the statement is ready to download but not downloaded yet. Entries whose cut-off is still in the future show only 'Pending'. The number on the sidebar's Bank Statements badge is exactly the number of DUE tags; the 'Pending Download' card at the top is larger because it also counts future-dated and legacy pending entries.",
       "When you receive and file a statement, click 'Mark Downloaded' on its entry.",
       "To manually add an entry, click 'Add Entry'. There's no batch-generate button anymore — Statement Tracker entries are created automatically once a bank's Cut-Off Date is filled in on the reference table.",
     ],

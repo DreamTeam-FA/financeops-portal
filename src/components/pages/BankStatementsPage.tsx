@@ -267,6 +267,21 @@ const StatementTable: React.FC<TableProps> = ({
 }) => {
   if (entries.length === 0) return null;
 
+  // "Due" = Statement Tracker entry (has a cut-off date) whose cut-off is today or earlier and is still not
+  // downloaded. Same rule as the sidebar's Bank Statements badge, so every red DUE tag is one badge count.
+  const todayMidnight = new Date(); todayMidnight.setHours(0, 0, 0, 0);
+  const isDue = (s: any) => {
+    if (s.downloaded || !s.cutOffDate) return false;
+    const d = new Date(String(s.cutOffDate).includes("T") ? s.cutOffDate : s.cutOffDate + "T00:00:00");
+    return !isNaN(d.getTime()) && d <= todayMidnight;
+  };
+  const DueTag: React.FC = () => (
+    <span title="Cut-off date has passed: this statement is ready to download"
+      className="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wide bg-red-600 text-white whitespace-nowrap">
+      Due
+    </span>
+  );
+
   const div  = isLight ? "divide-slate-100"  : "divide-[#1e2433]";
   const muted = isLight ? "text-slate-500"   : "text-[#666]";
   const text  = isLight ? "text-slate-800"   : "text-white";
@@ -284,7 +299,10 @@ const StatementTable: React.FC<TableProps> = ({
               {s.downloaded ? (
                 <span className={`shrink-0 px-2 py-0.5 rounded text-[10px] font-bold bg-[#16a34a]/20 ${isLight ? "text-emerald-600" : "text-[#4ade80]"}`}>✓ Done</span>
               ) : (
-                <span className="shrink-0 px-2 py-0.5 rounded text-[10px] font-bold bg-[#fb923c]/20 text-[#fb923c]">Pending</span>
+                <span className="shrink-0 flex items-center gap-1">
+                  {isDue(s) && <DueTag />}
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#fb923c]/20 text-[#fb923c]">Pending</span>
+                </span>
               )}
             </div>
             {/* Row 2: dates + cycle */}
@@ -352,8 +370,11 @@ const StatementTable: React.FC<TableProps> = ({
                       Downloaded
                     </span>
                   ) : (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#fb923c]/20 text-[#fb923c]">
-                      Pending
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#fb923c]/20 text-[#fb923c]">
+                        Pending
+                      </span>
+                      {isDue(s) && <DueTag />}
                     </span>
                   )}
                 </td>
