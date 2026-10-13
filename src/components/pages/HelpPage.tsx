@@ -325,6 +325,8 @@ const HOWTOS = [
       "Paste the raw Headley's report text into the input field.",
       "Select the Billing Unit (TI or 4YR) and verify the parsed rows.",
       "Click 'Write to Sheet' — rows are appended to the Headley's tab in the Main F&A Sheet.",
+      "Safe to re-import: any line whose date, ref and amount are already in the Headley's tab is skipped (not added twice), and the last step tells you how many were skipped.",
+      "Headley's page totals: each billing cycle is grouped by the sheet's Due date column and matches the pivot on the Headley's tab (4YR, TI, and the grand total). Lines with no Charging BU show as UNASSIGNED so the totals still agree; 'Ti' and 'TI' count as one BU.",
     ],
   },
   {

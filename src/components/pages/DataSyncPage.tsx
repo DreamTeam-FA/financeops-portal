@@ -10,7 +10,6 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   Key,
-  LogOut,
   Save,
   Clock,
   Sparkles,
@@ -49,7 +48,6 @@ export const DataSyncPage: React.FC = () => {
     logAction,
     googleUser,
     handleGoogleSignIn,
-    handleGoogleSignOut,
     sheetMappings,
     updateSheetMapping,
     addCustomSheetMapping,
@@ -614,11 +612,7 @@ export const DataSyncPage: React.FC = () => {
                 </p>
               </div>
             </div>
-            {googleUser ? (
-              <button onClick={handleGoogleSignOut} className={btnGhost}>
-                <LogOut className="w-3.5 h-3.5" /> Sign Out
-              </button>
-            ) : (
+            {googleUser ? null : (
               <button onClick={handleGoogleSignIn} className="px-4 py-2 rounded-lg bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs font-semibold flex items-center gap-2 transition-colors">
                 <Key className="w-4 h-4" /> Sign in with Google
               </button>

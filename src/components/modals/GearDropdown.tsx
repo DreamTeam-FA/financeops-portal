@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { useFinance } from "../../context/FinanceContext";
 import { getAccessToken } from "../../services/googleAuth";
+import { splitHeadleysDuplicates } from "../../utils/headleysDup";
 
 const MAIN_SHEET_ID = "15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs";
 const HEADLEYS_TAB  = "Headley's";
@@ -126,8 +127,8 @@ function parseHeadleysText(text: string): ParsedHdlRow[] {
 
 // ── Headley's append to sheet ─────────────────────────────────────────────────
 async function appendHeadleysToSheet(
-  rows: ParsedHdlRow[], billingDate: string, token: string
-): Promise<void> {
+  allParsed: ParsedHdlRow[], billingDate: string, token: string
+): Promise<{ added: ParsedHdlRow[]; duplicates: ParsedHdlRow[] }> {
   // Read the full sheet — NOT a fixed range. The two-table layout means the header row
   // could be anywhere, and there may be thousands of data rows past the old A1:J500 cap.
   // Use A:Z (all columns in the sheet) to also handle tables that start beyond column A.
@@ -156,6 +157,10 @@ async function appendHeadleysToSheet(
 
   // lastDataRow is 0-based index in allRows → sheet row = lastDataRow + 1 (1-based)
   // next empty sheet row = lastDataRow + 1 + 1 = lastDataRow + 2
+  // Skip lines already in the sheet (same date + ref + amount) so a statement can't be added twice
+  const { fresh: rows, duplicates } = splitHeadleysDuplicates(allParsed, allRows, headerIdx, startCol);
+  if (!rows.length) return { added: [], duplicates };
+
   const nextSheetRow = lastDataRow + 2;
   const startColLetter = colLetter(startCol + 1);       // startCol=0 → "A"
   const endColLetter   = colLetter(startCol + 10);      // startCol=0 → "J"
@@ -171,6 +176,7 @@ async function appendHeadleysToSheet(
       billingDate,
     ]),
   }], token);
+  return { added: rows, duplicates };
 }
 
 // ── Metadata CRUD ─────────────────────────────────────────────────────────────
@@ -253,6 +259,7 @@ const HeadleysImportModal: React.FC<{ isLight: boolean; onClose: () => void }> =
   const [parsedRows, setParsedRows]   = useState<ParsedHdlRow[]>([]);
   const [error, setError]             = useState("");
   const [saving, setSaving]           = useState(false);
+  const [dupCount, setDupCount]       = useState(0);
   const [billStatus, setBillStatus]   = useState<Record<string,"idle"|"done"|"err">>({});
 
   const doStep1 = () => {
@@ -280,7 +287,11 @@ const HeadleysImportModal: React.FC<{ isLight: boolean; onClose: () => void }> =
     setSaving(true);
     try {
       const token = getAccessToken();
-      if (token) await appendHeadleysToSheet(parsedRows, billingDate, token);
+      if (token) {
+        const { added, duplicates } = await appendHeadleysToSheet(parsedRows, billingDate, token);
+        setDupCount(duplicates.length);
+        setParsedRows(added); // step 3 bills only what was actually added
+      }
       setStep(3);
     } catch (e: any) {
       setError("Sheet write error: " + (e.message || "unknown"));
@@ -416,8 +427,15 @@ const HeadleysImportModal: React.FC<{ isLight: boolean; onClose: () => void }> =
           {/* ── STEP 3 ── */}
           {step === 3 && <>
             <p className={`text-[12px] ${s.muted}`}>
-              Rows saved to the Headley's sheet. Click <strong>Create Bill</strong> for each entity to add to TI Bills.
+              {parsedRows.length
+                ? <>Rows saved to the Headley's sheet. Click <strong>Create Bill</strong> for each entity to add to TI Bills.</>
+                : <>Nothing new to save — every line is already in the Headley's sheet.</>}
             </p>
+            {dupCount > 0 && (
+              <p className={`text-[11px] px-3 py-2 rounded-lg border ${isLight ? "bg-amber-50 border-amber-200 text-amber-700" : "bg-amber-950/20 border-amber-800/40 text-amber-400"}`}>
+                {dupCount} line{dupCount !== 1 ? "s were" : " was"} skipped because {dupCount !== 1 ? "they are" : "it is"} already in the sheet (same date, ref and amount).
+              </p>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {Object.entries(breakdown)
                 .sort(([a],[b]) => a==="TI"?-1:b==="TI"?1:a.localeCompare(b))

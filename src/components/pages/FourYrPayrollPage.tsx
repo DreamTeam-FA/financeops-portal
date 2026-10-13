@@ -190,7 +190,7 @@ export function FourYrPayrollPage() {
   const [startingWeek,   setStartingWeek]   = useState(false);
   const [modalBusy,      setModalBusy]      = useState(false); // loading state for add/edit/delete modals
 
-  const debounceRef  = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef  = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const lastKeyRef   = useRef("");
   const weekListRef  = useRef<HTMLDivElement>(null);
 

@@ -1555,8 +1555,16 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       let typeCol = startCol + 4, descCol = startCol + 5, debitCol = startCol + 6;
       let creditCol = startCol + 7, amtCol = startCol + 8, dueCol = startCol + 9;
       // Refine from actual header labels
+      // Only read the raw table's own header block (stops at the first blank header cell) and
+      // keep the FIRST match per label: the sheet's pivot summary sits to the right on the same
+      // row and repeats "Charging BU" / "Due date", which must not override these columns.
+      const seen = new Set<string>();
       for (let c = startCol; c < headerRow.length; c++) {
         const h = String(headerRow[c] || "").toLowerCase().trim();
+        if (!h) break;
+        const key = h === "due" ? "due date" : h;
+        if (seen.has(key)) continue;
+        seen.add(key);
         if (h === "charging bu") buCol = c;
         else if (h === "date") dateCol = c;
         else if (h === "ref") refCol = c;
@@ -1568,8 +1576,14 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       }
       for (let i = dataHeaderIdx + 1; i < headleysRawRows.length; i++) {
         const row = headleysRawRows[i];
-        const bu = String(row[buCol] || "").trim();
-        if (!bu) continue;
+        // Upper-case so "Ti" and "TI" count as one BU (the sheet's pivot treats them the same)
+        let bu = String(row[buCol] || "").trim().toUpperCase();
+        // A line with no Charging BU still counts toward its billing cycle (the sheet's pivot
+        // includes it), so keep it visible as "UNASSIGNED" instead of silently dropping it.
+        if (!bu) {
+          if (!String(row[refCol] || "").trim() && !String(row[amtCol] || "").trim()) continue;
+          bu = "UNASSIGNED";
+        }
         const parseNum = (v: any) => typeof v === "number" ? v : parseFloat(String(v || "0").replace(/[^0-9.-]+/g, "")) || 0;
         const amt = parseNum(row[amtCol]);
         const debit = parseNum(row[debitCol]);

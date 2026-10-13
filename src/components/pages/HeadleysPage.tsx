@@ -3,6 +3,7 @@ import { useFinance } from "../../context/FinanceContext";
 import { HeadleysItem } from "../../types";
 import { FileText, ChevronDown, ChevronRight, Upload, X, FileSpreadsheet, ChevronLeft, ShoppingBag } from "lucide-react";
 import { getAccessToken } from "../../services/googleAuth";
+import { splitHeadleysDuplicates } from "../../utils/headleysDup";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const MAIN_SHEET_ID = "15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs";
@@ -81,7 +82,9 @@ function parseHeadleysText(text: string): ParsedHdlRow[] {
 }
 
 // ── Append rows to Headley's sheet ────────────────────────────────────────────
-async function appendHeadleysToSheet(rows: ParsedHdlRow[], billingDate: string, token: string): Promise<void> {
+async function appendHeadleysToSheet(
+  allParsed: ParsedHdlRow[], billingDate: string, token: string
+): Promise<{ added: ParsedHdlRow[]; duplicates: ParsedHdlRow[] }> {
   const allRows = await sheetsGet(`${HEADLEYS_TAB}!A:Z`, token);
   let headerIdx = -1, startCol = 0;
   for (let i = 0; i < allRows.length; i++) {
@@ -98,6 +101,9 @@ async function appendHeadleysToSheet(rows: ParsedHdlRow[], billingDate: string, 
   for (let i = allRows.length - 1; i > headerIdx; i--) {
     if (allRows[i].slice(startCol, startCol + 10).join("").trim()) { lastDataRow = i; break; }
   }
+  // Skip lines already in the sheet (same date + ref + amount) so a statement can't be added twice
+  const { fresh: rows, duplicates } = splitHeadleysDuplicates(allParsed, allRows, headerIdx, startCol);
+  if (!rows.length) return { added: [], duplicates };
   const nextSheetRow    = lastDataRow + 2;
   const startColLetter  = colLetter(startCol + 1);
   const endColLetter    = colLetter(startCol + 10);
@@ -112,6 +118,7 @@ async function appendHeadleysToSheet(rows: ParsedHdlRow[], billingDate: string, 
       billingDate,
     ]),
   }], token);
+  return { added: rows, duplicates };
 }
 
 // ── HeadleysImportModal ────────────────────────────────────────────────────────
@@ -137,7 +144,8 @@ const HeadleysImportModal: React.FC<{ isLight: boolean; onClose: () => void; ini
   const [scanning, setScanning]       = useState(false);
   const [billStatus, setBillStatus]   = useState<Record<string,"idle"|"done"|"err">>({});
   const [dragOver, setDragOver]       = useState(false);
-  const fileRef                       = useRef<HTMLInputElement>(null);
+  const [dupCount, setDupCount]       = useState(0);
+  const fileRef                      = useRef<HTMLInputElement>(null);
 
   const fmtAmt = (n: number) =>
     "$" + Math.abs(n).toLocaleString("en-US", { minimumFractionDigits:2, maximumFractionDigits:2 });
@@ -155,7 +163,11 @@ const HeadleysImportModal: React.FC<{ isLight: boolean; onClose: () => void; ini
       setScanning(true);
       try {
         const buf = await file.arrayBuffer();
-        const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+        // Build the binary string in chunks: spreading a whole PDF into fromCharCode overflows the call stack
+        const bytes = new Uint8Array(buf);
+        let bin = "";
+        for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+        const b64 = btoa(bin);
         const res = await fetch("/api/headleys/scan", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -209,7 +221,11 @@ const HeadleysImportModal: React.FC<{ isLight: boolean; onClose: () => void; ini
     setSaving(true);
     try {
       const token = getAccessToken();
-      if (token) await appendHeadleysToSheet(parsedRows, billingDate, token);
+      if (token) {
+        const { added, duplicates } = await appendHeadleysToSheet(parsedRows, billingDate, token);
+        setDupCount(duplicates.length);
+        setParsedRows(added); // step 3 bills only what was actually added
+      }
       setStep(3);
     } catch (e: any) {
       setError("Sheet write error: " + (e.message || "unknown"));
@@ -377,8 +393,15 @@ const HeadleysImportModal: React.FC<{ isLight: boolean; onClose: () => void; ini
           {/* ── STEP 3 ── */}
           {step === 3 && <>
             <p className={`text-[12px] ${s.muted}`}>
-              Rows saved to the Headley's sheet. Click <strong>Create Bill</strong> for each entity to add to TI Bills.
+              {parsedRows.length
+                ? <>Rows saved to the Headley's sheet. Click <strong>Create Bill</strong> for each entity to add to TI Bills.</>
+                : <>Nothing new to save — every line is already in the Headley's sheet.</>}
             </p>
+            {dupCount > 0 && (
+              <p className={`text-[11px] px-3 py-2 rounded-lg border ${isLight ? "bg-amber-50 border-amber-200 text-amber-700" : "bg-amber-950/20 border-amber-800/40 text-amber-400"}`}>
+                {dupCount} line{dupCount !== 1 ? "s were" : " was"} skipped because {dupCount !== 1 ? "they are" : "it is"} already in the sheet (same date, ref and amount).
+              </p>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {Object.entries(breakdown)
                 .sort(([a],[b]) => a==="TI"?-1:b==="TI"?1:a.localeCompare(b))

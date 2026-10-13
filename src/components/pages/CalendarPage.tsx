@@ -256,6 +256,7 @@ export const CalendarPage: React.FC = () => {
   const [selectedEvent, setSelectedEvent] = useState<{
     title: string;
     type: string;
+    isGoogleEvent?: boolean;
     date: string;
     time?: string;
     endTime?: string;
