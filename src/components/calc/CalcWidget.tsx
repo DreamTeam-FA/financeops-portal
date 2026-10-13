@@ -33,6 +33,8 @@ const CHIPS: { label: string; tool?: string; args?: any; prefill?: string }[] = 
   { label: "How do I…", prefill: "How do I " },
 ];
 
+/** Local testing only: on localhost the server accepts requests without a Google token (it checks the TCP peer is loopback). */
+const IS_LOCAL = typeof location !== "undefined" && /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
 const todayKey = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
 const uid = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
@@ -74,7 +76,7 @@ const formatResults = (rs: ToolResult[]): { text: string; links: CalcLink[]; sug
   const blocks = rs.map(r => r.lines.join("\n"));
   const seen = new Set<string>(); const links: CalcLink[] = [];
   rs.forEach(r => (r.links || []).forEach(l => { if (!seen.has(l.page)) { seen.add(l.page); links.push(l); } }));
-  const srcs = Array.from(new Set(rs.filter(r => r.source).map(r => `${r.source}, ${r.asOf}`)));
+  const srcs = Array.from(new Set(rs.filter(r => r.source).map(r => (r.asOf ? `${r.source}, ${r.asOf}` : r.source))));
   const src = srcs.length ? `\nSource: ${srcs.join(" · ")}.` : "";
   const suggest = (rs.find(r => r.suggest && r.suggest.length)?.suggest || []).slice(0, 4);
   return { text: blocks.join("\n\n") + src, links: links.slice(0, 3), suggest };
@@ -237,7 +239,7 @@ export const CalcWidget: React.FC = () => {
       const token = getAccessToken();
       const history = messages.slice(-6).map(m => ({ role: m.role, text: m.text.slice(0, 400) }));
       const today = new Date().toString().slice(0, 33);
-      if (!token) {
+      if (!token && !IS_LOCAL) {
         const calls = routeQuestion(q, snapshot);
         if (calls && runLocal(calls, "(Sign in with Google for full chat. I answered from a direct lookup.)")) return;
         fail("Please sign in with Google first, then ask me again."); return;
@@ -248,7 +250,7 @@ export const CalcWidget: React.FC = () => {
       let planNote = "The AI is busy right now, so here's the straight lookup:";
       let aiNoKey = false;
       try {
-        const { status, j } = await askServer({ phase: "plan", accessToken: token, question: q, history, today, toolCatalog: toolCatalogText() });
+        const { status, j } = await askServer({ phase: "plan", accessToken: IS_LOCAL ? "" : token, question: q, history, today, toolCatalog: toolCatalogText() });
         if (status === 401) {
           const calls = routeQuestion(q, snapshot);
           if (calls && runLocal(calls, "Your Google session has expired, so I used the direct lookup. Sign in again for full chat:")) return;
@@ -275,7 +277,7 @@ export const CalcWidget: React.FC = () => {
       // 3) phrase the answer
       try {
         const { j } = await askServer({
-          phase: "answer", accessToken: token, question: q, history, today,
+          phase: "answer", accessToken: IS_LOCAL ? "" : token, question: q, history, today,
           results: results.map(r => ({ tool: r.tool, title: r.title, source: r.source, asOf: r.asOf, data: r.data })),
         });
         if (j?.ok && j.text) { reveal(j.text, f.links, f.suggest); return; }

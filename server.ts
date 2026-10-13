@@ -2838,33 +2838,56 @@ async function callVisionLLM(
 
 type CalcMsg = { role: "user" | "calc"; text: string };
 
-async function callGeminiChat(apiKey: string, system: string, msgs: CalcMsg[], maxTokens: number, json: boolean, temperature: number): Promise<{ ok: true; text: string } | { ok: false; error: string; attempts: string[] }> {
-  const body: any = {
+// Calc wants a fast conversational reply, not the scanners' vision-tuned order: the quick 3.5-flash / lite models
+// first (thinking switched off — measured ~1.5-2s vs 5s+), the models that are often "high demand" last.
+const CALC_GEMINI_MODELS = [
+  { version: "v1beta", model: "gemini-3.5-flash" },
+  { version: "v1beta", model: "gemini-3.1-flash-lite" },
+  { version: "v1beta", model: "gemini-3.5-flash-lite" },
+  { version: "v1beta", model: "gemini-flash-lite-latest" },
+  { version: "v1beta", model: "gemini-3.8-flash" },
+  { version: "v1beta", model: "gemini-flash-latest" },
+];
+
+async function callGeminiChat(apiKey: string, system: string, msgs: CalcMsg[], maxTokens: number, json: boolean, temperature: number, perAttemptMs = 9000, totalMs = 22000): Promise<{ ok: true; text: string } | { ok: false; error: string; attempts: string[] }> {
+  const baseCfg: any = { temperature, maxOutputTokens: maxTokens, ...(json ? { responseMimeType: "application/json" } : {}) };
+  const mkBody = (withThinkingOff: boolean) => ({
     systemInstruction: { parts: [{ text: system }] },
     contents: msgs.map(m => ({ role: m.role === "calc" ? "model" : "user", parts: [{ text: m.text }] })),
-    generationConfig: { temperature, maxOutputTokens: maxTokens, ...(json ? { responseMimeType: "application/json" } : {}) },
-  };
+    generationConfig: withThinkingOff ? { ...baseCfg, thinkingConfig: { thinkingBudget: 0 } } : baseCfg,
+  });
   const attempts: string[] = [];
   let lastError = "No available Gemini model";
-  for (const { version, model } of GEMINI_MODELS) {
-    try {
-      const r = await fetch(`https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${apiKey}`, {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
-      });
-      if (r.ok) {
-        const resp = await r.json() as any;
-        const text = (resp?.candidates?.[0]?.content?.parts || []).map((p: any) => p?.text || "").join("");
-        if (text.trim()) return { ok: true, text };
-        attempts.push(`${model}: empty response`);
-        continue;
-      }
-      const eb = await r.json().catch(() => ({})) as any;
-      lastError = eb?.error?.message || `HTTP ${r.status}`;
-      attempts.push(`${model}: HTTP ${r.status} — ${lastError}`);
-      if (r.status === 401 || r.status === 403) return { ok: false, error: lastError, attempts };
-    } catch (e: any) {
-      lastError = e?.message || String(e);
-      attempts.push(`${model}: threw — ${lastError}`);
+  const deadline = Date.now() + totalMs;
+  for (const { version, model } of CALC_GEMINI_MODELS) {
+    for (const thinkingOff of [true, false]) {
+      const left = deadline - Date.now();
+      if (left < 1500) { attempts.push("deadline reached"); return { ok: false, error: lastError, attempts }; }
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), Math.min(perAttemptMs, left));
+      try {
+        const r = await fetch(`https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${apiKey}`, {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(mkBody(thinkingOff)), signal: ctl.signal,
+        });
+        if (r.ok) {
+          const resp = await r.json() as any;
+          const text = (resp?.candidates?.[0]?.content?.parts || []).map((p: any) => p?.text || "").join("");
+          if (text.trim()) return { ok: true, text };
+          attempts.push(`${model}: empty response`);
+          break;
+        }
+        const eb = await r.json().catch(() => ({})) as any;
+        lastError = eb?.error?.message || `HTTP ${r.status}`;
+        attempts.push(`${model}: HTTP ${r.status} — ${String(lastError).slice(0, 80)}`);
+        if (r.status === 401 || r.status === 403) return { ok: false, error: lastError, attempts };
+        // Model rejects the thinking switch? retry the same model once without it; any other error → next model.
+        if (thinkingOff && r.status === 400 && /thinking/i.test(String(lastError))) continue;
+        break;
+      } catch (e: any) {
+        lastError = e?.name === "AbortError" ? "timed out" : (e?.message || String(e));
+        attempts.push(`${model}: ${lastError}`);
+        break;
+      } finally { clearTimeout(timer); }
     }
   }
   return { ok: false, error: lastError, attempts };
@@ -2873,7 +2896,7 @@ async function callGeminiChat(apiKey: string, system: string, msgs: CalcMsg[], m
 async function callOpenAIChat(apiKey: string, system: string, msgs: CalcMsg[], maxTokens: number, json: boolean, temperature: number): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
   try {
     const r = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
+      method: "POST", signal: AbortSignal.timeout(15000),
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: "gpt-4o-mini", temperature, max_tokens: maxTokens,
@@ -2970,6 +2993,7 @@ Rules:
 - Follow-ups ("list them", "just the overdue ones", "what about TI?", "and next week?") refer to the earlier conversation: reuse the same vendor/entity/period from it and change only what the user changed. "List them / show me" means set list: true.
 - "How much do we owe X" or "outstanding for X" means open bills for that vendor (ap_search with openOnly true); add dueByDays when a time limit is given ("this week" = 7).
 - Use several lookups when the question spans topics (e.g. cash vs. what's due).
+- Narrowing words ("just the overdue ones", "only TI", "only this week") change the filters; they do NOT mean list: true. Set list: true only for "list", "show me", "itemize", "every one", "all of them".
 - If the message is a greeting, thanks, or small talk, return calls:[] and put a short friendly reply in "direct".
 - If the user asks for something these lookups can't do (accounts receivable, loans, payroll or credit-card figures, changing or adding anything), return calls:[] and in "direct" say plainly that Calc can't do that yet and what it can do (bills, bank balances, bank statements, calendar, notes, platforms directory, how-to help, daily briefing). Calc cannot make changes yet.
 - Never invent lookup names or numbers.`;
@@ -3005,7 +3029,7 @@ Strict rules:
 - You can't change anything yet; if asked to, say so kindly.`;
       const ctx = JSON.stringify(results || []).slice(0, 14000);
       const msgs: CalcMsg[] = [...hist, { role: "user", text: `${q}\n\n[Lookup results — the only facts you may use]\n${ctx}` }];
-      const r = await callChatLLM(system, msgs, 700, false, 0.2);
+      const r = await callChatLLM(system, msgs, 900, false, 0.2);
       if (!r.ok) return res.status(503).json({ ok: false, code: "busy", error: r.error });
       console.log(`[Calc] answer via ${r.via} in ${Date.now() - started}ms`);
       return res.json({ ok: true, text: r.text.trim() });

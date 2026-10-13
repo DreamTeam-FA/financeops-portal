@@ -486,7 +486,7 @@ function helpSearch(_s: CalcSnapshot, a: ToolArgs): ToolResult {
   const lines = scored.length === 0
     ? ["I couldn't find that in Help & Reference."]
     : scored.map(x => `**${x.d.kind}: ${x.d.title}**\n${x.d.body.slice(0, 420)}${x.d.body.length > 420 ? "…" : ""}`);
-  return { tool: "help_search", title: "Help & Reference", lines, links: [{ label: "Open Help & Reference", page: "help" }], source: "Help & Reference", asOf: "built into the portal",
+  return { tool: "help_search", title: "Help & Reference", lines, links: [{ label: "Open Help & Reference", page: "help" }], source: "Help & Reference", asOf: "",
     data: { matches: scored.map(x => ({ kind: x.d.kind, title: x.d.title, text: x.d.body.slice(0, 900) })) } };
 }
 
