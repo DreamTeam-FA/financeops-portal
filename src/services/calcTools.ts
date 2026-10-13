@@ -584,14 +584,18 @@ async function payrollSummary(s: CalcSnapshot, a: ToolArgs): Promise<ToolResult>
   }
   const ptoks = lc(personWanted).split(/\s+/).filter(Boolean);
   const nameOk = (n: string) => ptoks.every(tk => lc(n).includes(tk));
-  const jobQ = lc(a.job), coQ = lc(a.company), typeQ = lc(a.type);
+  // "4YR payroll" is the NAME of this sheet, not a company filter: ignore company="4YR" (the by-company split is always shown).
+  const jobQ = lc(a.job), typeQ = lc(a.type);
+  const coQ = /^4\s*yr$|^4\s*you\s*pros?$/i.test(String(a.company || "").trim()) ? "" : lc(a.company);
   const base = data.rows.filter(inWindow);
   const rows = base.filter(r => (!ptoks.length || nameOk(r.name)) && (!jobQ || lc(r.job).includes(jobQ)) && (!coQ || lc(r.company).includes(coQ)) && (!typeQ || typeQ === "all" || payKind(r) === typeQ));
 
   if (ptoks.length && !allNames.some(nameOk))
     return { tool: "payroll_summary", title: "4YR payroll", source: src, asOf: asOfText(s), lines: [`I couldn't find anyone named "${personWanted}" in the 4YR payroll. ` + (allNames.length ? "Names I do see start with: " + allNames.slice(0, 6).join(", ") + "…" : "")], data: { count: 0, noPersonMatch: personWanted } };
   if (rows.length === 0)
-    return { tool: "payroll_summary", title: "4YR payroll", source: src, asOf: asOfText(s), lines: [`I found no 4YR payroll entries for ${label}${personWanted ? " for " + personWanted : ""}${a.job ? " on " + a.job : ""}.`], data: { window: label, count: 0 } };
+    return { tool: "payroll_summary", title: "4YR payroll", source: src, asOf: asOfText(s),
+      lines: [`I found no 4YR payroll entries for ${label}${personWanted ? " for " + personWanted : ""}${a.job ? " on " + a.job : ""}${a.type ? " of type " + a.type : ""}${coQ ? " for company " + a.company : ""}.` + (base.length ? ` (The same period has ${plural(base.length, "entry")} without those filters.)` : "")],
+      data: { window: label, entries: 0, filtersApplied: { person: personWanted || null, job: a.job || null, company: coQ ? a.company : null, type: a.type || null }, entriesInWindowWithoutFilters: base.length } };
 
   const sum = (rs: RawRow[], f: (r: RawRow) => number) => rs.reduce((t, r) => t + (Number(f(r)) || 0), 0);
   const net = sum(rows, r => r.total), hours = sum(rows, r => r.hours);
@@ -678,7 +682,7 @@ export const CALC_TOOLS: Record<string, CalcToolDef> = {
   ap_due_soon:       { description: "Unpaid bills due from today through the next N days.", args: "{days?: number (default 7), week?: 'this'|'next' (calendar weeks, Monday to Sunday, same as the AP page; use for \"this week\" / \"next week\"), entity?: string (also TI sub-entities like Corner Property, 4G, E1, 4YR), vendor?: string, list?: boolean}", run: apDueSoon },
   ap_search:         { description: "Find bills by vendor, invoice number, status (unpaid|paid|hold) or entity.", args: "{vendor?: string, invoiceNo?: string (use when the user gives an invoice number; returns that bill's full details), status?: string (unpaid|paid|hold), entity?: string, openOnly?: boolean, dueByDays?: number (open bills due on or before today+N days, overdue included — use for \"how much do we owe X by this week\"), list?: boolean (true ONLY if the user asks to list/show the bills)}", run: apSearch },
   ap_top_vendors:    { description: "Which vendors we owe the most (open bills by vendor, with overdue part and share of total).", args: "{n?: number, entity?: string}", run: apTopVendors },
-  payroll_summary:   { description: "4YR Payroll hours and amounts from the 4YR payroll sheet: a week, last week, this month, year to date or a date range; filter by person, job, company, or record type (payroll / deduction / nonpayroll).", args: "{week?: 'this'|'last'|'month'|<week number>, ytd?: boolean, from?: 'YYYY-MM-DD', to?: 'YYYY-MM-DD', person?: string, job?: string, company?: string, type?: 'payroll'|'deduction'|'nonpayroll', list?: boolean (true ONLY if asked to list/show entries)}", run: payrollSummary },
+  payroll_summary:   { description: "4YR Payroll hours and amounts from the 4YR payroll sheet: a week, last week, this month, year to date or a date range; filter by person, job, company, or record type (payroll / deduction / nonpayroll).", args: "{week?: 'this'|'last'|'month'|<week number>, ytd?: boolean, from?: 'YYYY-MM-DD', to?: 'YYYY-MM-DD', person?: string, job?: string, company?: string, type?: 'payroll'|'deduction'|'nonpayroll', list?: boolean (true ONLY if asked to list/show entries)}. Add person, job, company or type ONLY when the user explicitly names one. '4YR' in '4YR payroll' is the name of the sheet, NOT a company filter; 'payroll' alone means everything in the window", run: payrollSummary },
   ap_summary:        { description: "Counts and totals of unpaid bills, grouped by entity.", args: "{entity?: string}", run: apSummary },
   bank_balances:     { description: "Current bank account balances, yesterday's balance, as-of time, low (<$500) and stale (2+ days) flags.", args: "{entity?: string, bank?: string, list?: boolean (true ONLY if asked for every account)}", run: bankBalances },
   statements_pending:{ description: "Bank statements whose cut-off has passed and are not downloaded yet.", args: "{list?: boolean}", run: statementsPending },

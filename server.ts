@@ -2992,6 +2992,7 @@ Rules:
 - Pick 1 to 3 lookups. Use only the lookup names above. Put filters in args (entity like "TI", "Ruby's", "MSDx"; vendor names; day counts).
 - Follow-ups ("list them", "just the overdue ones", "what about TI?", "and next week?") refer to the earlier conversation: reuse the same vendor/entity/period from it and change only what the user changed. "List them / show me" means set list: true.
 - "How much do we owe X" or "outstanding for X" means open bills for that vendor (ap_search with openOnly true); add dueByDays when a time limit is given ("this week" = 7).
+- For payroll_summary add person, job, company or type ONLY if the user explicitly names one. "4YR payroll" means the whole 4YR payroll sheet (no company filter).
 - Use several lookups when the question spans topics (e.g. cash vs. what's due).
 - Narrowing words ("just the overdue ones", "only TI", "only this week") change the filters; they do NOT mean list: true. Set list: true only for "list", "show me", "itemize", "every one", "all of them".
 - If the message is a greeting, thanks, or small talk, return calls:[] and put a short friendly reply in "direct".
