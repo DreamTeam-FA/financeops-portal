@@ -10,6 +10,10 @@ import {
 /* ── FAQ data ─────────────────────────────────────────────────────────── */
 const FAQ = [
   {
+    q: "How are the AP totals on the Hub worked out? Why might they be lower than the original bill amounts?",
+    a: "Every AP total on the Hub (AP Unpaid card, the red 'bills past due' banner, the vendor chips and the Ruby's / TI / MSDx Payables cards) counts the amount still owed on each bill: the original amount minus any partial payments recorded in the portal. This is the same remaining-balance rule the AP page uses, so a $5,000 bill with $3,000 already paid counts as $2,000. The bill counts are unaffected.",
+  },
+  {
     q: "Why is the portal taking 30–60 seconds to load?",
     a: "The portal runs on Render's free tier, which spins the server down after 15 minutes of inactivity. The first request after sleep wakes it up — that cold-start delay is normal. Once it's up, navigation is instant. Upgrade to Render Starter ($7/mo) to keep it always-on.",
   },
