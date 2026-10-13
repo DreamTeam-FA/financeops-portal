@@ -9,6 +9,7 @@ import {
   X, AlertTriangle, CheckCircle2, Info, Zap
 } from "lucide-react";
 import { PageRoute } from "../../types";
+import { billRemaining } from "../../utils/formatters";
 
 // Module-level: tracks which email has already seen the briefing this JS session.
 // Resets to null on logout so the next login always triggers the modal again.
@@ -314,7 +315,7 @@ export const HubPage: React.FC = () => {
             onClick={() => setCurrentPage("ap")}
           >
             <div className="text-[10px] font-extrabold uppercase tracking-widest opacity-55 mb-1">AP Unpaid</div>
-            <div className="text-[22px] sm:text-[26px] leading-none font-black font-mono-num drop-shadow-sm mt-1 whitespace-nowrap overflow-hidden text-ellipsis">{fmt(unpaidBills.reduce((s,b) => s+b.amount, 0))}</div>
+            <div className="text-[22px] sm:text-[26px] leading-none font-black font-mono-num drop-shadow-sm mt-1 whitespace-nowrap overflow-hidden text-ellipsis">{fmt(unpaidBills.reduce((s,b) => s+billRemaining(b), 0))}</div>
             <div className="mt-3 pt-2.5 border-t border-white/15 flex items-center justify-between">
               <span className="text-[11px]">
                 {overdueBills.length > 0
@@ -368,9 +369,9 @@ export const HubPage: React.FC = () => {
 
         {/* ── Overdue AP Alert Banner — always visible when bills are past due ── */}
         {overdueBills.length > 0 && (() => {
-          const totalOverdue = overdueBills.reduce((s, b) => s + b.amount, 0);
+          const totalOverdue = overdueBills.reduce((s, b) => s + billRemaining(b), 0);
           const topVendors   = [...overdueBills]
-            .sort((a, b) => b.amount - a.amount)
+            .sort((a, b) => billRemaining(b) - billRemaining(a))
             .slice(0, 3);
           return (
             <div
@@ -406,7 +407,7 @@ export const HubPage: React.FC = () => {
                     }`}
                   >
                     {b.vendor}
-                    <span className={`font-bold ${isLight ? "text-red-800" : "text-red-300"}`}>{fmt(b.amount)}</span>
+                    <span className={`font-bold ${isLight ? "text-red-800" : "text-red-300"}`}>{fmt(billRemaining(b))}</span>
                   </span>
                 ))}
                 {overdueBills.length > 3 && (
@@ -449,7 +450,7 @@ export const HubPage: React.FC = () => {
             <div className="space-y-2.5">
               <div className="flex justify-between items-baseline">
                 <span className={`text-[10px] font-semibold uppercase tracking-wider ${isLight ? "text-slate-400" : "text-[#4a6080]"}`}>Unpaid total</span>
-                <span className="text-sm font-black text-red-500 font-mono-num">{fmt(rubyBills.reduce((s,b) => s+b.amount,0))}</span>
+                <span className="text-sm font-black text-red-500 font-mono-num">{fmt(rubyBills.reduce((s,b) => s+billRemaining(b),0))}</span>
               </div>
               <div className="flex justify-between items-baseline">
                 <span className={`text-[10px] font-semibold uppercase tracking-wider ${isLight ? "text-slate-400" : "text-[#4a6080]"}`}>Open bills</span>
@@ -482,7 +483,7 @@ export const HubPage: React.FC = () => {
             <div className="space-y-2.5">
               <div className="flex justify-between items-baseline">
                 <span className={`text-[10px] font-semibold uppercase tracking-wider ${isLight ? "text-slate-400" : "text-[#4a6080]"}`}>Unpaid total</span>
-                <span className="text-sm font-black text-red-500 font-mono-num">{fmt(tiBills.reduce((s,b) => s+b.amount,0))}</span>
+                <span className="text-sm font-black text-red-500 font-mono-num">{fmt(tiBills.reduce((s,b) => s+billRemaining(b),0))}</span>
               </div>
               <div className="flex justify-between items-baseline">
                 <span className={`text-[10px] font-semibold uppercase tracking-wider ${isLight ? "text-slate-400" : "text-[#4a6080]"}`}>Open bills</span>
@@ -515,7 +516,7 @@ export const HubPage: React.FC = () => {
             <div className="space-y-2.5">
               <div className="flex justify-between items-baseline">
                 <span className={`text-[10px] font-semibold uppercase tracking-wider ${isLight ? "text-slate-400" : "text-[#4a6080]"}`}>Unpaid total</span>
-                <span className="text-sm font-black text-red-500 font-mono-num">{fmt(msdxBills.reduce((s,b) => s+b.amount,0))}</span>
+                <span className="text-sm font-black text-red-500 font-mono-num">{fmt(msdxBills.reduce((s,b) => s+billRemaining(b),0))}</span>
               </div>
               <div className="flex justify-between items-baseline">
                 <span className={`text-[10px] font-semibold uppercase tracking-wider ${isLight ? "text-slate-400" : "text-[#4a6080]"}`}>Open bills</span>
