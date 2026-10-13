@@ -10,7 +10,7 @@ import { X, Send, History, Plus, Trash2, ExternalLink, Copy, Check } from "lucid
 import { useFinance } from "../../context/FinanceContext";
 import { getAccessToken } from "../../services/googleAuth";
 import { verifyAmounts } from "../../services/calcVerify";
-import { getRawData, getMasterListWeeks, buildWeekMap } from "../../services/fourYrPayrollService";
+import { getRawData, getMasterListWeeks, buildWeekMap, getFilteredData } from "../../services/fourYrPayrollService";
 import { CalcAvatar, CalcAvatarState } from "./CalcAvatar";
 import {
   CalcEvent, CalcLink, CalcSnapshot, ToolResult, entityLabel, routeQuestion, runTool, toolCatalogText,
@@ -262,6 +262,36 @@ export const CalcWidget: React.FC = () => {
     push({ role: "user", text: q });
     setBusy(true); setAvFor("think");
     try {
+      // Local-only diagnostic: compares Calc's payroll numbers with the 4YR page's own calculation on YOUR live data.
+      if (IS_LOCAL && /^\/payroll-check\b/i.test(q)) {
+        const tok = getAccessToken();
+        if (!tok) { fail("Sign in with Google in this browser first, then type /payroll-check again."); return; }
+        const data = await getPayroll();
+        if (!data) { fail("I couldn't read the 4YR payroll sheet with your sign-in (no access, or the token expired)."); return; }
+        const r2 = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
+        const out: string[] = [`Read ${data.rows.length} payroll rows and ${data.weeks.length} weeks from the 4YR sheet.`, ""];
+        const cmp = async (label: string, args: any, filter: any) => {
+          const calc = await runTool("payroll_summary", snapshot, args);
+          const page = await getFilteredData(filter, tok);
+          const cN = r2(calc?.data?.netTotal), cH = r2(calc?.data?.hours), pN = r2(page.totals.amount), pH = r2(page.totals.hours);
+          out.push(`${cN === pN && cH === pH ? "MATCH" : "DIFF"}: ${label}`, `   Calc: $${cN} / ${cH} h   |   4YR page logic: $${pN} / ${pH} h   (${calc?.data?.window || ""})`);
+        };
+        const weekOf = async (args: any) => { const r = await runTool("payroll_summary", snapshot, args); return data.weeks.find((w: any) => (r?.data?.window || "").includes(w.startDate)); };
+        const cur = await weekOf({}), last = await weekOf({ week: "last" });
+        if (cur) await cmp("this week", {}, { weekNum: cur.weekNum });
+        if (last) await cmp("last week", { week: "last" }, { weekNum: last.weekNum });
+        await cmp("year to date", { ytd: true }, { year: String(new Date().getFullYear()) });
+        const useW = last || cur;
+        if (useW) {
+          const counts: Record<string, number> = {};
+          data.rows.filter((r: any) => r.weekNum === useW.weekNum).forEach((r: any) => { counts[r.name] = (counts[r.name] || 0) + 1; });
+          const person = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
+          if (person) await cmp(`${person.split(" ")[0]} in week ${useW.weekNum}`, { week: useW === last ? "last" : undefined, person }, { weekNum: useW.weekNum, name: person });
+        }
+        out.push("", "Now compare the 'Calc' numbers above with the totals shown on the 4YR Payroll page for the same week.");
+        reveal(out.join("\n")); return;
+      }
+
       if (quick) { await new Promise(r => setTimeout(r, 450)); if (!(await runLocal([{ tool: quick.tool, args: quick.args || {} }]))) fail("I couldn't read that data just now."); return; }
 
       const follow = followUpCalls(q);
