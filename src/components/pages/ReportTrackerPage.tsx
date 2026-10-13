@@ -136,7 +136,7 @@ export const ReportTrackerPage: React.FC = () => {
       if (pending.length === 0) {
         setAutoAt(Date.now());           // everything already confirmed in the sheet: nothing to re-read
       } else if (latest && !quotaHit) {
-        const keys = cycles.map(c => c.periodKey).join(",") + "|" + [...confirmed].sort().join(",");
+        const keys = "v2|" + cycles.map(c => c.periodKey).join(",") + "|" + [...confirmed].sort().join(",");
         const cached = !opts?.force ? readAutoCache(keys) : null;
         if (cached && Date.now() - cached.at < AUTO_CACHE_MS) {
           setAuto(cached.data); setAutoAt(cached.at);
@@ -557,9 +557,9 @@ export const ReportTrackerPage: React.FC = () => {
                                 <span className={`ml-1.5 px-1.5 py-px rounded text-[9px] font-bold align-middle ${isLight ? "bg-slate-200 text-slate-600" : "bg-[#1a2235] text-[#888]"}`}>AUTO</span>
                               )}
                             </div>
-                            {s.kind === "auto" && !b.implied.has(s.key) && autoLine(b.cycle.periodKey, s.key, a, checks)}
+                            {s.kind === "auto" && autoLine(b.cycle.periodKey, s.key, a, checks)}
                             {b.implied.has(s.key) && (
-                              <div className={`text-[11px] ${muted}`}>Done — a later step is done, so this one must have been{s.kind === "manual" ? " · untick if wrong" : ""}</div>
+                              <div className={`text-[11px] ${muted}`}>{s.kind === "auto" ? "The check could not confirm this, but a later step is done, so it counts as done" : "Counted as done because a later step is done · untick if wrong"}</div>
                             )}
                             {s.kind === "manual" && st === "done" && !b.implied.has(s.key) && row?.at && evidenceKind(row) !== "found" && (
                               <div className={`text-[11px] ${muted}`}>Checked {fmtPht(Date.parse(row.at), false)}{row.by ? ` · ${row.by}` : ""}</div>
