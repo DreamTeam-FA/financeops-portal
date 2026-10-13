@@ -6,9 +6,10 @@
  *  • Chats are stored ONLY in this browser, keyed to the signed-in account. Never sent to a server store.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { X, Send, History, Plus, Trash2, ExternalLink } from "lucide-react";
+import { X, Send, History, Plus, Trash2, ExternalLink, Copy, Check } from "lucide-react";
 import { useFinance } from "../../context/FinanceContext";
 import { getAccessToken } from "../../services/googleAuth";
+import { verifyAmounts } from "../../services/calcVerify";
 import { CalcAvatar, CalcAvatarState } from "./CalcAvatar";
 import {
   CalcEvent, CalcLink, CalcSnapshot, ToolResult, routeQuestion, runTool, toolCatalogText,
@@ -103,6 +104,11 @@ export const CalcWidget: React.FC = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   const avTimer = useRef<any>(null);
   const briefedRef = useRef(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const copyMsg = (m: Msg) => {
+    const plain = m.text.replace(/\*\*/g, "").replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, "$1 ($2)");
+    try { navigator.clipboard.writeText(plain); setCopiedId(m.id); setTimeout(() => setCopiedId(c => (c === m.id ? null : c)), 1500); } catch { /* clipboard blocked */ }
+  };
 
   // ── snapshot of the sheet-synced portal state ──
   const snapshot = useMemo<CalcSnapshot>(() => {
@@ -280,7 +286,14 @@ export const CalcWidget: React.FC = () => {
           phase: "answer", accessToken: IS_LOCAL ? "" : token, question: q, history, today,
           results: results.map(r => ({ tool: r.tool, title: r.title, source: r.source, asOf: r.asOf, data: r.data })),
         });
-        if (j?.ok && j.text) { reveal(j.text, f.links, f.suggest); return; }
+        if (j?.ok && j.text) {
+          // Number guard: every $ figure in the AI's wording must trace back to the lookup data.
+          const check = verifyAmounts(j.text, results.map(r => r.data), history.map(h => h.text));
+          if (check.ok) { reveal(j.text, f.links, f.suggest); return; }
+          console.warn("[Calc] AI answer had unverifiable amounts, using the plain lookup:", check.bad);
+          reveal("I double-checked my AI-written answer against the data and one figure didn't match, so here's the straight lookup instead:\n\n" + f.text, f.links, f.suggest);
+          return;
+        }
       } catch { /* use the plain lookup */ }
       reveal("The AI is busy, so here's the straight lookup:\n\n" + f.text, f.links, f.suggest);
     } catch (e: any) {
@@ -362,13 +375,19 @@ export const CalcWidget: React.FC = () => {
               {chats.length > 0 && <button onClick={deleteAll} className="text-xs text-red-500 hover:underline">Delete all chats</button>}
             </div>
           ) : (
-            <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
+            <div ref={scrollRef} aria-live="polite" className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
               {messages.map(m => {
                 const shown = typing && typing.id === m.id ? m.text.slice(0, typing.n) : m.text;
                 return (
                   <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                     <div className={`max-w-[88%] rounded-2xl px-3 py-2 text-[13px] leading-snug ${m.role === "user" ? "bg-[#2f6fc9] text-white" : bubbleCalc}`}>
                       {m.role === "user" ? shown : <RenderText text={shown} />}
+                      {m.role === "calc" && !(typing && typing.id === m.id) && m.text.length > 60 && (
+                        <button onClick={() => copyMsg(m)} aria-label="Copy this answer" title="Copy"
+                          className={`mt-1.5 -mb-0.5 inline-flex items-center gap-1 text-[10px] opacity-50 hover:opacity-100 ${sub}`}>
+                          {copiedId === m.id ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}{copiedId === m.id ? "Copied" : "Copy"}
+                        </button>
+                      )}
                       {m.role === "calc" && m.suggest && m.suggest.length > 0 && !(typing && typing.id === m.id) && m.id === messages[messages.length - 1]?.id && (
                         <div className="flex flex-wrap gap-1.5 pt-2">
                           {m.suggest.map(sg => (
