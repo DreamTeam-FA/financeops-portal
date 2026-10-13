@@ -8,7 +8,7 @@ import { useFinance } from "../../context/FinanceContext";
 import { getAccessToken } from "../../services/googleAuth";
 import {
   REPORTS, TRACKER_SHEET_URL, TrackerApiError, cycleStatus, cycleView, fmtPht, fmtPhtDate, isoDate, newTaskId,
-  evidenceKind, evidenceText, historyRows, isSkipped, latchedAutoKeys, weekendShift, pendingAutoSteps, plannedCalendarEvents, readTrackerData, relative, runAutoChecks, shouldCarryOver, stepStates, toPht,
+  evidenceKind, evidenceText, explicitUnticks, historyRows, isSkipped, latchedAutoKeys, weekendShift, pendingAutoSteps, plannedCalendarEvents, readTrackerData, relative, runAutoChecks, shouldCarryOver, stepStatesEx, toPht,
   trackedPeriods, writeAutoConfirmations, writeCheck, writeTask,
   type AutoByPeriod, type AutoResult, type CheckRow, type Confirmation, type Cycle, type ReportDef, type Status, type TaskItem,
 } from "../../services/reportTrackerService";
@@ -136,7 +136,7 @@ export const ReportTrackerPage: React.FC = () => {
       if (pending.length === 0) {
         setAutoAt(Date.now());           // everything already confirmed in the sheet: nothing to re-read
       } else if (latest && !quotaHit) {
-        const keys = cycles.map(c => c.periodKey).join(",") + "|" + [...confirmed].sort().join(",");
+        const keys = "v2|" + cycles.map(c => c.periodKey).join(",") + "|" + [...confirmed].sort().join(",");
         const cached = !opts?.force ? readAutoCache(keys) : null;
         if (cached && Date.now() - cached.at < AUTO_CACHE_MS) {
           setAuto(cached.data); setAutoAt(cached.at);
@@ -195,13 +195,13 @@ export const ReportTrackerPage: React.FC = () => {
   }, [signedIn, loadAll]);
 
   // ── Manual checkbox: write-through to the sheet; revert if it fails ────────
-  const toggleCheck = async (cycle: Cycle, stepKey: string) => {
+  const toggleCheck = async (cycle: Cycle, stepKey: string, currentlyDone?: boolean) => {
     const token = getAccessToken();
     if (!token) { showToast("Not signed in — this change was NOT saved to the shared sheet.", "error", 6000); return; }
     const key = `${cycle.periodKey}|${stepKey}`;
     if (busy.has(key)) return;
     const prev = checks[key];
-    const nextDone = !(prev?.done);
+    const nextDone = !(currentlyDone ?? prev?.done);
     setBusy(b => new Set(b).add(key));
     setChecks(c => ({ ...c, [key]: { done: nextDone, at: new Date().toISOString(), by: userEmail || "", evidence: "" } }));
     try {
@@ -272,16 +272,17 @@ export const ReportTrackerPage: React.FC = () => {
   };
 
   // ── Derived view model ─────────────────────────────────────────────────────
-  type Block = { rep: ReportDef; cycle: Cycle; status: Status; states: ReturnType<typeof stepStates>; label: "current" | "carry-over" };
+  type Block = { rep: ReportDef; cycle: Cycle; status: Status; states: ReturnType<typeof stepStatesEx>["states"]; implied: Set<string>; label: "current" | "carry-over" };
   const blocks = useMemo(() => {
     const flat: Record<string, boolean> = {};
     for (const [k, v] of Object.entries(checks)) flat[k] = v.done;
     const tracked = trackedPeriods(checks);
+    const unticked = explicitUnticks(checks);
     return views.map(({ rep, view }) => {
       const mk = (cycle: Cycle, label: Block["label"]): Block => {
-        const states = stepStates(rep, cycle, auto[cycle.periodKey], flat);
+        const { states, implied } = stepStatesEx(rep, cycle, auto[cycle.periodKey], flat, unticked);
         const skipped = isSkipped(checks, cycle.periodKey);
-        return { rep, cycle, status: skipped ? "skipped" as Status : cycleStatus(rep, cycle, states, now), states, label };
+        return { rep, cycle, status: skipped ? "skipped" as Status : cycleStatus(rep, cycle, states, now), states, implied, label };
       };
       const active = mk(view.active, "current");
       const list: Block[] = [active];
@@ -416,6 +417,8 @@ export const ReportTrackerPage: React.FC = () => {
                   <li>All times are <b>Philippine Time</b>. The schedule: FTA Tue 5–7 PM · CPRO Weekly Mon 5–7 PM (ready by 7) · CPRO Monthly the 3rd (deadline the 6th) · Toast Recon the 4th–5th.</li>
                   <li>On the FTA card, <b>No report this week (school break)</b> marks a week as having nothing to run (Undo is one click); otherwise it would show Overdue every Tuesday of a break.</li>
                   <li><b>Weekends:</b> there is no work on weekends. If the 3rd (CPRO Monthly) or the 4th (Toast Recon) lands on a Saturday or Sunday, the card shows an amber "Weekend" note, the run moves to the following Monday, and the card shows as upcoming (never Overdue) until then. The same applies when a deadline falls on a weekend. The Slack check follows the same rule.</li>
+                  <li><b>Steps are in order:</b> if a later step is done (ticked, or confirmed automatically), the earlier ones show as done too, marked "a later step is done". Untick one to override it. On CPRO Monthly, Ad Spend, Website &amp; Storage and Brand Payout can be done in any order, so they do not imply each other.</li>
+                  <li><b>Sales All Time</b> is checked by content: the period's date range must be listed with a total. When you edited the sheet does not matter.</li>
                   <li>A card stays on screen until the next run starts. If you had started ticking it and it is under 14 days old, it stays as a <b>Carry-over</b>.</li>
                 </ul>
                 <div className={`font-bold mt-3 mb-1 ${strong}`}>The status badge</div>
@@ -537,7 +540,7 @@ export const ReportTrackerPage: React.FC = () => {
                         <div key={s.key} className={`flex items-start gap-2.5 px-2 py-1.5 rounded-lg ${isLight ? "hover:bg-slate-50" : "hover:bg-white/5"}`}>
                           {s.kind === "manual" ? (
                             <button
-                              onClick={() => toggleCheck(b.cycle, s.key)}
+                              onClick={() => toggleCheck(b.cycle, s.key, st === "done")}
                               disabled={!signedIn || busy.has(key)}
                               className="mt-0.5 shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
                               title={st === "done" ? "Mark as not done" : "Mark as done (saves to the Report Tracker sheet)"}
@@ -555,7 +558,10 @@ export const ReportTrackerPage: React.FC = () => {
                               )}
                             </div>
                             {s.kind === "auto" && autoLine(b.cycle.periodKey, s.key, a, checks)}
-                            {s.kind === "manual" && st === "done" && row?.at && evidenceKind(row) !== "found" && (
+                            {b.implied.has(s.key) && (
+                              <div className={`text-[11px] ${muted}`}>{s.kind === "auto" ? "The check could not confirm this, but a later step is done, so it counts as done" : "Counted as done because a later step is done · untick if wrong"}</div>
+                            )}
+                            {s.kind === "manual" && st === "done" && !b.implied.has(s.key) && row?.at && evidenceKind(row) !== "found" && (
                               <div className={`text-[11px] ${muted}`}>Checked {fmtPht(Date.parse(row.at), false)}{row.by ? ` · ${row.by}` : ""}</div>
                             )}
                             {s.kind === "manual" && evidenceKind(row) === "found" && st === "done" && (

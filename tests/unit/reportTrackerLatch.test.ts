@@ -29,7 +29,7 @@ function installFetch() {
       return json({ sheets: [{ properties: { title: "09/28/2026", sheetId: 1 } }, { properties: { title: "09/20-09/26", sheetId: 2 } }] });
     }
     if (url.includes("/drive/v3/files?")) return json({ files: [{ id: "f1", name: "USU 2026.0022.pdf", createdTime: new Date(fta.windowStart + 3_600_000).toISOString() }] });
-    if (url.includes("/drive/v3/files/")) return json({ modifiedTime: new Date(cprow.windowStart + 600_000).toISOString() });
+    if (url.includes("Week%20over%20Week")) return json({ values: [["10/04/2026-10/10/2026", "$1,606.05"], [cprow.rangeText, "$1,768.71"]] });
     if (url.includes("Toast%20Data")) return json({ values: [["Settled date"], ["8/30/2026"], ["9/2/2026"]] });
     return json({});
   });
@@ -78,7 +78,7 @@ describe("only the reads still needed are made", () => {
     expect(out.byPeriod[fta.periodKey]).toMatchObject({ run: { state: "ok" }, invoice: { state: "ok" } });
     expect(out.byPeriod[cprow.periodKey]).toMatchObject({ run: { state: "ok" }, alltime: { state: "ok" } });
     expect(out.byPeriod[toast.periodKey]).toMatchObject({ run: { state: "ok" } });
-    expect(urls.length).toBeLessThanOrEqual(5); // fta tabs, amazon tabs, usu folder, all-time meta, toast column
+    expect(urls.length).toBeLessThanOrEqual(5); // fta tabs, amazon tabs, usu folder, all-time week list, toast column
   });
   it("pendingAutoSteps lists only unconfirmed auto steps", () => {
     const p = pendingAutoSteps([fta], new Set([`${fta.periodKey}|run`]));

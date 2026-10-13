@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import {
   adSpendFromGrid, cycleStatus, cycleView, fmtPht, fromPht, historyRows, isoDate, latestDateIn, plannedCalendarEvents,
-  reportById, stepStates, toPht, cyclesAround, weekendShift, amazonTabMatches,
+  reportById, stepStates, stepStatesEx, explicitUnticks, allTimeFromGrid, toPht, cyclesAround, weekendShift, amazonTabMatches,
 } from "../../src/services/reportTrackerService";
 
 // Thu Oct 1, 2026 3:10 PM PHT  (= 07:10 UTC)
@@ -111,12 +111,67 @@ describe("status rules", () => {
   it("manual steps come from the Checks tab; auto steps from the sheet reads", () => {
     const c = cycleView("cprow", THU_OCT1).active;
     const rep = reportById("cprow");
-    const s = stepStates(rep, c, { run: { state: "ok" }, alltime: { state: "no" } }, { [`${c.periodKey}|tonie`]: true });
-    expect(s).toMatchObject({ run: "done", alltime: "open", tonie: "done", sheet: "open", dashboard: "open" });
+    const s = stepStates(rep, c, { run: { state: "ok" }, alltime: { state: "no" } }, { [`${c.periodKey}|sheet`]: true });
+    expect(s).toMatchObject({ run: "done", alltime: "done", sheet: "done", dashboard: "open", tonie: "open" }); // alltime implied by "sheet"
+  });
+  it("a later done step implies the earlier ones; an explicit untick wins; nothing earlier is implied by an earlier step", () => {
+    const c = cycleView("cprow", THU_OCT1).active;
+    const rep = reportById("cprow");
+    const k = (s: string) => `${c.periodKey}|${s}`;
+    const all = stepStatesEx(rep, c, { run: { state: "no" }, alltime: { state: "no" } }, { [k("tonie")]: true });
+    expect(Object.values(all.states)).toEqual(["done", "done", "done", "done", "done"]);
+    expect([...all.implied]).toEqual(["run", "alltime", "sheet", "dashboard"]);
+    const unticked = stepStatesEx(rep, c, undefined, { [k("tonie")]: true, [k("sheet")]: false }, new Set([k("sheet")]));
+    expect(unticked.states.sheet).toBe("open");
+    expect(unticked.states.run).toBe("done");
+    const first = stepStatesEx(rep, c, { run: { state: "ok" } }, {});
+    expect(first.implied.size).toBe(0);
+  });
+  it("CPRO Monthly: Ad Spend / Website / Brand Payout do not imply each other, but each implies the script steps and the dashboard implies all three", () => {
+    const c = cycleView("cprom", fromPht(2026, 10, 7, 9)).active;
+    const rep = reportById("cprom");
+    const k = (s: string) => `${c.periodKey}|${s}`;
+    const a = stepStatesEx(rep, c, { run: { state: "no" }, alltime: { state: "no" }, adspend: { state: "no" } }, { [k("payout")]: true });
+    expect(a.states).toMatchObject({ run: "done", alltime: "done", adspend: "open", webstorage: "open", payout: "done", dashboard: "open" });
+    const b = stepStatesEx(rep, c, { run: { state: "no" }, alltime: { state: "no" }, adspend: { state: "no" } }, { [k("dashboard")]: true });
+    expect(b.states).toMatchObject({ run: "done", alltime: "done", adspend: "done", webstorage: "done", payout: "done", dashboard: "done", micah: "open" });
+  });
+  it("explicitUnticks only counts human unticks, not Slack/auto evidence rows", () => {
+    const c = cycleView("cprow", THU_OCT1).active;
+    const u = explicitUnticks({
+      [`${c.periodKey}|sheet`]: { done: false, at: "", by: "a@b.c", evidence: "" },
+      [`${c.periodKey}|dashboard`]: { done: false, at: "", by: "slack-check", evidence: "REVIEW: x" },
+      [`${c.periodKey}|auto:run`]: { done: false, at: "", by: "auto-check", evidence: "" },
+    });
+    expect([...u]).toEqual([`${c.periodKey}|sheet`]);
   });
   it("unknown auto results never count as done", () => {
     const c = cycleView("toast", THU_OCT1).active;
     expect(stepStates(reportById("toast"), c, undefined, {}).run).toBe("unknown");
+  });
+});
+
+describe("Sales All Time reads the content, not the edit time", () => {
+  const weekRows = [["10/04/2026-10/10/2026", "$1,606.05"], ["09/27/2026-10/03/2026", "$1,354.04"]];
+  const wk = cycleView("cprow", fromPht(2026, 10, 13, 9)).active; // Oct 4 – Oct 10
+  it("weekly range present with a total → ok", () => {
+    expect(wk.rangeText).toBe("10/04/2026-10/10/2026");
+    expect(allTimeFromGrid(weekRows, wk)).toMatchObject({ state: "ok" });
+  });
+  it("range missing → no; range with a blank total → no", () => {
+    expect(allTimeFromGrid([["09/27/2026-10/03/2026", "$1,354.04"]], wk).state).toBe("no");
+    expect(allTimeFromGrid([["10/04/2026-10/10/2026", ""]], wk).state).toBe("no");
+  });
+  it("same start but different end date counts and says so; spaces are ignored", () => {
+    const r = allTimeFromGrid([["10/04/2026 - 10/11/2026", "$1,606.05"]], wk);
+    expect(r.state).toBe("ok");
+    expect(r.detail).toMatch(/different end date/);
+    expect(allTimeFromGrid([["10/04/2026 - 10/10/2026", "$5.00"]], wk).state).toBe("ok");
+  });
+  it("monthly range uses the data month", () => {
+    const m = cycleView("cprom", fromPht(2026, 10, 7, 9)).active; // September
+    expect(m.rangeText).toBe("09/01/2026-09/30/2026");
+    expect(allTimeFromGrid([["09/01/2026-09/30/2026", "$5,226.20"]], m).state).toBe("ok");
   });
 });
 

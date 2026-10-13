@@ -100,6 +100,8 @@ export interface ReportDef {
   /** "run" = overdue as soon as the first (script) step is missing past the deadline; "all" = every step must be done by the deadline */
   overdueRule: "run" | "all";
   steps: StepDef[];
+  /** Step keys done by hand in no fixed order: a done step among them does not imply the others. */
+  parallel?: string[];
   links: { label: string; url: string }[];
 }
 
@@ -144,6 +146,7 @@ export const REPORTS: ReportDef[] = [
     id: "cprom", name: "CPRO Monthly", cadence: "3rd of the month · 5–7 PM PHT · deadline the 6th", script: "Cpro_Automated_report.py (monthly)", accent: CPRO_HEX,
     entity: { label: "CPRO", hex: CPRO_HEX, textHex: CPRO_TEXT_HEX },
     overdueRule: "all",
+    parallel: ["adspend", "webstorage", "payout"],
     steps: [
       { key: "run",        label: "Script run — monthly tab on the Amazon Sales Report", kind: "auto" },
       { key: "alltime",    label: "CPRO Sales All Time updated", kind: "auto" },
@@ -186,6 +189,8 @@ export interface Cycle {
   nextStart: number;      // ms — start of the following cycle (bounds "this cycle's" artifacts)
   /** FTA: Monday tab name; CPRO weekly: "MM/DD-MM/DD"; CPRO monthly: "SEPTEMBER 1-30,2026"; Toast: unused */
   tabName?: string;
+  /** CPRO: the date range as written in column A of CPRO Sales All Time, "MM/DD/YYYY-MM/DD/YYYY" */
+  rangeText?: string;
   /** Data month for monthly cycles */
   month?: { y: number; m: number; lastDay: number };
 }
@@ -209,6 +214,7 @@ function cpro1Weekly(mon: { y: number; m: number; d: number }): Cycle {
     windowStart: fromPht(mon.y, mon.m, mon.d, 17), windowEnd: fromPht(mon.y, mon.m, mon.d, 19), deadline: fromPht(mon.y, mon.m, mon.d, 19),
     nextStart: fromPht(next.y, next.m, next.d, 17),
     tabName: `${pad(sun.m)}/${pad(sun.d)}-${pad(sat.m)}/${pad(sat.d)}`,
+    rangeText: `${pad(sun.m)}/${pad(sun.d)}/${sun.y}-${pad(sat.m)}/${pad(sat.d)}/${sat.y}`,
   };
 }
 function dataMonthOf(y: number, m: number) { // month BEFORE (y,m)
@@ -223,6 +229,7 @@ function cproMonthly(y: number, m: number): Cycle { // run in month (y,m) for th
     windowStart: fromPht(y, m, 3, 17), windowEnd: fromPht(y, m, 3, 19), deadline: fromPht(y, m, 6, 23, 59),
     nextStart: fromPht(ny, nm, 3, 17),
     tabName: `${MONTHS[dm.m - 1].toUpperCase()} 1-${dm.lastDay},${dm.y}`, month: dm,
+    rangeText: `${pad(dm.m)}/01/${dm.y}-${pad(dm.m)}/${pad(dm.lastDay)}/${dm.y}`,
   };
 }
 function toastCycle(y: number, m: number): Cycle { // run on the 4th/5th of (y,m) for the previous month
@@ -290,21 +297,61 @@ export function latchedAutoKeys(checks: Record<string, boolean>): Set<string> {
   return out;
 }
 
+/**
+ * Steps run in order, so a step that is done proves the ones before it were done. Returns the steps that are NOT
+ * done themselves but have a later step done (a person's explicit untick, passed in `unticked`, wins). Steps listed
+ * in `rep.parallel` are done by hand in any order and do not imply each other.
+ */
+export function impliedSteps(
+  rep: ReportDef, cycle: Cycle, states: Record<string, StepState>, unticked?: Set<string>,
+): Set<string> {
+  const group = new Set(rep.parallel || []);
+  const out = new Set<string>();
+  rep.steps.forEach((s, j) => {
+    if (states[s.key] === "done" || unticked?.has(`${cycle.periodKey}|${s.key}`)) return;
+    const later = rep.steps.some((t, i) => i > j && states[t.key] === "done" && !(group.has(s.key) && group.has(t.key)));
+    if (later) out.add(s.key);
+  });
+  return out;
+}
+
+/** Explicit human unticks (done = FALSE with no Slack/auto evidence). Used to stop a later step from implying this one. */
+export function explicitUnticks(checks: Record<string, CheckRow>): Set<string> {
+  const out = new Set<string>();
+  for (const [k, v] of Object.entries(checks)) {
+    const step = k.split("|")[1] || "";
+    if (!v.done && !v.evidence && step && !step.startsWith(AUTO_PREFIX) && step !== SKIP_STEP) out.add(k);
+  }
+  return out;
+}
+
+export function stepStatesEx(
+  rep: ReportDef, cycle: Cycle,
+  auto: Record<string, AutoResult> | undefined,
+  checks: Record<string, boolean>,
+  unticked?: Set<string>,
+): { states: Record<string, StepState>; implied: Set<string> } {
+  const states: Record<string, StepState> = {};
+  for (const s of rep.steps) {
+    if (s.kind === "manual") states[s.key] = checks[`${cycle.periodKey}|${s.key}`] ? "done" : "open";
+    else if (checks[`${cycle.periodKey}|${AUTO_PREFIX}${s.key}`]) states[s.key] = "done"; // confirmed earlier: never re-read
+    else {
+      const a = auto && auto[s.key];
+      states[s.key] = !a || a.state === "unknown" ? "unknown" : a.state === "ok" ? "done" : "open";
+    }
+  }
+  const implied = impliedSteps(rep, cycle, states, unticked);
+  for (const k of implied) states[k] = "done";
+  return { states, implied };
+}
+
 export function stepStates(
   rep: ReportDef, cycle: Cycle,
   auto: Record<string, AutoResult> | undefined,
   checks: Record<string, boolean>,
+  unticked?: Set<string>,
 ): Record<string, StepState> {
-  const out: Record<string, StepState> = {};
-  for (const s of rep.steps) {
-    if (s.kind === "manual") out[s.key] = checks[`${cycle.periodKey}|${s.key}`] ? "done" : "open";
-    else if (checks[`${cycle.periodKey}|${AUTO_PREFIX}${s.key}`]) out[s.key] = "done"; // confirmed earlier: never re-read
-    else {
-      const a = auto && auto[s.key];
-      out[s.key] = !a || a.state === "unknown" ? "unknown" : a.state === "ok" ? "done" : "open";
-    }
-  }
-  return out;
+  return stepStatesEx(rep, cycle, auto, checks, unticked).states;
 }
 
 /**
@@ -610,6 +657,31 @@ export function adSpendFromGrid(grid: string[][], y: number, m: number): AutoRes
   return { state: "unknown", detail: `No ${MONTHS[m - 1]} ${y} column found` };
 }
 
+/**
+ * CPRO Sales All Time: column A of "Amazon Week over Week" / "Amazon Month over Month" lists each period as
+ * "MM/DD/YYYY-MM/DD/YYYY" (newest first) with the Grand Total in column B. The step is done when the cycle's
+ * range is there with a total. A row with the same start date but a different end date also counts (typo or format
+ * difference) and says so. Edit time is never used, so an early run is fine.
+ */
+export function allTimeFromGrid(rows: string[][], c: Cycle): AutoResult {
+  const want = (c.rangeText || "").replace(/\s+/g, "");
+  if (!want) return { state: "unknown", detail: "No date range to look for" };
+  const startPart = want.split("-")[0] + "-";
+  let near: string[] | undefined;
+  for (const r of rows) {
+    const a = (r[0] || "").replace(/\s+/g, "");
+    if (!a) continue;
+    const hasTotal = !Number.isNaN(parseMoney(r[1]));
+    if (a === want) {
+      return hasTotal ? { state: "ok", detail: `Range ${c.rangeText} is in the sheet (total ${String(r[1]).trim()})` }
+        : { state: "no", detail: `Range ${c.rangeText} is there but has no total yet` };
+    }
+    if (!near && hasTotal && a.startsWith(startPart)) near = r;
+  }
+  if (near) return { state: "ok", detail: `Found ${String(near[0]).trim()} (same start, different end date; total ${String(near[1]).trim()})` };
+  return { state: "no", detail: `Range ${c.rangeText} is not in the sheet yet` };
+}
+
 const DATE_RX = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
 /** Latest date (ms, UTC midnight) found in a column of strings; M/D/YYYY or YYYY-MM-DD. */
 export function latestDateIn(col: string[][]): number | null {
@@ -662,11 +734,12 @@ export async function runAutoChecks(token: string, cycles: Cycle[], confirmed: S
   const anyNeeds = (rids: ReportId[], step: string) => rids.some(r => needs(r, step));
   const none = Promise.resolve(null);
 
-  const [ftaTabs, amzTabs, usuFiles, allTimeMeta, toastCol, adGrid] = await Promise.all([
+  const [ftaTabs, amzTabs, usuFiles, allTimeWeek, allTimeMonth, toastCol, adGrid] = await Promise.all([
     needs("fta", "run") ? settle(sheetTitles(token, SRC.ftaSheet)) : none,
     anyNeeds(["cprow", "cprom"], "run") ? settle(sheetTitles(token, SRC.amazonSales)) : none,
     needs("fta", "invoice") ? settle(gfetch(token, `${D}?q=${q(`'${SRC.usuFolder}' in parents and trashed=false`)}&orderBy=createdTime%20desc&pageSize=15&fields=files(id,name,createdTime)&supportsAllDrives=true&includeItemsFromAllDrives=true`)) : none,
-    anyNeeds(["cprow", "cprom"], "alltime") ? settle(gfetch(token, `${D}/${SRC.salesAllTime}?fields=modifiedTime&supportsAllDrives=true`)) : none,
+    needs("cprow", "alltime") ? settle(readRange(token, SRC.salesAllTime, "'Amazon Week over Week'!A4:B400")) : none,
+    needs("cprom", "alltime") ? settle(readRange(token, SRC.salesAllTime, "'Amazon Month over Month'!A4:B400")) : none,
     needs("toast", "run") ? settle(readRange(token, SRC.toastRecon, "'Toast Data'!E:E")) : none,
     needs("cprom", "adspend") ? settle(readRange(token, SRC.adSpend, "A1:Z30")) : none,
   ]);
@@ -698,11 +771,9 @@ export async function runAutoChecks(token: string, cycles: Cycle[], confirmed: S
           ? { state: "ok", detail: `Tab ${c.tabName} found` } : { state: "no", detail: `No tab ${c.tabName} yet` };
       }
       if (want.has("alltime")) {
-        if (isErr(allTimeMeta)) { m.alltime = unknown(allTimeMeta.__err); errors.push("Sales All Time: " + allTimeMeta.__err.message); }
-        else if (allTimeMeta) {
-          const t = Date.parse((allTimeMeta as any).modifiedTime);
-          m.alltime = t >= c.windowStart - 3600_000 ? { state: "ok", detail: `Edited ${fmtPht(t)}` } : { state: "no", detail: `Last edited ${fmtPht(t)}` };
-        }
+        const src = c.reportId === "cprow" ? allTimeWeek : allTimeMonth;
+        if (isErr(src)) { m.alltime = unknown(src.__err); errors.push("Sales All Time: " + src.__err.message); }
+        else if (src) m.alltime = allTimeFromGrid(src as string[][], c);
       }
     }
     if (c.reportId === "cprom" && c.month && want.has("adspend")) {
@@ -761,6 +832,7 @@ export function weeklyGroup(periodKey: string): { key: string; label: string } {
 export function historyRows(now: number, checks: Record<string, CheckRow>, startMs: number = TRACKING_START_MS): HistoryRow[] {
   const flat: Record<string, boolean> = {};
   for (const [k, v] of Object.entries(checks)) flat[k] = v.done;
+  const unticked = explicitUnticks(checks);
   const startMonth = toPht(startMs);
   const out: HistoryRow[] = [];
   for (const rep of REPORTS) {
@@ -768,7 +840,7 @@ export function historyRows(now: number, checks: Record<string, CheckRow>, start
     const past = started.slice(1).filter(c =>
       c.month ? (c.month.y * 12 + c.month.m >= startMonth.y * 12 + startMonth.m) : c.windowStart >= startMs);
     for (const c of past) {
-      const st = stepStates(rep, c, undefined, flat);
+      const st = stepStates(rep, c, undefined, flat, unticked);
       const done = rep.steps.filter(s => st[s.key] === "done").length;
       let lastAt = "";
       for (const s of [...rep.steps.map(x => x.key), SKIP_STEP]) {
