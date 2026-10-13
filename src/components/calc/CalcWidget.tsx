@@ -10,6 +10,7 @@ import { X, Send, History, Plus, Trash2, ExternalLink, Copy, Check } from "lucid
 import { useFinance } from "../../context/FinanceContext";
 import { getAccessToken } from "../../services/googleAuth";
 import { verifyAmounts } from "../../services/calcVerify";
+import { CALC_IS_LOCAL } from "./calcAccess";
 import { getRawData, getMasterListWeeks, buildWeekMap, getFilteredData } from "../../services/fourYrPayrollService";
 import { CalcAvatar, CalcAvatarState } from "./CalcAvatar";
 import {
@@ -37,7 +38,7 @@ const CHIPS: { label: string; tool?: string; args?: any; prefill?: string }[] = 
 ];
 
 /** Local testing only: on localhost the server accepts requests without a Google token (it checks the TCP peer is loopback). */
-const IS_LOCAL = typeof location !== "undefined" && /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+const IS_LOCAL = CALC_IS_LOCAL;
 const todayKey = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
 const uid = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 

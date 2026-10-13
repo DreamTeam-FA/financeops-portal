@@ -665,8 +665,9 @@ app.get("/api/calendar-sheet-events", async (_req, res) => {
   }
 });
 
+const SCHEDULERS_ON = Object.keys(process.env).some(k => k.startsWith("RENDER")) || process.env.NODE_ENV === "production" || process.env.ALLOW_LOCAL_SCHEDULERS === "1";
 app.get("/api/health", (_req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+  res.json({ status: "ok", timestamp: new Date().toISOString(), schedulers: SCHEDULERS_ON ? "on" : "off" });
 });
 
 // THE LAW — write calendar changes directly to the Google Sheet so they survive server deploys.
@@ -2958,6 +2959,62 @@ function calcRateOk(user: string): boolean {
   arr.push(now); calcHits.set(user, arr); return true;
 }
 
+// ── Who may use Calc ─────────────────────────────────────────────────────────────
+// The allow-list lives in the portal's shared settings sheet (_config tab, key "calcAccess") so the admin can
+// switch people on/off inside the portal. Admins are fixed here (env CALC_ADMIN_EMAILS overrides) so nobody can
+// lock the admin out. EVERYTHING FAILS CLOSED: if the list can't be read, only admins get Calc.
+const CALC_SETTINGS_SHEET_ID = "19ColN3UOnuGbk1CkHtZswxPZf7oj7Zs2pKaqmGlN4m8";
+const CALC_ADMINS = (process.env.CALC_ADMIN_EMAILS || "accounting@marktimm.com").split(",").map(x => x.trim().toLowerCase()).filter(Boolean);
+type CalcAccessUser = { email: string; enabled: boolean; name?: string; addedBy?: string; addedAt?: string };
+let calcAccessCache: { exp: number; ok: boolean; users: CalcAccessUser[] } | null = null;
+
+async function calcLoadAccess(token: string): Promise<{ ok: boolean; users: CalcAccessUser[] }> {
+  if (calcAccessCache && calcAccessCache.exp > Date.now()) return calcAccessCache;
+  try {
+    const r = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CALC_SETTINGS_SHEET_ID}/values/${encodeURIComponent("_config!A:D")}`, {
+      headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(8000),
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const j = await r.json() as any;
+    const rows: string[][] = j.values || [];
+    const row = rows.find((x, i) => i > 0 && x[0] === "calcAccess");
+    let users: CalcAccessUser[] = [];
+    if (row && row[1]) {
+      const v = JSON.parse(row[1]);
+      users = (Array.isArray(v?.users) ? v.users : [])
+        .map((u: any) => ({ email: String(u?.email || "").trim().toLowerCase(), enabled: u?.enabled !== false, name: u?.name ? String(u.name).slice(0, 60) : undefined, addedBy: u?.addedBy, addedAt: u?.addedAt }))
+        .filter((u: CalcAccessUser) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(u.email));
+    }
+    calcAccessCache = { exp: Date.now() + 30_000, ok: true, users };
+  } catch (e: any) {
+    console.warn("[Calc] access list unreadable, failing closed (admins only):", e?.message || e);
+    calcAccessCache = { exp: Date.now() + 10_000, ok: false, users: [] };
+  }
+  return calcAccessCache;
+}
+
+function calcAccessFor(email: string, users: CalcAccessUser[]): { admin: boolean; allowed: boolean } {
+  if (email === "local-dev") return { admin: true, allowed: true }; // loopback-only test identity
+  const admin = CALC_ADMINS.includes(email);
+  return { admin, allowed: admin || users.some(u => u.enabled && u.email === email) };
+}
+
+app.post("/api/calc/access", async (req, res) => {
+  try {
+    const { accessToken, refresh } = req.body || {};
+    const user = await calcVerifyUser(String(accessToken || ""), req.socket?.remoteAddress);
+    if (!user) return res.status(401).json({ ok: false, allowed: false, admin: false });
+    if (user === "local-dev") return res.json({ ok: true, allowed: true, admin: true, local: true, email: user, users: [], admins: CALC_ADMINS });
+    if (refresh && CALC_ADMINS.includes(user)) calcAccessCache = null;
+    const acc = await calcLoadAccess(String(accessToken));
+    const f = calcAccessFor(user, acc.users);
+    return res.json({ ok: true, allowed: f.allowed, admin: f.admin, email: user, listReadable: acc.ok,
+      ...(f.admin ? { users: acc.users, admins: CALC_ADMINS } : {}) });
+  } catch {
+    return res.status(500).json({ ok: false, allowed: false, admin: false });
+  }
+});
+
 const CALC_PERSONA = `You are Calc, the friendly, lively calculator-mascot assistant inside the FinanceOps Portal used by a small finance/ops team. You are great at math, balancing and keeping things in order. Warm and brief; never gushing.`;
 
 function calcParseJson(text: string): any | null {
@@ -2974,6 +3031,10 @@ app.post("/api/calc/ask", async (req, res) => {
     const { phase, accessToken, question, history, toolCatalog, today, results, entities } = req.body || {};
     const user = await calcVerifyUser(String(accessToken || ""), req.socket?.remoteAddress);
     if (!user) return res.status(401).json({ ok: false, code: "auth", error: "Sign in with Google to chat with Calc." });
+    if (user !== "local-dev") {
+      const acc = await calcLoadAccess(String(accessToken));
+      if (!calcAccessFor(user, acc.users).allowed) return res.status(403).json({ ok: false, code: "noaccess", error: "Calc isn't enabled for your account." });
+    }
     if (!calcRateOk(user)) return res.status(429).json({ ok: false, code: "rate", error: "That's a lot of questions in a short time. Give it a minute and try again." });
     const q = String(question || "").slice(0, 600);
     if (!q.trim()) return res.status(400).json({ ok: false, error: "Empty question." });
@@ -6090,7 +6151,9 @@ async function startServer() {
     // Start the daily 6pm PHT bank balance EOD copy scheduler.
     // Only on the real host: a copy of the server running on someone's computer (npm run dev) must never
     // run scheduled WRITES against the live Google Sheet next to Render. Set ALLOW_LOCAL_SCHEDULERS=1 to override.
-    if (process.env.RENDER || process.env.NODE_ENV === "production" || process.env.ALLOW_LOCAL_SCHEDULERS === "1") {
+    // "Hosted" = any RENDER* variable (Render sets several), or NODE_ENV=production. Anything else is a copy
+    // running on someone's computer, which must not run scheduled WRITES against the live Google Sheet.
+    if (SCHEDULERS_ON) {
       scheduleEODBankCopy();
     } else {
       console.log("[Local] Scheduled jobs (EOD bank copy) are OFF on this machine — they only run on Render.");

@@ -208,6 +208,8 @@ export const HOWTOS = [
   {
     title: "Ask Calc, the portal assistant",
     steps: [
+      "Who has Calc: Calc is shown only to people an admin has switched on, so most of the team will not see it yet. If you have it, you'll see the Calc button at the bottom-right of every page. Admins add or remove people (and flip them on or off) from the sidebar gear → 'Calc access…'; changes are saved in the shared settings sheet and take effect the next time that person loads the portal. If the list can't be read, only admins get Calc.",
+      "Your own switch: people who have Calc can hide or show it for themselves on that browser with the 'Calc assistant' switch in the sidebar gear menu. Turning it off does not delete your saved chats.",
       "Click Calc, the calculator mascot at the bottom-right of any page, to open the chat. Press Esc or the X to close it.",
       "Ask in plain language, e.g. 'How much do we owe Alsco this week?', 'What's overdue for TI?', 'Any statements to download?', 'How much cash do we have?', 'What's on the calendar today?', 'Where do I log in to Gusto?', 'How many hours did Ana work last week?', 'What was 4YR payroll this week?' or 'How do I record a partial payment?'",
       "Calc leads with the total and the key takeaways, and only lists individual bills when you ask ('list them'). The quick buttons under the greeting answer instantly without waiting on the AI.",

@@ -1,10 +1,12 @@
 ﻿import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   Settings, X, FileSpreadsheet, Tag, Database, ScrollText,
-  Plus, Pencil, Trash2, Check, Activity, BookOpen
+  Plus, Pencil, Trash2, Check, Activity, BookOpen, Calculator, ShieldCheck
 } from "lucide-react";
 import { useFinance } from "../../context/FinanceContext";
 import { getAccessToken } from "../../services/googleAuth";
+import { useCalcAccess, usePersonalVersion, isPersonallyEnabled, setPersonallyEnabled } from "../calc/calcAccess";
+import { CalcAccessModal } from "../calc/CalcAccessModal";
 
 const MAIN_SHEET_ID = "15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs";
 const HEADLEYS_TAB  = "Headley's";
@@ -756,7 +758,10 @@ export const GearDropdown: React.FC<GearDropdownProps> = ({ variant="wide" }) =>
   const { theme, setCurrentPage } = useFinance();
   const [open, setOpen]       = useState(false);
   const [pos, setPos]         = useState({ bottom:0, left:0 });
-  const [modal, setModal]     = useState<"metadata"|null>(null);
+  const [modal, setModal]     = useState<"metadata"|"calcaccess"|null>(null);
+  const calc = useCalcAccess();
+  usePersonalVersion();
+  const calcOn = calc.allowed && isPersonallyEnabled(calc.email);
   const btnRef                = useRef<HTMLButtonElement>(null);
   const menuRef               = useRef<HTMLDivElement>(null);
 
@@ -833,10 +838,28 @@ export const GearDropdown: React.FC<GearDropdownProps> = ({ variant="wide" }) =>
           <button onClick={() => { setCurrentPage("help"); setOpen(false); }} className={menuItem}>
             <BookOpen className="w-3.5 h-3.5 text-emerald-400" /> Help &amp; Reference
           </button>
+
+          {calc.allowed && (<>
+            <div className={divLine} />
+            <button role="switch" aria-checked={calcOn} onClick={() => setPersonallyEnabled(calc.email, !calcOn)} className={menuItem}>
+              <Calculator className="w-3.5 h-3.5 text-[#2f6fc9]" />
+              <span className="flex-1 text-left">Calc assistant</span>
+              <span className={`relative w-8 h-[18px] rounded-full transition-colors shrink-0 ${calcOn ? "bg-emerald-500" : isLight ? "bg-slate-300" : "bg-[#444]"}`}>
+                <span className={`absolute top-0.5 w-[14px] h-[14px] rounded-full bg-white transition-all ${calcOn ? "left-[16px]" : "left-0.5"}`} />
+              </span>
+            </button>
+          </>)}
+          {calc.admin && (<>
+            <div className={divLine} />
+            <button onClick={() => { setModal("calcaccess"); setOpen(false); }} className={menuItem}>
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Calc access…
+            </button>
+          </>)}
         </div>
       )}
 
       {modal==="metadata" && <MetadataModal isLight={isLight} onClose={() => setModal(null)} />}
+      {modal==="calcaccess" && <CalcAccessModal isLight={isLight} onClose={() => setModal(null)} />}
     </>
   );
 };
