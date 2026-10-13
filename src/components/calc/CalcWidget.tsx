@@ -10,6 +10,7 @@ import { X, Send, History, Plus, Trash2, ExternalLink, Copy, Check } from "lucid
 import { useFinance } from "../../context/FinanceContext";
 import { getAccessToken } from "../../services/googleAuth";
 import { verifyAmounts } from "../../services/calcVerify";
+import { getRawData, getMasterListWeeks, buildWeekMap } from "../../services/fourYrPayrollService";
 import { CalcAvatar, CalcAvatarState } from "./CalcAvatar";
 import {
   CalcEvent, CalcLink, CalcSnapshot, ToolResult, entityLabel, routeQuestion, runTool, toolCatalogText,
@@ -21,7 +22,7 @@ interface Chat { id: string; title: string; updatedAt: number; messages: Msg[] }
 
 const KEY_PREFIX = "calc_chats_v1:";
 const DAY_PREFIX = "calc_briefing_day:";
-const GREETING = "Hi! I'm Calc. I can look up bills, bank balances and statements, check the calendar and notes, find platforms, and explain how things work in the portal. I can't change anything yet. What do you need?";
+const GREETING = "Hi! I'm Calc. I can look up bills, bank balances and statements, 4YR payroll hours and amounts, check the calendar and notes, find platforms, and explain how things work in the portal. I can't change anything yet. What do you need?";
 
 const CHIPS: { label: string; tool?: string; args?: any; prefill?: string }[] = [
   { label: "Daily briefing", tool: "briefing" },
@@ -29,6 +30,7 @@ const CHIPS: { label: string; tool?: string; args?: any; prefill?: string }[] = 
   { label: "Due this week", tool: "ap_due_soon", args: { days: 7 } },
   { label: "Statements to download", tool: "statements_pending" },
   { label: "Bank balances", tool: "bank_balances" },
+  { label: "4YR payroll", tool: "payroll_summary" },
   { label: "Today's calendar", tool: "calendar", args: { days: 1 } },
   { label: "Open notes", tool: "notes_open" },
   { label: "How do I…", prefill: "How do I " },
@@ -110,6 +112,27 @@ export const CalcWidget: React.FC = () => {
     try { navigator.clipboard.writeText(plain); setCopiedId(m.id); setTimeout(() => setCopiedId(c => (c === m.id ? null : c)), 1500); } catch { /* clipboard blocked */ }
   };
 
+  // ── 4YR payroll is read on demand from the sheet with the signed-in user's own token (cached for 90 s) ──
+  const payrollCache = useRef<{ t: number; p: Promise<{ rows: any[]; weeks: any[] } | null> } | null>(null);
+  const getPayroll = useCallback(async () => {
+    const tok = getAccessToken();
+    if (!tok) return null;
+    const c = payrollCache.current;
+    if (c && Date.now() - c.t < 90000) return c.p;
+    const p = (async () => {
+      try {
+        const rows = await getRawData(tok);
+        let weeks: any[] = [];
+        try { weeks = await getMasterListWeeks(tok); } catch { /* fall back below */ }
+        if (!weeks || weeks.length === 0) weeks = buildWeekMap(rows);
+        return { rows, weeks };
+      } catch { return null; }
+    })();
+    payrollCache.current = { t: Date.now(), p };
+    p.then(v => { if (!v && payrollCache.current && payrollCache.current.p === p) payrollCache.current = null; });
+    return p;
+  }, []);
+
   // ── snapshot of the sheet-synced portal state ──
   const snapshot = useMemo<CalcSnapshot>(() => {
     const events: CalcEvent[] = [];
@@ -129,9 +152,10 @@ export const CalcWidget: React.FC = () => {
       now: new Date(), lastSyncedAt: lastSyncedAt || null,
       apBills: fin.apBills || [], bankAccounts: fin.bankAccounts || [], bankStatements: fin.bankStatements || [],
       events: uniq, quickNotes: fin.quickNotes || [], externalLinks: fin.externalLinks || [],
+      getPayroll: getPayroll as any,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fin.apBills, fin.bankAccounts, fin.bankStatements, fin.calSheetEvents, fin.calendarLocalEvents, fin.googleCalEvents, fin.quickNotes, fin.externalLinks, lastSyncedAt, open]);
+  }, [fin.apBills, fin.bankAccounts, fin.bankStatements, fin.calSheetEvents, fin.calendarLocalEvents, fin.googleCalEvents, fin.quickNotes, fin.externalLinks, lastSyncedAt, open, getPayroll]);
 
   const setAvFor = useCallback((s: CalcAvatarState, ms = 0) => {
     clearTimeout(avTimer.current);
@@ -188,13 +212,14 @@ export const CalcWidget: React.FC = () => {
     try { seenDay = localStorage.getItem(DAY_PREFIX + email) || ""; } catch { /* ignore */ }
     setAvFor("greet", 3200);
     if (seenDay !== todayKey() && snapshot.apBills.length + snapshot.bankAccounts.length > 0) {
-      const r = runTool("briefing", snapshot, {});
-      if (r) {
-        try { localStorage.setItem(DAY_PREFIX + email, todayKey()); } catch { /* ignore */ }
-        const f = formatResults([r]);
-        push({ role: "calc", text: "Good to see you! " + f.text, links: f.links });
-        return;
-      }
+      runTool("briefing", snapshot, {}).then(r => {
+        if (r) {
+          try { localStorage.setItem(DAY_PREFIX + email, todayKey()); } catch { /* ignore */ }
+          const f = formatResults([r]);
+          push({ role: "calc", text: "Good to see you! " + f.text, links: f.links, suggest: f.suggest });
+        } else push({ role: "calc", text: GREETING });
+      });
+      return;
     }
     push({ role: "calc", text: GREETING });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -221,8 +246,8 @@ export const CalcWidget: React.FC = () => {
     return null;
   };
 
-  const runLocal = useCallback((calls: { tool: string; args: any }[], note?: string) => {
-    const rs = calls.map(c => runTool(c.tool, snapshot, c.args || {})).filter(Boolean) as ToolResult[];
+  const runLocal = useCallback(async (calls: { tool: string; args: any }[], note?: string): Promise<boolean> => {
+    const rs = (await Promise.all(calls.map(c => runTool(c.tool, snapshot, c.args || {})))).filter(Boolean) as ToolResult[];
     if (!rs.length) return false;
     lastCallsRef.current = calls;
     const f = formatResults(rs);
@@ -237,17 +262,17 @@ export const CalcWidget: React.FC = () => {
     push({ role: "user", text: q });
     setBusy(true); setAvFor("think");
     try {
-      if (quick) { await new Promise(r => setTimeout(r, 450)); if (!runLocal([{ tool: quick.tool, args: quick.args || {} }])) fail("I couldn't read that data just now."); return; }
+      if (quick) { await new Promise(r => setTimeout(r, 450)); if (!(await runLocal([{ tool: quick.tool, args: quick.args || {} }]))) fail("I couldn't read that data just now."); return; }
 
       const follow = followUpCalls(q);
-      if (follow) { await new Promise(r => setTimeout(r, 350)); if (runLocal(follow)) return; }
+      if (follow) { await new Promise(r => setTimeout(r, 350)); if (await runLocal(follow)) return; }
 
       const token = getAccessToken();
       const history = messages.slice(-6).map(m => ({ role: m.role, text: m.text.slice(0, 400) }));
       const today = new Date().toString().slice(0, 33);
       if (!token && !IS_LOCAL) {
         const calls = routeQuestion(q, snapshot);
-        if (calls && runLocal(calls, "(Sign in with Google for full chat. I answered from a direct lookup.)")) return;
+        if (calls && await runLocal(calls, "(Sign in with Google for full chat. I answered from a direct lookup.)")) return;
         fail("Please sign in with Google first, then ask me again."); return;
       }
 
@@ -259,7 +284,7 @@ export const CalcWidget: React.FC = () => {
         const { status, j } = await askServer({ phase: "plan", accessToken: IS_LOCAL ? "" : token, question: q, history, today, toolCatalog: toolCatalogText(), entities: Array.from(new Set(snapshot.apBills.map(b => entityLabel(b)).filter(Boolean))) });
         if (status === 401) {
           const calls = routeQuestion(q, snapshot);
-          if (calls && runLocal(calls, "Your Google session has expired, so I used the direct lookup. Sign in again for full chat:")) return;
+          if (calls && await runLocal(calls, "Your Google session has expired, so I used the direct lookup. Sign in again for full chat:")) return;
           fail("Your Google session expired. Sign in again and I'll be right here."); return;
         }
         if (status === 429) { fail(j?.error || "Slow down a little — try again in a minute."); return; }
@@ -269,14 +294,14 @@ export const CalcWidget: React.FC = () => {
 
       if (!plan) {
         const calls = routeQuestion(q, snapshot);
-        if (calls && runLocal(calls, planNote)) return;
+        if (calls && await runLocal(calls, planNote)) return;
         fail(aiNoKey ? "That one needs the AI, which isn't set up on this server yet. The quick buttons still work." : "I'm busy right now and couldn't work that one out. Try one of the quick buttons, or ask again in a minute."); return;
       }
       if (plan.calls.length === 0) { reveal(plan.direct || "I'm not sure how to help with that yet. I can look up bills, bank balances, statements, the calendar, notes and platforms, or explain how the portal works."); return; }
 
       // 2) run the lookups here, over the live synced data
       lastCallsRef.current = plan.calls;
-      const results = plan.calls.map(c => runTool(c.tool, snapshot, c.args || {})).filter(Boolean) as ToolResult[];
+      const results = (await Promise.all(plan.calls.map(c => runTool(c.tool, snapshot, c.args || {})))).filter(Boolean) as ToolResult[];
       if (!results.length) { reveal("I couldn't find a lookup for that. I can do bills, bank balances, statements, calendar, notes, platforms, and how-to help."); return; }
       const f = formatResults(results);
 

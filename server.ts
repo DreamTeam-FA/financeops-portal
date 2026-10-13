@@ -2995,7 +2995,7 @@ Rules:
 - Use several lookups when the question spans topics (e.g. cash vs. what's due).
 - Narrowing words ("just the overdue ones", "only TI", "only this week") change the filters; they do NOT mean list: true. Set list: true only for "list", "show me", "itemize", "every one", "all of them".
 - If the message is a greeting, thanks, or small talk, return calls:[] and put a short friendly reply in "direct".
-- If the user asks for something these lookups can't do (accounts receivable, loans, payroll or credit-card figures, changing or adding anything), return calls:[] and in "direct" say plainly that Calc can't do that yet and what it can do (bills, bank balances, bank statements, calendar, notes, platforms directory, how-to help, daily briefing). Calc cannot make changes yet.
+- If the user asks for something these lookups can't do (accounts receivable, loans, credit-card expense figures, the Ruby's/TI/MSDx payroll, changing or adding anything), return calls:[] and in "direct" say plainly that Calc can't do that yet and what it can do (bills, bank balances, bank statements, 4YR payroll hours and amounts, calendar, notes, platforms directory, how-to help, daily briefing). Calc cannot make changes yet.
 - Pass vendor names as the user wrote them; partial names are fine. Never invent lookup names or numbers.`;
       const msgs: CalcMsg[] = [...hist, { role: "user", text: q }];
       const r = await callChatLLM(system, msgs, 400, true, 0);

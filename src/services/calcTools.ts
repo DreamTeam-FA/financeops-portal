@@ -10,6 +10,7 @@
 import type { APBill, BankAccount, BankStatement, DashboardNote, ExternalLinkItem, PageRoute } from "../types";
 import { billRemaining, formatCurrency, parseDueDateToDate, formatDateTimeLocal } from "../utils/formatters";
 import { FAQ, HOWTOS, BREAKAGE } from "../components/pages/HelpPage";
+import type { RawRow, WeekMeta } from "./fourYrPayrollService";
 
 export interface CalcLink { label: string; page: PageRoute }
 
@@ -32,6 +33,8 @@ export interface CalcSnapshot {
   events: CalcEvent[];
   quickNotes: DashboardNote[];
   externalLinks: ExternalLinkItem[];
+  /** Reads the 4YR payroll sheet with the signed-in user's own Google access (null = not signed in / can't read). */
+  getPayroll?: () => Promise<{ rows: RawRow[]; weeks: WeekMeta[] } | null>;
 }
 
 export interface ToolResult {
@@ -50,7 +53,7 @@ type ToolArgs = Record<string, any>;
 export interface CalcToolDef {
   description: string;
   args: string;
-  run: (s: CalcSnapshot, a: ToolArgs) => ToolResult;
+  run: (s: CalcSnapshot, a: ToolArgs) => ToolResult | Promise<ToolResult>;
 }
 
 // ── helpers ─────────────────────────────────────────────────────────────────
@@ -539,6 +542,96 @@ function helpSearch(_s: CalcSnapshot, a: ToolArgs): ToolResult {
     data: { matches: scored.map(x => ({ kind: x.d.kind, title: x.d.title, text: x.d.body.slice(0, 900) })) } };
 }
 
+// ── 4YR payroll: same rules as the 4YR Payroll page (sum of each row's computed hours and total; ──
+// ── negative totals / deduction-style names are deductions; reimbursements etc. are non-payroll) ──
+const PAY_DED = /deduct|loan|rent|penalty|withhold/i;
+const PAY_NONPAY = /reimburse|reimbursement|adjustment|allowance|bonus|incentive|extra|misc/i;
+const payKind = (r: RawRow): "deduction" | "nonpayroll" | "payroll" =>
+  (r.total < 0 || PAY_DED.test(r.job) || PAY_DED.test(r.subCat)) ? "deduction" : PAY_NONPAY.test(r.subCat) ? "nonpayroll" : "payroll";
+const mdy = (v: string): Date | null => { const m = String(v || "").match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); return m ? new Date(Number(m[3]), Number(m[1]) - 1, Number(m[2])) : null; };
+const hrs = (n: number) => String(Math.round(n * 100) / 100);
+
+async function payrollSummary(s: CalcSnapshot, a: ToolArgs): Promise<ToolResult> {
+  const src = "4YR Payroll sheet";
+  const data = s.getPayroll ? await s.getPayroll() : null;
+  if (!data || data.rows.length === 0)
+    return { tool: "payroll_summary", title: "4YR payroll", source: "", asOf: "",
+      lines: ["I can't read the 4YR payroll sheet right now. Make sure you're signed in with Google (and have access to that sheet), then ask me again."],
+      data: { dataNotLoaded: true, missing: "the 4YR payroll sheet", note: "The payroll data did not load. Do NOT say there is no payroll; say it isn't available and how to fix it." } };
+  const today = startOfDay(s.now);
+  const weeks = [...data.weeks].filter(w => mdy(w.startDate)).sort((x, y) => mdy(x.startDate)!.getTime() - mdy(y.startDate)!.getTime());
+  const cur = weeks.find(w => mdy(w.startDate)!.getTime() <= today.getTime() && today.getTime() <= (mdy(w.endDate)?.getTime() ?? 0) + DAY - 1)
+    || [...weeks].filter(w => (mdy(w.endDate)?.getTime() ?? 0) < today.getTime()).pop();
+  const idx = cur ? weeks.indexOf(cur) : -1;
+  const wk = lc(a.week);
+  let label = "", inWindow: (r: RawRow) => boolean = () => true;
+  const weekWindow = (w: WeekMeta) => { label = `${w.label || "week " + w.weekNum} (${w.startDate} to ${w.endDate})`; inWindow = r => r.weekNum === w.weekNum; };
+  if (a.ytd) { const y = String(today.getFullYear()); label = `year to date, ${y}`; inWindow = r => r.dateISO.startsWith(y); }
+  else if (a.from || a.to) { const f = String(a.from || "0000-00-00"), t2 = String(a.to || "9999-12-31"); label = `${a.from || "the start"} to ${a.to || "today"}`; inWindow = r => r.dateISO >= f && r.dateISO <= t2; }
+  else if (wk === "month") { const ym = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`; label = "this month"; inWindow = r => r.dateISO.startsWith(ym); }
+  else if (wk === "last" && idx > 0) weekWindow(weeks[idx - 1]);
+  else if (wk && /^\w+$/.test(wk) && weeks.find(w => lc(w.weekNum) === wk)) weekWindow(weeks.find(w => lc(w.weekNum) === wk)!);
+  else if (cur) weekWindow(cur);
+  else { const latest = [...data.rows].map(r => r.weekNum).filter(Boolean).pop(); label = `week ${latest}`; inWindow = r => r.weekNum === latest; }
+
+  // person (fuzzy: every word of the query appears in the name), also picks a name out of a raw question
+  const allNames = Array.from(new Set(data.rows.map(r => r.name).filter(Boolean)));
+  let personWanted = String(a.person || "").trim();
+  if (!personWanted && a._q) {
+    const qt = lc(a._q);
+    const hit = allNames.filter(n => lc(n).split(/\s+/).some(tk => tk.length >= 3 && new RegExp("\\b" + tk.replace(/[^a-z0-9]/g, "") + "\\b").test(qt))).sort((x, y) => y.length - x.length)[0];
+    if (hit) personWanted = hit;
+  }
+  const ptoks = lc(personWanted).split(/\s+/).filter(Boolean);
+  const nameOk = (n: string) => ptoks.every(tk => lc(n).includes(tk));
+  const jobQ = lc(a.job), coQ = lc(a.company), typeQ = lc(a.type);
+  const base = data.rows.filter(inWindow);
+  const rows = base.filter(r => (!ptoks.length || nameOk(r.name)) && (!jobQ || lc(r.job).includes(jobQ)) && (!coQ || lc(r.company).includes(coQ)) && (!typeQ || typeQ === "all" || payKind(r) === typeQ));
+
+  if (ptoks.length && !allNames.some(nameOk))
+    return { tool: "payroll_summary", title: "4YR payroll", source: src, asOf: asOfText(s), lines: [`I couldn't find anyone named "${personWanted}" in the 4YR payroll. ` + (allNames.length ? "Names I do see start with: " + allNames.slice(0, 6).join(", ") + "…" : "")], data: { count: 0, noPersonMatch: personWanted } };
+  if (rows.length === 0)
+    return { tool: "payroll_summary", title: "4YR payroll", source: src, asOf: asOfText(s), lines: [`I found no 4YR payroll entries for ${label}${personWanted ? " for " + personWanted : ""}${a.job ? " on " + a.job : ""}.`], data: { window: label, count: 0 } };
+
+  const sum = (rs: RawRow[], f: (r: RawRow) => number) => rs.reduce((t, r) => t + (Number(f(r)) || 0), 0);
+  const net = sum(rows, r => r.total), hours = sum(rows, r => r.hours);
+  const kinds = { payroll: rows.filter(r => payKind(r) === "payroll"), deduction: rows.filter(r => payKind(r) === "deduction"), nonpayroll: rows.filter(r => payKind(r) === "nonpayroll") };
+  const gross = sum(kinds.payroll, r => r.total), ded = sum(kinds.deduction, r => r.total), adj = sum(kinds.nonpayroll, r => r.total);
+  const group = (key: (r: RawRow) => string) => {
+    const m: Record<string, { hours: number; amount: number; entries: number }> = {};
+    rows.forEach(r => { const k = key(r) || "(none)"; (m[k] ||= { hours: 0, amount: 0, entries: 0 }); m[k].hours += r.hours || 0; m[k].amount += r.total || 0; m[k].entries++; });
+    return Object.entries(m).map(([name, v]) => ({ name, ...v })).sort((x, y) => y.amount - x.amount);
+  };
+  const byPerson = group(r => r.name), byCompany = group(r => r.company), byJob = group(r => r.job);
+  const days = new Set(rows.map(r => r.dateISO)).size;
+  const people = byPerson.length;
+
+  const lines: string[] = [];
+  if (ptoks.length && people === 1) {
+    const who = byPerson[0].name;
+    lines.push(`**${who}** has **${hrs(hours)} hours** and **${money(net)}** in ${label}, across ${plural(rows.length, "entry")} on ${plural(days, "day")}.`);
+    if (byJob.length > 0) lines.push("By job: " + byJob.slice(0, 4).map(j => `${j.name} ${hrs(j.hours)}h ${money(j.amount)}`).join(" · ") + ".");
+  } else {
+    lines.push(`4YR payroll for ${label}: **${money(net)}** net across **${hrs(hours)} hours** and ${people === 1 ? "1 person" : people + " people"}.`);
+    if (ptoks.length) lines.push(`That is the combined total for everyone matching "${personWanted}".`);
+  }
+  if (ded !== 0 || adj !== 0) lines.push(`Of that: ${money(gross)} regular payroll${ded !== 0 ? `, ${money(ded)} deductions` : ""}${adj !== 0 ? `, ${money(adj)} adjustments/reimbursements` : ""}.`);
+  if (!coQ && byCompany.length > 1) lines.push("By company: " + byCompany.map(c => `${c.name} ${money(c.amount)}`).join(" · ") + ".");
+  if (!(ptoks.length && people === 1) && people > 1) {
+    const top = byPerson.slice(0, 5);
+    lines.push("", `**Top ${top.length} by amount:**`, ...top.map(p => `• ${p.name}: ${money(p.amount)} (${hrs(p.hours)}h)`));
+    if (people > top.length) lines.push(`…and ${people - top.length} more people.`);
+  }
+  if (a.list) {
+    const ents = [...rows].sort((x, y) => (x.dateISO + x.name).localeCompare(y.dateISO + y.name)).slice(0, 25);
+    lines.push("", `**Entries${rows.length > ents.length ? ` (first ${ents.length} of ${rows.length})` : ""}:**`, ...ents.map(r => `• ${r.date} · ${r.name} · ${r.job}${r.subCat ? " / " + r.subCat : ""} · ${hrs(r.hours)}h · ${money(r.total)}${r.remarks ? " · " + r.remarks.slice(0, 40) : ""}`));
+  } else lines.push("", "Want the individual entries, or another week?");
+  return { tool: "payroll_summary", title: "4YR payroll", lines, links: [{ label: "Open 4YR Payroll", page: "fouryr-payroll" }], source: src, asOf: asOfText(s),
+    data: { window: label, entries: rows.length, hours, netTotal: net, regularPayroll: gross, deductions: ded, adjustments: adj, people, days,
+      byCompany: byCompany.slice(0, 6), topPeople: byPerson.slice(0, 10), topJobs: byJob.slice(0, 6), personFilter: personWanted || null,
+      note: "Net total = sum of each row's total (deductions are negative), exactly like the 4YR Payroll page." } };
+}
+
 function briefing(s: CalcSnapshot, _a: ToolArgs): ToolResult {
   const today = startOfDay(s.now);
   const od = apOverdue(s, { limit: 3 });
@@ -585,6 +678,7 @@ export const CALC_TOOLS: Record<string, CalcToolDef> = {
   ap_due_soon:       { description: "Unpaid bills due from today through the next N days.", args: "{days?: number (default 7), week?: 'this'|'next' (calendar weeks, Monday to Sunday, same as the AP page; use for \"this week\" / \"next week\"), entity?: string (also TI sub-entities like Corner Property, 4G, E1, 4YR), vendor?: string, list?: boolean}", run: apDueSoon },
   ap_search:         { description: "Find bills by vendor, invoice number, status (unpaid|paid|hold) or entity.", args: "{vendor?: string, invoiceNo?: string (use when the user gives an invoice number; returns that bill's full details), status?: string (unpaid|paid|hold), entity?: string, openOnly?: boolean, dueByDays?: number (open bills due on or before today+N days, overdue included — use for \"how much do we owe X by this week\"), list?: boolean (true ONLY if the user asks to list/show the bills)}", run: apSearch },
   ap_top_vendors:    { description: "Which vendors we owe the most (open bills by vendor, with overdue part and share of total).", args: "{n?: number, entity?: string}", run: apTopVendors },
+  payroll_summary:   { description: "4YR Payroll hours and amounts from the 4YR payroll sheet: a week, last week, this month, year to date or a date range; filter by person, job, company, or record type (payroll / deduction / nonpayroll).", args: "{week?: 'this'|'last'|'month'|<week number>, ytd?: boolean, from?: 'YYYY-MM-DD', to?: 'YYYY-MM-DD', person?: string, job?: string, company?: string, type?: 'payroll'|'deduction'|'nonpayroll', list?: boolean (true ONLY if asked to list/show entries)}", run: payrollSummary },
   ap_summary:        { description: "Counts and totals of unpaid bills, grouped by entity.", args: "{entity?: string}", run: apSummary },
   bank_balances:     { description: "Current bank account balances, yesterday's balance, as-of time, low (<$500) and stale (2+ days) flags.", args: "{entity?: string, bank?: string, list?: boolean (true ONLY if asked for every account)}", run: bankBalances },
   statements_pending:{ description: "Bank statements whose cut-off has passed and are not downloaded yet.", args: "{list?: boolean}", run: statementsPending },
@@ -615,6 +709,12 @@ function addSuggestions(res: ToolResult, a: ToolArgs): ToolResult {
       if (d.top && d.top[0]) sug.push({ label: `Details: ${d.top[0].vendor}`, tool: "ap_search", args: { vendor: d.top[0].vendor, openOnly: true } });
       sug.push({ label: "Overdue bills", tool: "ap_overdue", args: {} });
       break;
+    case "payroll_summary":
+      if (d.dataNotLoaded) break;
+      if (!a.list && d.entries > 0) sug.push({ label: "List the entries", tool: res.tool, args: { ...a, list: true } });
+      if (!a.ytd) sug.push({ label: "Year to date", tool: res.tool, args: { ...a, ytd: true, week: undefined } });
+      if (lc(a.week) !== "last" && !a.ytd) sug.push({ label: "Last week", tool: res.tool, args: { ...a, week: "last" } });
+      break;
     case "statements_pending":
       if (d.pendingCount > 5 && !a.list) sug.push({ label: "List them all", tool: res.tool, args: { list: true } });
       break;
@@ -641,7 +741,7 @@ function missingData(name: string, snap: CalcSnapshot): { what: string; page: st
   return null;
 }
 
-export function runTool(name: string, snap: CalcSnapshot, args: ToolArgs): ToolResult | null {
+export async function runTool(name: string, snap: CalcSnapshot, args: ToolArgs): Promise<ToolResult | null> {
   const t = CALC_TOOLS[name];
   if (!t) return null;
   const miss = missingData(name, snap);
@@ -650,7 +750,7 @@ export function runTool(name: string, snap: CalcSnapshot, args: ToolArgs): ToolR
       lines: [`I can't see ${miss.what} right now, so I can't answer that reliably. The data may not have loaded: sign in with Google and run Pull All from the Data Sync page, then ask me again.`],
       data: { dataNotLoaded: true, missing: miss.what, note: "The data did not load. Do NOT say there are none/zero; say the data isn't available and how to fix it." } };
   }
-  try { return addSuggestions(t.run(snap, args || {}), args || {}); } catch (e: any) {
+  try { return addSuggestions(await t.run(snap, args || {}), args || {}); } catch (e: any) {
     return { tool: name, title: name, lines: [`I hit a problem reading that data (${e?.message || "unknown error"}).`], data: { error: String(e?.message || e) }, source: "", asOf: "" };
   }
 }
@@ -683,6 +783,17 @@ export function routeQuestion(q: string, s: CalcSnapshot): { tool: string; args:
   const base: ToolArgs = entity ? { entity } : {};
   if (/\b(list|show|which|itemi[sz]e|every|each|all of them|all the bills)\b/.test(t)) base.list = true;
   if (/\bbriefing\b|catch me up|what.?s (going on|happening|new)|good morning|summary of today/.test(t)) return [{ tool: "briefing", args: {} }];
+
+  // 4YR payroll: hours, wages, who worked, deductions
+  if (/payroll|timesheet|hours (did|has|have|worked|are)|worked|wages|salary|labor cost|how many hours|deductions?\b|4yr/.test(t) && !/\b(bill|bills|invoice|owe|vendor)\b/.test(t)) {
+    const args: ToolArgs = { _q: q };
+    if (/last week/.test(t)) args.week = "last";
+    else if (/ytd|year to date|this year|so far this year/.test(t)) args.ytd = true;
+    else if (/this month/.test(t)) args.week = "month";
+    if (/\b(list|show|which|itemi[sz]e|every|each|all of them)\b/.test(t)) args.list = true;
+    if (/deduction/.test(t)) args.type = "deduction";
+    return [{ tool: "payroll_summary", args }];
+  }
 
   // "Who do we owe the most?" / "biggest vendors"
   if (/who do we owe|owe the most|biggest vendors?|largest vendors?|top (\d+ )?vendors?|most (money )?(owed|overdue)|which vendors?.*(most|biggest|highest)/.test(t)) {
