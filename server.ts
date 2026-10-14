@@ -272,6 +272,45 @@ const AUTO_GEN_COOLDOWN_MS = 5 * 60 * 1000; // pull-live can fire many times a m
 // only actually attempt a write once per cooldown window so a burst of calls can't outrun its own
 // dedupe check the way it did before (44 rows written for 11 accounts in one testing session).
 
+// An entry is created this many days BEFORE its cut-off date (the "due date" in the reference table).
+const STATEMENT_GENERATE_DAYS_BEFORE = 2;
+
+/** Today's calendar date in Philippine time (the team's clock), as a local-midnight Date. */
+function manilaToday(): Date {
+  const [y, m, d] = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit" })
+    .format(new Date()).split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+const fmtStmtDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const cutOffInMonth = (day: number, y: number, m: number) => new Date(y, m, Math.min(day, new Date(y, m + 1, 0).getDate()));
+
+/**
+ * Which statement entries should exist for a bank whose cut-off is `day` of the month, as of `today`:
+ *  - this month's cut-off once it has been reached (catches up an entry nobody generated in time), and
+ *  - the NEXT cut-off once it is STATEMENT_GENERATE_DAYS_BEFORE days away or closer
+ *    (this month's if still ahead, otherwise next month's — e.g. a cut-off on the 1st is created on the 29th/30th).
+ * Statement Date = previous cut-off + 1 day → this cut-off (e.g. cut-off the 28th → "Sep 29 – Oct 28").
+ */
+function statementCandidates(day: number, today: Date): Array<{ cutOffDate: string; statementDate: string; period: string }> {
+  const y = today.getFullYear(), m = today.getMonth();
+  const cuts: Date[] = [];
+  const thisMonth = cutOffInMonth(day, y, m);
+  if (thisMonth <= today) cuts.push(thisMonth);
+  const upcoming = thisMonth > today ? thisMonth : cutOffInMonth(day, y, m + 1);
+  const daysUntil = Math.round((upcoming.getTime() - today.getTime()) / 86_400_000);
+  if (daysUntil <= STATEMENT_GENERATE_DAYS_BEFORE) cuts.push(upcoming);
+  return cuts.map((cut) => {
+    const prev = cutOffInMonth(day, cut.getFullYear(), cut.getMonth() - 1);
+    const start = new Date(prev); start.setDate(start.getDate() + 1);
+    return {
+      cutOffDate: fmtStmtDate(cut),
+      statementDate: `${fmtStmtDate(start)}|${fmtStmtDate(cut)}`,
+      period: `${cut.getFullYear()}-${String(cut.getMonth() + 1).padStart(2, "0")}`,
+    };
+  });
+}
+
 async function autoGenerateStatementEntries(liveData: any, accessToken?: string): Promise<void> {
   if (autoGenInFlight) return;
   if (Date.now() - lastAutoGenAttemptAt < AUTO_GEN_COOLDOWN_MS) return;
@@ -288,31 +327,10 @@ async function autoGenerateStatementEntries(liveData: any, accessToken?: string)
   const withCutOff = templates.filter((t) => t.cutOffDate && parseDay(t.cutOffDate) !== null);
   if (withCutOff.length === 0) return;
 
-  // Statement Date = previous cut-off + 1 day → current cut-off (per the plan in memory —
-  // NOT a calendar month). e.g. cut-off on the 28th → "Jul 29 – Aug 28". Depends on each
-  // account's own cut-off day, so it's computed per-template, not once for everyone.
-  const fmtDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  const computeCutoffRange = (day: number, now: Date) => {
-    const y = now.getFullYear();
-    const m = now.getMonth();
-    const lastDay = new Date(y, m + 1, 0).getDate();
-    const clampedDay = Math.min(day, lastDay);
-    const currentCutOff = new Date(y, m, clampedDay);
-    const prevLastDay = new Date(y, m, 0).getDate(); // last day of previous month
-    const prevCutOff = new Date(y, m - 1, Math.min(day, prevLastDay));
-    const start = new Date(prevCutOff);
-    start.setDate(start.getDate() + 1);
-    return {
-      cutOffDate: fmtDate(currentCutOff),
-      statementDate: `${fmtDate(start)}|${fmtDate(currentCutOff)}`,
-      period: `${currentCutOff.getFullYear()}-${String(currentCutOff.getMonth() + 1).padStart(2, "0")}`,
-    };
-  };
-
   autoGenInFlight = true;
   lastAutoGenAttemptAt = Date.now();
   try {
-    const now = new Date();
+    const today = manilaToday();
     const statements: any[] = liveData.statements || [];
     const deletedStatements: any[] = liveData.deletedStatements || [];
     const toAppend: any[] = [];
@@ -320,23 +338,26 @@ async function autoGenerateStatementEntries(liveData: any, accessToken?: string)
 
     withCutOff.forEach((t) => {
       const day = parseDay(t.cutOffDate)!;
-      const { cutOffDate, statementDate, period } = computeCutoffRange(day, now);
       const occurrence = t.cycle || "Monthly";
-      // Someone deleted this entry on purpose (row marked DELETED in col K) — never bring it back
-      if (deletedStatements.some((s) =>
-        s.bankName === t.bank && s.entity === t.entity && s.occurrence === occurrence && s.statementDate === statementDate
-      )) return;
-      const existing = statements.find((s) =>
-        s.bankName === t.bank && s.entity === t.entity && s.occurrence === occurrence && s.statementDate === statementDate
-      );
-      if (existing) {
-        if (!existing.cutOffDate && existing.rowIndex) toRepair.push({ rowIndex: existing.rowIndex, cutOffDate });
-        return;
-      }
-      toAppend.push({
-        period, entity: t.entity, bankName: t.bank, occurrence,
-        remarks: t.remarks || "", statementDate, requestDate: "",
-        downloaded: false, downloadedAt: "", cutOffDate,
+      statementCandidates(day, today).forEach(({ cutOffDate, statementDate, period }) => {
+        const ym = cutOffDate.slice(0, 7);
+        // Same bank + same cut-off MONTH counts as the same entry even if the cut-off day was changed
+        // since it was generated (otherwise every change of a Cut-Off Date created a second entry).
+        const sameEntry = (s: any) =>
+          s.bankName === t.bank && s.entity === t.entity && s.occurrence === occurrence &&
+          (s.statementDate === statementDate || String(s.cutOffDate || "").slice(0, 7) === ym);
+        // Someone deleted this entry on purpose (row marked DELETED in col K) — never bring it back
+        if (deletedStatements.some(sameEntry)) return;
+        const existing = statements.find(sameEntry);
+        if (existing) {
+          if (!existing.cutOffDate && existing.rowIndex) toRepair.push({ rowIndex: existing.rowIndex, cutOffDate });
+          return;
+        }
+        toAppend.push({
+          period, entity: t.entity, bankName: t.bank, occurrence,
+          remarks: t.remarks || "", statementDate, requestDate: "",
+          downloaded: false, downloadedAt: "", cutOffDate,
+        });
       });
     });
 

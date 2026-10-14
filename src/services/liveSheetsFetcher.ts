@@ -1216,7 +1216,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
   // Entries someone deleted in the portal stay in the sheet with "DELETED …" in column K (their row
   // can't be removed: the reference table sits in the same rows). They are hidden here, and the
   // server's auto-generator uses this list so it doesn't re-create what was deleted on purpose.
-  const deletedStatements: Array<{ bankName: string; entity: string; occurrence: string; statementDate: string }> = [];
+  const deletedStatements: Array<{ bankName: string; entity: string; occurrence: string; statementDate: string; cutOffDate: string }> = [];
   const rawStatementsTab = dataByTab["Bank Statements Data"] || [];
 
   // Sheet column order for Bank Statements Data (A–J):
@@ -1259,7 +1259,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       else if (/TI/i.test(entityRaw)) entity = "TI";
 
       if (/^deleted/i.test(String(row[10] || "").trim())) {
-        deletedStatements.push({ bankName, entity, occurrence, statementDate });
+        deletedStatements.push({ bankName, entity, occurrence, statementDate, cutOffDate: String(row[9] || "").trim() });
         return;
       }
 
