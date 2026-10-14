@@ -314,6 +314,7 @@ async function autoGenerateStatementEntries(liveData: any, accessToken?: string)
   try {
     const now = new Date();
     const statements: any[] = liveData.statements || [];
+    const deletedStatements: any[] = liveData.deletedStatements || [];
     const toAppend: any[] = [];
     const toRepair: Array<{ rowIndex: number; cutOffDate: string }> = [];
 
@@ -321,6 +322,10 @@ async function autoGenerateStatementEntries(liveData: any, accessToken?: string)
       const day = parseDay(t.cutOffDate)!;
       const { cutOffDate, statementDate, period } = computeCutoffRange(day, now);
       const occurrence = t.cycle || "Monthly";
+      // Someone deleted this entry on purpose (row marked DELETED in col K) — never bring it back
+      if (deletedStatements.some((s) =>
+        s.bankName === t.bank && s.entity === t.entity && s.occurrence === occurrence && s.statementDate === statementDate
+      )) return;
       const existing = statements.find((s) =>
         s.bankName === t.bank && s.entity === t.entity && s.occurrence === occurrence && s.statementDate === statementDate
       );

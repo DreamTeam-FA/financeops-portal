@@ -77,6 +77,8 @@ import {
   writeSingleStatement,
   appendStatement,
   appendStatementsBatch,
+  markStatementDeleted,
+  clearStatementDeleteMarkers,
   appendNoteToSheet,
   writeSingleNote,
   clearNoteRow
@@ -2322,6 +2324,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           valuesToPush = formatPayrollSheetRows(payrollPivot);
         }
         await updateSheetValues(mapping.spreadsheetIdOrUrl, mapping.range, valuesToPush, token!);
+        if (mapping.module === "statements") await clearStatementDeleteMarkers(mapping.range, mapping.spreadsheetIdOrUrl, token!);
         totalRows = valuesToPush.length > 1 ? valuesToPush.length - 1 : 0;
       }
 
@@ -3221,9 +3224,25 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const deleteBankStatement = (id: string) => {
     if (!requireToken()) return;
-    setBankStatements(bankStatements.filter((s) => s.id !== id));
+    const target = bankStatements.find((s) => s.id === id);
+    setBankStatements((prev) => prev.filter((s) => s.id !== id));
     logAction("Deleted Bank Statement Record", `Statement ID ${id} deleted`);
-    // No sheet row clear on delete — use DataSync to reconcile
+    if (!target) return;
+    // Delete it in the SHEET too (marks its row DELETED in col K). Without this the row stayed in
+    // the sheet and came straight back on the next sync, for every user.
+    const token = getAccessToken();
+    if (!token) { setNeedsAuth(true); showToast("Connect Google Sheets — this delete wasn't saved to the sheet, so the entry will come back.", "error", 6000); return; }
+    const mapping = sheetMappings.find((m) => m.module === "statements");
+    if (!mapping) return;
+    (async () => {
+      try {
+        await markStatementDeleted(target, mapping.range, mapping.spreadsheetIdOrUrl, token, userEmail);
+        showToast("Deleted from Google Sheets ✓", "success", 2500);
+      } catch (err) {
+        showToast(`Couldn't delete this entry in the sheet — it will come back on the next sync. ${(err as any)?.message || ""}`.trim(), "error", 8000);
+        handleSheetPushError(err, "statements");
+      }
+    })();
   };
 
   const toggleStatementDownload = (id: string) => {

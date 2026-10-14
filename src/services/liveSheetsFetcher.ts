@@ -1213,6 +1213,10 @@ export async function fetchFullLiveDataset(accessToken?: string) {
 
   // Bank Statements Tracker Parsing
   const statements: any[] = [];
+  // Entries someone deleted in the portal stay in the sheet with "DELETED …" in column K (their row
+  // can't be removed: the reference table sits in the same rows). They are hidden here, and the
+  // server's auto-generator uses this list so it doesn't re-create what was deleted on purpose.
+  const deletedStatements: Array<{ bankName: string; entity: string; occurrence: string; statementDate: string }> = [];
   const rawStatementsTab = dataByTab["Bank Statements Data"] || [];
 
   // Sheet column order for Bank Statements Data (A–J):
@@ -1253,6 +1257,11 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       else if (/4G/i.test(entityRaw)) entity = "4G" as EntityName;
       else if (/E1/i.test(entityRaw)) entity = "E1" as EntityName;
       else if (/TI/i.test(entityRaw)) entity = "TI";
+
+      if (/^deleted/i.test(String(row[10] || "").trim())) {
+        deletedStatements.push({ bankName, entity, occurrence, statementDate });
+        return;
+      }
 
       statements.push({
         id: `stmt-bsd-${i + 1}`,
@@ -1661,6 +1670,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
     loans,
     ar,
     statements,
+    deletedStatements,
     statementTemplates,
     quickNotes,
     calendarLocalEvents,

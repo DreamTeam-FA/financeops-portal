@@ -1784,6 +1784,81 @@ export const updateStatementCutOffDatesBatch = async (
   bumpApiCounter("write");
 };
 
+// Delete a statement entry in the SHEET: put "DELETED <date> <who>" in column K of its row (and a
+// header in K1). The row itself can't be removed or blanked-and-shifted: the reference table
+// (cols N–T) shares these rows. Readers hide DELETED rows, and the auto-generator skips them, so
+// the entry stays gone for everyone on every sync. To undo, clear that K cell.
+export const markStatementDeleted = async (
+  statement: BankStatement,
+  mappingRange: string,
+  spreadsheetId: string,
+  accessToken: string,
+  who: string
+): Promise<void> => {
+  const cleanId = extractSpreadsheetId(spreadsheetId);
+  if (!cleanId) throw new Error("Invalid or empty Google Spreadsheet ID");
+  const bangIdx = mappingRange.indexOf("!");
+  const tabPart = bangIdx !== -1 ? mappingRange.slice(0, bangIdx) : mappingRange;
+  const cellRange = bangIdx !== -1 ? mappingRange.slice(bangIdx + 1) : "";
+  const startMatch = cellRange.match(/^([A-Za-z]+)(\d+)/);
+  const rangeStartRow = startMatch ? parseInt(startMatch[2], 10) : 1;
+  const hdr = { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
+
+  let sheetRow = statement.rowIndex ? rangeStartRow + statement.rowIndex - 1 : 0;
+  if (!sheetRow) {
+    // Added this session, so its row number isn't known yet — find it by its details
+    const r = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/${encodeURIComponent(`${tabPart}!A:K`)}`, { headers: hdr });
+    if (!r.ok) throw new Error(`Google Sheets read failed (${r.status})`);
+    bumpApiCounter("read");
+    const rows: string[][] = (await r.json()).values || [];
+    const idx = rows.findIndex((row, i) => i > 0
+      && String(row[2] || "").trim() === statement.bankName
+      && String(row[3] || "").trim() === statement.occurrence
+      && String(row[5] || "").trim() === (statement.statementDate || "")
+      && !/^deleted/i.test(String(row[10] || "")));
+    if (idx < 0) throw new Error("This entry wasn't found in the sheet (it may already be deleted).");
+    sheetRow = idx + 1;
+  }
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values:batchUpdate`, {
+    method: "POST",
+    headers: hdr,
+    body: JSON.stringify({
+      valueInputOption: "RAW",
+      data: [
+        { range: `${tabPart}!K1`, values: [["Deleted In Portal"]] },
+        { range: `${tabPart}!K${sheetRow}`, values: [[`DELETED ${stamp} ${who}`.trim()]] },
+      ],
+    }),
+  });
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody?.error?.message || `Google Sheets Delete Failed (${res.status})`);
+  }
+  bumpApiCounter("write");
+};
+
+// A full "push statements to sheet" rewrites the log rows in a compacted order (deleted entries
+// are simply not written back), so any DELETED markers in col K would then sit beside the wrong
+// rows and hide valid entries. Clear them as part of that push.
+export const clearStatementDeleteMarkers = async (
+  mappingRange: string,
+  spreadsheetId: string,
+  accessToken: string
+): Promise<void> => {
+  const cleanId = extractSpreadsheetId(spreadsheetId);
+  if (!cleanId) return;
+  const bangIdx = mappingRange.indexOf("!");
+  const tabPart = bangIdx !== -1 ? mappingRange.slice(0, bangIdx) : mappingRange;
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/${encodeURIComponent(`${tabPart}!K2:K3000`)}:clear`,
+    { method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: "{}" }
+  );
+  if (!res.ok) throw new Error(`Could not clear delete markers (${res.status})`);
+  bumpApiCounter("write");
+};
+
 /**
  * Formats AP bills for a single entity tab into the correct sheet column layout.
  * Returns ONLY data rows (no header) — caller writes to the entity-specific range
