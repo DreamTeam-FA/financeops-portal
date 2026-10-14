@@ -1217,6 +1217,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
   // can't be removed: the reference table sits in the same rows). They are hidden here, and the
   // server's auto-generator uses this list so it doesn't re-create what was deleted on purpose.
   const deletedStatements: Array<{ bankName: string; entity: string; occurrence: string; statementDate: string; cutOffDate: string }> = [];
+  const waitingStatements: Array<{ bankName: string; entity: string; occurrence: string; statementDate: string; cutOffDate: string; rowIndex: number }> = [];
   const rawStatementsTab = dataByTab["Bank Statements Data"] || [];
 
   // Sheet column order for Bank Statements Data (A–J):
@@ -1258,8 +1259,15 @@ export async function fetchFullLiveDataset(accessToken?: string) {
       else if (/E1/i.test(entityRaw)) entity = "E1" as EntityName;
       else if (/TI/i.test(entityRaw)) entity = "TI";
 
-      if (/^deleted/i.test(String(row[10] || "").trim())) {
+      // Column K row markers (all hidden here): DELETED / OLD DUE DATE = gone for good (kept as tombstones so
+      // they are never re-created); WAITING = not yet within 2 days of its due date (revealed by the server then)
+      const kMark = String(row[10] || "").trim();
+      if (/^(deleted|old due date)/i.test(kMark)) {
         deletedStatements.push({ bankName, entity, occurrence, statementDate, cutOffDate: String(row[9] || "").trim() });
+        return;
+      }
+      if (/^waiting/i.test(kMark)) {
+        waitingStatements.push({ bankName, entity, occurrence, statementDate, cutOffDate: String(row[9] || "").trim(), rowIndex: i + 1 });
         return;
       }
 
@@ -1671,6 +1679,7 @@ export async function fetchFullLiveDataset(accessToken?: string) {
     ar,
     statements,
     deletedStatements,
+    waitingStatements,
     statementTemplates,
     quickNotes,
     calendarLocalEvents,

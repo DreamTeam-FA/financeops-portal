@@ -1827,7 +1827,7 @@ export const markStatementDeleted = async (
     body: JSON.stringify({
       valueInputOption: "RAW",
       data: [
-        { range: `${tabPart}!K1`, values: [["Deleted In Portal"]] },
+        { range: `${tabPart}!K1`, values: [["Portal Row Status"]] },
         { range: `${tabPart}!K${sheetRow}`, values: [[`DELETED ${stamp} ${who}`.trim()]] },
       ],
     }),

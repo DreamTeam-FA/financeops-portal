@@ -5,6 +5,7 @@ import fs from "fs";
 import * as XLSX from "xlsx";
 import { createServer as createViteServer } from "vite";
 import { fetchFullLiveDataset } from "./src/services/liveSheetsFetcher";
+import { manilaToday, fmtStmtDate, parseCutOffDay, planStatementActions, dueNextWeek } from "./src/utils/statementSchedule";
 import { writeSingleAPBill, writeBillDriveUrl, writeSingleBankAccount } from "./src/services/googleSheetsService";
 import {
   getRawData as fourYrGetRawData,
@@ -259,138 +260,76 @@ function applyCalendarOverrides(events: any[], overrides: { deleted: string[]; d
     });
 }
 
-// Auto-generation of Bank Statement Tracker entries runs HERE — server-side, once per
-// pull-live call, immediately after the freshest possible read of the sheet — instead of as
-// a client-side effect. A client-side version raced across every open tab/page-load: each one
-// fetched its own (possibly slightly stale) copy of `statements`, didn't see another tab's
-// just-written row yet, and appended again. Doing it in one place, right after the read that
-// feeds the dedupe check, closes that race down to this single request's own network round trip.
+// Bank Statement Tracker reconcile runs HERE — server-side, once per pull-live call, immediately after the
+// freshest possible read of the sheet — instead of as a client-side effect. A client-side version raced across
+// every open tab/page-load: each one fetched its own (possibly slightly stale) copy of `statements`, didn't see
+// another tab's just-written row yet, and appended again. Doing it in one place, right after the read that feeds
+// the dedupe check, closes that race down to this single request's own network round trip.
+// The RULES (2 days before the due date, changed-due-date detection, hidden-row markers) live in
+// src/utils/statementSchedule.ts so the page and the server always agree.
 // A simple in-flight lock covers the remaining case of two pull-live calls landing at once.
 let autoGenInFlight = false;
 let lastAutoGenAttemptAt = 0;
+let lastSaturdayCheckDate = ""; // PHT date of the last forced Saturday check
 const AUTO_GEN_COOLDOWN_MS = 5 * 60 * 1000; // pull-live can fire many times a minute across tabs;
 // only actually attempt a write once per cooldown window so a burst of calls can't outrun its own
 // dedupe check the way it did before (44 rows written for 11 accounts in one testing session).
 
-// An entry is created this many days BEFORE its cut-off date (the "due date" in the reference table).
-const STATEMENT_GENERATE_DAYS_BEFORE = 2;
-
-/** Today's calendar date in Philippine time (the team's clock), as a local-midnight Date. */
-function manilaToday(): Date {
-  const [y, m, d] = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit" })
-    .format(new Date()).split("-").map(Number);
-  return new Date(y, m - 1, d);
-}
-
-const fmtStmtDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-const cutOffInMonth = (day: number, y: number, m: number) => new Date(y, m, Math.min(day, new Date(y, m + 1, 0).getDate()));
-
-/**
- * Which statement entries should exist for a bank whose cut-off is `day` of the month, as of `today`:
- *  - this month's cut-off once it has been reached (catches up an entry nobody generated in time), and
- *  - the NEXT cut-off once it is STATEMENT_GENERATE_DAYS_BEFORE days away or closer
- *    (this month's if still ahead, otherwise next month's — e.g. a cut-off on the 1st is created on the 29th/30th).
- * Statement Date = previous cut-off + 1 day → this cut-off (e.g. cut-off the 28th → "Sep 29 – Oct 28").
- */
-function statementCandidates(day: number, today: Date): Array<{ cutOffDate: string; statementDate: string; period: string }> {
-  const y = today.getFullYear(), m = today.getMonth();
-  const cuts: Date[] = [];
-  const thisMonth = cutOffInMonth(day, y, m);
-  if (thisMonth <= today) cuts.push(thisMonth);
-  const upcoming = thisMonth > today ? thisMonth : cutOffInMonth(day, y, m + 1);
-  const daysUntil = Math.round((upcoming.getTime() - today.getTime()) / 86_400_000);
-  if (daysUntil <= STATEMENT_GENERATE_DAYS_BEFORE) cuts.push(upcoming);
-  return cuts.map((cut) => {
-    const prev = cutOffInMonth(day, cut.getFullYear(), cut.getMonth() - 1);
-    const start = new Date(prev); start.setDate(start.getDate() + 1);
-    return {
-      cutOffDate: fmtStmtDate(cut),
-      statementDate: `${fmtStmtDate(start)}|${fmtStmtDate(cut)}`,
-      period: `${cut.getFullYear()}-${String(cut.getMonth() + 1).padStart(2, "0")}`,
-    };
-  });
-}
-
 async function autoGenerateStatementEntries(liveData: any, accessToken?: string): Promise<void> {
   if (autoGenInFlight) return;
-  if (Date.now() - lastAutoGenAttemptAt < AUTO_GEN_COOLDOWN_MS) return;
+  const today = manilaToday();
+  const todayStr = fmtStmtDate(today);
+  // Saturday check (PHT): the first run each Saturday skips the 5-minute cooldown so the sheet is re-read and
+  // reconciled for the week ahead — changed due dates marked, entries opened/hidden — even right after another run.
+  const saturdayCheck = today.getDay() === 6 && lastSaturdayCheckDate !== todayStr;
+  if (!saturdayCheck && Date.now() - lastAutoGenAttemptAt < AUTO_GEN_COOLDOWN_MS) return;
   const token = getEffectiveDriveToken(accessToken);
   if (!token) return; // read-only (GViz) pull — nothing we can write with
 
   const templates: any[] = liveData.statementTemplates || [];
-  const parseDay = (raw: string): number | null => {
-    const m = String(raw || "").match(/(\d{1,2})/);
-    if (!m) return null;
-    const d = parseInt(m[1], 10);
-    return d >= 1 && d <= 31 ? d : null;
-  };
-  const withCutOff = templates.filter((t) => t.cutOffDate && parseDay(t.cutOffDate) !== null);
-  if (withCutOff.length === 0) return;
+  if (!templates.some((t) => parseCutOffDay(t.cutOffDate) !== null)) return;
 
   autoGenInFlight = true;
   lastAutoGenAttemptAt = Date.now();
   try {
-    const today = manilaToday();
-    const statements: any[] = liveData.statements || [];
-    const deletedStatements: any[] = liveData.deletedStatements || [];
-    const toAppend: any[] = [];
-    const toRepair: Array<{ rowIndex: number; cutOffDate: string }> = [];
-
-    withCutOff.forEach((t) => {
-      const day = parseDay(t.cutOffDate)!;
-      const occurrence = t.cycle || "Monthly";
-      statementCandidates(day, today).forEach(({ cutOffDate, statementDate, period }) => {
-        const ym = cutOffDate.slice(0, 7);
-        // Same bank + same cut-off MONTH counts as the same entry even if the cut-off day was changed
-        // since it was generated (otherwise every change of a Cut-Off Date created a second entry).
-        const sameEntry = (s: any) =>
-          s.bankName === t.bank && s.entity === t.entity && s.occurrence === occurrence &&
-          (s.statementDate === statementDate || String(s.cutOffDate || "").slice(0, 7) === ym);
-        // Someone deleted this entry on purpose (row marked DELETED in col K) — never bring it back
-        if (deletedStatements.some(sameEntry)) return;
-        const existing = statements.find(sameEntry);
-        if (existing) {
-          if (!existing.cutOffDate && existing.rowIndex) toRepair.push({ rowIndex: existing.rowIndex, cutOffDate });
-          return;
-        }
-        toAppend.push({
-          period, entity: t.entity, bankName: t.bank, occurrence,
-          remarks: t.remarks || "", statementDate, requestDate: "",
-          downloaded: false, downloadedAt: "", cutOffDate,
-        });
-      });
-    });
-
-    if (toAppend.length === 0 && toRepair.length === 0) return;
+    const plan = planStatementActions(templates, liveData.statements || [], liveData.waitingStatements || [], liveData.deletedStatements || [], today);
+    if (saturdayCheck) {
+      lastSaturdayCheckDate = todayStr;
+      const nw = dueNextWeek(templates, today);
+      console.log(`[AutoGen] Saturday check ${todayStr}: ${nw.items.length} bank(s) due ${nw.start}..${nw.end}.`);
+    }
+    const { markOld, markWaiting, reveal, repair, append } = plan;
+    if (!markOld.length && !markWaiting.length && !reveal.length && !repair.length && !append.length) return;
 
     const sid = AP_SPREADSHEET_ID;
     const tabName = "Bank Statements Data";
+    const hdr = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 
-    if (toAppend.length > 0) {
-      const rows = toAppend.map((s) => [
+    // Row markers (col K) and cut-off repairs in ONE batch call. Marked rows are hidden in the portal — never deleted.
+    const data: Array<{ range: string; values: string[][] }> = [
+      ...markOld.map((r) => ({ range: `'${tabName}'!K${r.rowIndex}`, values: [[r.note]] })),
+      ...markWaiting.map((r) => ({ range: `'${tabName}'!K${r.rowIndex}`, values: [[r.note]] })),
+      ...reveal.map((rowIndex) => ({ range: `'${tabName}'!K${rowIndex}`, values: [[""]] })),
+      ...repair.map((r) => ({ range: `'${tabName}'!J${r.rowIndex}`, values: [[r.cutOffDate]] })),
+    ];
+    if (markOld.length || markWaiting.length) data.push({ range: `'${tabName}'!K1`, values: [["Portal Row Status"]] });
+    if (data.length > 0) {
+      const r2 = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values:batchUpdate`, {
+        method: "POST", headers: hdr, body: JSON.stringify({ valueInputOption: "USER_ENTERED", data }),
+      });
+      if (r2.ok) console.log(`[AutoGen] Marked ${markOld.length} old-due-date, ${markWaiting.length} waiting; revealed ${reveal.length}; repaired ${repair.length}.`);
+      else console.error("[AutoGen] Marker/repair update failed:", (await r2.json().catch(() => ({})))?.error?.message);
+    }
+
+    if (append.length > 0) {
+      const rows = append.map((s) => [
         s.period, s.entity, s.bankName, s.occurrence, s.remarks,
         s.statementDate, s.requestDate, s.downloaded ? "TRUE" : "FALSE", s.downloadedAt, s.cutOffDate,
       ]);
       const appendUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/${encodeURIComponent(`'${tabName}'!A:A`)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
-      const r = await fetch(appendUrl, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ values: rows }),
-      });
-      if (r.ok) console.log(`[AutoGen] Appended ${toAppend.length} new statement tracker entries.`);
+      const r = await fetch(appendUrl, { method: "POST", headers: hdr, body: JSON.stringify({ values: rows }) });
+      if (r.ok) console.log(`[AutoGen] Appended ${append.length} new statement tracker entries.`);
       else console.error("[AutoGen] Append failed:", (await r.json().catch(() => ({})))?.error?.message);
-    }
-
-    if (toRepair.length > 0) {
-      const data = toRepair.map((r) => ({ range: `'${tabName}'!J${r.rowIndex}`, values: [[r.cutOffDate]] }));
-      const batchUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sid}/values:batchUpdate`;
-      const r2 = await fetch(batchUrl, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ valueInputOption: "USER_ENTERED", data }),
-      });
-      if (r2.ok) console.log(`[AutoGen] Repaired cutOffDate on ${toRepair.length} existing rows.`);
-      else console.error("[AutoGen] Repair failed:", (await r2.json().catch(() => ({})))?.error?.message);
     }
   } catch (err) {
     console.error("[AutoGen] Failed:", err);

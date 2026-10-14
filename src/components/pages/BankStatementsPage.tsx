@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { AddStatementModal, EditStatementModal } from "../modals/AddBankModal";
 import { formatTimestampLocal } from "../../utils/formatters";
+import { dueNextWeek, manilaToday } from "../../utils/statementSchedule";
 import { getEntityBadgeClass, entityMatchesFilter } from "../../utils/entityColors";
 
 /* ── Hardcoded fallback bank list (used only when sheet columns N–T are empty) */
@@ -412,7 +413,8 @@ const StatementTable: React.FC<TableProps> = ({
 
 /* ── Main Page ───────────────────────────────────────────────────────────────── */
 export const BankStatementsPage: React.FC = () => {
-  const { bankStatements, selectedEntities, toggleStatementDownload, deleteBankStatement, theme, showConfirm } = useFinance() as any;
+  const { bankStatements, selectedEntities, toggleStatementDownload, deleteBankStatement, theme, showConfirm, statementTemplates } = useFinance() as any;
+  const nextWeek = dueNextWeek(statementTemplates || [], manilaToday());
 
   const [isAddOpen,         setIsAddOpen]         = useState(false);
   const [editingStatement,  setEditingStatement]   = useState<any | null>(null);
@@ -703,8 +705,20 @@ export const BankStatementsPage: React.FC = () => {
           <div className={`flex items-start gap-2 px-3 py-2 text-[11px] border-b ${isLight ? "bg-blue-50 border-slate-200 text-slate-600" : "bg-blue-500/10 border-[#1a2235] text-[#9ca3af]"}`}>
             <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-[#1a73e8]" />
             <span>
-              Entries here are generated automatically, 2 days before each bank's Cut-Off Date (set on the reference table, Bank Statements Data sheet, columns N–T). No manual step needed. The check runs when anyone loads the portal (at most every 5 minutes), so an entry appears the first time the portal is opened on or after that day. A Cut-Off Date that has already passed this month and has no entry yet is created right away.
+              Entries here are generated automatically, 2 days before each bank's Cut-Off Date (set on the reference table, Bank Statements Data sheet, columns N–T). No manual step needed. The check runs when anyone loads the portal (at most every 5 minutes), so an entry appears the first time the portal is opened on or after that day. A Cut-Off Date that has already passed this month and has no entry yet is created right away. When a bank's Cut-Off Date is changed, its entries for the old date are hidden here (marked in column K of the sheet, never deleted).
             </span>
+          </div>
+
+          {/* Due next week — the weekly (Saturday) look-ahead from the reference table */}
+          <div className={`px-3 py-2 text-[11px] border-b ${isLight ? "bg-white border-slate-200 text-slate-600" : "bg-[#0d111a] border-[#1a2235] text-[#9ca3af]"}`}>
+            <span className="font-bold">Due next week ({nextWeek.start} to {nextWeek.end}): </span>
+            {nextWeek.items.length === 0
+              ? <span>no bank has a Cut-Off Date next week.</span>
+              : nextWeek.items.map((it, idx) => (
+                  <span key={it.bank + it.cutOffDate}>
+                    {idx > 0 && " · "}{it.bank} — due {it.cutOffDate} (entry opens {it.opens})
+                  </span>
+                ))}
           </div>
 
           {/* New entries table or empty state */}
