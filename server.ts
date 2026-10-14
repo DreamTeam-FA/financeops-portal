@@ -2932,10 +2932,11 @@ async function callChatLLM(system: string, msgs: CalcMsg[], maxTokens: number, j
 
 // Verify a Google access token (cached 5 min) so only signed-in portal users can spend AI quota.
 const calcTokenCache = new Map<string, { email: string; exp: number }>();
-async function calcVerifyUser(token: string, remoteAddr?: string): Promise<string | null> {
+async function calcVerifyUser(token: string, remoteAddr?: string, forwarded?: unknown): Promise<string | null> {
   // Local testing only: a request whose TCP peer is this machine's own loopback address may skip the token.
-  // On Render every request arrives via the platform proxy (never loopback), so this can't apply there.
-  if (!token && remoteAddr && /^(::1|127\.0\.0\.1|::ffff:127\.0\.0\.1)$/.test(remoteAddr)) return "local-dev";
+  // Never on Render/production: there the platform proxy reaches the app over loopback, so the TCP peer
+  // proves nothing (confirmed live 2026-10-14). Also refuse anything that arrived through a proxy.
+  if (!token && !SCHEDULERS_ON && !forwarded && remoteAddr && /^(::1|127\.0\.0\.1|::ffff:127\.0\.0\.1)$/.test(remoteAddr)) return "local-dev";
   if (!token) return null;
   const hit = calcTokenCache.get(token);
   if (hit && hit.exp > Date.now()) return hit.email;
@@ -3002,7 +3003,7 @@ function calcAccessFor(email: string, users: CalcAccessUser[]): { admin: boolean
 app.post("/api/calc/access", async (req, res) => {
   try {
     const { accessToken, refresh } = req.body || {};
-    const user = await calcVerifyUser(String(accessToken || ""), req.socket?.remoteAddress);
+    const user = await calcVerifyUser(String(accessToken || ""), req.socket?.remoteAddress, req.headers["x-forwarded-for"] || req.headers["forwarded"]);
     if (!user) return res.status(401).json({ ok: false, allowed: false, admin: false });
     if (user === "local-dev") return res.json({ ok: true, allowed: true, admin: true, local: true, email: user, users: [], admins: CALC_ADMINS });
     if (refresh && CALC_ADMINS.includes(user)) calcAccessCache = null;
@@ -3029,7 +3030,7 @@ app.post("/api/calc/ask", async (req, res) => {
   const started = Date.now();
   try {
     const { phase, accessToken, question, history, toolCatalog, today, results, entities } = req.body || {};
-    const user = await calcVerifyUser(String(accessToken || ""), req.socket?.remoteAddress);
+    const user = await calcVerifyUser(String(accessToken || ""), req.socket?.remoteAddress, req.headers["x-forwarded-for"] || req.headers["forwarded"]);
     if (!user) return res.status(401).json({ ok: false, code: "auth", error: "Sign in with Google to chat with Calc." });
     if (user !== "local-dev") {
       const acc = await calcLoadAccess(String(accessToken));
