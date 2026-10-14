@@ -1880,6 +1880,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     sessionStorage.removeItem("financeops_session_authed");
     // Clear the daily login stamp so the modal appears on next load
     localStorage.removeItem("financeops_login_date");
+    // Calc assistant chats are private to the signed-in person: wipe them from this browser on sign-out
+    try {
+      Object.keys(localStorage)
+        .filter(k => k.startsWith("calc_chats_v1:") || k.startsWith("calc_briefing_day:"))
+        .forEach(k => localStorage.removeItem(k));
+    } catch {}
     // Tell other open tabs to also require re-auth
     try {
       const ch = new BroadcastChannel("financeops_auth");

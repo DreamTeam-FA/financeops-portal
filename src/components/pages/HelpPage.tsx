@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 
 /* ── FAQ data ─────────────────────────────────────────────────────────── */
-const FAQ = [
+export const FAQ = [
   {
     q: "How are the AP totals on the Hub worked out? Why might they be lower than the original bill amounts?",
     a: "Every AP total on the Hub (AP Unpaid card, the red 'bills past due' banner, the vendor chips and the Ruby's / TI / MSDx Payables cards) counts the amount still owed on each bill: the original amount minus any partial payments recorded in the portal. This is the same remaining-balance rule the AP page uses, so a $5,000 bill with $3,000 already paid counts as $2,000. The bill counts are unaffected.",
@@ -204,7 +204,22 @@ const FAQ = [
 ];
 
 /* ── How-To data ──────────────────────────────────────────────────────── */
-const HOWTOS = [
+export const HOWTOS = [
+  {
+    title: "Ask Calc, the portal assistant",
+    steps: [
+      "Who has Calc: Calc is shown only to people an admin has switched on, so most of the team will not see it yet. If you have it, you'll see the Calc button at the bottom-right of every page. Admins add or remove people (and flip them on or off) from the sidebar gear → 'Calc access…'; changes are saved in the shared settings sheet and take effect the next time that person loads the portal. If the list can't be read, only admins get Calc.",
+      "Your own switch: people who have Calc can hide or show it for themselves on that browser with the 'Calc assistant' switch in the sidebar gear menu. Turning it off does not delete your saved chats.",
+      "Click Calc, the calculator mascot at the bottom-right of any page, to open the chat. Press Esc or the X to close it.",
+      "Ask in plain language, e.g. 'How much do we owe Alsco this week?', 'What's overdue for TI?', 'Any statements to download?', 'How much cash do we have?', 'What's on the calendar today?', 'Where do I log in to Gusto?', 'How many hours did Ana work last week?', 'What was 4YR payroll this week?' or 'How do I record a partial payment?'",
+      "Calc leads with the total and the key takeaways, and only lists individual bills when you ask ('list them'). The quick buttons under the greeting answer instantly without waiting on the AI.",
+      "The first time you open Calc each day it greets you with a daily briefing: overdue bills, what's due this week, statements to download, cash, today's calendar and open notes. Type 'briefing' any time to get it again.",
+      "Calc reads the portal's sheet-synced data and names the source and the last-synced time under every answer. If a number looks stale, run Pull All first.",
+      "Calc is read-only for now: it cannot add, edit or delete anything. Amounts use the same remaining-balance rule as the AP page, so partial payments are already subtracted.",
+      "4YR payroll answers are read live from the 4YR payroll sheet with your own Google access (so you must be signed in and have access to that sheet), using the same rules as the 4YR Payroll page: hours and totals are summed per entry, deductions are negative, and weeks run as listed in the master list. Your chats are private: they are saved only in your own browser, tied to your account, never stored on a server and never visible to anyone else. They are wiped when you sign out. Use the clock icon to reopen or delete past chats, and the + icon to start a new one.",
+      "If the AI is busy or unavailable, Calc still answers common questions with a plain lookup and says so. You must be signed in with Google to chat.",
+    ],
+  },
   {
     title: "Upload or View a Bill Copy",
     steps: [
@@ -440,7 +455,7 @@ const HOWTOS = [
 ];
 
 /* ── Breakage data ─────────────────────────────────────────────────────── */
-const BREAKAGE = [
+export const BREAKAGE = [
   { symptom: "AP bills load empty",    cause: "Tab renamed from Ruby's / TI / MSDx Bills",  fix: "Restore exact tab name OR update AP_COL_MAPS.dataRange in googleSheetsService.ts" },
   { symptom: "AP amounts show wrong",  cause: "Column added/removed in AP tab",              fix: "Update the relevant entry in AP_COL_MAPS (0-indexed)" },
   { symptom: "Notes don't sync",       cause: "Meeting Notes tab renamed",                   fix: "Restore tab name OR update tabName default in appendNoteToSheet / writeSingleNote" },
