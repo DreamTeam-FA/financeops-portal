@@ -160,3 +160,39 @@ export const emailPasswordSignIn = async (email: string, password: string): Prom
 export const googleSignInRedirect = async (): Promise<void> => {
   await signInWithRedirect(auth, provider);
 };
+
+// ── Rejected-token watch ─────────────────────────────────────────────────────
+// The portal can look signed in while Google has already stopped accepting its token (the silent
+// refresh doesn't always report that), so saves fail without any sign. This confirms a rejected
+// token and raises "google-token-rejected" so the app can show the red "not being saved" warning.
+let lastRejectCheck = 0;
+const checkTokenStillValid = async () => {
+  const tok = getAccessToken();
+  if (!tok) return; // not signed in — nothing to warn about
+  if (Date.now() - lastRejectCheck < 20_000) return; // don't hammer tokeninfo on a burst of 401s
+  lastRejectCheck = Date.now();
+  try {
+    const r = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(tok)}`);
+    if (r.status === 400 || r.status === 401) {
+      window.dispatchEvent(new CustomEvent("google-token-rejected", { detail: { status: r.status } }));
+    }
+  } catch { /* offline — say nothing */ }
+};
+
+const installTokenWatch = () => {
+  if (typeof window === "undefined" || (window as any).__googleTokenWatch) return;
+  (window as any).__googleTokenWatch = true;
+  const origFetch = window.fetch.bind(window);
+  window.fetch = async (input: any, init?: any) => {
+    const res = await origFetch(input, init);
+    if (res.status === 401) {
+      const url = typeof input === "string" ? input : input?.url || String(input);
+      if (/^https:\/\/([a-z0-9-]+\.)?googleapis\.com\//.test(url) && !/tokeninfo/.test(url)) void checkTokenStillValid();
+    }
+    return res;
+  };
+  // Also catch it before the user acts: re-check every 3 minutes while a token is stored
+  setInterval(() => { void checkTokenStillValid(); }, 3 * 60_000);
+  setTimeout(() => { void checkTokenStillValid(); }, 8_000); // and once shortly after the page loads
+};
+installTokenWatch();

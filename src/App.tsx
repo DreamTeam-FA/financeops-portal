@@ -112,7 +112,7 @@ const TokenExpiredBanner: React.FC = () => {
     >
       <div className="flex items-center gap-2">
         <span className="text-lg leading-none">⚠️</span>
-        <span>Google Sheets token expired — sheet sync is paused until you reconnect.</span>
+        <span>Google sign-in expired — changes are NOT being saved to the sheet until you reconnect.</span>
       </div>
       <div className="flex items-center gap-2 shrink-0">
         <button

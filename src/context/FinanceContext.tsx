@@ -1750,6 +1750,26 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return () => window.removeEventListener("google-token-expired", onTokenExpired);
   }, [needsAuth]);
 
+  // Google has stopped accepting the stored token (confirmed by googleAuth's watcher): raise the
+  // red banner + sticky toast so a change that can't save never looks like it worked. A fresh
+  // token (silent refresh or reconnect) clears it again.
+  useEffect(() => {
+    const onRejected = () => {
+      setTokenExpired(true);
+      setSyncToast({
+        message: "⚠️ Google sign-in expired — changes are NOT being saved to the sheet. Reconnect to continue.",
+        type: "auth-error",
+      });
+    };
+    const onFresh = () => setTokenExpired(false);
+    window.addEventListener("google-token-rejected", onRejected);
+    window.addEventListener("google-token-refreshed", onFresh);
+    return () => {
+      window.removeEventListener("google-token-rejected", onRejected);
+      window.removeEventListener("google-token-refreshed", onFresh);
+    };
+  }, []);
+
   // Collect device + approximate location metadata for the login log
   const captureLoginMetadata = async (): Promise<{
     device: string; ip: string; city: string; region: string; country: string;
