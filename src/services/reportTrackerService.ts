@@ -193,9 +193,9 @@ export const REPORTS: ReportDef[] = [
     steps: [
       { key: "download", label: "Report downloaded from Tebra (after the Tuesday payables meeting)", kind: "manual" },
       { key: "upload",   label: "Report uploaded to the MSDx dashboard", kind: "manual", autoAlso: true },
-      { key: "check",    label: "Dashboard and sheet checked — the new data shows", kind: "manual" },
+      { key: "check",    label: "Dashboard and sheet checked — the new data shows", kind: "manual", autoAlso: true },
       { key: "lutang",   label: "Team Lutang told the Tebra report is on the dashboard (Slack)", kind: "manual" },
-      { key: "final",    label: "Final verification on the dashboard", kind: "manual" },
+      { key: "final",    label: "Final verification on the dashboard", kind: "manual", autoAlso: true },
     ],
     links: [
       { label: "MSDx Dashboard", url: MSDX_DASHBOARD_URL },
@@ -748,6 +748,44 @@ export function uploadFromChangeLog(col: string[][], c: Cycle): AutoResult {
     : { state: "no", detail: "No upload logged in the dashboard's Change Log yet (an upload that changed nothing is not logged: tick it yourself)" };
 }
 
+/**
+ * Tebra data checks, done by code on the MSDx dashboard's own sheet. Only Claim ID and Date of Service columns are read
+ * (no names or other patient fields), and only counts and dates are ever shown.
+ *  - check: the newest Date of Service in Raw Data falls on or after the Monday of the report week (the Wednesday it is
+ *    due minus 9 days; the report covers that Monday to Sunday). The dashboard's "This Week" filter is the newest data week.
+ *  - final: that data has reached the Claims tab the dashboard reads (every Raw Data Claim ID is there and the Claims tab's
+ *    newest Date of Service is in the report week), and the upload was logged.
+ * A week with no new visits shows nothing newer, so "no" only means "not shown": a person can still tick it.
+ */
+export function tebraDataChecks(
+  raw: string[][], claims: string[][], c: Cycle, uploaded: boolean,
+): { check: AutoResult; final: AutoResult } {
+  const wed = toPht(c.deadline);
+  const mon = addDays(wed, -9), sun = addDays(wed, -3);
+  const monMs = Date.UTC(mon.y, mon.m - 1, mon.d);
+  const week = `${MONTHS[mon.m - 1].slice(0, 3)} ${mon.d}–${MONTHS[sun.m - 1].slice(0, 3)} ${sun.d}`;
+  const fmt = (ms: number) => { const d = new Date(ms); return `${MONTHS[d.getUTCMonth()].slice(0, 3)} ${d.getUTCDate()}, ${d.getUTCFullYear()}`; };
+  const rawMax = latestDateIn(raw.map(r => [r[1] ?? ""]));
+  const claimsMax = latestDateIn(claims.map(r => [r[1] ?? ""]));
+  const claimIds = new Set(claims.map(r => String(r[0] ?? "").trim()).filter(Boolean));
+  const rawIds = raw.map(r => String(r[0] ?? "").trim()).filter(Boolean);
+  const missing = rawIds.filter(id => !claimIds.has(id)).length;
+
+  const check: AutoResult = rawMax == null
+    ? { state: "unknown", reason: "error", detail: "No service dates found in the dashboard sheet's Raw Data" }
+    : rawMax >= monMs
+      ? { state: "ok", detail: `Newest service date in the dashboard sheet is ${fmt(rawMax)} (report week ${week}); ${rawIds.length} claims in Raw Data` }
+      : { state: "no", detail: `Newest service date in the dashboard sheet is only ${fmt(rawMax)}; the report week ${week} is not there yet (a week with no visits shows nothing newer: tick it yourself)` };
+
+  let final: AutoResult;
+  if (check.state !== "ok") final = { state: check.state === "unknown" ? "unknown" : "no", detail: "Waiting for the new week's data to show in the dashboard sheet" };
+  else if (missing > 0) final = { state: "no", detail: `${missing} claim${missing === 1 ? "" : "s"} in Raw Data not in the Claims tab yet: press 🔄 Sync & Refresh on the dashboard` };
+  else if (claimsMax == null || claimsMax < monMs) final = { state: "no", detail: `The Claims tab the dashboard reads has no service date from the report week ${week} yet` };
+  else if (!uploaded) final = { state: "no", detail: "Data is in the Claims tab, but no upload is logged for this week yet" };
+  else final = { state: "ok", detail: `Dashboard data is current: all ${rawIds.length} claims synced, newest service date ${fmt(claimsMax)}, upload logged` };
+  return { check, final };
+}
+
 const DATE_RX = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
 /** Latest date (ms, UTC midnight) found in a column of strings; M/D/YYYY or YYYY-MM-DD. */
 export function latestDateIn(col: string[][]): number | null {
@@ -800,7 +838,7 @@ export async function runAutoChecks(token: string, cycles: Cycle[], confirmed: S
   const anyNeeds = (rids: ReportId[], step: string) => rids.some(r => needs(r, step));
   const none = Promise.resolve(null);
 
-  const [ftaTabs, amzTabs, usuFiles, allTimeWeek, allTimeMonth, toastCol, adGrid, tebraLog] = await Promise.all([
+  const [ftaTabs, amzTabs, usuFiles, allTimeWeek, allTimeMonth, toastCol, adGrid, tebraLog, tebraRaw, tebraClaims] = await Promise.all([
     needs("fta", "run") ? settle(sheetTitles(token, SRC.ftaSheet)) : none,
     anyNeeds(["cprow", "cprom"], "run") ? settle(sheetTitles(token, SRC.amazonSales)) : none,
     needs("fta", "invoice") ? settle(gfetch(token, `${D}?q=${q(`'${SRC.usuFolder}' in parents and trashed=false`)}&orderBy=createdTime%20desc&pageSize=15&fields=files(id,name,createdTime)&supportsAllDrives=true&includeItemsFromAllDrives=true`)) : none,
@@ -809,6 +847,8 @@ export async function runAutoChecks(token: string, cycles: Cycle[], confirmed: S
     needs("toast", "run") ? settle(readRange(token, SRC.toastRecon, "'Toast Data'!E:E")) : none,
     needs("cprom", "adspend") ? settle(readRange(token, SRC.adSpend, "A1:Z30")) : none,
     needs("tebra", "upload") ? settle(readRange(token, SRC.msdxDashboard, "'Change Log'!A2:A5000")) : none,
+    needs("tebra", "check") || needs("tebra", "final") ? settle(readRange(token, SRC.msdxDashboard, "'Raw Data'!B2:C5000")) : none,
+    needs("tebra", "check") || needs("tebra", "final") ? settle(readRange(token, SRC.msdxDashboard, "Claims!B6:C5000")) : none,
   ]);
 
   for (const { cycle: c, steps } of pending) {
@@ -846,6 +886,18 @@ export async function runAutoChecks(token: string, cycles: Cycle[], confirmed: S
     if (c.reportId === "tebra" && want.has("upload")) {
       if (isErr(tebraLog)) { m.upload = unknown(tebraLog.__err); errors.push("MSDx dashboard: " + tebraLog.__err.message); }
       else if (tebraLog) m.upload = uploadFromChangeLog(tebraLog as string[][], c);
+    }
+    if (c.reportId === "tebra" && (want.has("check") || want.has("final"))) {
+      const bad = isErr(tebraRaw) ? tebraRaw : isErr(tebraClaims) ? tebraClaims : null;
+      if (bad) {
+        for (const k of ["check", "final"]) if (want.has(k)) m[k] = unknown(bad.__err);
+        errors.push("MSDx dashboard: " + bad.__err.message);
+      } else if (tebraRaw && tebraClaims) {
+        const uploaded = confirmed.has(`${c.periodKey}|upload`) || m.upload?.state === "ok";
+        const r = tebraDataChecks(tebraRaw as string[][], tebraClaims as string[][], c, uploaded);
+        if (want.has("check")) m.check = r.check;
+        if (want.has("final")) m.final = r.final;
+      }
     }
     if (c.reportId === "cprom" && c.month && want.has("adspend")) {
       if (isErr(adGrid)) { m.adspend = unknown(adGrid.__err); errors.push("Ad Spend: " + adGrid.__err.message); }

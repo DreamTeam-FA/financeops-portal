@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import {
   adSpendFromGrid, cycleStatus, cycleView, fmtPht, fromPht, historyRows, isoDate, latestDateIn, plannedCalendarEvents,
-  reportById, stepStates, stepStatesEx, explicitUnticks, allTimeFromGrid, uploadFromChangeLog, reminderItems, toPht, cyclesAround, weekendShift, amazonTabMatches,
+  reportById, stepStates, stepStatesEx, explicitUnticks, allTimeFromGrid, uploadFromChangeLog, tebraDataChecks, reminderItems, toPht, cyclesAround, weekendShift, amazonTabMatches,
 } from "../../src/services/reportTrackerService";
 
 // Thu Oct 1, 2026 3:10 PM PHT  (= 07:10 UTC)
@@ -351,5 +351,38 @@ describe("reminder pop-up items", () => {
     const it = reminderItems(fromPht(2026, 10, 12, 18), {}).find(i => i.rep.id === "cprow");
     expect(it?.cycle.periodKey).toBe(cpro.periodKey);
     expect(it?.pending.map(s => s.key)).toEqual(["sheet", "dashboard", "tonie"]); // run + alltime unknown (not read), so not listed
+  });
+});
+
+describe("Tebra dashboard checks (code reads only Claim ID + Date of Service)", () => {
+  const WED = fromPht(2026, 10, 14, 10);
+  const c = cycleView("tebra", WED).active; // report week Oct 5 - Oct 11
+  const rawOk = [["1", "9/29/2026"], ["2", "10/8/2026"], ["3", "3/17/2026"]];
+  const claimsOk = [["1", "9/29/2026"], ["2", "10/8/2026"], ["3", "3/17/2026"], ["4", "1/2/2026"]];
+  it("all good: newest service date in the report week, everything synced, upload logged", () => {
+    const r = tebraDataChecks(rawOk, claimsOk, c, true);
+    expect(r.check.state).toBe("ok");
+    expect(r.check.detail).toMatch(/Oct 8, 2026.*Oct 5.Oct 11/);
+    expect(r.final.state).toBe("ok");
+  });
+  it("new week not in the data yet -> both stay open and say why", () => {
+    const old = [["1", "9/29/2026"]];
+    const r = tebraDataChecks(old, old, c, true);
+    expect(r.check.state).toBe("no");
+    expect(r.final.state).toBe("no");
+  });
+  it("final waits for the sync to the Claims tab and for the logged upload", () => {
+    expect(tebraDataChecks(rawOk, [["1", "9/29/2026"]], c, true).final.detail).toMatch(/not in the Claims tab/);
+    expect(tebraDataChecks(rawOk, claimsOk, c, false).final.detail).toMatch(/no upload is logged/);
+    expect(tebraDataChecks(rawOk, claimsOk, c, false).check.state).toBe("ok");
+  });
+  it("no readable dates -> unknown (never claims open or done)", () => {
+    expect(tebraDataChecks([], [], c, true).check.state).toBe("unknown");
+  });
+  it("these steps are done by a person's tick or by the check, and an untick wins", () => {
+    const k = (s: string) => `${c.periodKey}|${s}`;
+    const rep = reportById("tebra");
+    expect(stepStates(rep, c, { check: { state: "ok" }, final: { state: "ok" } }, {}).final).toBe("done");
+    expect(stepStates(rep, c, { final: { state: "ok" } }, { [k("final")]: false }, new Set([k("final")])).final).toBe("open");
   });
 });
