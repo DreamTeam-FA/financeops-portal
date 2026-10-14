@@ -79,11 +79,18 @@ export async function readAllConfig(
 
     const rows: string[][] = res.values || [];
     const result: Record<string, any> = {};
+    const newest: Record<string, number> = {};
 
-    // Skip header row (row 0)
+    // Skip header row (row 0). A key can end up on SEVERAL rows (two browsers appending the
+    // same key at once). The row with the latest updated_at wins (a later row wins a tie), so
+    // an old leftover copy can never override a newer save — e.g. a deleted team member
+    // coming back from a stale duplicate row.
     for (let i = 1; i < rows.length; i++) {
-      const [key, valueJson] = rows[i];
+      const [key, valueJson, updatedAt] = rows[i];
       if (!key || !valueJson) continue;
+      const stamp = Date.parse(updatedAt || "") || 0;
+      if (key in newest && stamp < newest[key]) continue;
+      newest[key] = stamp;
       try {
         result[key] = JSON.parse(valueJson);
       } catch {
@@ -115,20 +122,25 @@ export async function writeConfigKey(
   ).then(r => r.json());
 
   const rows: string[][] = res.values || [];
-  const rowIndex = rows.findIndex((r, i) => i > 0 && r[0] === key); // 0-based; skip header
+  // EVERY row holding this key (duplicates exist in the live sheet). Updating only the first
+  // one left newer/older copies disagreeing, so reads returned the stale copy and deletes
+  // "didn't stick". Update them all so every copy always matches.
+  const keyRows: number[] = [];
+  rows.forEach((r, i) => { if (i > 0 && r[0] === key) keyRows.push(i + 1); }); // 1-based sheet rows
 
   const valueJson = JSON.stringify(value);
   const updatedAt = new Date().toISOString();
   const rowData   = [[key, valueJson, updatedAt, updatedBy]];
 
-  if (rowIndex >= 0) {
-    // Update existing row (sheet rows are 1-based, +1 for header)
-    const sheetRow = rowIndex + 1;
-    await sheetsApi(
-      token,
-      `/${sheetId}/values/${encodeURIComponent(`${CONFIG_TAB}!A${sheetRow}:D${sheetRow}`)}?valueInputOption=RAW`,
-      { method: "PUT", body: JSON.stringify({ values: rowData }) }
-    );
+  if (keyRows.length > 0) {
+    const resp = await sheetsApi(token, `/${sheetId}/values:batchUpdate`, {
+      method: "POST",
+      body: JSON.stringify({
+        valueInputOption: "RAW",
+        data: keyRows.map(sheetRow => ({ range: `${CONFIG_TAB}!A${sheetRow}:D${sheetRow}`, values: rowData })),
+      }),
+    });
+    if (!resp.ok) throw new Error(`Config write failed (HTTP ${resp.status})`);
   } else {
     // Append new row
     await sheetsApi(

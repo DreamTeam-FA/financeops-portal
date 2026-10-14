@@ -1574,9 +1574,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (cfg.calendarAssignees && Array.isArray(cfg.calendarAssignees) && cfg.calendarAssignees.length > 0) {
           setCalendarAssigneesState(cfg.calendarAssignees);
           try { localStorage.setItem("calendar_team_assignees", JSON.stringify(cfg.calendarAssignees)); } catch (e) {}
-        } else {
+        } else if (Object.keys(cfg).length > 0) {
           // Config tab has no roster yet (first run) — seed it from whatever this
           // browser currently has (localStorage default or built-in defaults).
+          // Only when the tab was actually read (it always holds other keys): an EMPTY result
+          // means the read failed, and seeding then would overwrite the real roster with this
+          // browser's possibly-stale list (how deleted members came back).
           const tok2 = getAccessToken();
           if (tok2) writeConfigKey(tok2, "calendarAssignees", calendarAssignees, userEmail).catch(() => {});
         }

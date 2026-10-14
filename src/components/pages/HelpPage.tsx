@@ -462,6 +462,7 @@ export const BREAKAGE = [
   { symptom: "Calendar empty",         cause: "Events tab renamed or moved",                 fix: "Restore OR update CAL_TAB_CANDIDATES in liveSheetsFetcher.ts" },
   { symptom: "Banks/Loans/AR wrong",   cause: "Column headers changed in sheet",             fix: "Update regex patterns in parseBankSheetRows / parseLoanSheetRows / parseARSheetRows" },
   { symptom: "MetaData tool breaks",   cause: "Columns shifted in Metadata tab",             fix: "Update META_READ / META_WRITE in src/components/modals/GearDropdown.tsx" },
+  { symptom: "A deleted Team Assignee (Calendar) keeps coming back", cause: "The shared '_config' tab can hold the same key on several rows; the portal used to save to one row but read another", fix: "Fixed: the portal now reads the newest copy and saves to every copy. Delete the person once more and it sticks for everyone after the next page load." },
   { symptom: "Headley's import fails", cause: "Header row moved or text changed",            fix: 'Parser looks for a row with "charging bu", "debit", "credit" — restore those' },
   { symptom: "Portal takes 30–60 s",   cause: "Render free tier woke from sleep",            fix: "Normal — upgrade to Render Starter ($7/mo) to eliminate" },
   { symptom: "Sheet mappings reset to defaults after everyone signs in", cause: "'_config' tab deleted from portal logs sheet", fix: "Re-create the '_config' tab in the logs sheet (ID: 19ColN3UOnuGbk1CkHtZswxPZf7oj7Zs2pKaqmGlN4m8) — the portal will auto-recreate it and re-populate on the next mapping save" },

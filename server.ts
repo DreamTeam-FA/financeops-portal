@@ -2978,7 +2978,13 @@ async function calcLoadAccess(token: string): Promise<{ ok: boolean; users: Calc
     if (!r.ok) throw new Error("HTTP " + r.status);
     const j = await r.json() as any;
     const rows: string[][] = j.values || [];
-    const row = rows.find((x, i) => i > 0 && x[0] === "calcAccess");
+    // A key may sit on several rows (concurrent appends): use the newest by updated_at, a later row wins a tie
+    let row: string[] | undefined, rowStamp = -1;
+    rows.forEach((x, i) => {
+      if (i === 0 || x[0] !== "calcAccess") return;
+      const stamp = Date.parse(x[2] || "") || 0;
+      if (stamp >= rowStamp) { row = x; rowStamp = stamp; }
+    });
     let users: CalcAccessUser[] = [];
     if (row && row[1]) {
       const v = JSON.parse(row[1]);
