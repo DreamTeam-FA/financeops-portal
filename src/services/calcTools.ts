@@ -10,6 +10,7 @@
 import type { APBill, BankAccount, BankStatement, DashboardNote, ExternalLinkItem, PageRoute } from "../types";
 import { billRemaining, formatCurrency, parseDueDateToDate, formatDateTimeLocal } from "../utils/formatters";
 import { FAQ, HOWTOS, BREAKAGE } from "../components/pages/HelpPage";
+import { rankHelpDocs, bestExcerpt, type HelpDoc } from "./calcHelpSearch";
 import type { RawRow, WeekMeta } from "./fourYrPayrollService";
 
 export interface CalcLink { label: string; page: PageRoute }
@@ -520,26 +521,21 @@ function platforms(s: CalcSnapshot, a: ToolArgs): ToolResult {
     data: { count: hits.length, platforms: hits.slice(0, 30).map(l => ({ name: l.name, url: l.url, description: l.description || "" })) } };
 }
 
-const tokens = (t: string) => lc(t).replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(w => w.length > 2 && !["how", "the", "and", "for", "can", "does", "what", "where", "with", "this", "that", "are", "you", "into", "from"].includes(w));
 function helpSearch(_s: CalcSnapshot, a: ToolArgs): ToolResult {
-  const q = tokens(String(a.query || ""));
-  type Doc = { kind: string; title: string; body: string };
-  const docs: Doc[] = [
+  const query = String(a.query || "");
+  const docs: HelpDoc[] = [
     ...HOWTOS.map((h: any) => ({ kind: "How-to", title: h.title, body: (h.steps || []).join(" ") })),
     ...FAQ.map((f: any) => ({ kind: "FAQ", title: f.q, body: f.a })),
     ...BREAKAGE.map((b: any) => ({ kind: "Fix", title: b.symptom, body: `${b.cause}. ${b.fix}` })),
   ];
-  const scored = docs.map(d => {
-    const ht = lc(d.title), hb = lc(d.body);
-    let score = 0;
-    q.forEach(w => { if (ht.includes(w)) score += 3; if (hb.includes(w)) score += 1; });
-    return { d, score };
-  }).filter(x => x.score >= 3).sort((x, y) => y.score - x.score).slice(0, 3);
+  // Matching by stem/synonym, and Calc gets the sentences that match the question (not just the start of each
+  // entry): long entries buried the answer past the old 900-character cut, so Calc said it couldn't find it.
+  const scored = rankHelpDocs(docs, query, 3);
   const lines = scored.length === 0
     ? ["I couldn't find that in Help & Reference."]
-    : scored.map(x => `**${x.d.kind}: ${x.d.title}**\n${x.d.body.slice(0, 420)}${x.d.body.length > 420 ? "…" : ""}`);
+    : scored.map(x => `**${x.d.kind}: ${x.d.title}**\n${bestExcerpt(x.d.body, query, 520)}`);
   return { tool: "help_search", title: "Help & Reference", lines, links: [{ label: "Open Help & Reference", page: "help" }], source: "Help & Reference", asOf: "",
-    data: { matches: scored.map(x => ({ kind: x.d.kind, title: x.d.title, text: x.d.body.slice(0, 900) })) } };
+    data: { matches: scored.map(x => ({ kind: x.d.kind, title: x.d.title, text: bestExcerpt(x.d.body, query, 1600) })) } };
 }
 
 // ── 4YR payroll: same rules as the 4YR Payroll page (sum of each row's computed hours and total; ──
