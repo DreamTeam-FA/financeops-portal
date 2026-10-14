@@ -23,6 +23,8 @@ import { ENTITY_COLORS, getEntityHex } from "../utils/entityColors";
  */
 export const RUBYS_HEX = getEntityHex("Ruby's");
 export const RUBYS_TEXT_HEX = ENTITY_COLORS["Ruby's"].textHex;
+export const MSDX_HEX = getEntityHex("MSDx");
+export const MSDX_TEXT_HEX = ENTITY_COLORS["MSDx"].textHex;
 export const CPRO_HEX = "#f59e0b";
 export const CPRO_TEXT_HEX = "#f59e0b";
 
@@ -41,10 +43,15 @@ export const SRC = {
   brandPayout:    "1WvEhME2946z-XQiuG0pTnurKvN_xCPbso3ahAAvZTTU", // CPRO Brand Payout Sheet (link only; never read)
   hub:            "1wg2ESvNe7v9itWpsZOXiqqLSBRHnpdsZdZcNGrOE8RE", // #CURCUMINPRO HUB
   usuFolder:      "1mqy0QiNBkYuR5Lwn7Us0-ztGeu2pNMOc",            // Invoices / USU
+  msdxDashboard:  "1xusXKDid7q45dPcE6ZAHneGP1ViHPSdkQmS8Jkj2TLY", // MSDx Dashboard data sheet (Tebra claims; PATIENT DATA: only the Change Log timestamp column is ever read)
 } as const;
 
 export const sheetUrl = (id: string) => `https://docs.google.com/spreadsheets/d/${id}/edit`;
 export const folderUrl = (id: string) => `https://drive.google.com/drive/folders/${id}`;
+export const MSDX_DASHBOARD_URL =
+  "https://script.google.com/a/macros/marktimm.com/s/AKfycbzXDYff37EY3VQKlLMNLvdT1kJJGwde9wvPllMbOtIOeKPTUunMiNg_3HVB8UV2lR_-/exec";
+export const MSDX_SHEET_URL = "https://docs.google.com/spreadsheets/d/1xusXKDid7q45dPcE6ZAHneGP1ViHPSdkQmS8Jkj2TLY/edit?gid=136782292#gid=136782292";
+export const TEBRA_URL = "https://app.kareo.com/v2/#/worklist/claims/insurancecollections";
 export const CPRO_DASHBOARD_URL =
   "https://script.google.com/macros/s/AKfycbx8Atk7ajk80WseNyVBuSJBjhyg8RABC5_DmeSZ2adRjkdplu0Bu5zx7yObbLrP4uT_/exec";
 
@@ -90,15 +97,20 @@ export function relative(ms: number, now: number): string {
 
 // ─── Report definitions ──────────────────────────────────────────────────────
 
-export type ReportId = "fta" | "cprow" | "cprom" | "toast";
+export type ReportId = "fta" | "cprow" | "cprom" | "toast" | "tebra";
 export type StepKind = "auto" | "manual";
-export interface StepDef { key: string; label: string; kind: StepKind; hint?: string }
+export interface StepDef {
+  key: string; label: string; kind: StepKind; hint?: string;
+  /** Manual step that can ALSO be confirmed by an automatic check (a person's tick or the check, either counts). */
+  autoAlso?: boolean;
+}
 export interface ReportDef {
   id: ReportId; name: string; cadence: string; script: string; accent: string;
   /** Entity chip shown on the card */
   entity: { label: string; hex: string; textHex: string };
-  /** "run" = overdue as soon as the first (script) step is missing past the deadline; "all" = every step must be done by the deadline */
-  overdueRule: "run" | "all";
+  /** "run" = overdue as soon as the first (script) step is missing past the deadline; "all" = every step must be done by the deadline;
+   *  "strict" = for manual reports: past the deadline with any step open is always Overdue (never "Not tracked") */
+  overdueRule: "run" | "all" | "strict";
   steps: StepDef[];
   /** Step keys done by hand in no fixed order: a done step among them does not imply the others. */
   parallel?: string[];
@@ -174,6 +186,23 @@ export const REPORTS: ReportDef[] = [
     ],
     links: [{ label: "Toast Recon Sheet", url: sheetUrl(SRC.toastRecon) }],
   },
+  {
+    id: "tebra", name: "Tebra Claims Report", cadence: "Every Wednesday · download after the Tuesday payables meeting · due about 8 PM PHT", script: "Manual (downloaded from Tebra)", accent: MSDX_HEX,
+    entity: { label: "MSDx", hex: MSDX_HEX, textHex: MSDX_TEXT_HEX },
+    overdueRule: "strict",
+    steps: [
+      { key: "download", label: "Report downloaded from Tebra (after the Tuesday payables meeting)", kind: "manual" },
+      { key: "upload",   label: "Report uploaded to the MSDx dashboard", kind: "manual", autoAlso: true },
+      { key: "check",    label: "Dashboard and sheet checked — the new data shows", kind: "manual" },
+      { key: "lutang",   label: "Team Lutang told the Tebra report is on the dashboard (Slack)", kind: "manual" },
+      { key: "final",    label: "Final verification on the dashboard", kind: "manual" },
+    ],
+    links: [
+      { label: "MSDx Dashboard", url: MSDX_DASHBOARD_URL },
+      { label: "Dashboard Sheet", url: MSDX_SHEET_URL },
+      { label: "Tebra Claims", url: TEBRA_URL },
+    ],
+  },
 ];
 export const reportById = (id: ReportId) => REPORTS.find(r => r.id === id)!;
 
@@ -217,6 +246,16 @@ function cpro1Weekly(mon: { y: number; m: number; d: number }): Cycle {
     rangeText: `${pad(sun.m)}/${pad(sun.d)}/${sun.y}-${pad(sat.m)}/${pad(sat.d)}/${sat.y}`,
   };
 }
+/** Tebra Claims Report: due Wednesday ~8 PM PHT; the card opens Tuesday 11:30 PM PHT (when the payables meeting ends). */
+function tebraCycle(wed: { y: number; m: number; d: number }): Cycle {
+  const tue = addDays(wed, -1);
+  const nextTue = addDays(wed, 6);
+  return {
+    reportId: "tebra", periodKey: `tebra:${isoDate(wed)}`, label: `Due Wed ${MONTHS[wed.m - 1].slice(0, 3)} ${wed.d}`,
+    windowStart: fromPht(tue.y, tue.m, tue.d, 23, 30), windowEnd: fromPht(wed.y, wed.m, wed.d, 20), deadline: fromPht(wed.y, wed.m, wed.d, 20),
+    nextStart: fromPht(nextTue.y, nextTue.m, nextTue.d, 23, 30),
+  };
+}
 function dataMonthOf(y: number, m: number) { // month BEFORE (y,m)
   const pm = m === 1 ? 12 : m - 1, py = m === 1 ? y - 1 : y;
   return { y: py, m: pm, lastDay: lastDayOfMonth(py, pm) };
@@ -246,14 +285,14 @@ function toastCycle(y: number, m: number): Cycle { // run on the 4th/5th of (y,m
 export function cyclesAround(reportId: ReportId, now: number): Cycle[] {
   const out: Cycle[] = [];
   const t = toPht(now);
-  if (reportId === "fta" || reportId === "cprow") {
+  if (reportId === "fta" || reportId === "cprow" || reportId === "tebra") {
     for (let i = -30; i <= 11; i++) {
       const day = addDays(t, i * 7);
       // snap to the cycle weekday in that week
-      const want = reportId === "fta" ? 2 : 1;
+      const want = reportId === "fta" ? 2 : reportId === "tebra" ? 3 : 1;
       const delta = want - day.dow;
       const d = addDays(day, delta);
-      out.push(reportId === "fta" ? ftaCycle(d) : cpro1Weekly(d));
+      out.push(reportId === "fta" ? ftaCycle(d) : reportId === "tebra" ? tebraCycle(d) : cpro1Weekly(d));
     }
   } else {
     for (let i = -8; i <= 3; i++) {
@@ -333,7 +372,15 @@ export function stepStatesEx(
 ): { states: Record<string, StepState>; implied: Set<string> } {
   const states: Record<string, StepState> = {};
   for (const s of rep.steps) {
-    if (s.kind === "manual") states[s.key] = checks[`${cycle.periodKey}|${s.key}`] ? "done" : "open";
+    const key = `${cycle.periodKey}|${s.key}`;
+    if (s.kind === "manual" && s.autoAlso) {
+      // a person's tick OR the automatic check; an explicit untick always wins
+      if (checks[key]) states[s.key] = "done";
+      else if (unticked?.has(key)) states[s.key] = "open";
+      else if (checks[`${cycle.periodKey}|${AUTO_PREFIX}${s.key}`] || (auto && auto[s.key]?.state === "ok")) states[s.key] = "done";
+      else states[s.key] = "open";
+    }
+    else if (s.kind === "manual") states[s.key] = checks[key] ? "done" : "open";
     else if (checks[`${cycle.periodKey}|${AUTO_PREFIX}${s.key}`]) states[s.key] = "done"; // confirmed earlier: never re-read
     else {
       const a = auto && auto[s.key];
@@ -407,6 +454,7 @@ export function cycleStatus(rep: ReportDef, cycle0: Cycle, states: Record<string
     if (states[runStep] !== "done") return pastDeadline ? "overdue" : "due";
     return "progress";
   }
+  if (rep.overdueRule === "strict" && pastDeadline) return "overdue";
   if (pastDeadline) {
     // "Overdue" only when something is genuinely missing: an AUTO step that is open, or manual
     // tracking that was started here but not finished. A cycle whose automatic steps all
@@ -682,6 +730,24 @@ export function allTimeFromGrid(rows: string[][], c: Cycle): AutoResult {
   return { state: "no", detail: `Range ${c.rangeText} is not in the sheet yet` };
 }
 
+/**
+ * Tebra upload: the MSDx dashboard's Change Log (column A, "YYYY-MM-DD HH:MM:SS") gets one batch of rows each time a new
+ * report is uploaded. Only that timestamp column is read (the other columns hold patient data). The upload counts for
+ * this cycle when a batch is dated from the cycle's Tuesday up to (not including) next Tuesday. An upload that changed
+ * nothing is not logged, so "no" here only means "nothing logged": a person can still tick it.
+ */
+export function uploadFromChangeLog(col: string[][], c: Cycle): AutoResult {
+  const tue = isoDate(toPht(c.windowStart)), nextTue = isoDate(toPht(c.nextStart));
+  let best = "";
+  for (const r of col) {
+    const m = /^(\d{4}-\d{2}-\d{2})/.exec((r[0] || "").trim());
+    if (m && m[1] >= tue && m[1] < nextTue && m[1] > best) best = m[1];
+  }
+  return best
+    ? { state: "ok", detail: `Upload logged in the dashboard's Change Log on ${best}` }
+    : { state: "no", detail: "No upload logged in the dashboard's Change Log yet (an upload that changed nothing is not logged: tick it yourself)" };
+}
+
 const DATE_RX = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
 /** Latest date (ms, UTC midnight) found in a column of strings; M/D/YYYY or YYYY-MM-DD. */
 export function latestDateIn(col: string[][]): number | null {
@@ -716,7 +782,7 @@ export function pendingAutoSteps(cycles: Cycle[], confirmed: Set<string>): { cyc
   return cycles
     .map(c => ({
       cycle: c,
-      steps: reportById(c.reportId).steps.filter(s => s.kind === "auto" && !confirmed.has(`${c.periodKey}|${s.key}`)).map(s => s.key),
+      steps: reportById(c.reportId).steps.filter(s => (s.kind === "auto" || s.autoAlso) && !confirmed.has(`${c.periodKey}|${s.key}`)).map(s => s.key),
     }))
     .filter(x => x.steps.length > 0);
 }
@@ -734,7 +800,7 @@ export async function runAutoChecks(token: string, cycles: Cycle[], confirmed: S
   const anyNeeds = (rids: ReportId[], step: string) => rids.some(r => needs(r, step));
   const none = Promise.resolve(null);
 
-  const [ftaTabs, amzTabs, usuFiles, allTimeWeek, allTimeMonth, toastCol, adGrid] = await Promise.all([
+  const [ftaTabs, amzTabs, usuFiles, allTimeWeek, allTimeMonth, toastCol, adGrid, tebraLog] = await Promise.all([
     needs("fta", "run") ? settle(sheetTitles(token, SRC.ftaSheet)) : none,
     anyNeeds(["cprow", "cprom"], "run") ? settle(sheetTitles(token, SRC.amazonSales)) : none,
     needs("fta", "invoice") ? settle(gfetch(token, `${D}?q=${q(`'${SRC.usuFolder}' in parents and trashed=false`)}&orderBy=createdTime%20desc&pageSize=15&fields=files(id,name,createdTime)&supportsAllDrives=true&includeItemsFromAllDrives=true`)) : none,
@@ -742,6 +808,7 @@ export async function runAutoChecks(token: string, cycles: Cycle[], confirmed: S
     needs("cprom", "alltime") ? settle(readRange(token, SRC.salesAllTime, "'Amazon Month over Month'!A4:B400")) : none,
     needs("toast", "run") ? settle(readRange(token, SRC.toastRecon, "'Toast Data'!E:E")) : none,
     needs("cprom", "adspend") ? settle(readRange(token, SRC.adSpend, "A1:Z30")) : none,
+    needs("tebra", "upload") ? settle(readRange(token, SRC.msdxDashboard, "'Change Log'!A2:A5000")) : none,
   ]);
 
   for (const { cycle: c, steps } of pending) {
@@ -775,6 +842,10 @@ export async function runAutoChecks(token: string, cycles: Cycle[], confirmed: S
         if (isErr(src)) { m.alltime = unknown(src.__err); errors.push("Sales All Time: " + src.__err.message); }
         else if (src) m.alltime = allTimeFromGrid(src as string[][], c);
       }
+    }
+    if (c.reportId === "tebra" && want.has("upload")) {
+      if (isErr(tebraLog)) { m.upload = unknown(tebraLog.__err); errors.push("MSDx dashboard: " + tebraLog.__err.message); }
+      else if (tebraLog) m.upload = uploadFromChangeLog(tebraLog as string[][], c);
     }
     if (c.reportId === "cprom" && c.month && want.has("adspend")) {
       if (isErr(adGrid)) { m.adspend = unknown(adGrid.__err); errors.push("Ad Spend: " + adGrid.__err.message); }
@@ -861,6 +932,41 @@ export function historyRows(now: number, checks: Record<string, CheckRow>, start
   return out;
 }
 
+// ─── Reminder pop-up (Norlan only; the component decides who sees it) ─────────
+
+export interface ReminderItem {
+  rep: ReportDef; cycle: Cycle; status: Status;
+  /** Steps that are known to be not done yet (an automatic step that could not be read is not listed). */
+  pending: StepDef[];
+}
+
+/**
+ * Reports that are open right now (due, in progress or overdue, current run plus a recent carry-over) with at least one
+ * step still pending. Overdue first, then by deadline. Skipped weeks and runs that are not open yet are left out.
+ */
+export function reminderItems(now: number, checks: Record<string, CheckRow>, auto: AutoByPeriod = {}): ReminderItem[] {
+  const flat: Record<string, boolean> = {};
+  for (const [k, v] of Object.entries(checks)) flat[k] = v.done;
+  const unticked = explicitUnticks(checks);
+  const tracked = trackedPeriods(checks);
+  const out: ReminderItem[] = [];
+  for (const rep of REPORTS) {
+    const view = cycleView(rep.id, now);
+    const cycles = [view.active];
+    if (view.previous && shouldCarryOver(view.previous, tracked, now)) cycles.push(view.previous);
+    for (const cycle of cycles) {
+      if (isSkipped(checks, cycle.periodKey)) continue;
+      const states = stepStates(rep, cycle, auto[cycle.periodKey], flat, unticked);
+      const status = cycleStatus(rep, cycle, states, now);
+      if (status !== "due" && status !== "progress" && status !== "overdue") continue;
+      const pending = rep.steps.filter(st => states[st.key] === "open");
+      if (pending.length) out.push({ rep, cycle, status, pending });
+    }
+  }
+  const rank = (s: Status) => (s === "overdue" ? 0 : s === "due" ? 1 : 2);
+  return out.sort((a, b) => rank(a.status) - rank(b.status) || a.cycle.deadline - b.cycle.deadline);
+}
+
 // ─── Calendar events (portal local calendar) ─────────────────────────────────
 
 export interface PlannedEvent { title: string; date: string; time: string; description: string }
@@ -874,10 +980,18 @@ export function plannedCalendarEvents(now: number, horizonDays = 45): PlannedEve
       const w = toPht(c.windowStart);
       const steps = rep.steps.map(s => `• ${s.label}`).join("\n");
       out.push({
-        title: `📊 ${rep.name} — ${rep.id === "toast" ? "run today (data ready)" : "run script (5–7 PM PHT)"}`,
-        date: isoDate(w), time: rep.id === "toast" ? "09:00" : "17:00",
+        title: `📊 ${rep.name} — ${rep.id === "toast" ? "run today (data ready)" : rep.id === "tebra" ? "download after the payables meeting" : "run script (5–7 PM PHT)"}`,
+        date: isoDate(w), time: rep.id === "toast" ? "09:00" : rep.id === "tebra" ? "23:30" : "17:00",
         description: `${rep.script} · period: ${c.label}\n${steps}\n(Tracked on Report Tracker; times are Philippine Time.)`,
       });
+      if (rep.id === "tebra") {
+        const dl = toPht(c.deadline);
+        out.push({
+          title: `⏰ ${rep.name} — due today (upload, check, tell Lutang, final check)`,
+          date: isoDate(dl), time: "20:00",
+          description: `Upload to the MSDx dashboard, check the dashboard and sheet, tell Team Lutang, final verification. Period: ${c.label}.`,
+        });
+      }
       if (rep.id === "cprom") {
         const dl = toPht(c.deadline);
         out.push({

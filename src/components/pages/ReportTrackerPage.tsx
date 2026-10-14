@@ -417,6 +417,8 @@ export const ReportTrackerPage: React.FC = () => {
                   <li>All times are <b>Philippine Time</b>. The schedule: FTA Tue 5–7 PM · CPRO Weekly Mon 5–7 PM (ready by 7) · CPRO Monthly the 3rd (deadline the 6th) · Toast Recon the 4th–5th.</li>
                   <li>On the FTA card, <b>No report this week (school break)</b> marks a week as having nothing to run (Undo is one click); otherwise it would show Overdue every Tuesday of a break.</li>
                   <li><b>Weekends:</b> there is no work on weekends. If the 3rd (CPRO Monthly) or the 4th (Toast Recon) lands on a Saturday or Sunday, the card shows an amber "Weekend" note, the run moves to the following Monday, and the card shows as upcoming (never Overdue) until then. The same applies when a deadline falls on a weekend. The Slack check follows the same rule.</li>
+                  <li><b>Tebra Claims Report</b> (MSDx) is a manual report: download from Tebra after the Tuesday payables meeting, upload to the MSDx dashboard, check the dashboard and sheet, tell Team Lutang, then a final check. It is due Wednesday about 8 PM PHT and shows Overdue after that if any step is open. The upload step is also confirmed automatically when the dashboard's Change Log shows an upload that week; if an upload changed nothing it is not logged, so tick it yourself.</li>
+                  <li><b>Reminder pop-up</b> (Norlan only): while the portal is open, a pop-up lists every report with steps still pending. Remind me later / Dismiss for today / Open Report Tracker.</li>
                   <li><b>Steps are in order:</b> if a later step is done (ticked, or confirmed automatically), the earlier ones show as done too, marked "a later step is done". Untick one to override it. On CPRO Monthly, Ad Spend, Website &amp; Storage and Brand Payout can be done in any order, so they do not imply each other.</li>
                   <li><b>Sales All Time</b> is checked by content: the period's date range must be listed with a total. When you edited the sheet does not matter.</li>
                   <li>A card stays on screen until the next run starts. If you had started ticking it and it is under 14 days old, it stays as a <b>Carry-over</b>.</li>
@@ -557,7 +559,7 @@ export const ReportTrackerPage: React.FC = () => {
                                 <span className={`ml-1.5 px-1.5 py-px rounded text-[9px] font-bold align-middle ${isLight ? "bg-slate-200 text-slate-600" : "bg-[#1a2235] text-[#888]"}`}>AUTO</span>
                               )}
                             </div>
-                            {s.kind === "auto" && autoLine(b.cycle.periodKey, s.key, a, checks)}
+                            {(s.kind === "auto" || s.autoAlso) && autoLine(b.cycle.periodKey, s.key, a, checks)}
                             {b.implied.has(s.key) && (
                               <div className={`text-[11px] ${muted}`}>{s.kind === "auto" ? "The check could not confirm this, but a later step is done, so it counts as done" : "Counted as done because a later step is done · untick if wrong"}</div>
                             )}
@@ -638,7 +640,7 @@ export const ReportTrackerPage: React.FC = () => {
               </div>
               {REPORTS.map(rep => {
                 const rows = history.filter(h => h.reportId === rep.id);
-                const weekly = rep.id === "fta" || rep.id === "cprow";
+                const weekly = rep.id === "fta" || rep.id === "cprow" || rep.id === "tebra";
                 const groups: { key: string; label: string; rows: typeof rows }[] = [];
                 if (weekly) {
                   for (const r of rows) {

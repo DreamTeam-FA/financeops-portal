@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import {
   adSpendFromGrid, cycleStatus, cycleView, fmtPht, fromPht, historyRows, isoDate, latestDateIn, plannedCalendarEvents,
-  reportById, stepStates, stepStatesEx, explicitUnticks, allTimeFromGrid, toPht, cyclesAround, weekendShift, amazonTabMatches,
+  reportById, stepStates, stepStatesEx, explicitUnticks, allTimeFromGrid, uploadFromChangeLog, reminderItems, toPht, cyclesAround, weekendShift, amazonTabMatches,
 } from "../../src/services/reportTrackerService";
 
 // Thu Oct 1, 2026 3:10 PM PHT  (= 07:10 UTC)
@@ -291,5 +291,65 @@ describe("Amazon monthly tab matching (hand-typed tab names)", () => {
   it("accepts spacing/abbreviation variants, rejects other months", () => {
     for (const ok of ["SEPTEMBER 1-30,2026", "SEPTEMBER 1-30, 2026", "september 1-30 2026", "SEP 1-30,2026"]) expect(amazonTabMatches(ok, sep)).toBe(true);
     for (const no of ["AUGUST 1-31,2026", "SEPTEMBER 1-30,2025", "09/27-10/03", "SEPTEMBER 1-29,2026"]) expect(amazonTabMatches(no, sep)).toBe(false);
+  });
+});
+
+describe("Tebra Claims Report (manual, MSDx)", () => {
+  const WED_10AM = fromPht(2026, 10, 14, 10); // Wed Oct 14, 10 AM PHT
+  const rep = reportById("tebra");
+  it("cycle: opens Tue 11:30 PM PHT, due Wed 8 PM PHT, keyed by the Wednesday", () => {
+    const c = cycleView("tebra", WED_10AM).active;
+    expect(c.periodKey).toBe("tebra:2026-10-14");
+    expect(c.label).toBe("Due Wed Oct 14");
+    expect(c.windowStart).toBe(fromPht(2026, 10, 13, 23, 30));
+    expect(c.deadline).toBe(fromPht(2026, 10, 14, 20, 0));
+    expect(c.nextStart).toBe(fromPht(2026, 10, 20, 23, 30));
+    expect(rep.steps.map(s => s.key)).toEqual(["download", "upload", "check", "lutang", "final"]);
+  });
+  it("status: due before 8 PM Wed, Overdue after if anything is open (even with nothing ticked), Done when all ticked", () => {
+    const c = cycleView("tebra", WED_10AM).active;
+    const none = stepStates(rep, c, undefined, {});
+    expect(cycleStatus(rep, c, none, WED_10AM)).toBe("due");
+    expect(cycleStatus(rep, c, none, fromPht(2026, 10, 14, 21))).toBe("overdue");
+    const k = (s: string) => `${c.periodKey}|${s}`;
+    const all = stepStates(rep, c, undefined, Object.fromEntries(rep.steps.map(s => [k(s.key), true])));
+    expect(cycleStatus(rep, c, all, fromPht(2026, 10, 14, 21))).toBe("done");
+    expect(cycleStatus(rep, c, none, fromPht(2026, 10, 13, 12))).not.toBe("overdue"); // the previous run is still the active card until Tue 11:30 PM
+  });
+  it("upload: counted from the dashboard Change Log timestamps of this week; a person's tick also counts; an untick wins over the check", () => {
+    const c = cycleView("tebra", WED_10AM).active;
+    expect(uploadFromChangeLog([["2026-10-07 04:55:44"], ["2026-10-14 03:03:35"]], c).state).toBe("ok");
+    expect(uploadFromChangeLog([["2026-10-07 04:55:44"]], c).state).toBe("no");
+    expect(uploadFromChangeLog([["2026-10-21 03:00:00"]], c).state).toBe("no"); // next week's cycle
+    const k = `${c.periodKey}|upload`;
+    expect(stepStates(rep, c, { upload: { state: "ok" } }, {}).upload).toBe("done");
+    expect(stepStates(rep, c, { upload: { state: "no" } }, { [k]: true }).upload).toBe("done");
+    expect(stepStates(rep, c, { upload: { state: "ok" } }, { [k]: false }, new Set([k])).upload).toBe("open");
+  });
+});
+
+describe("reminder pop-up items", () => {
+  it("lists open runs with their pending steps, overdue first; leaves out runs that have not opened or are skipped", () => {
+    const now = fromPht(2026, 10, 14, 21); // Wed Oct 14, 9 PM PHT: Tebra is past its 8 PM deadline
+    const items = reminderItems(now, {});
+    const tebra = items.find(i => i.rep.id === "tebra");
+    expect(tebra?.status).toBe("overdue");
+    expect(tebra?.pending).toHaveLength(5);
+    expect(items[0].status).toBe("overdue");
+    // a skipped FTA week is left out
+    const fta = cycleView("fta", now).active;
+    const skipped = reminderItems(now, { [`${fta.periodKey}|skip`]: { done: true, at: "", by: "x", evidence: "" } });
+    expect(skipped.find(i => i.rep.id === "fta")).toBeUndefined();
+  });
+  it("a finished Tebra run is not listed; auto steps that could not be read are not listed as pending", () => {
+    const now = fromPht(2026, 10, 14, 12);
+    const c = cycleView("tebra", now).active;
+    const done: Record<string, any> = {};
+    for (const s of reportById("tebra").steps) done[`${c.periodKey}|${s.key}`] = { done: true, at: "", by: "x", evidence: "" };
+    expect(reminderItems(now, done).find(i => i.rep.id === "tebra")).toBeUndefined();
+    const cpro = cycleView("cprow", fromPht(2026, 10, 12, 18)).active; // Mon 6 PM, window open, no auto results read
+    const it = reminderItems(fromPht(2026, 10, 12, 18), {}).find(i => i.rep.id === "cprow");
+    expect(it?.cycle.periodKey).toBe(cpro.periodKey);
+    expect(it?.pending.map(s => s.key)).toEqual(["sheet", "dashboard", "tonie"]); // run + alltime unknown (not read), so not listed
   });
 });

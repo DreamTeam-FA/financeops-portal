@@ -40,6 +40,7 @@ import { GlobalSearchModal } from "./components/GlobalSearchModal";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { NotesFloatingWidget } from "./components/modals/NotesFloatingWidget";
 import { CalcGate } from "./components/calc/CalcGate";
+import { ReportReminderPopup } from "./components/ReportReminderPopup";
 import { AlertsProvider, AlertsToasts } from "./components/AlertsCenter";
 import { TooltipProvider } from "./components/Tooltip";
 
@@ -604,6 +605,9 @@ const PortalContent: React.FC = () => {
 
       {/* Floating Notes Widget */}
       <NotesFloatingWidget />
+
+      {/* Report Tracker reminder pop-up — Norlan only */}
+      <ReportReminderPopup />
 
       {/* Calc — read-only assistant (Phase 1) */}
       <CalcGate />
