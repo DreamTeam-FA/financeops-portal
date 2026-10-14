@@ -81,7 +81,8 @@ export const ReportReminderPopup: React.FC = () => {
   const overdue = items.some(i => i.status === "overdue");
 
   return (
-    <div className="fixed bottom-4 right-4 z-[60] w-[min(26rem,calc(100vw-2rem))]" role="alertdialog" aria-label="Report reminders">
+    // Top-right, under the page header — the bottom-right corner belongs to Calc and the Notes pill
+    <div className="fixed top-[4.5rem] right-4 z-[60] w-[min(26rem,calc(100vw-2rem))]" role="alertdialog" aria-label="Report reminders">
       <div className={`rounded-xl border shadow-2xl ${card}`}>
         <div className="flex items-start gap-2 p-3 pb-2">
           {overdue ? <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-[#f87171]" /> : <ClipboardList className="w-4 h-4 mt-0.5 shrink-0 text-[#0d9488]" />}
