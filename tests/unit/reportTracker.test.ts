@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import {
   adSpendFromGrid, cycleStatus, cycleView, fmtPht, fromPht, historyRows, isoDate, latestDateIn, plannedCalendarEvents,
-  reportById, stepStates, stepStatesEx, explicitUnticks, allTimeFromGrid, uploadFromChangeLog, tebraDataChecks, reminderItems, toPht, cyclesAround, weekendShift, amazonTabMatches,
+  reportById, stepStates, stepStatesEx, explicitUnticks, allTimeFromGrid, uploadFromChangeLog, tebraDataChecks, reminderItems, reminderTasks, toPht, cyclesAround, weekendShift, amazonTabMatches,
 } from "../../src/services/reportTrackerService";
 
 // Thu Oct 1, 2026 3:10 PM PHT  (= 07:10 UTC)
@@ -384,5 +384,13 @@ describe("Tebra dashboard checks (code reads only Claim ID + Date of Service)", 
     const rep = reportById("tebra");
     expect(stepStates(rep, c, { check: { state: "ok" }, final: { state: "ok" } }, {}).final).toBe("done");
     expect(stepStates(rep, c, { final: { state: "ok" } }, { [k("final")]: false }, new Set([k("final")])).final).toBe("open");
+  });
+});
+
+describe("reminder pop-up tasks", () => {
+  it("lists only open tasks, soonest due first, no due date last", () => {
+    const t = (id: string, title: string, due: string, done = false) => ({ id, title, due, done, notes: "" });
+    const out = reminderTasks([t("a", "No date", ""), t("b", "Late", "2026-10-01"), t("c", "Done", "2026-09-01", true), t("d", "Soon", "2026-10-20"), t("e", "  ", "2026-10-02")]);
+    expect(out.map(x => x.id)).toEqual(["b", "d", "a"]);
   });
 });

@@ -8,8 +8,8 @@ import { AlertCircle, ClipboardList, X } from "lucide-react";
 import { useFinance } from "../context/FinanceContext";
 import { getAccessToken } from "../services/googleAuth";
 import {
-  REPORTS, cycleView, fmtPht, fromPht, latchedAutoKeys, readTrackerData, relative, reminderItems, runAutoChecks, shouldCarryOver, toPht,
-  trackedPeriods, type AutoByPeriod, type Cycle, type ReminderItem,
+  REPORTS, cycleView, fmtPht, fromPht, latchedAutoKeys, readTrackerData, relative, reminderItems, reminderTasks, runAutoChecks, shouldCarryOver, toPht,
+  trackedPeriods, type AutoByPeriod, type Cycle, type ReminderItem, type TaskItem,
 } from "../services/reportTrackerService";
 
 const OWNER_EMAIL = "accounting@marktimm.com";
@@ -32,6 +32,7 @@ export const ReportReminderPopup: React.FC = () => {
   const isOwner = String(userEmail || "").toLowerCase() === OWNER_EMAIL;
   const isLight = theme === "light";
   const [items, setItems] = useState<ReminderItem[]>([]);
+  const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [open, setOpen] = useState(false);
   const [now, setNow] = useState(Date.now());
   const busy = useRef(false);
@@ -44,7 +45,7 @@ export const ReportReminderPopup: React.FC = () => {
     busy.current = true;
     try {
       const t = Date.now();
-      const { checks } = await readTrackerData(token);
+      const { checks, tasks: taskRows } = await readTrackerData(token);
       // read the automatic checks for the open runs, skipping what the tracker sheet already remembers as confirmed
       const flat: Record<string, boolean> = {};
       for (const [k, v] of Object.entries(checks)) flat[k] = v.done;
@@ -58,9 +59,11 @@ export const ReportReminderPopup: React.FC = () => {
       let auto: AutoByPeriod = {};
       try { auto = (await runAutoChecks(token, cycles, latchedAutoKeys(flat))).byPeriod; } catch { /* unread automatic steps are simply not listed */ }
       const list = reminderItems(t, checks, auto);
+      const openTasks = reminderTasks(taskRows);
       setItems(list);
+      setTasks(openTasks);
       setNow(t);
-      if (list.length > 0 && Date.now() >= readSnooze()) setOpen(true);
+      if ((list.length > 0 || openTasks.length > 0) && Date.now() >= readSnooze()) setOpen(true);
     } catch { /* reminder is best effort: never disturb the portal */ }
     finally { busy.current = false; }
   }, [isOwner]);
@@ -72,13 +75,14 @@ export const ReportReminderPopup: React.FC = () => {
     return () => { clearTimeout(first); clearInterval(every); };
   }, [isOwner, check]);
 
-  if (!isOwner || !open || items.length === 0) return null;
+  if (!isOwner || !open || (items.length === 0 && tasks.length === 0)) return null;
   if (currentPage === "workspace-report-tracker") return null; // you are already looking at it
 
   const close = (until: number) => { writeSnooze(until); setOpen(false); };
   const card = isLight ? "bg-white border-slate-200 text-slate-800" : "bg-[#0f1520] border-[#1f2a3d] text-[#e8e8e8]";
   const muted = isLight ? "text-slate-500" : "text-[#7a8aa6]";
   const overdue = items.some(i => i.status === "overdue");
+  const todayIso = new Date(now + 8 * 3600_000).toISOString().slice(0, 10);
 
   return (
     // Top-right, under the page header — the bottom-right corner belongs to Calc and the Notes pill
@@ -87,8 +91,10 @@ export const ReportReminderPopup: React.FC = () => {
         <div className="flex items-start gap-2 p-3 pb-2">
           {overdue ? <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-[#f87171]" /> : <ClipboardList className="w-4 h-4 mt-0.5 shrink-0 text-[#0d9488]" />}
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-bold">Reports with steps still pending</div>
-            <div className={`text-[11px] ${muted}`}>{items.length} open run{items.length === 1 ? "" : "s"} · times are Philippine Time</div>
+            <div className="text-sm font-bold">{items.length ? "Reports with steps still pending" : "Open tasks & reminders"}</div>
+            <div className={`text-[11px] ${muted}`}>
+              {[items.length ? `${items.length} open run${items.length === 1 ? "" : "s"}` : "", tasks.length ? `${tasks.length} open task${tasks.length === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ")} · times are Philippine Time
+            </div>
           </div>
           <button onClick={() => close(Date.now() + LATER_MS)} className={`p-1 rounded ${isLight ? "hover:bg-slate-100" : "hover:bg-white/10"}`} title="Close (reminds again in 1 hour)">
             <X className="w-4 h-4" />
@@ -113,6 +119,23 @@ export const ReportReminderPopup: React.FC = () => {
             </div>
           ))}
         </div>
+        {tasks.length > 0 && (
+          <div className="px-3 pb-2">
+            <div className={`text-[11px] font-bold uppercase tracking-wide mb-1 ${muted}`}>Tasks &amp; reminders</div>
+            <ul className="space-y-1">
+              {tasks.slice(0, 6).map(t => {
+                const late = !!t.due && t.due < todayIso;
+                return (
+                  <li key={t.id} className="text-[11px] flex gap-1.5">
+                    <span className={muted}>•</span>
+                    <span className="min-w-0">{t.title}{t.due ? <span className={late ? "text-[#f87171] font-semibold" : muted}> · {late ? "overdue " : "due "}{t.due}</span> : null}</span>
+                  </li>
+                );
+              })}
+              {tasks.length > 6 && <li className={`text-[11px] ${muted}`}>+{tasks.length - 6} more in the Report Tracker</li>}
+            </ul>
+          </div>
+        )}
         <div className={`flex flex-wrap gap-2 p-3 pt-2 border-t ${isLight ? "border-slate-200" : "border-[#1a2235]"}`}>
           <button
             onClick={() => { close(Date.now() + LATER_MS); setCurrentPage("workspace-report-tracker"); }}

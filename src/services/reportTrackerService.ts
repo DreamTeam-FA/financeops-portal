@@ -1019,6 +1019,12 @@ export function reminderItems(now: number, checks: Record<string, CheckRow>, aut
   return out.sort((a, b) => rank(a.status) - rank(b.status) || a.cycle.deadline - b.cycle.deadline);
 }
 
+/** Open tasks/reminders for the pop-up: not done, soonest due first (no due date last). */
+export function reminderTasks(tasks: TaskItem[]): TaskItem[] {
+  return tasks.filter(t => !t.done && t.title.trim())
+    .sort((x, y) => (x.due || "9999-99-99").localeCompare(y.due || "9999-99-99"));
+}
+
 // ─── Calendar events (portal local calendar) ─────────────────────────────────
 
 export interface PlannedEvent { title: string; date: string; time: string; description: string }
