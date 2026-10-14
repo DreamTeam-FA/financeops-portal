@@ -11,6 +11,7 @@ import type { APBill, BankAccount, BankStatement, DashboardNote, ExternalLinkIte
 import { billRemaining, formatCurrency, parseDueDateToDate, formatDateTimeLocal } from "../utils/formatters";
 import { FAQ, HOWTOS, BREAKAGE } from "../components/pages/HelpPage";
 import { rankHelpDocs, bestExcerpt, type HelpDoc } from "./calcHelpSearch";
+import { manilaToday, parseCutOffDay, cutOffInMonth, fmtStmtDate, dueNextWeek, STATEMENT_GENERATE_DAYS_BEFORE } from "../utils/statementSchedule";
 import type { RawRow, WeekMeta } from "./fourYrPayrollService";
 
 export interface CalcLink { label: string; page: PageRoute }
@@ -34,6 +35,8 @@ export interface CalcSnapshot {
   events: CalcEvent[];
   quickNotes: DashboardNote[];
   externalLinks: ExternalLinkItem[];
+  /** Bank Statements reference table (each bank's Cut-Off Date = its due date). */
+  statementTemplates?: Array<{ entity: string; bank: string; cycle?: string; cutOffDate?: string }>;
   /** Reads the 4YR payroll sheet with the signed-in user's own Google access (null = not signed in / can't read). */
   getPayroll?: () => Promise<{ rows: RawRow[]; weeks: WeekMeta[] } | null>;
 }
@@ -391,6 +394,129 @@ function apSummary(s: CalcSnapshot, a: ToolArgs): ToolResult {
     data: { unpaidCount: open.length, unpaidTotal: total, onHold: hold.length, byEntity } };
 }
 
+// ── analysis tools: flexible, deterministic number-crunching so Calc can reason about questions no fixed lookup covers ──
+const mondayOf = (d: Date) => { const x = startOfDay(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
+
+/** Group / filter / rank bills any way the question needs (by vendor, entity, month, week, age…) — all math done here, not by the AI. */
+function apAnalyze(s: CalcSnapshot, a: ToolArgs): ToolResult {
+  const today = startOfDay(s.now);
+  const status = lc(a.status) || "open";
+  let bills = s.apBills.filter(b => entityMatches(b, a.entity));
+  if (status === "open") bills = bills.filter(isOpenBill);
+  else if (status === "paid") bills = bills.filter(b => lc(b.status) === "paid");
+  else if (status === "unpaid" || status === "hold") bills = bills.filter(b => lc(b.status) === status);
+  if (a.vendor) { const v = lc(a.vendor); bills = bills.filter(b => lc(b.vendor).includes(v)); }
+  if (a.category) { const c = lc(a.category); bills = bills.filter(b => lc((b as any).category).includes(c)); }
+  const field = lc(a.dateField) === "invoice" ? "invoice" : lc(a.dateField) === "paid" ? "paid" : "due";
+  const dateOf = (b: APBill): Date | null => {
+    const raw = field === "invoice" ? b.invoiceDate : field === "paid" ? (b.paidDate || b.paymentDate) : b.dueDate;
+    const d = parseDueDateToDate(raw as any); return d ? startOfDay(d) : null;
+  };
+  let from = a.from ? new Date(String(a.from) + "T00:00:00") : null, to = a.to ? new Date(String(a.to) + "T00:00:00") : null;
+  if (a.month && /^\d{4}-\d{2}$/.test(String(a.month))) { const [y, m] = String(a.month).split("-").map(Number); from = new Date(y, m - 1, 1); to = new Date(y, m, 0); }
+  if (from && isNaN(from.getTime())) from = null;
+  if (to && isNaN(to.getTime())) to = null;
+  if (from) bills = bills.filter(b => { const d = dateOf(b); return !!d && d >= from!; });
+  if (to) bills = bills.filter(b => { const d = dateOf(b); return !!d && d <= to!; });
+  if (a.overdueOnly) bills = bills.filter(b => { const d = dueDate(b); return !!d && d < today && isOpenBill(b); });
+  const val = (b: APBill) => (isOpenBill(b) ? billRemaining(b) : Number(b.originalAmount ?? b.amount) || 0);
+  if (typeof a.minAmount === "number") bills = bills.filter(b => val(b) >= a.minAmount);
+  if (typeof a.maxAmount === "number") bills = bills.filter(b => val(b) <= a.maxAmount);
+
+  const groupBy = lc(a.groupBy) || "";
+  const keyOf = (b: APBill): string => {
+    switch (groupBy) {
+      case "vendor": return b.vendor || "(no vendor)";
+      case "entity": return entityLabel(b) || "(none)";
+      case "company": return b.company || b.entity || "(none)";
+      case "category": return String((b as any).category || "(none)");
+      case "status": return String(b.status || "(none)");
+      case "age": return ageBucket(b, today);
+      case "month": { const d = dateOf(b); return d ? iso(d).slice(0, 7) : "(no date)"; }
+      case "week": { const d = dateOf(b); return d ? "week of " + iso(mondayOf(d)) : "(no date)"; }
+      default: return "all";
+    }
+  };
+  const groups: Record<string, { count: number; total: number; max: number }> = {};
+  let total = 0;
+  bills.forEach(b => { const v = val(b); total += v; const k = keyOf(b); const g = (groups[k] ||= { count: 0, total: 0, max: 0 }); g.count++; g.total += v; g.max = Math.max(g.max, v); });
+  const timeGroup = groupBy === "month" || groupBy === "week" || groupBy === "age";
+  let rows = Object.entries(groups).map(([key, g]) => ({ key, count: g.count, total: Math.round(g.total * 100) / 100, average: Math.round((g.total / g.count) * 100) / 100, largest: g.max, sharePct: total > 0 ? Math.round((g.total / total) * 1000) / 10 : 0 }));
+  rows = timeGroup && groupBy !== "age" ? rows.sort((x, y) => x.key.localeCompare(y.key)) : groupBy === "age" ? rows.sort((x, y) => AGE_ORDER.indexOf(x.key) - AGE_ORDER.indexOf(y.key)) : rows.sort((x, y) => (lc(a.sort) === "asc" ? x.total - y.total : y.total - x.total));
+  const top = Math.max(1, Math.min(Number(a.top) || 12, 30));
+  const shown = rows.slice(0, top), rest = rows.slice(top);
+  const largest = [...bills].sort((x, y) => val(y) - val(x)).slice(0, 5).map(b => ({ vendor: b.vendor, entity: entityLabel(b), dueDate: b.dueDate, amount: Math.round(val(b) * 100) / 100, status: b.status }));
+  const dates = bills.map(dateOf).filter(Boolean) as Date[];
+  const scope = [status === "all" ? "all bills" : `${status} bills`, a.entity ? `entity ${a.entity}` : "", a.vendor ? `vendor "${a.vendor}"` : "", a.month ? `${field} month ${a.month}` : (from || to) ? `${field} date ${from ? iso(from) : "…"} to ${to ? iso(to) : "…"}` : "", a.overdueOnly ? "overdue only" : ""].filter(Boolean).join(", ");
+  const lines = bills.length === 0 ? [`No bills matched (${scope}).`]
+    : [`**${plural(bills.length, "bill")}** totaling **${money(total)}** (${scope}).`,
+       ...(groupBy ? shown.map(r => `• ${r.key}: ${plural(r.count, "bill")}, ${money(r.total)} (${r.sharePct}%)`) : [])];
+  return { tool: "ap_analyze", title: "Bill analysis", lines, links: AP_LINK, source: "Accounts Payable sheet", asOf: asOfText(s),
+    data: { scope, count: bills.length, total: Math.round(total * 100) / 100, average: bills.length ? Math.round((total / bills.length) * 100) / 100 : 0,
+      groupedBy: groupBy || "none", rows: shown, otherGroups: rest.length ? { count: rest.length, total: Math.round(rest.reduce((t, r) => t + r.total, 0) * 100) / 100 } : null,
+      largestBills: largest, earliestDate: dates.length ? iso(new Date(Math.min(...dates.map(d => d.getTime())))) : null, latestDate: dates.length ? iso(new Date(Math.max(...dates.map(d => d.getTime())))) : null,
+      dateField: field, note: "Open bills use the remaining balance (partial payments subtracted); paid bills use the original amount." } };
+}
+
+/** Cash on hand vs what's overdue and coming due — the "can we cover it?" check, computed here. */
+function cashCoverage(s: CalcSnapshot, a: ToolArgs): ToolResult {
+  const today = startOfDay(s.now);
+  const days = Math.max(1, Math.min(Number(a.days) || 7, 90));
+  const horizon = new Date(today.getTime() + days * DAY);
+  const accts = s.bankAccounts.filter(b => b.status === "Active" && entityMatches(b, a.entity));
+  const cash = accts.reduce((t, b) => t + (Number(b.balance) || 0), 0);
+  const cashByEntity: Record<string, number> = {};
+  accts.forEach(b => { cashByEntity[b.entity] = (cashByEntity[b.entity] || 0) + (Number(b.balance) || 0); });
+  const open = s.apBills.filter(b => isOpenBill(b) && entityMatches(b, a.entity));
+  let overdue = 0, overdueN = 0, soon = 0, soonN = 0, later = 0;
+  const need: Record<string, { overdue: number; dueSoon: number }> = {};
+  open.forEach(b => {
+    const d = dueDate(b), r = billRemaining(b), k = String(b.entity || "Other");
+    (need[k] ||= { overdue: 0, dueSoon: 0 });
+    if (d && d < today) { overdue += r; overdueN++; need[k].overdue += r; }
+    else if (d && d <= horizon) { soon += r; soonN++; need[k].dueSoon += r; }
+    else later += r;
+  });
+  const obligations = overdue + soon;
+  const gap = Math.round((cash - obligations) * 100) / 100;
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const lines = accts.length === 0 ? ["I couldn't find active bank accounts to compare against."]
+    : [`Cash on hand is **${money(cash)}**. Overdue bills are **${money(overdue)}** and bills due in the next ${days} days are **${money(soon)}**, so obligations total **${money(obligations)}**.`,
+       gap >= 0 ? `That leaves **${money(gap)}** after covering everything.` : `That's a **${money(-gap)} shortfall**.`];
+  return { tool: "cash_coverage", title: "Cash vs bills", lines, links: [{ label: "Open Bank Balances", page: "banks" }, ...AP_LINK], source: "Bank Balances and Accounts Payable sheets", asOf: asOfText(s),
+    data: { windowDays: days, cash: r2(cash), overdue: { count: overdueN, total: r2(overdue) }, dueWithinWindow: { count: soonN, total: r2(soon) }, obligations: r2(obligations),
+      surplusOrShortfall: gap, coversEverything: gap >= 0, openBillsDueLater: r2(later),
+      cashByEntity: Object.fromEntries(Object.entries(cashByEntity).map(([k, v]) => [k, r2(v)])),
+      billsByEntity: Object.fromEntries(Object.entries(need).map(([k, v]) => [k, { overdue: r2(v.overdue), dueSoon: r2(v.dueSoon) }])),
+      caveat: "Cash and bills are grouped by their own entity names, which don't always line up one-to-one (e.g. TI has sub-companies); the overall figures are the reliable ones. Balances may be a day old and incoming receipts are not included." } };
+}
+
+/** Bank-statement due dates (Cut-Off Dates from the reference table) and the rules for when entries are created. */
+function statementsDue(s: CalcSnapshot, a: ToolArgs): ToolResult {
+  const today = manilaToday();
+  const days = Math.max(1, Math.min(Number(a.days) || 14, 60));
+  const end = new Date(today.getTime() + days * DAY);
+  const tpl = s.statementTemplates || [];
+  const items: Array<{ entity: string; bank: string; due: string; entryOpens: string; entryCreated: boolean; downloaded: boolean | null }> = [];
+  tpl.forEach(t => {
+    const day = parseCutOffDay(t.cutOffDate); if (day === null) return;
+    [cutOffInMonth(day, today.getFullYear(), today.getMonth()), cutOffInMonth(day, today.getFullYear(), today.getMonth() + 1)].forEach(cut => {
+      if (cut < today || cut > end) return;
+      const f = fmtStmtDate(cut);
+      const ex = s.bankStatements.find(x => x.bankName === t.bank && x.entity === t.entity && x.cutOffDate === f);
+      items.push({ entity: t.entity, bank: t.bank, due: f, entryOpens: fmtStmtDate(new Date(cut.getTime() - STATEMENT_GENERATE_DAYS_BEFORE * DAY)), entryCreated: !!ex, downloaded: ex ? !!ex.downloaded : null });
+    });
+  });
+  items.sort((x, y) => x.due.localeCompare(y.due) || x.bank.localeCompare(y.bank));
+  const nw = dueNextWeek(tpl, today);
+  const noCutOff = tpl.filter(t => parseCutOffDay(t.cutOffDate) === null).map(t => t.bank);
+  const lines = items.length === 0 ? [`No bank statement due dates fall in the next ${days} days.`]
+    : [`**${plural(items.length, "statement")}** come due in the next ${days} days.`, ...items.slice(0, 12).map(i => `• ${i.bank} (${i.entity}): due ${i.due}, entry opens ${i.entryOpens}${i.entryCreated ? "" : " (not created yet)"}`)];
+  return { tool: "statements_due", title: "Bank statement due dates", lines, links: [{ label: "Open Bank Statements", page: "statements" }], source: "Bank Statements reference table (Cut-Off Dates)", asOf: asOfText(s),
+    data: { windowDays: days, today: fmtStmtDate(today), upcoming: items.slice(0, 40), dueNextWeek: { from: nw.start, to: nw.end, items: nw.items }, banksWithNoCutOffDate: noCutOff,
+      rules: "Due date = the bank's Cut-Off Date in the reference table. An entry is created 2 days before its due date (Philippine time) the first time anyone opens the portal on or after that day; a due date already reached this month with no entry is created right away. When a due date changes, not-downloaded entries for the old date are hidden (marked in the sheet, never deleted). Not-downloaded entries more than 2 days from their due date are hidden until the 2-day window opens. Downloaded entries are never touched. The first portal load each Saturday re-checks the sheet for the week ahead." } };
+}
+
 const staleDays = (asOf: string, now: Date): number | null => {
   const d = new Date(asOf);
   if (isNaN(d.getTime())) return null;
@@ -682,6 +808,9 @@ export const CALC_TOOLS: Record<string, CalcToolDef> = {
   ap_summary:        { description: "Counts and totals of unpaid bills, grouped by entity.", args: "{entity?: string}", run: apSummary },
   bank_balances:     { description: "Current bank account balances, yesterday's balance, as-of time, low (<$500) and stale (2+ days) flags.", args: "{entity?: string, bank?: string, list?: boolean (true ONLY if asked for every account)}", run: bankBalances },
   statements_pending:{ description: "Bank statements whose cut-off has passed and are not downloaded yet.", args: "{list?: boolean}", run: statementsPending },
+  statements_due:    { description: "Upcoming bank statement DUE dates (Cut-Off Dates) and when entries get created; also the rules for how statement entries are generated, hidden or shown.", args: "{days?: number (default 14)}", run: statementsDue },
+  ap_analyze:        { description: "Flexible bill analysis for questions the other bill lookups can't answer: group, rank, total or trend bills by vendor, entity, company, category, month, week, age or status, with filters. Use for \"which vendor/month/entity…\", \"how much did we spend/pay…\", \"average\", \"biggest\", \"trend\", \"compare\".", args: "{status?: 'open'(default)|'paid'|'all'|'unpaid'|'hold', entity?: string, vendor?: string, category?: string, groupBy?: 'vendor'|'entity'|'company'|'category'|'month'|'week'|'age'|'status', dateField?: 'due'(default)|'invoice'|'paid', month?: 'YYYY-MM', from?: 'YYYY-MM-DD', to?: 'YYYY-MM-DD', overdueOnly?: boolean, minAmount?: number, maxAmount?: number, top?: number, sort?: 'desc'|'asc'}", run: apAnalyze },
+  cash_coverage:     { description: "Cash on hand vs overdue bills and bills due in the next N days: can we cover them, and the surplus or shortfall.", args: "{days?: number (default 7), entity?: string}", run: cashCoverage },
   calendar:          { description: "Calendar events in a date range (default today through 7 days).", args: "{days?: number, from?: 'YYYY-MM-DD', to?: 'YYYY-MM-DD', assignee?: string, entity?: string, includeDone?: boolean, list?: boolean}", run: calendar },
   notes_open:        { description: "Open Quick Notes, optionally filtered.", args: "{query?: string, category?: string, member?: string}", run: notesOpen },
   platforms:         { description: "The Platforms Directory: platform names, links and descriptions.", args: "{query?: string}", run: platforms },
@@ -734,6 +863,7 @@ function addSuggestions(res: ToolResult, a: ToolArgs): ToolResult {
 /** If the data a lookup depends on never loaded (not signed in, sync failed), say so; never report "none" or "$0". */
 function missingData(name: string, snap: CalcSnapshot): { what: string; page: string } | null {
   if (/^ap_/.test(name) && snap.apBills.length === 0) return { what: "the Accounts Payable bills", page: "AP" };
+  if (name === "cash_coverage" && (snap.bankAccounts.length === 0 || snap.apBills.length === 0)) return { what: "the bank balances or bills", page: "Hub" };
   if (name === "bank_balances" && snap.bankAccounts.length === 0) return { what: "the bank balances", page: "Bank Balances" };
   if (name === "statements_pending" && snap.bankStatements.length === 0) return { what: "the bank statements tracker", page: "Bank Statements" };
   if (name === "calendar" && snap.events.length === 0) return { what: "the calendar", page: "Calendar" };

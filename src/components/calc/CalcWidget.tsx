@@ -13,6 +13,7 @@ import { verifyAmounts } from "../../services/calcVerify";
 import { CALC_IS_LOCAL } from "./calcAccess";
 import { getRawData, getMasterListWeeks, buildWeekMap, getFilteredData } from "../../services/fourYrPayrollService";
 import { CalcAvatar, CalcAvatarState } from "./CalcAvatar";
+import { classifyTone, toneMood, answerMood } from "./calcMood";
 import {
   CalcEvent, CalcLink, CalcSnapshot, ToolResult, entityLabel, routeQuestion, runTool, toolCatalogText,
 } from "../../services/calcTools";
@@ -102,6 +103,11 @@ export const CalcWidget: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const [typing, setTyping] = useState<{ id: string; n: number } | null>(null);
   const [av, setAv] = useState<CalcAvatarState>("idle");
+  const avRef = useRef<CalcAvatarState>("idle");
+  const busyRef = useRef(false);
+  const lastActRef = useRef(Date.now());
+  const moodRef = useRef<CalcAvatarState | null>(null);   // how to look after answering (stern after a rude ask, etc.)
+  const listenTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [statusNote, setStatusNote] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -152,17 +158,38 @@ export const CalcWidget: React.FC = () => {
     return {
       now: new Date(), lastSyncedAt: lastSyncedAt || null,
       apBills: fin.apBills || [], bankAccounts: fin.bankAccounts || [], bankStatements: fin.bankStatements || [],
-      events: uniq, quickNotes: fin.quickNotes || [], externalLinks: fin.externalLinks || [],
+      events: uniq, quickNotes: fin.quickNotes || [], externalLinks: fin.externalLinks || [], statementTemplates: fin.statementTemplates || [],
       getPayroll: getPayroll as any,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fin.apBills, fin.bankAccounts, fin.bankStatements, fin.calSheetEvents, fin.calendarLocalEvents, fin.googleCalEvents, fin.quickNotes, fin.externalLinks, lastSyncedAt, open, getPayroll]);
+  }, [fin.apBills, fin.bankAccounts, fin.bankStatements, fin.calSheetEvents, fin.calendarLocalEvents, fin.googleCalEvents, fin.quickNotes, fin.externalLinks, fin.statementTemplates, lastSyncedAt, open, getPayroll]);
 
   const setAvFor = useCallback((s: CalcAvatarState, ms = 0) => {
     clearTimeout(avTimer.current);
+    avRef.current = s;
     setAv(s);
-    if (ms) avTimer.current = setTimeout(() => setAv("idle"), ms);
+    if (ms) avTimer.current = setTimeout(() => { avRef.current = "idle"; setAv("idle"); }, ms);
   }, []);
+
+  // ── how Calc reacts while you're around: attentive when you type, curious when you pause, sleepy if you leave ──
+  useEffect(() => { busyRef.current = busy; }, [busy]);
+  useEffect(() => {
+    if (!open) return;
+    lastActRef.current = Date.now();
+    const id = setInterval(() => {
+      if (busyRef.current) return;
+      const cur = avRef.current;
+      if (cur !== "idle" && cur !== "wait" && cur !== "sleepy" && cur !== "listen") return;
+      const idleMs = Date.now() - lastActRef.current;
+      if (idleMs > 70000 && cur !== "sleepy") setAvFor("sleepy");
+      else if (idleMs > 14000 && idleMs <= 70000 && cur === "idle") setAvFor("wait");
+    }, 2500);
+    return () => clearInterval(id);
+  }, [open, setAvFor]);
+  const wake = useCallback(() => {
+    lastActRef.current = Date.now();
+    if (avRef.current === "sleepy" || avRef.current === "wait") setAvFor("greet", 1800);
+  }, [setAvFor]);
 
   // ── load this account's saved chats; always start on a clean chat ──
   useEffect(() => {
@@ -195,10 +222,17 @@ export const CalcWidget: React.FC = () => {
     const msg = push({ role: "calc", text, links, suggest });
     const total = text.length, step = Math.max(2, Math.ceil(total / 90));
     let n = 0;
-    setTyping({ id: msg.id, n: 0 }); setAvFor("talk");
+    setTyping({ id: msg.id, n: 0 }); setAvFor("write");
     const iv = setInterval(() => {
       n += step;
-      if (n >= total) { clearInterval(iv); setTyping(null); setAvFor("idle"); }
+      if (n >= total) {
+        clearInterval(iv); setTyping(null);
+        lastActRef.current = Date.now();
+        // react to what was just said: stern after a rude ask, worried over bad news, happy over good news
+        const end = moodRef.current || answerMood(text);
+        moodRef.current = null;
+        if (end) setAvFor(end, 3200); else setAvFor("idle");
+      }
       else setTyping({ id: msg.id, n });
     }, 16);
   }, [push, setAvFor]);
@@ -261,7 +295,14 @@ export const CalcWidget: React.FC = () => {
     if (!q || busy) return;
     setInput(""); setShowHistory(false); setStatusNote("");
     push({ role: "user", text: q });
-    setBusy(true); setAvFor("think");
+    lastActRef.current = Date.now(); clearTimeout(listenTimer.current);
+    setBusy(true);
+    // React to HOW it was asked: stern for rude or unreasonable asks, confused for nonsense; otherwise think
+    // (and ponder if it takes a while). The reaction also carries over to the end of the answer.
+    const tone = toneMood(classifyTone(q));
+    moodRef.current = tone;
+    if (tone) { setAvFor(tone); setTimeout(() => { if (busyRef.current) setAvFor("think"); }, 1800); } else setAvFor("think");
+    const ponderT = setTimeout(() => { if (busyRef.current && avRef.current === "think") setAvFor("ponder"); }, 6000);
     try {
       // Local-only diagnostic: compares Calc's payroll numbers with the 4YR page's own calculation on YOUR live data.
       if (IS_LOCAL && /^\/payroll-check\b/i.test(q)) {
@@ -332,21 +373,36 @@ export const CalcWidget: React.FC = () => {
 
       // 2) run the lookups here, over the live synced data
       lastCallsRef.current = plan.calls;
-      const results = (await Promise.all(plan.calls.map(c => runTool(c.tool, snapshot, c.args || {})))).filter(Boolean) as ToolResult[];
+      let results = (await Promise.all(plan.calls.map(c => runTool(c.tool, snapshot, c.args || {})))).filter(Boolean) as ToolResult[];
       if (!results.length) { reveal("I couldn't find a lookup for that. I can do bills, bank balances, statements, calendar, notes, platforms, and how-to help."); return; }
-      const f = formatResults(results);
+      let f = formatResults(results);
 
-      // 3) phrase the answer
+      // 3) phrase the answer. Calc may ask for ONE more round of lookups when the first isn't enough to reason with,
+      //    and gets ONE chance to fix any figure that can't be traced to the data before falling back to the plain lookup.
       try {
-        const { j } = await askServer({
-          phase: "answer", accessToken: IS_LOCAL ? "" : token, question: q, history, today,
-          results: results.map(r => ({ tool: r.tool, title: r.title, source: r.source, asOf: r.asOf, data: r.data })),
-        });
+        const shape = (rs: ToolResult[]) => rs.map(r => ({ tool: r.tool, title: r.title, source: r.source, asOf: r.asOf, data: r.data }));
+        const base = { phase: "answer", accessToken: IS_LOCAL ? "" : token, question: q, history, today, toolCatalog: toolCatalogText() };
+        let { j } = await askServer({ ...base, results: shape(results), canAskMore: true });
+        if (j?.ok && Array.isArray(j.more) && j.more.length) {
+          setAvFor("think");
+          const have = new Set(results.map(r => r.tool + JSON.stringify(plan!.calls.find(c => c.tool === r.tool)?.args || {})));
+          const fresh = (j.more as { tool: string; args: any }[]).filter(c => !have.has(c.tool + JSON.stringify(c.args || {})));
+          const extra = (await Promise.all(fresh.map(c => runTool(c.tool, snapshot, c.args || {})))).filter(Boolean) as ToolResult[];
+          if (extra.length) { results = [...results, ...extra]; lastCallsRef.current = [...plan.calls, ...fresh]; f = formatResults(results); }
+          ({ j } = await askServer({ ...base, results: shape(results), canAskMore: false }));
+        }
         if (j?.ok && j.text) {
-          // Number guard: every $ figure in the AI's wording must trace back to the lookup data.
-          const check = verifyAmounts(j.text, results.map(r => r.data), history.map(h => h.text));
-          if (check.ok) { reveal(j.text, f.links, f.suggest); return; }
-          console.warn("[Calc] AI answer had unverifiable amounts, using the plain lookup:", check.bad);
+          let text: string = j.text;
+          // Number guard: every $ figure and percentage in the AI's wording must trace back to the lookup data (or be simple arithmetic on it).
+          let check = verifyAmounts(text, results.map(r => r.data), history.map(h => h.text));
+          if (!check.ok) {
+            console.warn("[Calc] AI answer had untraceable figures, asking it to fix them:", check.bad);
+            const { j: j2 } = await askServer({ ...base, results: shape(results), canAskMore: false, prevAnswer: text,
+              feedback: `Some figures in your answer can't be traced to the lookup results: ${check.bad.join(", ")}. Rewrite the answer using only figures from the results or simple arithmetic on them (show the arithmetic), or leave those figures out.` });
+            if (j2?.ok && j2.text) { text = j2.text; check = verifyAmounts(text, results.map(r => r.data), history.map(h => h.text)); }
+          }
+          if (check.ok) { reveal(text, f.links, f.suggest); return; }
+          console.warn("[Calc] AI answer still had untraceable figures, using the plain lookup:", check.bad);
           reveal("I double-checked my AI-written answer against the data and one figure didn't match, so here's the straight lookup instead:\n\n" + f.text, f.links, f.suggest);
           return;
         }
@@ -355,6 +411,7 @@ export const CalcWidget: React.FC = () => {
     } catch (e: any) {
       fail("Something went wrong on my side. Try again in a moment.");
     } finally {
+      clearTimeout(ponderT);
       setBusy(false);
     }
   }, [busy, messages, snapshot, push, setAvFor, runLocal, fail, reveal, askServer]);
@@ -378,8 +435,13 @@ export const CalcWidget: React.FC = () => {
   const sub = isLight ? "text-slate-500" : "text-slate-400";
   const bubbleCalc = isLight ? "bg-slate-100 text-slate-800" : "bg-[#1d1d1d] text-slate-100";
   const line = isLight ? "border-slate-200" : "border-[#2a2a2a]";
-  const statusText = av === "think" ? "Thinking…" : av === "talk" ? "Answering…" : av === "busy" ? "Busy — try again soon" : "Online — ask me anything!";
-  const statusColor = av === "busy" ? "text-amber-500" : "text-emerald-500";
+  const STATUS: Partial<Record<CalcAvatarState, string>> = {
+    think: "Thinking…", ponder: "Working it out…", talk: "Answering…", write: "Typing your answer…", busy: "Busy — try again soon",
+    listen: "Listening…", wait: "Take your time…", concern: "Heads up…", happy: "Good news!",
+    stern: "Let's keep it friendly", confused: "Hmm, I'm not sure I follow", sleepy: "Zzz… ask me anything",
+  };
+  const statusText = STATUS[av] || "Online — ask me anything!";
+  const statusColor = av === "busy" || av === "concern" || av === "stern" ? "text-amber-500" : "text-emerald-500";
 
   const launcher = (
     <button
@@ -398,7 +460,7 @@ export const CalcWidget: React.FC = () => {
       {launcher}
       {open && (
         <div
-          role="dialog" aria-label="Calc assistant"
+          role="dialog" aria-label="Calc assistant" onPointerDown={wake}
           className={`fixed z-[70] right-3 bottom-16 md:right-6 md:bottom-6 flex flex-col rounded-2xl border shadow-2xl overflow-hidden ${panel}`}
           style={{ width: "min(390px, calc(100vw - 1.5rem))", height: "min(600px, calc(100vh - 5.5rem))" }}
         >
@@ -485,7 +547,19 @@ export const CalcWidget: React.FC = () => {
           {/* input */}
           <form onSubmit={e => { e.preventDefault(); send(input); }} className={`flex items-center gap-2 px-3 py-2 border-t ${line}`}>
             <input
-              ref={inputRef} value={input} onChange={e => setInput(e.target.value)} maxLength={400} disabled={busy}
+              ref={inputRef} value={input} maxLength={400} disabled={busy}
+              onFocus={wake}
+              onChange={e => {
+                const v = e.target.value;
+                setInput(v);
+                lastActRef.current = Date.now();
+                clearTimeout(listenTimer.current);
+                if (busy) return;
+                if (!v.trim()) { setAvFor("idle"); return; }
+                // attentive while you type (stern if what you're typing is rude), curious once you pause
+                setAvFor(toneMood(classifyTone(v)) || "listen");
+                listenTimer.current = setTimeout(() => { if (!busyRef.current && avRef.current !== "write") setAvFor("wait"); }, 1700);
+              }}
               placeholder="Ask Calc about bills, balances, statements…"
               className={`flex-1 rounded-xl border px-3 py-2 text-[13px] outline-none focus:border-[#2f6fc9] ${isLight ? "bg-white border-slate-300" : "bg-[#0d0d0d] border-[#333]"}`}
             />
