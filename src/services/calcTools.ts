@@ -542,7 +542,11 @@ async function apRecentAdded(s: CalcSnapshot, a: ToolArgs): Promise<ToolResult> 
       const t = parseTs(r[0]); if (!inWindow(t)) return;
       const m = String(r[3] || "").match(/^(.*) \((.*)\) — \$([0-9,.]+)/); if (!m) return;
       const amount = Number(m[3].replace(/,/g, "")) || 0;
-      const i = adds.findIndex(x => lc(x.vendor) === lc(m[1]) && lc(x.entity) === lc(m[2]) && Math.abs(x.amount - amount) < 0.011 && x._t < t!.getTime());
+      // same vendor + entity + amount first; if the bill was edited before it was deleted the amount differs,
+      // so fall back to the most recent earlier add of that vendor + entity
+      const sameBill = (x: Add) => lc(x.vendor) === lc(m[1]) && lc(x.entity) === lc(m[2]) && x._t < t!.getTime();
+      let i = adds.findIndex(x => sameBill(x) && Math.abs(x.amount - amount) < 0.011);
+      if (i < 0) { const cand = adds.map((x, k) => ({ x, k })).filter(({ x }) => sameBill(x)).sort((p, q) => q.x._t - p.x._t)[0]; i = cand ? cand.k : -1; }
       if (i >= 0) { adds.splice(i, 1); deletedAfter++; }
     });
     adds.forEach(x => {
