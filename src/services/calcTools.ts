@@ -37,6 +37,8 @@ export interface CalcSnapshot {
   externalLinks: ExternalLinkItem[];
   /** Bank Statements reference table (each bank's Cut-Off Date = its due date). */
   statementTemplates?: Array<{ entity: string; bank: string; cycle?: string; cutOffDate?: string }>;
+  /** The portal's shared Activity Log rows [timestamp, user, action, details], read on demand (null = can't read). */
+  getActivity?: () => Promise<string[][] | null>;
   /** Reads the 4YR payroll sheet with the signed-in user's own Google access (null = not signed in / can't read). */
   getPayroll?: () => Promise<{ rows: RawRow[]; weeks: WeekMeta[] } | null>;
 }
@@ -491,6 +493,89 @@ function cashCoverage(s: CalcSnapshot, a: ToolArgs): ToolResult {
       caveat: "Cash and bills are grouped by their own entity names, which don't always line up one-to-one (e.g. TI has sub-companies); the overall figures are the reliable ones. Balances may be a day old and incoming receipts are not included." } };
 }
 
+/**
+ * "What bills were added today / this week?" — bills have no created-date column, so this uses two honest sources:
+ *  1) the portal's Activity Log (every bill added in the portal is logged with a time, a user, vendor and amount),
+ *     matched back to the live bill so it can show due date, invoice # and status; entries deleted afterwards are dropped;
+ *  2) the newest rows at the bottom of each bill sheet (no timestamp) — catches bills typed straight into the sheet
+ *     or added by the email automation, which the log can't see.
+ */
+async function apRecentAdded(s: CalcSnapshot, a: ToolArgs): Promise<ToolResult> {
+  const today = startOfDay(s.now);
+  const days = Math.max(1, Math.min(Number(a.days) || 1, 60));
+  let from = new Date(today.getTime() - (days - 1) * DAY);
+  let to: Date | null = null;
+  if (a.from) { const f = new Date(String(a.from) + "T00:00:00"); if (!isNaN(f.getTime())) from = f; }
+  if (a.to) { const t = new Date(String(a.to) + "T23:59:59"); if (!isNaN(t.getTime())) to = t; }
+  const inWindow = (d: Date | null) => !!d && d >= from && (!to || d <= to);
+  const parseTs = (v: string): Date | null => { const d = new Date(String(v || "")); return isNaN(d.getTime()) ? null : d; };
+  const want = a.entity ? lc(a.entity) : "";
+  const vwant = a.vendor ? lc(a.vendor) : "";
+
+  const rows = s.getActivity ? await s.getActivity() : null;
+  const amt = (b: APBill) => Number(b.originalAmount ?? b.amount) || 0;
+  type Add = { when: string; by: string; vendor: string; entity: string; amount: number; matched?: { invoiceNo: string; dueDate: string; status: string; remaining: number }; _t: number };
+  const adds: Add[] = [];
+  const multi: Array<{ when: string; by: string; text: string }> = [];
+  let deletedAfter = 0;
+  if (rows) {
+    const used = new Set<APBill>();
+    rows.forEach(r => {
+      const [ts, who, action, details] = [r[0], r[1], String(r[2] || ""), String(r[3] || "")];
+      const t = parseTs(ts);
+      if (!inWindow(t)) return;
+      if (action === "Added Bill") {
+        const m = details.match(/^(.*) \((.*)\) - \$([0-9,.]+)/);
+        if (!m) return;
+        const entity = m[2], vendor = m[1].trim();
+        if (want && !lc(entity).includes(want)) return;
+        if (vwant && !lc(vendor).includes(vwant)) return;
+        const amount = Number(m[3].replace(/,/g, "")) || 0;
+        adds.push({ when: ts, by: who, vendor, entity, amount, _t: t!.getTime() });
+      } else if (action === "Added Bills (multi-scan)") {
+        multi.push({ when: ts, by: who, text: details });
+      }
+    });
+    // drop adds that were deleted afterwards (one delete cancels one earlier add of the same bill)
+    rows.forEach(r => {
+      if (String(r[2]) !== "Deleted Bill") return;
+      const t = parseTs(r[0]); if (!inWindow(t)) return;
+      const m = String(r[3] || "").match(/^(.*) \((.*)\) — \$([0-9,.]+)/); if (!m) return;
+      const amount = Number(m[3].replace(/,/g, "")) || 0;
+      const i = adds.findIndex(x => lc(x.vendor) === lc(m[1]) && lc(x.entity) === lc(m[2]) && Math.abs(x.amount - amount) < 0.011 && x._t < t!.getTime());
+      if (i >= 0) { adds.splice(i, 1); deletedAfter++; }
+    });
+    adds.forEach(x => {
+      const b = s.apBills.find(bb => !used.has(bb) && lc(bb.vendor) === lc(x.vendor) && lc(bb.entity) === lc(x.entity) && Math.abs(amt(bb) - x.amount) < 0.011);
+      if (b) { used.add(b); x.matched = { invoiceNo: b.invoiceNo || "", dueDate: b.dueDate || "", status: String(b.status || ""), remaining: isOpenBill(b) ? billRemaining(b) : 0 }; }
+    });
+  }
+  adds.sort((x, y) => y._t - x._t);
+
+  // newest rows in each bill sheet (position only — no timestamp)
+  const latestInSheet: Record<string, Array<{ vendor: string; amount: number; dueDate: string; invoiceNo: string; status: string }>> = {};
+  const byEnt: Record<string, APBill[]> = {};
+  s.apBills.filter(b => b.row && (!want || lc(entityLabel(b)).includes(want)) && (!vwant || lc(b.vendor).includes(vwant))).forEach(b => { (byEnt[b.entity] ||= []).push(b); });
+  Object.entries(byEnt).forEach(([e, list]) => {
+    latestInSheet[e] = list.sort((x, y) => (y.row || 0) - (x.row || 0)).slice(0, 6)
+      .map(b => ({ vendor: b.vendor, amount: Math.round(amt(b) * 100) / 100, dueDate: b.dueDate || "", invoiceNo: b.invoiceNo || "", status: String(b.status || "") }));
+  });
+
+  const span = days === 1 && !a.from ? "today" : `since ${fmtDay(from)}`;
+  const lines: string[] = [];
+  if (!rows) lines.push("I couldn't read the portal's Activity Log (sign in with Google), so I can only show the newest rows in each bill sheet.");
+  else if (adds.length === 0 && multi.length === 0) lines.push(`No bills were added through the portal ${span}.`);
+  else {
+    lines.push(`**${plural(adds.length, "bill")}** added through the portal ${span}${deletedAfter ? ` (plus ${plural(deletedAfter, "other")} added and then deleted)` : ""}.`);
+    adds.slice(0, 15).forEach(x => lines.push(`• ${x.vendor} (${x.entity}) — ${money(x.amount)}${x.matched ? `, due ${x.matched.dueDate}${x.matched.invoiceNo ? `, inv ${x.matched.invoiceNo}` : ""}, ${x.matched.status}` : " (no longer in the AP list)"} · added ${x.when.split(", ")[1] || x.when} by ${x.by}`));
+    multi.forEach(m => lines.push(`• Multi-scan at ${m.when.split(", ")[1] || m.when}: ${m.text}`));
+  }
+  return { tool: "ap_recent_added", title: "Recently added bills", lines, links: AP_LINK, source: rows ? "Portal Activity Log + Accounts Payable sheet" : "Accounts Payable sheet", asOf: asOfText(s),
+    data: { window: { from: iso(from), to: to ? iso(to) : iso(today) }, loggedAdds: adds.slice(0, 40).map(x => ({ when: x.when, by: x.by, vendor: x.vendor, entity: x.entity, amount: x.amount, current: x.matched || null })),
+      multiScan: multi.slice(0, 10), addedThenDeleted: deletedAfter, activityLogReadable: !!rows, latestRowsInEachSheet: latestInSheet,
+      note: "Bills have no created-date column. loggedAdds are bills added through the portal (exact time and user). Bills typed directly into the sheet or added by the email automation are NOT in the log; latestRowsInEachSheet shows the newest sheet rows (position only, no timestamp) so those can be spotted." } };
+}
+
 /** Bank-statement due dates (Cut-Off Dates from the reference table) and the rules for when entries are created. */
 function statementsDue(s: CalcSnapshot, a: ToolArgs): ToolResult {
   const today = manilaToday();
@@ -810,6 +895,7 @@ export const CALC_TOOLS: Record<string, CalcToolDef> = {
   statements_pending:{ description: "Bank statements whose cut-off has passed and are not downloaded yet.", args: "{list?: boolean}", run: statementsPending },
   statements_due:    { description: "Upcoming bank statement DUE dates (Cut-Off Dates) and when entries get created; also the rules for how statement entries are generated, hidden or shown.", args: "{days?: number (default 14)}", run: statementsDue },
   ap_analyze:        { description: "Flexible bill analysis for questions the other bill lookups can't answer: group, rank, total or trend bills by vendor, entity, company, category, month, week, age or status, with filters. Use for \"which vendor/month/entity…\", \"how much did we spend/pay…\", \"average\", \"biggest\", \"trend\", \"compare\".", args: "{status?: 'open'(default)|'paid'|'all'|'unpaid'|'hold', entity?: string, vendor?: string, category?: string, groupBy?: 'vendor'|'entity'|'company'|'category'|'month'|'week'|'age'|'status', dateField?: 'due'(default)|'invoice'|'paid', month?: 'YYYY-MM', from?: 'YYYY-MM-DD', to?: 'YYYY-MM-DD', overdueOnly?: boolean, minAmount?: number, maxAmount?: number, top?: number, sort?: 'desc'|'asc'}", run: apAnalyze },
+  ap_recent_added:   { description: "Bills newly ADDED/entered (today, this week, a date range): who added them and when (from the portal's Activity Log), plus the newest rows in each bill sheet. Use for \"what bills were added today/recently\", \"new bills\", \"what did we enter this week\". NOT for due dates.", args: "{days?: number (1 = today, 7 = last 7 days), from?: 'YYYY-MM-DD', to?: 'YYYY-MM-DD', entity?: string, vendor?: string}", run: apRecentAdded },
   cash_coverage:     { description: "Cash on hand vs overdue bills and bills due in the next N days: can we cover them, and the surplus or shortfall.", args: "{days?: number (default 7), entity?: string}", run: cashCoverage },
   calendar:          { description: "Calendar events in a date range (default today through 7 days).", args: "{days?: number, from?: 'YYYY-MM-DD', to?: 'YYYY-MM-DD', assignee?: string, entity?: string, includeDone?: boolean, list?: boolean}", run: calendar },
   notes_open:        { description: "Open Quick Notes, optionally filtered.", args: "{query?: string, category?: string, member?: string}", run: notesOpen },
@@ -939,6 +1025,16 @@ export function routeQuestion(q: string, s: CalcSnapshot): { tool: string; args:
   if (/platform|portal link|log ?in|sign ?in|website|\blink\b|\burl\b|where (is|do i find|can i find)/.test(t) && !/\b(bill|bills|owe|overdue|invoice)\b/.test(t)) {
     const m = t.match(/(?:for|of|to|into|on)\s+([a-z0-9.&' -]{2,30})\??$/);
     return [{ tool: "platforms", args: m ? { query: m[1].replace(/^the\s+/, "").trim() } : {} }];
+  }
+
+  // "newly added bills today / this week", "what did we enter yesterday", "new bills" → who added what and when
+  if (/\b(newly|recently|just|latest)\s+(added|entered|created|uploaded)\b|\b(added|entered|created|uploaded)\s+(today|yesterday|this week|recently|lately|this month)\b|\bnew bills?\b|\bbills?\s+(added|entered|uploaded)\b|what.{0,12}(did|have) (we|i|you) (add|enter)/.test(t)) {
+    const ra: ToolArgs = { ...base };
+    if (/yesterday/.test(t)) { const y = new Date(startOfDay(s.now).getTime() - DAY); ra.from = iso(y); ra.to = iso(y); }
+    else if (/this week|7 days|past week|last week/.test(t)) ra.days = 7;
+    else if (/this month|30 days/.test(t)) ra.days = 30;
+    else ra.days = 1;
+    return [{ tool: "ap_recent_added", args: ra }];
   }
 
   // A named vendor wins over every generic keyword ("how much do we owe Alsco this week").

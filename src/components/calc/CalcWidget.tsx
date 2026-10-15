@@ -9,6 +9,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { X, Send, History, Plus, Trash2, ExternalLink, Copy, Check } from "lucide-react";
 import { useFinance } from "../../context/FinanceContext";
 import { getAccessToken } from "../../services/googleAuth";
+import { SHARED_LOGS_SHEET_ID } from "../../services/logsSheetService";
 import { verifyAmounts } from "../../services/calcVerify";
 import { CALC_IS_LOCAL } from "./calcAccess";
 import { getRawData, getMasterListWeeks, buildWeekMap, getFilteredData } from "../../services/fourYrPayrollService";
@@ -140,6 +141,26 @@ export const CalcWidget: React.FC = () => {
     return p;
   }, []);
 
+  // ── the portal's shared Activity Log (who added/edited/deleted what, with times) — read on demand, cached 60 s ──
+  const activityCache = useRef<{ t: number; p: Promise<string[][] | null> } | null>(null);
+  const getActivity = useCallback(async () => {
+    const tok = getAccessToken();
+    if (!tok) return null;
+    const c = activityCache.current;
+    if (c && Date.now() - c.t < 60000) return c.p;
+    const p = (async () => {
+      try {
+        const r = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHARED_LOGS_SHEET_ID}/values/${encodeURIComponent("Activity Log")}!A:D`, { headers: { Authorization: `Bearer ${tok}` } });
+        if (!r.ok) return null;
+        const j = await r.json();
+        return ((j.values || []) as string[][]).slice(1);
+      } catch { return null; }
+    })();
+    activityCache.current = { t: Date.now(), p };
+    p.then(v => { if (!v && activityCache.current && activityCache.current.p === p) activityCache.current = null; });
+    return p;
+  }, []);
+
   // ── snapshot of the sheet-synced portal state ──
   const snapshot = useMemo<CalcSnapshot>(() => {
     const events: CalcEvent[] = [];
@@ -159,10 +180,10 @@ export const CalcWidget: React.FC = () => {
       now: new Date(), lastSyncedAt: lastSyncedAt || null,
       apBills: fin.apBills || [], bankAccounts: fin.bankAccounts || [], bankStatements: fin.bankStatements || [],
       events: uniq, quickNotes: fin.quickNotes || [], externalLinks: fin.externalLinks || [], statementTemplates: fin.statementTemplates || [],
-      getPayroll: getPayroll as any,
+      getPayroll: getPayroll as any, getActivity,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fin.apBills, fin.bankAccounts, fin.bankStatements, fin.calSheetEvents, fin.calendarLocalEvents, fin.googleCalEvents, fin.quickNotes, fin.externalLinks, fin.statementTemplates, lastSyncedAt, open, getPayroll]);
+  }, [fin.apBills, fin.bankAccounts, fin.bankStatements, fin.calSheetEvents, fin.calendarLocalEvents, fin.googleCalEvents, fin.quickNotes, fin.externalLinks, fin.statementTemplates, lastSyncedAt, open, getPayroll, getActivity]);
 
   const setAvFor = useCallback((s: CalcAvatarState, ms = 0) => {
     clearTimeout(avTimer.current);
