@@ -1339,6 +1339,9 @@ export const appendAPBill = async (
   const readData = await readRes.json();
   const vendorRows: any[][] = readData.values || [];
   const nextRow = dataStart + vendorRows.length; // first empty row after last bill
+  // bill.row is RELATIVE to the table start (row 1 = dataStart) — every later write does dataStart + row - 1.
+  // Returning the absolute sheet row here made edits/attachments land (dataStart-1) rows away = a duplicate.
+  const billRowOf = (sheetRow: number) => sheetRow - dataStart + 1;
 
   // Write the new bill directly to that row
   const writeRange = `${tabName}!A${nextRow}:${lastDataCol}${nextRow}`;
@@ -1350,11 +1353,11 @@ export const appendAPBill = async (
     `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}?fields=sheets.properties`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
-  if (!metaRes.ok) return nextRow;
+  if (!metaRes.ok) return billRowOf(nextRow);
   const meta = await metaRes.json();
   const tabTitle = tabName.replace(/^'|'$/g, "").replace(/''/g, "'");
   const sheetMeta = (meta.sheets || []).find((s: any) => s.properties?.title === tabTitle);
-  if (!sheetMeta) return nextRow;
+  if (!sheetMeta) return billRowOf(nextRow);
 
   await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${cleanId}:batchUpdate`, {
     method: "POST",
@@ -1368,7 +1371,7 @@ export const appendAPBill = async (
       }]
     })
   });
-  return nextRow;
+  return billRowOf(nextRow);
 };
 
 // Append MANY new bills in one go: a single read to find the first empty row, ONE contiguous
@@ -1402,6 +1405,7 @@ export const appendAPBillsBatch = async (
   const firstRow = dataStart + ((readData.values || []) as any[][]).length;
   const lastRow = firstRow + bills.length - 1;
   const rows = bills.map((_, i) => firstRow + i);
+  const billRowOf = (sheetRow: number) => sheetRow - dataStart + 1; // relative to the table start, see appendAPBill
 
   const writeRange = `${tabName}!A${firstRow}:${lastDataCol}${lastRow}`;
   await updateSheetValues(spreadsheetId, writeRange, bills.map((b) => buildAPBillRow(b, entity)), accessToken);
@@ -1432,7 +1436,7 @@ export const appendAPBillsBatch = async (
       }
     }
   } catch { /* validation is cosmetic */ }
-  return rows;
+  return rows.map(billRowOf);
 };
 
 // Delete a bill's row from the sheet (removes the row, shifting rows above down)
