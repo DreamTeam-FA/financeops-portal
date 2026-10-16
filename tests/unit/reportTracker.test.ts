@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import {
   adSpendFromGrid, cycleStatus, cycleView, fmtPht, fromPht, historyRows, isoDate, latestDateIn, plannedCalendarEvents,
-  reportById, stepStates, stepStatesEx, explicitUnticks, allTimeFromGrid, uploadFromChangeLog, tebraDataChecks, reminderItems, reminderTasks, weeklyTabTotal, sheetCheckWeekly, hubWeekPresent, webStorageTabTitles, payoutRowsPresent, toPht, cyclesAround, weekendShift, amazonTabMatches,
+  reportById, stepStates, stepStatesEx, explicitUnticks, allTimeFromGrid, uploadFromChangeLog, tebraDataChecks, reminderItems, reminderTasks, draftNotes, weeklyTabTotal, sheetCheckWeekly, hubWeekPresent, webStorageTabTitles, payoutRowsPresent, toPht, cyclesAround, weekendShift, amazonTabMatches,
 } from "../../src/services/reportTrackerService";
 
 // Thu Oct 1, 2026 3:10 PM PHT  (= 07:10 UTC)
@@ -424,5 +424,26 @@ describe("CPRO sheet checks (read the sheets, tick by content)", () => {
     expect(payoutRowsPresent(rows, mo).state).toBe("ok");
     expect(payoutRowsPresent([rows[0]], mo).detail).toMatch(/Storage Fee/);
     expect(payoutRowsPresent([], mo).state).toBe("no");
+  });
+});
+
+describe("FTA email draft reminders follow the workflow", () => {
+  const now = fromPht(2026, 10, 13, 21); // Tue Oct 13, 9 PM PHT
+  const fta = cycleView("fta", now).active;
+  const row = (done: boolean, evidence = "") => ({ done, at: "", by: "gmail-check", evidence });
+  const k = (s: string) => `${fta.periodKey}|${s}`;
+  it("Mark draft note appears only after the draft exists and until Mark's email is sent", () => {
+    expect(draftNotes("fta", fta, {}, { mark: "open" })).toEqual([]);
+    const withDraft = { [k("draft-mark")]: row(true, "Draft to Mark created https://mail.google.com/mail/u/0/#drafts/abc") };
+    const n = draftNotes("fta", fta, withDraft, { mark: "open", client: "open" });
+    expect(n).toHaveLength(1);
+    expect(n[0].url).toBe("https://mail.google.com/mail/u/0/#drafts/abc");
+    expect(draftNotes("fta", fta, withDraft, { mark: "done", client: "open" })).toEqual([]);
+  });
+  it("client draft note appears after Mark approved, and clears when the client email is sent; other reports have none", () => {
+    const rows = { [k("draft-mark")]: row(true), [k("draft-client")]: row(true, "https://mail.google.com/x") };
+    expect(draftNotes("fta", fta, rows, { mark: "done", client: "open" }).map(x => x.text)).toEqual([expect.stringMatching(/Mark approved/)]);
+    expect(draftNotes("fta", fta, rows, { mark: "done", client: "done" })).toEqual([]);
+    expect(draftNotes("cprow", fta, rows, {})).toEqual([]);
   });
 });

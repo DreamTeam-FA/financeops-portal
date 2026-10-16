@@ -1116,6 +1116,26 @@ export interface ReminderItem {
   rep: ReportDef; cycle: Cycle; status: Status;
   /** Steps that are known to be not done yet (an automatic step that could not be read is not listed). */
   pending: StepDef[];
+  /** Things waiting for you right now, in workflow order (for example "the draft to Mark is ready"). */
+  notes: { text: string; url?: string }[];
+}
+
+/**
+ * FTA email drafts made by the email routine (Checks rows draft-mark / draft-client, evidence holds the Gmail link).
+ * A note shows only while the step it prepares is still open, so it appears at the right moment in the workflow:
+ * the Mark draft after Monica's invoice arrived, the client draft after Mark approved.
+ */
+export function draftNotes(
+  reportId: ReportId, cycle: Cycle, checks: Record<string, CheckRow>, states: Record<string, StepState>,
+): { text: string; url?: string }[] {
+  if (reportId !== "fta") return [];
+  const out: { text: string; url?: string }[] = [];
+  const link = (k: string) => (/https?:\/\/\S+/.exec(checks[`${cycle.periodKey}|${k}`]?.evidence || "") || [])[0];
+  if (checks[`${cycle.periodKey}|draft-mark`]?.done && states.mark !== "done")
+    out.push({ text: "Draft to Mark is ready in Gmail: attach Monica's invoice, check it, then send.", url: link("draft-mark") });
+  if (checks[`${cycle.periodKey}|draft-client`]?.done && states.client !== "done")
+    out.push({ text: "Mark approved. Draft to the client is ready in Gmail: attach the invoice, then send.", url: link("draft-client") });
+  return out;
 }
 
 /**
@@ -1138,7 +1158,8 @@ export function reminderItems(now: number, checks: Record<string, CheckRow>, aut
       const status = cycleStatus(rep, cycle, states, now);
       if (status !== "due" && status !== "progress" && status !== "overdue") continue;
       const pending = rep.steps.filter(st => states[st.key] === "open");
-      if (pending.length) out.push({ rep, cycle, status, pending });
+      const notes = draftNotes(rep.id, cycle, checks, states);
+      if (pending.length) out.push({ rep, cycle, status, pending, notes });
     }
   }
   const rank = (s: Status) => (s === "overdue" ? 0 : s === "due" ? 1 : 2);

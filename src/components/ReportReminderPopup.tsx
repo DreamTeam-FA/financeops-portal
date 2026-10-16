@@ -111,6 +111,16 @@ export const ReportReminderPopup: React.FC = () => {
               <div className={`text-[11px] ${muted}`}>
                 {i.cycle.label} · {i.cycle.deadline < now ? "was due" : "due by"} {fmtPht(i.cycle.deadline)} ({relative(i.cycle.deadline, now)})
               </div>
+              {i.notes.length > 0 && (
+                <ul className="mt-1 space-y-0.5">
+                  {i.notes.map(n => (
+                    <li key={n.text} className="text-[11px] font-semibold flex gap-1.5 text-[#0d9488]">
+                      <span>✉</span>
+                      <span>{n.text}{n.url ? <> <a href={n.url} target="_blank" rel="noreferrer" className="underline">Open draft</a></> : null}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
               <ul className="mt-1 space-y-0.5">
                 {i.pending.map(s => (
                   <li key={s.key} className="text-[11px] flex gap-1.5"><span className={muted}>•</span><span>{s.label}</span></li>
