@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { getAccessToken } from "../../services/googleAuth";
 import { X, ExternalLink, FileWarning } from "lucide-react";
 import { useFinance } from "../../context/FinanceContext";
 
@@ -22,6 +23,30 @@ export const BillCopyViewerModal: React.FC<BillCopyViewerModalProps> = ({ url, f
   const { theme } = useFinance() as any;
   const isLight = theme === "light";
   const embedUrl = toEmbedUrl(url);
+  const fileId = (url.match(/\/file\/d\/([^/]+)/) || url.match(/[?&]id=([^&]+)/))?.[1];
+  // The Drive /preview iframe relies on the BROWSER's Google cookies (third-party, often blocked
+  // or on another account) -> "Sign in" page even when the portal is signed in. Fetch the file
+  // with the portal's own OAuth token instead and show it from a blob URL.
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(!!fileId);
+  useEffect(() => {
+    let revoke: string | null = null;
+    let cancelled = false;
+    (async () => {
+      const token = getAccessToken();
+      if (!fileId || !token) { setLoading(false); return; }
+      try {
+        const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&supportsAllDrives=true`, { headers: { Authorization: `Bearer ${token}` } });
+        if (!r.ok) throw new Error(String(r.status));
+        const b = await r.blob();
+        if (cancelled) return;
+        revoke = URL.createObjectURL(b);
+        setBlobUrl(revoke);
+      } catch { /* fall back to the Drive preview iframe */ }
+      if (!cancelled) setLoading(false);
+    })();
+    return () => { cancelled = true; if (revoke) URL.revokeObjectURL(revoke); };
+  }, [fileId]);
 
   return (
     <div
@@ -70,9 +95,11 @@ export const BillCopyViewerModal: React.FC<BillCopyViewerModalProps> = ({ url, f
 
         {/* Body */}
         <div className={`flex-1 min-h-0 ${isLight ? "bg-slate-50" : "bg-[#050607]"}`}>
-          {embedUrl ? (
+          {loading ? (
+            <div className="w-full h-full flex items-center justify-center text-[12px] text-slate-400">Loading bill copy…</div>
+          ) : embedUrl ? (
             <iframe
-              src={embedUrl}
+              src={blobUrl || embedUrl}
               title={fileName || "Bill copy"}
               className="w-full h-full border-0"
               allow="autoplay"
