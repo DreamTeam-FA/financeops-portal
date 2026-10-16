@@ -36,6 +36,17 @@ const closeGroup = (key: string): { name: string; hex: string } =>
   : key === "msdx" ? { name: "MSDx", hex: MSDX_HEX }
   : { name: "Close", hex: "#3b82f6" };
 
+/** Steps of a card in display order; the Month-End Close card is split into its entity sections. */
+const stepGroups = (rep: ReportDef): { g: { name: string; hex: string } | null; steps: ReportDef["steps"] }[] => {
+  if (rep.id !== "close") return [{ g: null, steps: rep.steps }];
+  const out: { g: { name: string; hex: string } | null; steps: ReportDef["steps"] }[] = [];
+  for (const s of rep.steps) {
+    const g = closeGroup(s.key), last = out[out.length - 1];
+    if (last && last.g!.name === g.name) last.steps.push(s); else out.push({ g, steps: [s] });
+  }
+  return out;
+};
+
 const StatusBadge: React.FC<{ status: Status; isLight: boolean }> = ({ status, isLight }) => {
   const map: Record<Status, { cls: string; text: string }> = {
     done:     { cls: `bg-[#16a34a]/20 ${isLight ? "text-emerald-600" : "text-[#4ade80]"}`, text: "✓ Done" },
@@ -514,11 +525,11 @@ export const ReportTrackerPage: React.FC = () => {
         </div>
 
         {/* ── Report cards ── */}
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          {blocks.map(({ rep, next, list }) => (
-            <div key={rep.id} className="space-y-3">
+        {(() => {
+        const renderReport = ({ rep, next, list }: (typeof blocks)[number]) => (
+            <div key={rep.id} className="flex flex-col gap-3 h-full">
               {list.map(b => (
-                <div key={b.cycle.periodKey} className={`${card} overflow-hidden shadow-sm`}>
+                <div key={b.cycle.periodKey} className={`${card} overflow-hidden shadow-sm flex flex-col flex-1`}>
                   <div className={`p-3 ${cardHead} flex flex-col sm:flex-row items-start sm:justify-between gap-1.5 sm:gap-3`}>
                     <div className="flex items-start gap-2.5 min-w-0">
                       <span className="w-1 self-stretch rounded-full shrink-0" style={{ background: rep.accent }} />
@@ -551,13 +562,13 @@ export const ReportTrackerPage: React.FC = () => {
                     return (
                       <div className="px-3 pt-2.5 flex items-center gap-2.5">
                         <div className={`flex-1 h-1.5 rounded-full overflow-hidden ${isLight ? "bg-slate-200" : "bg-[#1a2235]"}`}>
-                          <div className="h-full rounded-full transition-all" style={{ width: `${total ? Math.round((n / total) * 100) : 0}%`, background: n === total ? "#16a34a" : rep.accent }} />
+                          <div className="h-full rounded-full transition-all" style={{ width: `${total ? Math.round((n / total) * 100) : 0}%`, background: rep.accent }} />
                         </div>
                         <span className={`text-[11px] tabular-nums font-semibold ${n === total ? (isLight ? "text-emerald-600" : "text-[#4ade80]") : muted}`}>{n} of {total} done</span>
                       </div>
                     );
                   })()}
-                  <div className={`p-2 ${b.status === "skipped" ? "opacity-50" : ""}`}>
+                  <div className={`p-2 flex-1 ${b.status === "skipped" ? "opacity-50" : ""}`}>
                     {b.status !== "done" && weekendShift(b.cycle) && (
                       <div className={`mx-2 mb-1 text-[11px] font-semibold ${isLight ? "text-amber-700" : "text-[#fbbf24]"}`}>
                         Weekend: {weekendShift(b.cycle)!.note}
@@ -568,20 +579,21 @@ export const ReportTrackerPage: React.FC = () => {
                         Marked as no report due{checks[`${b.cycle.periodKey}|skip`]?.by ? ` by ${checks[`${b.cycle.periodKey}|skip`].by}` : ""}. No steps are needed this week.
                       </div>
                     )}
-                    {rep.steps.map((s, si) => {
+                    <div className={rep.id === "close" ? "lg:columns-2 lg:gap-6" : ""}>
+                    {stepGroups(rep).map((grp, gi) => (
+                    <div key={gi} className={rep.id === "close" ? "break-inside-avoid mb-2" : ""}>
+                    {grp.g && (
+                      <div className={`flex items-center gap-1.5 px-2 pt-1.5 pb-0.5 text-[10px] font-bold uppercase tracking-wider ${muted}`}>
+                        <span className="w-2 h-2 rounded-full" style={{ background: grp.g.hex }} />{grp.g.name}
+                      </div>
+                    )}
+                    {grp.steps.map(s => {
                       const st = b.states[s.key];
-                      const grp = rep.id === "close" ? closeGroup(s.key) : null;
-                      const head = grp && (si === 0 || closeGroup(rep.steps[si - 1].key).name !== grp.name) ? (
-                        <div className={`flex items-center gap-1.5 px-2 pt-2.5 pb-0.5 text-[10px] font-bold uppercase tracking-wider ${muted}`}>
-                          <span className="w-2 h-2 rounded-full" style={{ background: grp.hex }} />{grp.name}
-                        </div>
-                      ) : null;
                       const key = `${b.cycle.periodKey}|${s.key}`;
                       const a = auto[b.cycle.periodKey]?.[s.key];
                       const row = checks[key];
                       return (
                         <React.Fragment key={s.key}>
-                        {head}
                         <div className={`flex items-start gap-2.5 px-2 py-1.5 rounded-lg ${isLight ? "hover:bg-slate-50" : "hover:bg-white/5"}`}>
                           {s.kind === "manual" ? (
                             <button
@@ -630,8 +642,16 @@ export const ReportTrackerPage: React.FC = () => {
                         </React.Fragment>
                       );
                     })}
+                    </div>
+                    ))}
+                    </div>
                   </div>
 
+                  {b.label === "current" && next && (
+                    <div className={`px-3 pb-2 text-[11px] ${muted}`}>
+                      Next run: <span className={`font-semibold ${isLight ? "text-slate-700" : "text-gray-300"}`}>{fmtPht(next.windowStart)}</span> ({relative(next.windowStart, now)}) · {next.label}
+                    </div>
+                  )}
                   <div className={`px-3 py-2 border-t flex flex-wrap items-center gap-x-2 gap-y-1.5 ${isLight ? "border-slate-200" : "border-[#1a2235]"}`}>
                     <span className={`text-[10.5px] italic ${muted}`}>{rep.script}</span>
                     {rep.id === "fta" && (
@@ -654,14 +674,23 @@ export const ReportTrackerPage: React.FC = () => {
                   </div>
                 </div>
               ))}
-              {next && (
-                <div className={`text-[11px] ${muted} px-1`}>
-                  Next {rep.name} run: <span className={`font-semibold ${isLight ? "text-slate-700" : "text-gray-300"}`}>{fmtPht(next.windowStart)}</span> ({relative(next.windowStart, now)}) · period {next.label}
-                </div>
-              )}
             </div>
-          ))}
-        </div>
+        );
+        const by = Object.fromEntries(blocks.map(x => [x.rep.id, x])) as Record<string, (typeof blocks)[number] | undefined>;
+        const slot = (id: string) => (by[id] ? renderReport(by[id]!) : null);
+        return (
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch">
+            {slot("fta")}
+            {slot("cprow")}
+            {slot("cprom")}
+            <div className="flex flex-col gap-4">
+              {slot("toast")}
+              {slot("tebra")}
+            </div>
+            <div className="xl:col-span-2">{slot("close")}</div>
+          </div>
+        );
+        })()}
 
         {/* ── History (from the Checks tab) ── */}
         <div className={`${card} overflow-hidden shadow-sm`}>
