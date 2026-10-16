@@ -210,10 +210,11 @@ export const REPORTS: ReportDef[] = [
     id: "close", name: "Month-End Close", cadence: "Opens the 1st of the NEXT month · due the 7th (PHT) · e.g. the September close opens Oct 1, due Oct 7", script: "Mostly mirrors the other cards", accent: "#0d9488",
     entity: { label: "All", hex: "#0d948833", textHex: "#5eead4" },
     overdueRule: "all",
-    parallel: ["toast_run", "toast_micah", "cprom_run", "cprom_alltime", "cprom_adspend", "cprom_webstorage", "cprom_payout", "cprom_dashboard", "cprom_micah", "cprow_weeks", "bank", "msdx"],
+    parallel: ["toast_run", "toast_micah", "fta_weeks", "cprom_run", "cprom_alltime", "cprom_adspend", "cprom_webstorage", "cprom_payout", "cprom_dashboard", "cprom_micah", "cprow_weeks", "bank", "msdx"],
     steps: [
       { key: "toast_run",        label: "Ruby's · Toast Recon script run", kind: "auto", from: { report: "toast", step: "run" } },
       { key: "toast_micah",      label: "Ruby's · Micah informed (Toast Recon)", kind: "auto", from: { report: "toast", step: "micah" } },
+      { key: "fta_weeks",        label: "Ruby's · every weekly FTA report of the month done (Mondays in the month)", kind: "auto", from: { report: "fta", step: "*" } },
       { key: "cprom_run",        label: "CPRO · monthly script run", kind: "auto", from: { report: "cprom", step: "run" } },
       { key: "cprom_alltime",    label: "CPRO · Sales All Time updated", kind: "auto", from: { report: "cprom", step: "alltime" } },
       { key: "cprom_adspend",    label: "CPRO · Ad Spend month filled", kind: "auto", from: { report: "cprom", step: "adspend" } },
@@ -339,14 +340,19 @@ export function relatedCycles(c: Cycle): Cycle[] {
   for (let d = 1; d <= dm.lastDay; d++) {
     if (toPht(fromPht(dm.y, dm.m, d, 12)).dow === 6) weeks.push(cpro1Weekly(addDays({ y: dm.y, m: dm.m, d }, 2)));
   }
+  // FTA Weekly: one report per Monday of the data month (run the Tuesday after)
+  for (let d = 1; d <= dm.lastDay; d++) {
+    if (toPht(fromPht(dm.y, dm.m, d, 12)).dow === 1) weeks.push(ftaCycle(addDays({ y: dm.y, m: dm.m, d }, 1)));
+  }
   return [toastCycle(t.y, t.m), cproMonthly(t.y, t.m), ...weeks];
 }
 
-/** Weekly reports (Tebra, CPRO Weekly) a close card needs: how many are fully done out of how many. */
-export function weeklyReportsDone(close: Cycle, report: "tebra" | "cprow", checks: Record<string, boolean>, unticked?: Set<string>, allAuto?: AutoByPeriod): { done: number; total: number } {
+/** Weekly reports (Tebra, CPRO Weekly, FTA) a close card needs: how many are fully done out of how many. */
+export function weeklyReportsDone(close: Cycle, report: "tebra" | "cprow" | "fta", checks: Record<string, boolean>, unticked?: Set<string>, allAuto?: AutoByPeriod): { done: number; total: number } {
   const subs = relatedCycles(close).filter(r => r.reportId === report);
   const rep = reportById(report);
   const done = subs.filter(sub => {
+    if (checks[`${sub.periodKey}|${SKIP_STEP}`]) return true;
     const st = stepStatesEx(rep, sub, allAuto?.[sub.periodKey], checks, unticked, allAuto).states;
     return report === "tebra" ? st.final === "done" : rep.steps.every(x => st[x.key] === "done");
   }).length;
@@ -451,6 +457,7 @@ export function stepStatesEx(
       // mirrors the same step on the other report's card for this month
       const subs = related.filter(r => r.reportId === s.from!.report);
       const subStates = subs.map(sub => {
+        if (checks[`${sub.periodKey}|${SKIP_STEP}`]) return "done"; // a week marked "no report due" (school break)
         const st = stepStatesEx(reportById(sub.reportId), sub, allAuto?.[sub.periodKey], checks, unticked, allAuto).states;
         if (s.from!.step !== "*") return st[s.from!.step] || "open";
         const all = reportById(sub.reportId).steps.map(x => st[x.key]);

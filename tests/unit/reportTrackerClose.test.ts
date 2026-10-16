@@ -19,7 +19,7 @@ describe("close cycle", () => {
   });
   it("mirrors Toast, CPRO Monthly and the first Wednesday's Tebra report", () => {
     const keys = relatedCycles(close).map(c => c.periodKey);
-    expect(keys).toEqual(["toast:2026-09", "cprom:2026-09", "tebra:2026-09-02", "tebra:2026-09-09", "tebra:2026-09-16", "tebra:2026-09-23", "tebra:2026-09-30", "tebra:2026-10-07", "cprow:2026-09-07", "cprow:2026-09-14", "cprow:2026-09-21", "cprow:2026-09-28"]);
+    expect(keys).toEqual(["toast:2026-09", "cprom:2026-09", "tebra:2026-09-02", "tebra:2026-09-09", "tebra:2026-09-16", "tebra:2026-09-23", "tebra:2026-09-30", "tebra:2026-10-07", "cprow:2026-09-07", "cprow:2026-09-14", "cprow:2026-09-21", "cprow:2026-09-28", "fta:2026-09-07", "fta:2026-09-14", "fta:2026-09-21", "fta:2026-09-28"]);
   });
 });
 
@@ -30,6 +30,7 @@ describe("close steps", () => {
       "toast:2026-09|auto:run", "toast:2026-09|micah", "cprom:2026-09|auto:run", "cprom:2026-09|auto:alltime", "cprom:2026-09|auto:adspend",
       "cprom:2026-09|webstorage", "cprom:2026-09|payout", "cprom:2026-09|dashboard", "cprom:2026-09|micah", ...["09-02", "09-09", "09-16", "09-23", "09-30", "10-07"].map(d => `tebra:2026-${d}|final`),
       ...["09-07", "09-14", "09-21", "09-28"].flatMap(d => ["auto:run", "auto:alltime", "sheet", "dashboard", "tonie"].map(k => `cprow:2026-${d}|${k}`)),
+      ...["09-07", "09-14", "09-21", "09-28"].flatMap(d => ["auto:run", "auto:invoice", "monica", "checked", "mark", "approved", "client"].map(k => `fta:2026-${d}|${k}`)),
     ]);
     const st = stepStates(rep, close, { bank: { state: "ok" } }, checks, undefined, {});
     expect(Object.entries(st).filter(([, v]) => v !== "done").map(([k]) => k)).toEqual(["final"]);
@@ -57,6 +58,16 @@ describe("CPRO Weekly needs every week of the month", () => {
     const three = Object.fromEntries(["09-07", "09-14", "09-21"].flatMap(wk));
     expect(stepStates(rep, close, undefined, three, undefined, {}).cprow_weeks).toBe("open");
     expect(stepStates(rep, close, undefined, { ...three, ...Object.fromEntries(wk("09-28")) }, undefined, {}).cprow_weeks).toBe("done");
+  });
+});
+
+describe("FTA needs every week of the month", () => {
+  const wk = (d: string) => ["auto:run", "auto:invoice", "monica", "checked", "mark", "approved", "client"].map(k => [`fta:2026-${d}|${k}`, true] as const);
+  it("3 of 4 weeks keeps it open; a skipped (school break) week counts as done", () => {
+    const three = Object.fromEntries(["09-07", "09-14", "09-21"].flatMap(wk));
+    expect(stepStates(rep, close, undefined, three, undefined, {}).fta_weeks).toBe("open");
+    expect(stepStates(rep, close, undefined, { ...three, "fta:2026-09-28|skip": true }, undefined, {}).fta_weeks).toBe("done");
+    expect(stepStates(rep, close, undefined, { ...three, ...Object.fromEntries(wk("09-28")) }, undefined, {}).fta_weeks).toBe("done");
   });
 });
 

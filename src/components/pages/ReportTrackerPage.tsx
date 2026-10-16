@@ -577,7 +577,7 @@ export const ReportTrackerPage: React.FC = () => {
                             </div>
                             {s.from ? (
                               <div className={`text-[11px] ${muted}`}>{s.from.report === "tebra" || s.from.step === "*"
-                                ? (() => { const w = weeklyReportsDone(b.cycle, s.from!.report as "tebra" | "cprow", flatChecks, unticked, auto); return `${w.done} of ${w.total} weekly ${reportById(s.from!.report).name} reports done · needs all of them`; })()
+                                ? (() => { const w = weeklyReportsDone(b.cycle, s.from!.report as "tebra" | "cprow" | "fta", flatChecks, unticked, auto); return `${w.done} of ${w.total} weekly ${reportById(s.from!.report).name} reports done · needs all of them`; })()
                                 : `Follows the ${reportById(s.from.report).name} card for this month`}</div>
                             ) : (s.kind === "auto" || s.autoAlso) && autoLine(b.cycle.periodKey, s.key, a, checks)}
                             {b.implied.has(s.key) && (
