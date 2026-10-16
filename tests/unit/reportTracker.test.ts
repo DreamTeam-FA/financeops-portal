@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import {
   adSpendFromGrid, cycleStatus, cycleView, fmtPht, fromPht, historyRows, isoDate, latestDateIn, plannedCalendarEvents,
-  reportById, stepStates, stepStatesEx, explicitUnticks, allTimeFromGrid, uploadFromChangeLog, tebraDataChecks, reminderItems, reminderTasks, toPht, cyclesAround, weekendShift, amazonTabMatches,
+  reportById, stepStates, stepStatesEx, explicitUnticks, allTimeFromGrid, uploadFromChangeLog, tebraDataChecks, reminderItems, reminderTasks, weeklyTabTotal, sheetCheckWeekly, hubWeekPresent, webStorageTabTitles, payoutRowsPresent, toPht, cyclesAround, weekendShift, amazonTabMatches,
 } from "../../src/services/reportTrackerService";
 
 // Thu Oct 1, 2026 3:10 PM PHT  (= 07:10 UTC)
@@ -392,5 +392,37 @@ describe("reminder pop-up tasks", () => {
     const t = (id: string, title: string, due: string, done = false) => ({ id, title, due, done, notes: "" });
     const out = reminderTasks([t("a", "No date", ""), t("b", "Late", "2026-10-01"), t("c", "Done", "2026-09-01", true), t("d", "Soon", "2026-10-20"), t("e", "  ", "2026-10-02")]);
     expect(out.map(x => x.id)).toEqual(["b", "d", "a"]);
+  });
+});
+
+describe("CPRO sheet checks (read the sheets, tick by content)", () => {
+  const wk = cycleView("cprow", fromPht(2026, 10, 13, 9)).active; // Oct 4 - Oct 10
+  const mo = cycleView("cprom", fromPht(2026, 10, 7, 9)).active; // September 2026
+  it("weekly tab total is read from the Total row", () => {
+    expect(weeklyTabTotal([["", "", "", "Total", "$1,354.04", "", "28"]])).toBe(1354.04);
+    expect(weeklyTabTotal([["a", "b"]])).toBeNull();
+  });
+  it("sheet checked: tab total must match Sales All Time for the same week", () => {
+    const tab = [["", "", "", "Total", "$1,606.05"]];
+    expect(sheetCheckWeekly(tab, [["10/04/2026-10/10/2026", "$1,606.05"]], wk).state).toBe("ok");
+    expect(sheetCheckWeekly(tab, [["10/04/2026-10/10/2026", "$1,500.00"]], wk).state).toBe("no");
+    expect(sheetCheckWeekly(tab, [["09/27/2026-10/03/2026", "$1,354.04"]], wk).state).toBe("no");
+    expect(sheetCheckWeekly(null, [], wk).state).toBe("no");
+  });
+  it("dashboard: the week's row is on the Hub Stats tab with figures", () => {
+    expect(hubWeekPresent([["10/04/2026-10/10/2026", "7", "556.66"]], wk).state).toBe("ok");
+    expect(hubWeekPresent([["10/04/2026 - 10/10/2026", "", ""]], wk).state).toBe("no");
+    expect(hubWeekPresent([["09/27/2026-10/03/2026", "7", "5"]], wk).state).toBe("no");
+  });
+  it("Website & Storage: both tabs for the data month", () => {
+    const t = [{ title: "Sep Web 2026" }, { title: "Sep Storage 2026" }, { title: "Aug Web 2026" }];
+    expect(webStorageTabTitles(t, mo)).toEqual({ web: "Sep Web 2026", storage: "Sep Storage 2026" });
+    expect(webStorageTabTitles([{ title: "Aug Web 2026" }], mo)).toEqual({});
+  });
+  it("Brand Payout: Website Sales and Storage Fee rows dated the 1st of the next month, whatever the label says", () => {
+    const rows = [["August 2026 Website ", "10/1/2026", "Website Sales due to E1 (D12)"], ["August 2026 Storage", "10/1/2026", "Storage Fee (L18)"]];
+    expect(payoutRowsPresent(rows, mo).state).toBe("ok");
+    expect(payoutRowsPresent([rows[0]], mo).detail).toMatch(/Storage Fee/);
+    expect(payoutRowsPresent([], mo).state).toBe("no");
   });
 });

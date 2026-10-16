@@ -60,7 +60,7 @@ describe("confirmed steps are remembered", () => {
 describe("only the reads still needed are made", () => {
   it("everything confirmed → zero requests", async () => {
     const confirmed = new Set<string>();
-    for (const c of [fta, cprow, toast]) for (const s of reportById(c.reportId).steps.filter(x => x.kind === "auto")) confirmed.add(`${c.periodKey}|${s.key}`);
+    for (const c of [fta, cprow, toast]) for (const s of reportById(c.reportId).steps.filter(x => x.kind === "auto" || x.autoAlso)) confirmed.add(`${c.periodKey}|${s.key}`);
     const out = await runAutoChecks("tok", [fta, cprow, toast], confirmed);
     expect(urls).toHaveLength(0);
     expect(out.byPeriod).toEqual({});
@@ -78,7 +78,7 @@ describe("only the reads still needed are made", () => {
     expect(out.byPeriod[fta.periodKey]).toMatchObject({ run: { state: "ok" }, invoice: { state: "ok" } });
     expect(out.byPeriod[cprow.periodKey]).toMatchObject({ run: { state: "ok" }, alltime: { state: "ok" } });
     expect(out.byPeriod[toast.periodKey]).toMatchObject({ run: { state: "ok" } });
-    expect(urls.length).toBeLessThanOrEqual(5); // fta tabs, amazon tabs, usu folder, all-time week list, toast column
+    expect(urls.length).toBeLessThanOrEqual(12); // fta tabs, amazon tabs, usu folder, all-time week list, toast column
   });
   it("pendingAutoSteps lists only unconfirmed auto steps", () => {
     const p = pendingAutoSteps([fta], new Set([`${fta.periodKey}|run`]));

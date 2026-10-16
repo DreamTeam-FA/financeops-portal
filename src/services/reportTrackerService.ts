@@ -39,8 +39,8 @@ export const SRC = {
   amazonSales:    "1UK1n3sTGYpg5j7TdidpMH5HxYOtwKks5gckMWMui_XQ", // CPRO Amazon Sales report
   salesAllTime:   "1Vd_QvQHxuaibBW8BZt5EMZzHKDcztqXLqBNTH5DpROY", // CPRO SALES ALL TIME
   adSpend:        "1RoYMLak4KUTglvUuKNDgQ4MoAuPB4q1Cnyy33zfHcWU", // CPRO Ad Spend
-  webStorage:     "1H-p3QiiADLjJ2ayNemwQZnSMvGfQjlB_5bXIRk7PWKs", // CPRO Website & Storage (link only; never read)
-  brandPayout:    "1WvEhME2946z-XQiuG0pTnurKvN_xCPbso3ahAAvZTTU", // CPRO Brand Payout Sheet (link only; never read)
+  webStorage:     "1H-p3QiiADLjJ2ayNemwQZnSMvGfQjlB_5bXIRk7PWKs", // CPRO Website & Storage (tab titles + first rows read-only)
+  brandPayout:    "1WvEhME2946z-XQiuG0pTnurKvN_xCPbso3ahAAvZTTU", // CPRO Brand Payout Sheet (Payout Summary rows read-only)
   hub:            "1wg2ESvNe7v9itWpsZOXiqqLSBRHnpdsZdZcNGrOE8RE", // #CURCUMINPRO HUB
   usuFolder:      "1mqy0QiNBkYuR5Lwn7Us0-ztGeu2pNMOc",            // Invoices / USU
   msdxDashboard:  "1xusXKDid7q45dPcE6ZAHneGP1ViHPSdkQmS8Jkj2TLY", // MSDx Dashboard data sheet (Tebra claims; PATIENT DATA: only the Change Log timestamp column is ever read)
@@ -143,8 +143,8 @@ export const REPORTS: ReportDef[] = [
     steps: [
       { key: "run",       label: "Script run — weekly tab (Sun–Sat) on the Amazon Sales Report", kind: "auto" },
       { key: "alltime",   label: "CPRO Sales All Time updated", kind: "auto" },
-      { key: "sheet",     label: "Sheet checked — everything landed correctly", kind: "manual" },
-      { key: "dashboard", label: "CPRO dashboard: latest week in the dropdown matches", kind: "manual", hint: "Wait for load; click Refresh in the side panel if it's missing." },
+      { key: "sheet",     label: "Sheet checked — everything landed correctly", kind: "manual", autoAlso: true },
+      { key: "dashboard", label: "CPRO dashboard: latest week in the dropdown matches", kind: "manual", autoAlso: true, hint: "Wait for load; click Refresh in the side panel if it's missing." },
       { key: "tonie",     label: "Tonie informed (Slack)", kind: "manual" },
     ],
     links: [
@@ -163,9 +163,9 @@ export const REPORTS: ReportDef[] = [
       { key: "run",        label: "Script run — monthly tab on the Amazon Sales Report", kind: "auto" },
       { key: "alltime",    label: "CPRO Sales All Time updated", kind: "auto" },
       { key: "adspend",    label: "Ad Spend month column filled (manual — script doesn't do this yet)", kind: "auto" },
-      { key: "webstorage", label: "Website & Storage sheet done (manual)", kind: "manual" },
-      { key: "payout",     label: "Brand Payout sheet done (manual)", kind: "manual" },
-      { key: "dashboard",  label: "CPRO dashboard: data loaded, incl. the Brand Payout section", kind: "manual" },
+      { key: "webstorage", label: "Website & Storage sheet done (manual)", kind: "manual", autoAlso: true },
+      { key: "payout",     label: "Brand Payout sheet done (manual)", kind: "manual", autoAlso: true },
+      { key: "dashboard",  label: "CPRO dashboard: data loaded, incl. the Brand Payout section", kind: "manual", autoAlso: true },
       { key: "micah",      label: "Micah informed (Slack)", kind: "manual" },
     ],
     links: [
@@ -786,6 +786,81 @@ export function tebraDataChecks(
   return { check, final };
 }
 
+/** First number in a list of cells after the cell that says "Total" (Amazon weekly tab layout: label in D, total in E). */
+export function weeklyTabTotal(rows: string[][]): number | null {
+  for (const r of rows) {
+    const i = r.findIndex(c => String(c ?? "").trim().toLowerCase() === "total");
+    if (i < 0) continue;
+    for (const c of r.slice(i + 1)) { const n = parseMoney(c); if (!Number.isNaN(n)) return n; }
+  }
+  return null;
+}
+
+/**
+ * CPRO Weekly "sheet checked": the weekly tab on the Amazon Sales Report has a Total, and the same week on CPRO Sales All
+ * Time ("Amazon Week over Week", column A range, column B total) shows the same figure (to the cent).
+ */
+export function sheetCheckWeekly(tabRows: string[][] | null, allTime: string[][], c: Cycle): AutoResult {
+  if (!tabRows) return { state: "no", detail: `No weekly tab ${c.tabName} yet` };
+  const tabTotal = weeklyTabTotal(tabRows);
+  if (tabTotal == null) return { state: "no", detail: `Tab ${c.tabName} has no Total row yet` };
+  const want = (c.rangeText || "").replace(/\s+/g, "");
+  const row = allTime.find(r => String(r[0] ?? "").replace(/\s+/g, "") === want);
+  if (!row || Number.isNaN(parseMoney(row[1]))) return { state: "no", detail: `Tab total is $${tabTotal.toFixed(2)}; the week is not in Sales All Time yet` };
+  const at = parseMoney(row[1]);
+  return Math.abs(at - tabTotal) < 0.005
+    ? { state: "ok", detail: `Tab total $${tabTotal.toFixed(2)} matches Sales All Time` }
+    : { state: "no", detail: `Tab total $${tabTotal.toFixed(2)} does not match Sales All Time $${at.toFixed(2)}` };
+}
+
+/**
+ * CPRO Weekly dashboard check: the week's row is on the Hub "Stats" tab the dashboard reads (column A holds the week as
+ * "MM/DD/YYYY-MM/DD/YYYY" or with spaces, Sunday to Saturday) and its first figures (columns B and C) are filled.
+ */
+export function hubWeekPresent(rows: string[][], c: Cycle): AutoResult {
+  const norm = (x: unknown) => String(x ?? "").replace(/\s+/g, "");
+  const want = norm(c.rangeText);
+  const start = want.split("-")[0];
+  for (const r of rows) {
+    const a = norm(r[0]);
+    if (!a || !(a === want || a.startsWith(start + "-"))) continue;
+    const filled = [r[1], r[2]].some(v => String(v ?? "").trim() !== "");
+    return filled ? { state: "ok", detail: `Week ${c.rangeText} is on the Hub Stats tab the dashboard reads` }
+      : { state: "no", detail: `Week ${c.rangeText} is on the Hub Stats tab but its figures are empty` };
+  }
+  return { state: "no", detail: `Week ${c.rangeText} is not on the Hub Stats tab yet` };
+}
+
+const MON_ABBR3 = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+/** Website & Storage sheet: the data month has both a "<Mon> Web <YYYY>" and a "<Mon> Storage <YYYY>" tab. Returns the titles. */
+export function webStorageTabTitles(titles: { title: string }[], c: Cycle): { web?: string; storage?: string } {
+  if (!c.month) return {};
+  const mon = MON_ABBR3[c.month.m - 1];
+  const out: { web?: string; storage?: string } = {};
+  for (const t of titles) {
+    const m = /^([a-z]+)\s+(web|storage)\s+(\d{4})$/i.exec((t.title || "").trim());
+    if (!m || m[3] !== String(c.month.y) || !m[1].toLowerCase().startsWith(mon)) continue;
+    if (m[2].toLowerCase() === "web") out.web = t.title; else out.storage = t.title;
+  }
+  return out;
+}
+
+/**
+ * Brand Payout sheet, "Payout Summary" tab: columns A label, B payout date, C platform. A month is done when it has a
+ * "Website Sales" row and a "Storage Fee" row dated the 1st of the month after the data month. The label text is ignored
+ * (it has typos); the payout date and the platform decide.
+ */
+export function payoutRowsPresent(rows: string[][], c: Cycle): AutoResult {
+  if (!c.month) return { state: "unknown", detail: "No month" };
+  const ny = c.month.m === 12 ? c.month.y + 1 : c.month.y, nm = c.month.m === 12 ? 1 : c.month.m + 1;
+  const want = `${nm}/1/${ny}`;
+  const has = (rx: RegExp) => rows.some(r => String(r[1] ?? "").trim() === want && rx.test(String(r[2] ?? "")));
+  const web = has(/^website/i), sto = has(/^storage/i);
+  if (web && sto) return { state: "ok", detail: `Payout Summary has the Website Sales and Storage Fee rows dated ${want}` };
+  const missing = [!web && "Website Sales", !sto && "Storage Fee"].filter(Boolean).join(" and ");
+  return { state: "no", detail: `Payout Summary has no ${missing} row dated ${want} yet` };
+}
+
 const DATE_RX = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
 /** Latest date (ms, UTC midnight) found in a column of strings; M/D/YYYY or YYYY-MM-DD. */
 export function latestDateIn(col: string[][]): number | null {
@@ -838,17 +913,20 @@ export async function runAutoChecks(token: string, cycles: Cycle[], confirmed: S
   const anyNeeds = (rids: ReportId[], step: string) => rids.some(r => needs(r, step));
   const none = Promise.resolve(null);
 
-  const [ftaTabs, amzTabs, usuFiles, allTimeWeek, allTimeMonth, toastCol, adGrid, tebraLog, tebraRaw, tebraClaims] = await Promise.all([
+  const [ftaTabs, amzTabs, usuFiles, allTimeWeek, allTimeMonth, toastCol, adGrid, tebraLog, tebraRaw, tebraClaims, hubStats, wsTitles, payoutGrid] = await Promise.all([
     needs("fta", "run") ? settle(sheetTitles(token, SRC.ftaSheet)) : none,
-    anyNeeds(["cprow", "cprom"], "run") ? settle(sheetTitles(token, SRC.amazonSales)) : none,
+    anyNeeds(["cprow", "cprom"], "run") || needs("cprow", "sheet") ? settle(sheetTitles(token, SRC.amazonSales)) : none,
     needs("fta", "invoice") ? settle(gfetch(token, `${D}?q=${q(`'${SRC.usuFolder}' in parents and trashed=false`)}&orderBy=createdTime%20desc&pageSize=15&fields=files(id,name,createdTime)&supportsAllDrives=true&includeItemsFromAllDrives=true`)) : none,
-    needs("cprow", "alltime") ? settle(readRange(token, SRC.salesAllTime, "'Amazon Week over Week'!A4:B400")) : none,
+    needs("cprow", "alltime") || needs("cprow", "sheet") ? settle(readRange(token, SRC.salesAllTime, "'Amazon Week over Week'!A4:B400")) : none,
     needs("cprom", "alltime") ? settle(readRange(token, SRC.salesAllTime, "'Amazon Month over Month'!A4:B400")) : none,
     needs("toast", "run") ? settle(readRange(token, SRC.toastRecon, "'Toast Data'!E:E")) : none,
     needs("cprom", "adspend") ? settle(readRange(token, SRC.adSpend, "A1:Z30")) : none,
     needs("tebra", "upload") ? settle(readRange(token, SRC.msdxDashboard, "'Change Log'!A2:A5000")) : none,
     needs("tebra", "check") || needs("tebra", "final") ? settle(readRange(token, SRC.msdxDashboard, "'Raw Data'!B2:C5000")) : none,
     needs("tebra", "check") || needs("tebra", "final") ? settle(readRange(token, SRC.msdxDashboard, "Claims!B6:C5000")) : none,
+    needs("cprow", "dashboard") ? settle(readRange(token, SRC.hub, "Stats!A1:C4000")) : none,
+    needs("cprom", "webstorage") || needs("cprom", "dashboard") ? settle(sheetTitles(token, SRC.webStorage)) : none,
+    needs("cprom", "payout") || needs("cprom", "dashboard") ? settle(readRange(token, SRC.brandPayout, "'Payout Summary'!A1:C800")) : none,
   ]);
 
   for (const { cycle: c, steps } of pending) {
@@ -897,6 +975,54 @@ export async function runAutoChecks(token: string, cycles: Cycle[], confirmed: S
         const r = tebraDataChecks(tebraRaw as string[][], tebraClaims as string[][], c, uploaded);
         if (want.has("check")) m.check = r.check;
         if (want.has("final")) m.final = r.final;
+      }
+    }
+    if (c.reportId === "cprow" && want.has("sheet")) {
+      const bad = isErr(amzTabs) ? amzTabs : isErr(allTimeWeek) ? allTimeWeek : null;
+      if (bad) { m.sheet = unknown(bad.__err); errors.push("CPRO weekly sheet check: " + bad.__err.message); }
+      else if (amzTabs && allTimeWeek) {
+        const tab = (amzTabs as any[]).find(t => amazonTabMatches(t.title || "", c));
+        let rows: string[][] | null = null;
+        if (tab) {
+          const got = await settle(readRange(token, SRC.amazonSales, `'${String(tab.title).replace(/'/g, "''")}'!D1:E120`));
+          if (isErr(got)) { m.sheet = unknown(got.__err); errors.push("Amazon Sales Report tab: " + got.__err.message); }
+          else rows = got as string[][];
+        }
+        if (!m.sheet) m.sheet = sheetCheckWeekly(rows, allTimeWeek as string[][], c);
+      }
+    }
+    if (c.reportId === "cprow" && want.has("dashboard")) {
+      if (isErr(hubStats)) { m.dashboard = unknown(hubStats.__err); errors.push("CPRO Hub Stats: " + hubStats.__err.message); }
+      else if (hubStats) m.dashboard = hubWeekPresent(hubStats as string[][], c);
+    }
+    if (c.reportId === "cprom" && c.month && (want.has("webstorage") || want.has("dashboard") || want.has("payout"))) {
+      let ws: AutoResult | undefined, po: AutoResult | undefined;
+      if (isErr(wsTitles)) { ws = unknown(wsTitles.__err); errors.push("Website & Storage sheet: " + wsTitles.__err.message); }
+      else if (wsTitles) {
+        const t = webStorageTabTitles(wsTitles as { title: string }[], c);
+        if (t.web && t.storage) {
+          const rd = async (title: string) => settle(readRange(token, SRC.webStorage, `'${title.replace(/'/g, "''")}'!A1:C10`));
+          const [w, st] = await Promise.all([rd(t.web), rd(t.storage)]);
+          const filled = (g: any) => !isErr(g) && Array.isArray(g) && g.some((r: string[]) => r.some(v => String(v ?? "").trim() !== ""));
+          ws = isErr(w) || isErr(st) ? { state: "unknown", reason: "busy", detail: "Could not read the Website & Storage tabs" }
+            : filled(w) && filled(st) ? { state: "ok", detail: `Tabs "${t.web}" and "${t.storage}" are there and filled` }
+            : { state: "no", detail: `Tabs "${t.web}" and "${t.storage}" exist but are empty` };
+        } else {
+          const missing = [!t.web && "Web", !t.storage && "Storage"].filter(Boolean).join(" and ");
+          ws = { state: "no", detail: `No ${missing} tab for ${MONTHS[c.month.m - 1]} ${c.month.y} on the Website & Storage sheet yet` };
+        }
+      }
+      if (isErr(payoutGrid)) { po = unknown(payoutGrid.__err); errors.push("Brand Payout sheet: " + payoutGrid.__err.message); }
+      else if (payoutGrid) po = payoutRowsPresent(payoutGrid as string[][], c);
+      if (want.has("webstorage") && ws) m.webstorage = ws;
+      if (want.has("payout") && po) m.payout = po;
+      if (want.has("dashboard")) {
+        const okAll = (k: string, r?: AutoResult) => confirmed.has(`${c.periodKey}|${k}`) || r?.state === "ok";
+        const allTimeOk = confirmed.has(`${c.periodKey}|alltime`) || m.alltime?.state === "ok";
+        const unk = [ws, po].some(r => r?.state === "unknown");
+        m.dashboard = okAll("webstorage", ws) && okAll("payout", po) && allTimeOk
+          ? { state: "ok", detail: "All the data the dashboard reads is in place (Sales All Time, Website & Storage, Brand Payout)" }
+          : { state: unk ? "unknown" : "no", detail: "Waiting for Sales All Time, Website & Storage and Brand Payout to be filled in" };
       }
     }
     if (c.reportId === "cprom" && c.month && want.has("adspend")) {
