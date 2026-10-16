@@ -17,9 +17,9 @@ describe("close cycle", () => {
     const o = toPht(close.windowStart), d = toPht(close.deadline);
     expect([o.m, o.d, d.m, d.d]).toEqual([10, 1, 10, 7]);
   });
-  it("mirrors Toast, CPRO Monthly and the first Wednesday's Tebra report", () => {
+  it("mirrors Toast, CPRO Monthly and the weekly reports of the month", () => {
     const keys = relatedCycles(close).map(c => c.periodKey);
-    expect(keys).toEqual(["toast:2026-09", "cprom:2026-09", "tebra:2026-09-02", "tebra:2026-09-09", "tebra:2026-09-16", "tebra:2026-09-23", "tebra:2026-09-30", "tebra:2026-10-07", "cprow:2026-09-07", "cprow:2026-09-14", "cprow:2026-09-21", "cprow:2026-09-28", "fta:2026-09-07", "fta:2026-09-14", "fta:2026-09-21", "fta:2026-09-28"]);
+    expect(keys).toEqual(["toast:2026-09", "cprom:2026-09", "tebra:2026-09-02", "tebra:2026-09-09", "tebra:2026-09-16", "tebra:2026-09-23", "tebra:2026-09-30", "cprow:2026-09-07", "cprow:2026-09-14", "cprow:2026-09-21", "cprow:2026-09-28", "fta:2026-09-07", "fta:2026-09-14", "fta:2026-09-21", "fta:2026-09-28"]);
   });
 });
 
@@ -28,7 +28,7 @@ describe("close steps", () => {
   it("follow the other cards and the bank check", () => {
     const checks = flatDone([
       "toast:2026-09|auto:run", "toast:2026-09|micah", "cprom:2026-09|auto:run", "cprom:2026-09|auto:alltime", "cprom:2026-09|auto:adspend",
-      "cprom:2026-09|webstorage", "cprom:2026-09|payout", "cprom:2026-09|dashboard", "cprom:2026-09|micah", ...["09-02", "09-09", "09-16", "09-23", "09-30", "10-07"].map(d => `tebra:2026-${d}|final`),
+      "cprom:2026-09|webstorage", "cprom:2026-09|payout", "cprom:2026-09|dashboard", "cprom:2026-09|micah", ...["09-02", "09-09", "09-16", "09-23", "09-30"].map(d => `tebra:2026-${d}|final`),
       ...["09-07", "09-14", "09-21", "09-28"].flatMap(d => ["auto:run", "auto:alltime", "sheet", "dashboard", "tonie"].map(k => `cprow:2026-${d}|${k}`)),
       ...["09-07", "09-14", "09-21", "09-28"].flatMap(d => ["auto:run", "auto:invoice", "monica", "checked", "mark", "approved", "client"].map(k => `fta:2026-${d}|${k}`)),
     ]);
@@ -73,10 +73,10 @@ describe("FTA needs every week of the month", () => {
 
 describe("MSDx needs every weekly report", () => {
   it("one missing week keeps the step open", () => {
-    const weeks = ["09-02", "09-09", "09-16", "09-23", "09-30", "10-07"];
-    const some = Object.fromEntries(weeks.slice(0, 5).map(d => [`tebra:2026-${d}|final`, true]));
+    const weeks = ["09-02", "09-09", "09-16", "09-23", "09-30"];
+    const some = Object.fromEntries(weeks.slice(0, 4).map(d => [`tebra:2026-${d}|final`, true]));
     expect(stepStates(rep, close, undefined, some, undefined, {}).msdx).toBe("open");
-    const all = { ...some, "tebra:2026-10-07|final": true };
+    const all = { ...some, "tebra:2026-09-30|final": true };
     expect(stepStates(rep, close, undefined, all, undefined, {}).msdx).toBe("done");
   });
 });

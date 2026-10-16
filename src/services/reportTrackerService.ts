@@ -224,7 +224,7 @@ export const REPORTS: ReportDef[] = [
       { key: "cprom_micah",      label: "CPRO · Micah informed (CPRO Monthly)", kind: "auto", from: { report: "cprom", step: "micah" } },
       { key: "cprow_weeks",      label: "CPRO · every weekly report of the month done (weeks ending in the month)", kind: "auto", from: { report: "cprow", step: "*" } },
       { key: "bank",             label: "General · bank statements for the month downloaded (Bank Statements page; E1, 4G and 4YR not counted)", kind: "auto" },
-      { key: "msdx",             label: "MSDx · every weekly Tebra report of the month done and verified (incl. the first one after month-end)", kind: "auto", from: { report: "tebra", step: "final" } },
+      { key: "msdx",             label: "MSDx · every weekly Tebra report of the month done and verified (Wednesdays in the month)", kind: "auto", from: { report: "tebra", step: "final" } },
       { key: "final",            label: "Final review and close", kind: "manual" },
     ],
     links: [
@@ -322,20 +322,14 @@ function closeCycle(y: number, m: number): Cycle {
     nextStart: fromPht(ny, nm, 1, 0), month: dm,
   };
 }
-/** First Wednesday on the 1st–7th of month (y,m): the Tebra report that covers the previous month's end. */
-function firstWednesday(y: number, m: number) {
-  for (let d = 1; d <= 7; d++) { const t = toPht(fromPht(y, m, d, 12)); if (t.dow === 3) return { y, m, d }; }
-  return { y, m, d: 1 };
-}
 /** The other cards a Month-End Close card mirrors (Toast Recon, CPRO Monthly, the first Tebra report of the month). */
 export function relatedCycles(c: Cycle): Cycle[] {
   if (c.reportId !== "close") return [];
   const t = toPht(c.windowStart);
-  // Tebra is weekly: every Wednesday report inside the data month, plus the first one after month-end
+  // Tebra is weekly: every Wednesday report inside the data month (a report belongs to the month its Wednesday falls in)
   const weeks: Cycle[] = [];
   const dm = c.month!;
   for (let d = 1; d <= dm.lastDay; d++) { if (toPht(fromPht(dm.y, dm.m, d, 12)).dow === 3) weeks.push(tebraCycle({ y: dm.y, m: dm.m, d })); }
-  weeks.push(tebraCycle(firstWednesday(t.y, t.m)));
   // CPRO Weekly runs Monday for the Sun–Sat week before; count the weeks that END (Saturday) inside the data month
   for (let d = 1; d <= dm.lastDay; d++) {
     if (toPht(fromPht(dm.y, dm.m, d, 12)).dow === 6) weeks.push(cpro1Weekly(addDays({ y: dm.y, m: dm.m, d }, 2)));
