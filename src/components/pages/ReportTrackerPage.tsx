@@ -8,7 +8,7 @@ import { useFinance } from "../../context/FinanceContext";
 import { getAccessToken } from "../../services/googleAuth";
 import {
   REPORTS, TRACKER_SHEET_URL, TrackerApiError, cycleStatus, cycleView, fmtPht, fmtPhtDate, isoDate, newTaskId,
-  evidenceKind, evidenceText, explicitUnticks, relatedCycles, reportById, weeklyReportsDone, historyRows, isSkipped, latchedAutoKeys, weekendShift, pendingAutoSteps, plannedCalendarEvents, readTrackerData, relative, runAutoChecks, shouldCarryOver, stepStatesEx, toPht,
+  evidenceKind, evidenceText, explicitUnticks, relatedCycles, reportById, weeklyReportsDone, RUBYS_HEX, CPRO_HEX, MSDX_HEX, historyRows, isSkipped, latchedAutoKeys, weekendShift, pendingAutoSteps, plannedCalendarEvents, readTrackerData, relative, runAutoChecks, shouldCarryOver, stepStatesEx, toPht,
   trackedPeriods, writeAutoConfirmations, writeCheck, writeTask,
   type AutoByPeriod, type AutoResult, type CheckRow, type Confirmation, type Cycle, type ReportDef, type Status, type TaskItem,
 } from "../../services/reportTrackerService";
@@ -28,6 +28,14 @@ const readAutoCache = (keys: string): AutoCache | null => {
 const writeAutoCache = (c: AutoCache) => { try { sessionStorage.setItem(AUTO_CACHE_KEY, JSON.stringify(c)); } catch { /* ignore */ } };
 
 // ─── Status badge (same palette as Bank Statements "Done" / "Pending") ───────
+/** Month-End Close: which entity section a step belongs to (steps are listed under small headings). */
+const closeGroup = (key: string): { name: string; hex: string } =>
+  /^(toast_|fta_)/.test(key) ? { name: "Ruby's", hex: RUBYS_HEX }
+  : /^cpro/.test(key) ? { name: "CPRO", hex: CPRO_HEX }
+  : key === "bank" ? { name: "General", hex: "#94a3b8" }
+  : key === "msdx" ? { name: "MSDx", hex: MSDX_HEX }
+  : { name: "Close", hex: "#3b82f6" };
+
 const StatusBadge: React.FC<{ status: Status; isLight: boolean }> = ({ status, isLight }) => {
   const map: Record<Status, { cls: string; text: string }> = {
     done:     { cls: `bg-[#16a34a]/20 ${isLight ? "text-emerald-600" : "text-[#4ade80]"}`, text: "✓ Done" },
@@ -433,7 +441,7 @@ export const ReportTrackerPage: React.FC = () => {
                   <li><b>Weekends:</b> there is no work on weekends. If the 3rd (CPRO Monthly) or the 4th (Toast Recon) lands on a Saturday or Sunday, the card shows an amber "Weekend" note, the run moves to the following Monday, and the card shows as upcoming (never Overdue) until then. The same applies when a deadline falls on a weekend. The Slack check follows the same rule.</li>
                   <li><b>Tebra Claims Report</b> (MSDx) is a manual report: download from Tebra after the Tuesday payables meeting, upload to the MSDx dashboard, check the dashboard and sheet, tell Team Lutang, then a final check. It is due Wednesday about 8 PM PHT and shows Overdue after that if any step is open. The upload step is also confirmed automatically when the dashboard's Change Log shows an upload that week; if an upload changed nothing it is not logged, so tick it yourself. "Dashboard and sheet checked" and "Final verification" also turn done by themselves: code reads only the Claim ID and Date of Service columns of the dashboard's sheet and checks that the newest service date is in the report week, that every claim reached the Claims tab the dashboard reads, and that the upload was logged. A week with no new visits shows nothing newer, so tick those yourself.</li>
                   <li><b>CPRO steps checked from the sheets:</b> Weekly "sheet checked" turns done when the week's tab total on the Amazon Sales Report matches CPRO Sales All Time; "dashboard" turns done when the week's row (with figures) is on the Hub Stats tab. Monthly "Website &amp; Storage" turns done when the month's Web and Storage tabs exist and are filled; "Brand Payout" when the Payout Summary has the Website Sales and Storage Fee rows for that month; "dashboard" when all of those are in place. Your tick always counts and an untick wins.</li>
-                  <li><b>Month-End Close</b> covers the PREVIOUS month's numbers: the September close opens Oct 1 and is due Oct 7; the October close opens Nov 1. Most steps simply follow the Toast Recon, CPRO Monthly and Tebra cards; the bank-statements step reads the Bank Statements page; Final review and close is yours to tick.</li>
+                  <li><b>Month-End Close</b> (blue) covers the PREVIOUS month's numbers: the September close opens Oct 1 and is due Oct 7; the October close opens Nov 1. Rows are grouped under Ruby's, CPRO, General, MSDx and Close. Most rows follow the other cards; the weekly rows (FTA, CPRO Weekly, Tebra) need every week of the month done (FTA = Mondays in the month, CPRO Weekly = weeks ending in the month, Tebra = Wednesdays in the month). Bank statements read the Bank Statements page (E1, 4G and 4YR not counted). <b>Final review and close</b> is yours to tick and counts every earlier row as done.</li>
                   <li><b>Reminder pop-up</b> (Norlan only): while the portal is open, a pop-up lists every report with steps still pending, plus your open tasks and reminders from the Tasks section. Remind me later / Dismiss for today / Open Report Tracker.</li>
                   <li><b>Steps are in order:</b> if a later step is done (ticked, or confirmed automatically), the earlier ones show as done too, marked "a later step is done". Untick one to override it. On CPRO Monthly, Ad Spend, Website &amp; Storage and Brand Payout can be done in any order, so they do not imply each other.</li>
                   <li><b>Sales All Time</b> is checked by content: the period's date range must be listed with a total. When you edited the sheet does not matter.</li>
@@ -527,8 +535,8 @@ export const ReportTrackerPage: React.FC = () => {
                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${isLight ? "bg-slate-200 text-slate-600" : "bg-[#1a2235] text-[#888]"}`}>Carry-over</span>
                           )}
                         </div>
-                        <div className={`text-[11px] ${muted} mt-0.5`}>{rep.cadence}</div>
-                        <div className={`text-[11px] ${muted}`}>Period: <span className={`font-semibold ${isLight ? "text-slate-700" : "text-gray-300"}`}>{b.cycle.label}</span></div>
+                        <div className={`text-xs font-semibold mt-1 ${isLight ? "text-slate-700" : "text-gray-200"}`}>{b.cycle.label}</div>
+                        <div className={`text-[11px] leading-snug ${muted}`}>{rep.cadence}</div>
                       </div>
                     </div>
                     <div className="sm:text-right shrink-0 pl-3.5 sm:pl-0">
@@ -538,6 +546,17 @@ export const ReportTrackerPage: React.FC = () => {
                     </div>
                   </div>
 
+                  {(() => {
+                    const total = rep.steps.length, n = rep.steps.filter(x => b.states[x.key] === "done").length;
+                    return (
+                      <div className="px-3 pt-2.5 flex items-center gap-2.5">
+                        <div className={`flex-1 h-1.5 rounded-full overflow-hidden ${isLight ? "bg-slate-200" : "bg-[#1a2235]"}`}>
+                          <div className="h-full rounded-full transition-all" style={{ width: `${total ? Math.round((n / total) * 100) : 0}%`, background: n === total ? "#16a34a" : rep.accent }} />
+                        </div>
+                        <span className={`text-[11px] tabular-nums font-semibold ${n === total ? (isLight ? "text-emerald-600" : "text-[#4ade80]") : muted}`}>{n} of {total} done</span>
+                      </div>
+                    );
+                  })()}
                   <div className={`p-2 ${b.status === "skipped" ? "opacity-50" : ""}`}>
                     {b.status !== "done" && weekendShift(b.cycle) && (
                       <div className={`mx-2 mb-1 text-[11px] font-semibold ${isLight ? "text-amber-700" : "text-[#fbbf24]"}`}>
@@ -549,13 +568,21 @@ export const ReportTrackerPage: React.FC = () => {
                         Marked as no report due{checks[`${b.cycle.periodKey}|skip`]?.by ? ` by ${checks[`${b.cycle.periodKey}|skip`].by}` : ""}. No steps are needed this week.
                       </div>
                     )}
-                    {rep.steps.map(s => {
+                    {rep.steps.map((s, si) => {
                       const st = b.states[s.key];
+                      const grp = rep.id === "close" ? closeGroup(s.key) : null;
+                      const head = grp && (si === 0 || closeGroup(rep.steps[si - 1].key).name !== grp.name) ? (
+                        <div className={`flex items-center gap-1.5 px-2 pt-2.5 pb-0.5 text-[10px] font-bold uppercase tracking-wider ${muted}`}>
+                          <span className="w-2 h-2 rounded-full" style={{ background: grp.hex }} />{grp.name}
+                        </div>
+                      ) : null;
                       const key = `${b.cycle.periodKey}|${s.key}`;
                       const a = auto[b.cycle.periodKey]?.[s.key];
                       const row = checks[key];
                       return (
-                        <div key={s.key} className={`flex items-start gap-2.5 px-2 py-1.5 rounded-lg ${isLight ? "hover:bg-slate-50" : "hover:bg-white/5"}`}>
+                        <React.Fragment key={s.key}>
+                        {head}
+                        <div className={`flex items-start gap-2.5 px-2 py-1.5 rounded-lg ${isLight ? "hover:bg-slate-50" : "hover:bg-white/5"}`}>
                           {s.kind === "manual" ? (
                             <button
                               onClick={() => toggleCheck(b.cycle, s.key, st === "done")}
@@ -576,9 +603,9 @@ export const ReportTrackerPage: React.FC = () => {
                               )}
                             </div>
                             {s.from ? (
-                              <div className={`text-[11px] ${muted}`}>{s.from.report === "tebra" || s.from.step === "*"
-                                ? (() => { const w = weeklyReportsDone(b.cycle, s.from!.report as "tebra" | "cprow" | "fta", flatChecks, unticked, auto); return `${w.done} of ${w.total} weekly ${reportById(s.from!.report).name} reports done · needs all of them`; })()
-                                : `Follows the ${reportById(s.from.report).name} card for this month`}</div>
+                              (s.from.report === "tebra" || s.from.step === "*") ? (
+                                <div className={`text-[11px] ${muted}`}>{(() => { const w = weeklyReportsDone(b.cycle, s.from!.report as "tebra" | "cprow" | "fta", flatChecks, unticked, auto); return `${w.done} of ${w.total} weekly reports done · needs all of them`; })()}</div>
+                              ) : null
                             ) : (s.kind === "auto" || s.autoAlso) && autoLine(b.cycle.periodKey, s.key, a, checks)}
                             {b.implied.has(s.key) && (
                               <div className={`text-[11px] ${muted}`}>{s.kind === "auto" ? "The check could not confirm this, but a later step is done, so it counts as done" : "Counted as done because a later step is done · untick if wrong"}</div>
@@ -600,12 +627,13 @@ export const ReportTrackerPage: React.FC = () => {
                             {s.hint && st !== "done" && <div className={`text-[11px] ${muted}`}>{s.hint}</div>}
                           </div>
                         </div>
+                        </React.Fragment>
                       );
                     })}
                   </div>
 
-                  <div className={`px-3 py-2 border-t flex flex-wrap items-center gap-x-3 gap-y-1 ${isLight ? "border-slate-200" : "border-[#1a2235]"}`}>
-                    <span className={`text-[11px] ${muted}`}>{rep.script}</span>
+                  <div className={`px-3 py-2 border-t flex flex-wrap items-center gap-x-2 gap-y-1.5 ${isLight ? "border-slate-200" : "border-[#1a2235]"}`}>
+                    <span className={`text-[10.5px] italic ${muted}`}>{rep.script}</span>
                     {rep.id === "fta" && (
                       <button
                         onClick={() => toggleCheck(b.cycle, "skip")}
@@ -619,8 +647,8 @@ export const ReportTrackerPage: React.FC = () => {
                     <span className="flex-1" />
                     {rep.links.map(l => (
                       <a key={l.label} href={l.url} target="_blank" rel="noopener noreferrer"
-                        className={`inline-flex items-center gap-1 text-[11px] font-semibold ${isLight ? "text-blue-600 hover:text-blue-800" : "text-[#60a5fa] hover:text-[#93c5fd]"}`}>
-                        {l.label} <ExternalLink className="w-3 h-3" />
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10.5px] font-semibold ${isLight ? "border-blue-200 text-blue-600 hover:bg-blue-50" : "border-[#1e3a5f] text-[#60a5fa] hover:bg-[#1a73e8]/10"}`}>
+                        {l.label} <ExternalLink className="w-2.5 h-2.5" />
                       </a>
                     ))}
                   </div>
