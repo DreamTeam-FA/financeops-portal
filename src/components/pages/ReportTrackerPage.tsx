@@ -8,7 +8,7 @@ import { useFinance } from "../../context/FinanceContext";
 import { getAccessToken } from "../../services/googleAuth";
 import {
   REPORTS, TRACKER_SHEET_URL, TrackerApiError, cycleStatus, cycleView, fmtPht, fmtPhtDate, isoDate, newTaskId,
-  evidenceKind, evidenceText, explicitUnticks, relatedCycles, reportById, historyRows, isSkipped, latchedAutoKeys, weekendShift, pendingAutoSteps, plannedCalendarEvents, readTrackerData, relative, runAutoChecks, shouldCarryOver, stepStatesEx, toPht,
+  evidenceKind, evidenceText, explicitUnticks, relatedCycles, reportById, tebraWeeksDone, historyRows, isSkipped, latchedAutoKeys, weekendShift, pendingAutoSteps, plannedCalendarEvents, readTrackerData, relative, runAutoChecks, shouldCarryOver, stepStatesEx, toPht,
   trackedPeriods, writeAutoConfirmations, writeCheck, writeTask,
   type AutoByPeriod, type AutoResult, type CheckRow, type Confirmation, type Cycle, type ReportDef, type Status, type TaskItem,
 } from "../../services/reportTrackerService";
@@ -349,6 +349,8 @@ export const ReportTrackerPage: React.FC = () => {
     return signedIn ? <div className={`text-[11px] ${muted}`}>{loadedOnce ? "Not checked yet" : "Reading sheet…"}</div> : null;
   };
 
+  const flatChecks = useMemo(() => { const f: Record<string, boolean> = {}; for (const [k, v] of Object.entries(checks)) f[k] = v.done; return f; }, [checks]);
+  const unticked = useMemo(() => explicitUnticks(checks), [checks]);
   const history = useMemo(() => historyRows(now, checks), [now, checks]);
 
   const todayIso = isoDate(toPht(now));
@@ -431,7 +433,7 @@ export const ReportTrackerPage: React.FC = () => {
                   <li><b>Weekends:</b> there is no work on weekends. If the 3rd (CPRO Monthly) or the 4th (Toast Recon) lands on a Saturday or Sunday, the card shows an amber "Weekend" note, the run moves to the following Monday, and the card shows as upcoming (never Overdue) until then. The same applies when a deadline falls on a weekend. The Slack check follows the same rule.</li>
                   <li><b>Tebra Claims Report</b> (MSDx) is a manual report: download from Tebra after the Tuesday payables meeting, upload to the MSDx dashboard, check the dashboard and sheet, tell Team Lutang, then a final check. It is due Wednesday about 8 PM PHT and shows Overdue after that if any step is open. The upload step is also confirmed automatically when the dashboard's Change Log shows an upload that week; if an upload changed nothing it is not logged, so tick it yourself. "Dashboard and sheet checked" and "Final verification" also turn done by themselves: code reads only the Claim ID and Date of Service columns of the dashboard's sheet and checks that the newest service date is in the report week, that every claim reached the Claims tab the dashboard reads, and that the upload was logged. A week with no new visits shows nothing newer, so tick those yourself.</li>
                   <li><b>CPRO steps checked from the sheets:</b> Weekly "sheet checked" turns done when the week's tab total on the Amazon Sales Report matches CPRO Sales All Time; "dashboard" turns done when the week's row (with figures) is on the Hub Stats tab. Monthly "Website &amp; Storage" turns done when the month's Web and Storage tabs exist and are filled; "Brand Payout" when the Payout Summary has the Website Sales and Storage Fee rows for that month; "dashboard" when all of those are in place. Your tick always counts and an untick wins.</li>
-                  <li><b>Month-End Close</b> opens the 1st and is due the 7th. Most steps simply follow the Toast Recon, CPRO Monthly and Tebra cards; the bank-statements step reads the Bank Statements page; Final review and close is yours to tick.</li>
+                  <li><b>Month-End Close</b> covers the PREVIOUS month's numbers: the September close opens Oct 1 and is due Oct 7; the October close opens Nov 1. Most steps simply follow the Toast Recon, CPRO Monthly and Tebra cards; the bank-statements step reads the Bank Statements page; Final review and close is yours to tick.</li>
                   <li><b>Reminder pop-up</b> (Norlan only): while the portal is open, a pop-up lists every report with steps still pending, plus your open tasks and reminders from the Tasks section. Remind me later / Dismiss for today / Open Report Tracker.</li>
                   <li><b>Steps are in order:</b> if a later step is done (ticked, or confirmed automatically), the earlier ones show as done too, marked "a later step is done". Untick one to override it. On CPRO Monthly, Ad Spend, Website &amp; Storage and Brand Payout can be done in any order, so they do not imply each other.</li>
                   <li><b>Sales All Time</b> is checked by content: the period's date range must be listed with a total. When you edited the sheet does not matter.</li>
@@ -574,7 +576,9 @@ export const ReportTrackerPage: React.FC = () => {
                               )}
                             </div>
                             {s.from ? (
-                              <div className={`text-[11px] ${muted}`}>Follows the {reportById(s.from.report).name} card for this month</div>
+                              <div className={`text-[11px] ${muted}`}>{s.from.report === "tebra"
+                                ? (() => { const w = tebraWeeksDone(b.cycle, flatChecks, unticked, auto); return `${w.done} of ${w.total} weekly Tebra reports done · needs all of them`; })()
+                                : `Follows the ${reportById(s.from.report).name} card for this month`}</div>
                             ) : (s.kind === "auto" || s.autoAlso) && autoLine(b.cycle.periodKey, s.key, a, checks)}
                             {b.implied.has(s.key) && (
                               <div className={`text-[11px] ${muted}`}>{s.kind === "auto" ? "The check could not confirm this, but a later step is done, so it counts as done" : "Counted as done because a later step is done · untick if wrong"}</div>

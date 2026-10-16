@@ -207,7 +207,7 @@ export const REPORTS: ReportDef[] = [
     ],
   },
   {
-    id: "close", name: "Month-End Close", cadence: "Opens the 1st · due the 7th (PHT) · covers the previous month", script: "Mostly mirrors the other cards", accent: "#0d9488",
+    id: "close", name: "Month-End Close", cadence: "Opens the 1st of the NEXT month · due the 7th (PHT) · e.g. the September close opens Oct 1, due Oct 7", script: "Mostly mirrors the other cards", accent: "#0d9488",
     entity: { label: "All", hex: "#0d948833", textHex: "#5eead4" },
     overdueRule: "all",
     parallel: ["toast_run", "toast_micah", "cprom_run", "cprom_alltime", "cprom_adspend", "cprom_webstorage", "cprom_payout", "cprom_dashboard", "cprom_micah", "bank", "msdx"],
@@ -221,8 +221,8 @@ export const REPORTS: ReportDef[] = [
       { key: "cprom_payout",     label: "CPRO · Brand Payout sheet done", kind: "auto", from: { report: "cprom", step: "payout" } },
       { key: "cprom_dashboard",  label: "CPRO · dashboard loaded, incl. Brand Payout", kind: "auto", from: { report: "cprom", step: "dashboard" } },
       { key: "cprom_micah",      label: "CPRO · Micah informed (CPRO Monthly)", kind: "auto", from: { report: "cprom", step: "micah" } },
-      { key: "bank",             label: "General · bank statements for the month downloaded (Bank Statements page)", kind: "auto" },
-      { key: "msdx",             label: "MSDx · month-end claims on the dashboard (first Tebra report after month-end verified)", kind: "auto", from: { report: "tebra", step: "final" } },
+      { key: "bank",             label: "General · bank statements for the month downloaded (Bank Statements page; E1, 4G and 4YR not counted)", kind: "auto" },
+      { key: "msdx",             label: "MSDx · every weekly Tebra report of the month done and verified (incl. the first one after month-end)", kind: "auto", from: { report: "tebra", step: "final" } },
       { key: "final",            label: "Final review and close", kind: "manual" },
     ],
     links: [
@@ -315,7 +315,7 @@ function closeCycle(y: number, m: number): Cycle {
   const dm = dataMonthOf(y, m);
   const ny = m === 12 ? y + 1 : y, nm = m === 12 ? 1 : m + 1;
   return {
-    reportId: "close", periodKey: `close:${dm.y}-${pad(dm.m)}`, label: `${MONTHS[dm.m - 1]} ${dm.y}`,
+    reportId: "close", periodKey: `close:${dm.y}-${pad(dm.m)}`, label: `${MONTHS[dm.m - 1]} ${dm.y} close (numbers for ${MONTHS[dm.m - 1].slice(0, 3)} 1–${dm.lastDay})`,
     windowStart: fromPht(y, m, 1, 0), windowEnd: fromPht(y, m, 7, 23, 59), deadline: fromPht(y, m, 7, 23, 59),
     nextStart: fromPht(ny, nm, 1, 0), month: dm,
   };
@@ -329,7 +329,19 @@ function firstWednesday(y: number, m: number) {
 export function relatedCycles(c: Cycle): Cycle[] {
   if (c.reportId !== "close") return [];
   const t = toPht(c.windowStart);
-  return [toastCycle(t.y, t.m), cproMonthly(t.y, t.m), tebraCycle(firstWednesday(t.y, t.m))];
+  // Tebra is weekly: every Wednesday report inside the data month, plus the first one after month-end
+  const weeks: Cycle[] = [];
+  const dm = c.month!;
+  for (let d = 1; d <= dm.lastDay; d++) { if (toPht(fromPht(dm.y, dm.m, d, 12)).dow === 3) weeks.push(tebraCycle({ y: dm.y, m: dm.m, d })); }
+  weeks.push(tebraCycle(firstWednesday(t.y, t.m)));
+  return [toastCycle(t.y, t.m), cproMonthly(t.y, t.m), ...weeks];
+}
+
+/** Weekly Tebra reports a close card needs: how many are done out of how many. */
+export function tebraWeeksDone(close: Cycle, checks: Record<string, boolean>, unticked?: Set<string>, allAuto?: AutoByPeriod): { done: number; total: number } {
+  const subs = relatedCycles(close).filter(r => r.reportId === "tebra");
+  const done = subs.filter(sub => stepStatesEx(reportById("tebra"), sub, allAuto?.[sub.periodKey], checks, unticked, allAuto).states.final === "done").length;
+  return { done, total: subs.length };
 }
 
 /** All cycles for a report whose windowStart falls within [now-70d, now+75d], ascending. */
@@ -428,10 +440,10 @@ export function stepStatesEx(
     const key = `${cycle.periodKey}|${s.key}`;
     if (s.from) {
       // mirrors the same step on the other report's card for this month
-      const sub = related.find(r => r.reportId === s.from!.report);
-      states[s.key] = sub
-        ? stepStatesEx(reportById(sub.reportId), sub, allAuto?.[sub.periodKey], checks, unticked, allAuto).states[s.from.step] || "open"
-        : "unknown";
+      const subs = related.filter(r => r.reportId === s.from!.report);
+      const subStates = subs.map(sub => stepStatesEx(reportById(sub.reportId), sub, allAuto?.[sub.periodKey], checks, unticked, allAuto).states[s.from!.step] || "open");
+      // weekly reports (Tebra): the step is done only when EVERY week of the month is done
+      states[s.key] = !subs.length ? "unknown" : subStates.every(x => x === "done") ? "done" : subStates.some(x => x === "open") ? "open" : "unknown";
     }
     else if (s.kind === "manual" && s.autoAlso) {
       // a person's tick OR the automatic check; an explicit untick always wins
@@ -954,6 +966,8 @@ const unknown = (e: TrackerApiError): AutoResult => ({ state: "unknown", reason:
  * downloaded on the Bank Statements Data tab (A Period, B Entity, C Bank, H Downloaded, J Cut-Off Date, K marker).
  * Deleted / old-due-date / waiting rows are ignored. Nothing tracked for that month = can't tell (never red).
  */
+/** Entities whose bank statements are not part of Norlan's month-end close. */
+const CLOSE_BANK_EXCLUDED = /(^|[^A-Za-z0-9])(E1|4G|4YR)([^A-Za-z0-9]|$)/i;
 export function bankStatementsFromGrid(grid: any[][], month: { y: number; m: number }): AutoResult {
   const ym = `${month.y}-${pad(month.m)}`;
   let total = 0; const missing: string[] = [];
@@ -962,6 +976,7 @@ export function bankStatementsFromGrid(grid: any[][], month: { y: number; m: num
     const bank = String(row[2] ?? "").trim(), entity = String(row[1] ?? "").trim();
     const cut = String(row[9] ?? "").trim();
     if (!bank || !entity || !cut.startsWith(ym)) continue;
+    if (CLOSE_BANK_EXCLUDED.test(entity)) continue; // not Norlan's entities
     if (/^(deleted|old due date|waiting)/i.test(String(row[10] ?? "").trim())) continue;
     total++;
     const dl = row[7] === true || /^(true|yes|ready)$/i.test(String(row[7] ?? "").trim());
@@ -1275,12 +1290,12 @@ export function plannedCalendarEvents(now: number, horizonDays = 45): PlannedEve
       if (rep.id === "close") {
         const dl = toPht(c.deadline);
         out.push({
-          title: `📊 ${rep.name} — opens (${c.label})`, date: isoDate(w), time: "09:00",
-          description: `The close for ${c.label} opens today and is due the 7th. Most steps tick themselves as the Toast, CPRO Monthly, bank-statement and Tebra checks land; the last step is your final review.`,
+          title: `📊 ${rep.name} — ${MONTHS[c.month!.m - 1]} close opens (for ${MONTHS[c.month!.m - 1]} numbers)`, date: isoDate(w), time: "09:00",
+          description: `The ${MONTHS[c.month!.m - 1]} close (covers ${MONTHS[c.month!.m - 1]} numbers) opens today and is due the 7th. Most steps tick themselves as the Toast, CPRO Monthly, bank-statement and Tebra checks land; the last step is your final review.`,
         });
         out.push({
-          title: `⏰ ${rep.name} — due (${c.label})`, date: isoDate(dl), time: "17:00",
-          description: `Everything for ${c.label} must be done, then tick Final review and close on the Report Tracker.`,
+          title: `⏰ ${rep.name} — ${MONTHS[c.month!.m - 1]} close due`, date: isoDate(dl), time: "17:00",
+          description: `Everything for the ${MONTHS[c.month!.m - 1]} close must be done, then tick Final review and close on the Report Tracker.`,
         });
         continue;
       }

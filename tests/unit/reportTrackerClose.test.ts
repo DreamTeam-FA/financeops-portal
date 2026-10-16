@@ -13,13 +13,13 @@ const row = (done: boolean): CheckRow => ({ done, at: "2026-10-10T00:00:00Z", by
 describe("close cycle", () => {
   it("opens the 1st for the previous month and is due the 7th", () => {
     expect(close.periodKey).toBe("close:2026-09");
-    expect(close.label).toBe("September 2026");
+    expect(close.label).toBe("September 2026 close (numbers for Sep 1–30)");
     const o = toPht(close.windowStart), d = toPht(close.deadline);
     expect([o.m, o.d, d.m, d.d]).toEqual([10, 1, 10, 7]);
   });
   it("mirrors Toast, CPRO Monthly and the first Wednesday's Tebra report", () => {
     const keys = relatedCycles(close).map(c => c.periodKey);
-    expect(keys).toEqual(["toast:2026-09", "cprom:2026-09", "tebra:2026-10-07"]);
+    expect(keys).toEqual(["toast:2026-09", "cprom:2026-09", "tebra:2026-09-02", "tebra:2026-09-09", "tebra:2026-09-16", "tebra:2026-09-23", "tebra:2026-09-30", "tebra:2026-10-07"]);
   });
 });
 
@@ -28,7 +28,7 @@ describe("close steps", () => {
   it("follow the other cards and the bank check", () => {
     const checks = flatDone([
       "toast:2026-09|auto:run", "toast:2026-09|micah", "cprom:2026-09|auto:run", "cprom:2026-09|auto:alltime", "cprom:2026-09|auto:adspend",
-      "cprom:2026-09|webstorage", "cprom:2026-09|payout", "cprom:2026-09|dashboard", "cprom:2026-09|micah", "tebra:2026-10-07|final",
+      "cprom:2026-09|webstorage", "cprom:2026-09|payout", "cprom:2026-09|dashboard", "cprom:2026-09|micah", ...["09-02", "09-09", "09-16", "09-23", "09-30", "10-07"].map(d => `tebra:2026-${d}|final`),
     ]);
     const st = stepStates(rep, close, { bank: { state: "ok" } }, checks, undefined, {});
     expect(Object.entries(st).filter(([, v]) => v !== "done").map(([k]) => k)).toEqual(["final"]);
@@ -50,7 +50,21 @@ describe("close steps", () => {
   });
 });
 
+describe("MSDx needs every weekly report", () => {
+  it("one missing week keeps the step open", () => {
+    const weeks = ["09-02", "09-09", "09-16", "09-23", "09-30", "10-07"];
+    const some = Object.fromEntries(weeks.slice(0, 5).map(d => [`tebra:2026-${d}|final`, true]));
+    expect(stepStates(rep, close, undefined, some, undefined, {}).msdx).toBe("open");
+    const all = { ...some, "tebra:2026-10-07|final": true };
+    expect(stepStates(rep, close, undefined, all, undefined, {}).msdx).toBe("done");
+  });
+});
+
 describe("bank statements check", () => {
+  it("does not count E1, 4G or 4YR", () => {
+    const g = [["2026-09", "E1", "ONB 1716", "Monthly", "", "", "", false, "", "2026-09-28", ""], ["2026-09", "4YR", "Chase", "Monthly", "", "", "", false, "", "2026-09-28", ""], ["2026-09", "Ruby's", "Chase", "Monthly", "", "", "", true, "", "2026-09-28", ""]];
+    expect(bankStatementsFromGrid(g, { y: 2026, m: 9 }).state).toBe("ok");
+  });
   const r = (bank: string, dl: any, cut: string, k = "") => ["2026-09", "Ruby's", bank, "Monthly", "", "", "", dl, "", cut, k];
   const month = { y: 2026, m: 9 };
   it("all downloaded → ok; ignores deleted / other months", () => {
