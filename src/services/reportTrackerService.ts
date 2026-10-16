@@ -44,6 +44,7 @@ export const SRC = {
   hub:            "1wg2ESvNe7v9itWpsZOXiqqLSBRHnpdsZdZcNGrOE8RE", // #CURCUMINPRO HUB
   usuFolder:      "1mqy0QiNBkYuR5Lwn7Us0-ztGeu2pNMOc",            // Invoices / USU
   msdxDashboard:  "1xusXKDid7q45dPcE6ZAHneGP1ViHPSdkQmS8Jkj2TLY", // MSDx Dashboard data sheet (Tebra claims; PATIENT DATA: only the Change Log timestamp column is ever read)
+  bankStatements: "15uYsYttv4xSYVszpiQh0mtRy7pvoMOxHLMO5KMEmpSs", // Bank Statements Checklist (tab "Bank Statements Data", read-only here)
 } as const;
 
 export const sheetUrl = (id: string) => `https://docs.google.com/spreadsheets/d/${id}/edit`;
@@ -97,10 +98,12 @@ export function relative(ms: number, now: number): string {
 
 // ─── Report definitions ──────────────────────────────────────────────────────
 
-export type ReportId = "fta" | "cprow" | "cprom" | "toast" | "tebra";
+export type ReportId = "fta" | "cprow" | "cprom" | "toast" | "tebra" | "close";
 export type StepKind = "auto" | "manual";
 export interface StepDef {
   key: string; label: string; kind: StepKind; hint?: string;
+  /** Month-End Close only: this step simply mirrors a step of another report's card for the same month. */
+  from?: { report: ReportId; step: string };
   /** Manual step that can ALSO be confirmed by an automatic check (a person's tick or the check, either counts). */
   autoAlso?: boolean;
 }
@@ -203,6 +206,32 @@ export const REPORTS: ReportDef[] = [
       { label: "Tebra Claims", url: TEBRA_URL },
     ],
   },
+  {
+    id: "close", name: "Month-End Close", cadence: "Opens the 1st · due the 7th (PHT) · covers the previous month", script: "Mostly mirrors the other cards", accent: "#0d9488",
+    entity: { label: "All", hex: "#0d948833", textHex: "#5eead4" },
+    overdueRule: "all",
+    parallel: ["toast_run", "toast_micah", "cprom_run", "cprom_alltime", "cprom_adspend", "cprom_webstorage", "cprom_payout", "cprom_dashboard", "cprom_micah", "bank", "msdx"],
+    steps: [
+      { key: "toast_run",        label: "Ruby's · Toast Recon script run", kind: "auto", from: { report: "toast", step: "run" } },
+      { key: "toast_micah",      label: "Ruby's · Micah informed (Toast Recon)", kind: "auto", from: { report: "toast", step: "micah" } },
+      { key: "cprom_run",        label: "CPRO · monthly script run", kind: "auto", from: { report: "cprom", step: "run" } },
+      { key: "cprom_alltime",    label: "CPRO · Sales All Time updated", kind: "auto", from: { report: "cprom", step: "alltime" } },
+      { key: "cprom_adspend",    label: "CPRO · Ad Spend month filled", kind: "auto", from: { report: "cprom", step: "adspend" } },
+      { key: "cprom_webstorage", label: "CPRO · Website & Storage sheet done", kind: "auto", from: { report: "cprom", step: "webstorage" } },
+      { key: "cprom_payout",     label: "CPRO · Brand Payout sheet done", kind: "auto", from: { report: "cprom", step: "payout" } },
+      { key: "cprom_dashboard",  label: "CPRO · dashboard loaded, incl. Brand Payout", kind: "auto", from: { report: "cprom", step: "dashboard" } },
+      { key: "cprom_micah",      label: "CPRO · Micah informed (CPRO Monthly)", kind: "auto", from: { report: "cprom", step: "micah" } },
+      { key: "bank",             label: "General · bank statements for the month downloaded (Bank Statements page)", kind: "auto" },
+      { key: "msdx",             label: "MSDx · month-end claims on the dashboard (first Tebra report after month-end verified)", kind: "auto", from: { report: "tebra", step: "final" } },
+      { key: "final",            label: "Final review and close", kind: "manual" },
+    ],
+    links: [
+      { label: "Bank Statements sheet", url: sheetUrl(SRC.bankStatements) },
+      { label: "Toast Recon Sheet", url: sheetUrl(SRC.toastRecon) },
+      { label: "Amazon Sales Report", url: sheetUrl(SRC.amazonSales) },
+      { label: "MSDx Dashboard", url: MSDX_DASHBOARD_URL },
+    ],
+  },
 ];
 export const reportById = (id: ReportId) => REPORTS.find(r => r.id === id)!;
 
@@ -281,6 +310,28 @@ function toastCycle(y: number, m: number): Cycle { // run on the 4th/5th of (y,m
   };
 }
 
+/** Month-End Close: opens the 1st (PHT) of month (y,m) for the PREVIOUS month; due the 7th. */
+function closeCycle(y: number, m: number): Cycle {
+  const dm = dataMonthOf(y, m);
+  const ny = m === 12 ? y + 1 : y, nm = m === 12 ? 1 : m + 1;
+  return {
+    reportId: "close", periodKey: `close:${dm.y}-${pad(dm.m)}`, label: `${MONTHS[dm.m - 1]} ${dm.y}`,
+    windowStart: fromPht(y, m, 1, 0), windowEnd: fromPht(y, m, 7, 23, 59), deadline: fromPht(y, m, 7, 23, 59),
+    nextStart: fromPht(ny, nm, 1, 0), month: dm,
+  };
+}
+/** First Wednesday on the 1st–7th of month (y,m): the Tebra report that covers the previous month's end. */
+function firstWednesday(y: number, m: number) {
+  for (let d = 1; d <= 7; d++) { const t = toPht(fromPht(y, m, d, 12)); if (t.dow === 3) return { y, m, d }; }
+  return { y, m, d: 1 };
+}
+/** The other cards a Month-End Close card mirrors (Toast Recon, CPRO Monthly, the first Tebra report of the month). */
+export function relatedCycles(c: Cycle): Cycle[] {
+  if (c.reportId !== "close") return [];
+  const t = toPht(c.windowStart);
+  return [toastCycle(t.y, t.m), cproMonthly(t.y, t.m), tebraCycle(firstWednesday(t.y, t.m))];
+}
+
 /** All cycles for a report whose windowStart falls within [now-70d, now+75d], ascending. */
 export function cyclesAround(reportId: ReportId, now: number): Cycle[] {
   const out: Cycle[] = [];
@@ -299,7 +350,7 @@ export function cyclesAround(reportId: ReportId, now: number): Cycle[] {
       const mm = t.m + i;
       const y = t.y + Math.floor((mm - 1) / 12);
       const m = ((mm - 1) % 12 + 12) % 12 + 1;
-      out.push(reportId === "cprom" ? cproMonthly(y, m) : toastCycle(y, m));
+      out.push(reportId === "cprom" ? cproMonthly(y, m) : reportId === "close" ? closeCycle(y, m) : toastCycle(y, m));
     }
   }
   const uniq = new Map(out.map(c => [c.periodKey, c]));
@@ -369,11 +420,20 @@ export function stepStatesEx(
   auto: Record<string, AutoResult> | undefined,
   checks: Record<string, boolean>,
   unticked?: Set<string>,
+  allAuto?: AutoByPeriod,
 ): { states: Record<string, StepState>; implied: Set<string> } {
   const states: Record<string, StepState> = {};
+  const related = rep.id === "close" ? relatedCycles(cycle) : [];
   for (const s of rep.steps) {
     const key = `${cycle.periodKey}|${s.key}`;
-    if (s.kind === "manual" && s.autoAlso) {
+    if (s.from) {
+      // mirrors the same step on the other report's card for this month
+      const sub = related.find(r => r.reportId === s.from!.report);
+      states[s.key] = sub
+        ? stepStatesEx(reportById(sub.reportId), sub, allAuto?.[sub.periodKey], checks, unticked, allAuto).states[s.from.step] || "open"
+        : "unknown";
+    }
+    else if (s.kind === "manual" && s.autoAlso) {
       // a person's tick OR the automatic check; an explicit untick always wins
       if (checks[key]) states[s.key] = "done";
       else if (unticked?.has(key)) states[s.key] = "open";
@@ -397,8 +457,9 @@ export function stepStates(
   auto: Record<string, AutoResult> | undefined,
   checks: Record<string, boolean>,
   unticked?: Set<string>,
+  allAuto?: AutoByPeriod,
 ): Record<string, StepState> {
-  return stepStatesEx(rep, cycle, auto, checks, unticked).states;
+  return stepStatesEx(rep, cycle, auto, checks, unticked, allAuto).states;
 }
 
 /**
@@ -429,7 +490,7 @@ function nextWeekday(ms: number): number {
  * ("upcoming"/"overdue") and a note on the card follow the shift. Returns null when nothing shifts.
  */
 export function weekendShift(cycle: Cycle): { windowStart: number; windowEnd: number; deadline: number; note: string } | null {
-  if (cycle.reportId !== "cprom" && cycle.reportId !== "toast") return null;
+  if (cycle.reportId !== "cprom" && cycle.reportId !== "toast" && cycle.reportId !== "close") return null;
   const windowStart = nextWeekday(cycle.windowStart), windowEnd = Math.max(nextWeekday(cycle.windowEnd), windowStart);
   const deadline = Math.max(nextWeekday(cycle.deadline), windowStart);
   if (windowStart === cycle.windowStart && deadline === cycle.deadline) return null;
@@ -888,6 +949,29 @@ export function reasonFor(e: TrackerApiError): AutoReason {
 }
 const unknown = (e: TrackerApiError): AutoResult => ({ state: "unknown", reason: reasonFor(e), detail: e.message });
 
+/**
+ * Month-End Close, bank statements: every tracked statement whose cut-off date falls in the data month must be marked
+ * downloaded on the Bank Statements Data tab (A Period, B Entity, C Bank, H Downloaded, J Cut-Off Date, K marker).
+ * Deleted / old-due-date / waiting rows are ignored. Nothing tracked for that month = can't tell (never red).
+ */
+export function bankStatementsFromGrid(grid: any[][], month: { y: number; m: number }): AutoResult {
+  const ym = `${month.y}-${pad(month.m)}`;
+  let total = 0; const missing: string[] = [];
+  for (const row of grid) {
+    if (!row || row.length < 10) continue;
+    const bank = String(row[2] ?? "").trim(), entity = String(row[1] ?? "").trim();
+    const cut = String(row[9] ?? "").trim();
+    if (!bank || !entity || !cut.startsWith(ym)) continue;
+    if (/^(deleted|old due date|waiting)/i.test(String(row[10] ?? "").trim())) continue;
+    total++;
+    const dl = row[7] === true || /^(true|yes|ready)$/i.test(String(row[7] ?? "").trim());
+    if (!dl) missing.push(`${bank} (${entity})`);
+  }
+  if (total === 0) return { state: "unknown", reason: "error", detail: `No statements are tracked for ${MONTHS[month.m - 1]} ${month.y} on the Bank Statements page` };
+  if (missing.length === 0) return { state: "ok", detail: `All ${total} statements for ${MONTHS[month.m - 1]} are marked downloaded` };
+  return { state: "no", detail: `${total - missing.length} of ${total} downloaded · still open: ${missing.slice(0, 4).join(", ")}${missing.length > 4 ? ` +${missing.length - 4} more` : ""}` };
+}
+
 export interface AutoCheckOutput { byPeriod: AutoByPeriod; errors: string[] }
 
 /** Auto steps (per cycle) that still need a read, given the already-confirmed set ("period|step"). */
@@ -895,7 +979,7 @@ export function pendingAutoSteps(cycles: Cycle[], confirmed: Set<string>): { cyc
   return cycles
     .map(c => ({
       cycle: c,
-      steps: reportById(c.reportId).steps.filter(s => (s.kind === "auto" || s.autoAlso) && !confirmed.has(`${c.periodKey}|${s.key}`)).map(s => s.key),
+      steps: reportById(c.reportId).steps.filter(s => !s.from && (s.kind === "auto" || s.autoAlso) && !confirmed.has(`${c.periodKey}|${s.key}`)).map(s => s.key),
     }))
     .filter(x => x.steps.length > 0);
 }
@@ -913,7 +997,7 @@ export async function runAutoChecks(token: string, cycles: Cycle[], confirmed: S
   const anyNeeds = (rids: ReportId[], step: string) => rids.some(r => needs(r, step));
   const none = Promise.resolve(null);
 
-  const [ftaTabs, amzTabs, usuFiles, allTimeWeek, allTimeMonth, toastCol, adGrid, tebraLog, tebraRaw, tebraClaims, hubStats, wsTitles, payoutGrid] = await Promise.all([
+  const [ftaTabs, amzTabs, usuFiles, allTimeWeek, allTimeMonth, toastCol, adGrid, tebraLog, tebraRaw, tebraClaims, hubStats, wsTitles, payoutGrid, bankGrid] = await Promise.all([
     needs("fta", "run") ? settle(sheetTitles(token, SRC.ftaSheet)) : none,
     anyNeeds(["cprow", "cprom"], "run") || needs("cprow", "sheet") ? settle(sheetTitles(token, SRC.amazonSales)) : none,
     needs("fta", "invoice") ? settle(gfetch(token, `${D}?q=${q(`'${SRC.usuFolder}' in parents and trashed=false`)}&orderBy=createdTime%20desc&pageSize=15&fields=files(id,name,createdTime)&supportsAllDrives=true&includeItemsFromAllDrives=true`)) : none,
@@ -927,6 +1011,7 @@ export async function runAutoChecks(token: string, cycles: Cycle[], confirmed: S
     needs("cprow", "dashboard") ? settle(readRange(token, SRC.hub, "Stats!A1:C4000")) : none,
     needs("cprom", "webstorage") || needs("cprom", "dashboard") ? settle(sheetTitles(token, SRC.webStorage)) : none,
     needs("cprom", "payout") || needs("cprom", "dashboard") ? settle(readRange(token, SRC.brandPayout, "'Payout Summary'!A1:C800")) : none,
+    needs("close", "bank") ? settle(readRange(token, SRC.bankStatements, "'Bank Statements Data'!A1:K1000")) : none,
   ]);
 
   for (const { cycle: c, steps } of pending) {
@@ -1029,6 +1114,10 @@ export async function runAutoChecks(token: string, cycles: Cycle[], confirmed: S
       if (isErr(adGrid)) { m.adspend = unknown(adGrid.__err); errors.push("Ad Spend: " + adGrid.__err.message); }
       else if (adGrid) m.adspend = adSpendFromGrid(adGrid as string[][], c.month.y, c.month.m);
     }
+    if (c.reportId === "close" && c.month && want.has("bank")) {
+      if (isErr(bankGrid)) { m.bank = unknown(bankGrid.__err); errors.push("Bank Statements sheet: " + bankGrid.__err.message); }
+      else if (bankGrid) m.bank = bankStatementsFromGrid(bankGrid as any[][], c.month);
+    }
     if (c.reportId === "toast" && c.month && want.has("run")) {
       if (isErr(toastCol)) { m.run = unknown(toastCol.__err); errors.push("Toast Recon: " + toastCol.__err.message); }
       else if (toastCol) {
@@ -1089,7 +1178,7 @@ export function historyRows(now: number, checks: Record<string, CheckRow>, start
     const past = started.slice(1).filter(c =>
       c.month ? (c.month.y * 12 + c.month.m >= startMonth.y * 12 + startMonth.m) : c.windowStart >= startMs);
     for (const c of past) {
-      const st = stepStates(rep, c, undefined, flat, unticked);
+      const st = stepStates(rep, c, undefined, flat, unticked, {});
       const done = rep.steps.filter(s => st[s.key] === "done").length;
       let lastAt = "";
       for (const s of [...rep.steps.map(x => x.key), SKIP_STEP]) {
@@ -1154,10 +1243,10 @@ export function reminderItems(now: number, checks: Record<string, CheckRow>, aut
     if (view.previous && shouldCarryOver(view.previous, tracked, now)) cycles.push(view.previous);
     for (const cycle of cycles) {
       if (isSkipped(checks, cycle.periodKey)) continue;
-      const states = stepStates(rep, cycle, auto[cycle.periodKey], flat, unticked);
+      const states = stepStates(rep, cycle, auto[cycle.periodKey], flat, unticked, auto);
       const status = cycleStatus(rep, cycle, states, now);
       if (status !== "due" && status !== "progress" && status !== "overdue") continue;
-      const pending = rep.steps.filter(st => states[st.key] === "open");
+      const pending = rep.steps.filter(st => states[st.key] === "open" && !st.from); // mirrored steps are listed under their own card
       const notes = draftNotes(rep.id, cycle, checks, states);
       if (pending.length) out.push({ rep, cycle, status, pending, notes });
     }
@@ -1183,6 +1272,18 @@ export function plannedCalendarEvents(now: number, horizonDays = 45): PlannedEve
     for (const c of cyclesAround(rep.id, now)) {
       if (c.windowStart < now - 86400_000 || c.windowStart > limit) continue;
       const w = toPht(c.windowStart);
+      if (rep.id === "close") {
+        const dl = toPht(c.deadline);
+        out.push({
+          title: `📊 ${rep.name} — opens (${c.label})`, date: isoDate(w), time: "09:00",
+          description: `The close for ${c.label} opens today and is due the 7th. Most steps tick themselves as the Toast, CPRO Monthly, bank-statement and Tebra checks land; the last step is your final review.`,
+        });
+        out.push({
+          title: `⏰ ${rep.name} — due (${c.label})`, date: isoDate(dl), time: "17:00",
+          description: `Everything for ${c.label} must be done, then tick Final review and close on the Report Tracker.`,
+        });
+        continue;
+      }
       const steps = rep.steps.map(s => `• ${s.label}`).join("\n");
       out.push({
         title: `📊 ${rep.name} — ${rep.id === "toast" ? "run today (data ready)" : rep.id === "tebra" ? "download after the payables meeting" : "run script (5–7 PM PHT)"}`,

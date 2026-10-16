@@ -8,7 +8,7 @@ import { AlertCircle, ClipboardList, X } from "lucide-react";
 import { useFinance } from "../context/FinanceContext";
 import { getAccessToken } from "../services/googleAuth";
 import {
-  REPORTS, cycleView, fmtPht, fromPht, latchedAutoKeys, readTrackerData, relative, reminderItems, reminderTasks, runAutoChecks, shouldCarryOver, toPht,
+  REPORTS, cycleView, fmtPht, fromPht, latchedAutoKeys, readTrackerData, relatedCycles, relative, reminderItems, reminderTasks, runAutoChecks, shouldCarryOver, toPht,
   trackedPeriods, type AutoByPeriod, type Cycle, type ReminderItem, type TaskItem,
 } from "../services/reportTrackerService";
 
@@ -56,6 +56,7 @@ export const ReportReminderPopup: React.FC = () => {
         cycles.push(v.active);
         if (v.previous && shouldCarryOver(v.previous, tracked, t)) cycles.push(v.previous);
       }
+      for (const c of [...cycles]) for (const r of relatedCycles(c)) if (!cycles.some(x => x.periodKey === r.periodKey)) cycles.push(r);
       let auto: AutoByPeriod = {};
       try { auto = (await runAutoChecks(token, cycles, latchedAutoKeys(flat))).byPeriod; } catch { /* unread automatic steps are simply not listed */ }
       const list = reminderItems(t, checks, auto);
