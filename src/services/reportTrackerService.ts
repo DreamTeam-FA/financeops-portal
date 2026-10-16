@@ -207,8 +207,8 @@ export const REPORTS: ReportDef[] = [
     ],
   },
   {
-    id: "close", name: "Month-End Close", cadence: "Opens the 1st of the NEXT month · due the 7th (PHT) · e.g. the September close opens Oct 1, due Oct 7", script: "Mostly mirrors the other cards", accent: "#0d9488",
-    entity: { label: "All", hex: "#0d948833", textHex: "#5eead4" },
+    id: "close", name: "Month-End Close", cadence: "Opens the 1st of the NEXT month · due the 7th (PHT) · e.g. the September close opens Oct 1, due Oct 7", script: "Mostly mirrors the other cards", accent: "#3b82f6",
+    entity: { label: "All", hex: "#3b82f633", textHex: "#60a5fa" },
     overdueRule: "all",
     parallel: ["toast_run", "toast_micah", "fta_weeks", "cprom_run", "cprom_alltime", "cprom_adspend", "cprom_webstorage", "cprom_payout", "cprom_dashboard", "cprom_micah", "cprow_weeks", "bank", "msdx"],
     steps: [
