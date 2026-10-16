@@ -210,7 +210,7 @@ export const REPORTS: ReportDef[] = [
     id: "close", name: "Month-End Close", cadence: "Opens the 1st of the NEXT month · due the 7th (PHT) · e.g. the September close opens Oct 1, due Oct 7", script: "Mostly mirrors the other cards", accent: "#0d9488",
     entity: { label: "All", hex: "#0d948833", textHex: "#5eead4" },
     overdueRule: "all",
-    parallel: ["toast_run", "toast_micah", "cprom_run", "cprom_alltime", "cprom_adspend", "cprom_webstorage", "cprom_payout", "cprom_dashboard", "cprom_micah", "bank", "msdx"],
+    parallel: ["toast_run", "toast_micah", "cprom_run", "cprom_alltime", "cprom_adspend", "cprom_webstorage", "cprom_payout", "cprom_dashboard", "cprom_micah", "cprow_weeks", "bank", "msdx"],
     steps: [
       { key: "toast_run",        label: "Ruby's · Toast Recon script run", kind: "auto", from: { report: "toast", step: "run" } },
       { key: "toast_micah",      label: "Ruby's · Micah informed (Toast Recon)", kind: "auto", from: { report: "toast", step: "micah" } },
@@ -221,6 +221,7 @@ export const REPORTS: ReportDef[] = [
       { key: "cprom_payout",     label: "CPRO · Brand Payout sheet done", kind: "auto", from: { report: "cprom", step: "payout" } },
       { key: "cprom_dashboard",  label: "CPRO · dashboard loaded, incl. Brand Payout", kind: "auto", from: { report: "cprom", step: "dashboard" } },
       { key: "cprom_micah",      label: "CPRO · Micah informed (CPRO Monthly)", kind: "auto", from: { report: "cprom", step: "micah" } },
+      { key: "cprow_weeks",      label: "CPRO · every weekly report of the month done (weeks ending in the month)", kind: "auto", from: { report: "cprow", step: "*" } },
       { key: "bank",             label: "General · bank statements for the month downloaded (Bank Statements page; E1, 4G and 4YR not counted)", kind: "auto" },
       { key: "msdx",             label: "MSDx · every weekly Tebra report of the month done and verified (incl. the first one after month-end)", kind: "auto", from: { report: "tebra", step: "final" } },
       { key: "final",            label: "Final review and close", kind: "manual" },
@@ -334,13 +335,21 @@ export function relatedCycles(c: Cycle): Cycle[] {
   const dm = c.month!;
   for (let d = 1; d <= dm.lastDay; d++) { if (toPht(fromPht(dm.y, dm.m, d, 12)).dow === 3) weeks.push(tebraCycle({ y: dm.y, m: dm.m, d })); }
   weeks.push(tebraCycle(firstWednesday(t.y, t.m)));
+  // CPRO Weekly runs Monday for the Sun–Sat week before; count the weeks that END (Saturday) inside the data month
+  for (let d = 1; d <= dm.lastDay; d++) {
+    if (toPht(fromPht(dm.y, dm.m, d, 12)).dow === 6) weeks.push(cpro1Weekly(addDays({ y: dm.y, m: dm.m, d }, 2)));
+  }
   return [toastCycle(t.y, t.m), cproMonthly(t.y, t.m), ...weeks];
 }
 
-/** Weekly Tebra reports a close card needs: how many are done out of how many. */
-export function tebraWeeksDone(close: Cycle, checks: Record<string, boolean>, unticked?: Set<string>, allAuto?: AutoByPeriod): { done: number; total: number } {
-  const subs = relatedCycles(close).filter(r => r.reportId === "tebra");
-  const done = subs.filter(sub => stepStatesEx(reportById("tebra"), sub, allAuto?.[sub.periodKey], checks, unticked, allAuto).states.final === "done").length;
+/** Weekly reports (Tebra, CPRO Weekly) a close card needs: how many are fully done out of how many. */
+export function weeklyReportsDone(close: Cycle, report: "tebra" | "cprow", checks: Record<string, boolean>, unticked?: Set<string>, allAuto?: AutoByPeriod): { done: number; total: number } {
+  const subs = relatedCycles(close).filter(r => r.reportId === report);
+  const rep = reportById(report);
+  const done = subs.filter(sub => {
+    const st = stepStatesEx(rep, sub, allAuto?.[sub.periodKey], checks, unticked, allAuto).states;
+    return report === "tebra" ? st.final === "done" : rep.steps.every(x => st[x.key] === "done");
+  }).length;
   return { done, total: subs.length };
 }
 
@@ -441,7 +450,12 @@ export function stepStatesEx(
     if (s.from) {
       // mirrors the same step on the other report's card for this month
       const subs = related.filter(r => r.reportId === s.from!.report);
-      const subStates = subs.map(sub => stepStatesEx(reportById(sub.reportId), sub, allAuto?.[sub.periodKey], checks, unticked, allAuto).states[s.from!.step] || "open");
+      const subStates = subs.map(sub => {
+        const st = stepStatesEx(reportById(sub.reportId), sub, allAuto?.[sub.periodKey], checks, unticked, allAuto).states;
+        if (s.from!.step !== "*") return st[s.from!.step] || "open";
+        const all = reportById(sub.reportId).steps.map(x => st[x.key]);
+        return all.every(x => x === "done") ? "done" : all.some(x => x === "open") ? "open" : "unknown";
+      });
       // weekly reports (Tebra): the step is done only when EVERY week of the month is done
       states[s.key] = !subs.length ? "unknown" : subStates.every(x => x === "done") ? "done" : subStates.some(x => x === "open") ? "open" : "unknown";
     }

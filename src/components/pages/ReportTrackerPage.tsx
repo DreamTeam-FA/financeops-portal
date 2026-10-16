@@ -8,7 +8,7 @@ import { useFinance } from "../../context/FinanceContext";
 import { getAccessToken } from "../../services/googleAuth";
 import {
   REPORTS, TRACKER_SHEET_URL, TrackerApiError, cycleStatus, cycleView, fmtPht, fmtPhtDate, isoDate, newTaskId,
-  evidenceKind, evidenceText, explicitUnticks, relatedCycles, reportById, tebraWeeksDone, historyRows, isSkipped, latchedAutoKeys, weekendShift, pendingAutoSteps, plannedCalendarEvents, readTrackerData, relative, runAutoChecks, shouldCarryOver, stepStatesEx, toPht,
+  evidenceKind, evidenceText, explicitUnticks, relatedCycles, reportById, weeklyReportsDone, historyRows, isSkipped, latchedAutoKeys, weekendShift, pendingAutoSteps, plannedCalendarEvents, readTrackerData, relative, runAutoChecks, shouldCarryOver, stepStatesEx, toPht,
   trackedPeriods, writeAutoConfirmations, writeCheck, writeTask,
   type AutoByPeriod, type AutoResult, type CheckRow, type Confirmation, type Cycle, type ReportDef, type Status, type TaskItem,
 } from "../../services/reportTrackerService";
@@ -576,8 +576,8 @@ export const ReportTrackerPage: React.FC = () => {
                               )}
                             </div>
                             {s.from ? (
-                              <div className={`text-[11px] ${muted}`}>{s.from.report === "tebra"
-                                ? (() => { const w = tebraWeeksDone(b.cycle, flatChecks, unticked, auto); return `${w.done} of ${w.total} weekly Tebra reports done · needs all of them`; })()
+                              <div className={`text-[11px] ${muted}`}>{s.from.report === "tebra" || s.from.step === "*"
+                                ? (() => { const w = weeklyReportsDone(b.cycle, s.from!.report as "tebra" | "cprow", flatChecks, unticked, auto); return `${w.done} of ${w.total} weekly ${reportById(s.from!.report).name} reports done · needs all of them`; })()
                                 : `Follows the ${reportById(s.from.report).name} card for this month`}</div>
                             ) : (s.kind === "auto" || s.autoAlso) && autoLine(b.cycle.periodKey, s.key, a, checks)}
                             {b.implied.has(s.key) && (

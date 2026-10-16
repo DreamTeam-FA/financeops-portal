@@ -19,7 +19,7 @@ describe("close cycle", () => {
   });
   it("mirrors Toast, CPRO Monthly and the first Wednesday's Tebra report", () => {
     const keys = relatedCycles(close).map(c => c.periodKey);
-    expect(keys).toEqual(["toast:2026-09", "cprom:2026-09", "tebra:2026-09-02", "tebra:2026-09-09", "tebra:2026-09-16", "tebra:2026-09-23", "tebra:2026-09-30", "tebra:2026-10-07"]);
+    expect(keys).toEqual(["toast:2026-09", "cprom:2026-09", "tebra:2026-09-02", "tebra:2026-09-09", "tebra:2026-09-16", "tebra:2026-09-23", "tebra:2026-09-30", "tebra:2026-10-07", "cprow:2026-09-07", "cprow:2026-09-14", "cprow:2026-09-21", "cprow:2026-09-28"]);
   });
 });
 
@@ -29,6 +29,7 @@ describe("close steps", () => {
     const checks = flatDone([
       "toast:2026-09|auto:run", "toast:2026-09|micah", "cprom:2026-09|auto:run", "cprom:2026-09|auto:alltime", "cprom:2026-09|auto:adspend",
       "cprom:2026-09|webstorage", "cprom:2026-09|payout", "cprom:2026-09|dashboard", "cprom:2026-09|micah", ...["09-02", "09-09", "09-16", "09-23", "09-30", "10-07"].map(d => `tebra:2026-${d}|final`),
+      ...["09-07", "09-14", "09-21", "09-28"].flatMap(d => ["auto:run", "auto:alltime", "sheet", "dashboard", "tonie"].map(k => `cprow:2026-${d}|${k}`)),
     ]);
     const st = stepStates(rep, close, { bank: { state: "ok" } }, checks, undefined, {});
     expect(Object.entries(st).filter(([, v]) => v !== "done").map(([k]) => k)).toEqual(["final"]);
@@ -47,6 +48,15 @@ describe("close steps", () => {
     const items = reminderItems(NOW, { [`${close.periodKey}|final`]: { ...row(false), evidence: "" } }, { [close.periodKey]: { bank: { state: "no" } } });
     const it = items.find(i => i.rep.id === "close");
     if (it) expect(it.pending.map(p => p.key).every(k => !reportById("close").steps.find(s => s.key === k)!.from)).toBe(true);
+  });
+});
+
+describe("CPRO Weekly needs every week of the month", () => {
+  it("3 of 4 weeks keeps the step open", () => {
+    const wk = (d: string) => ["auto:run", "auto:alltime", "sheet", "dashboard", "tonie"].map(k => [`cprow:2026-${d}|${k}`, true] as const);
+    const three = Object.fromEntries(["09-07", "09-14", "09-21"].flatMap(wk));
+    expect(stepStates(rep, close, undefined, three, undefined, {}).cprow_weeks).toBe("open");
+    expect(stepStates(rep, close, undefined, { ...three, ...Object.fromEntries(wk("09-28")) }, undefined, {}).cprow_weeks).toBe("done");
   });
 });
 
