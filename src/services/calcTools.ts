@@ -460,6 +460,42 @@ function apAnalyze(s: CalcSnapshot, a: ToolArgs): ToolResult {
       dateField: field, note: "Open bills use the remaining balance (partial payments subtracted); paid bills use the original amount." } };
 }
 
+/** Find bills (default pairs) whose amounts add up to a target, e.g. "2 bills from MSDx that total 1347.22". Exact search done here, not by the AI. */
+function apFindSum(s: CalcSnapshot, a: ToolArgs): ToolResult {
+  const target = Math.round(Number(a.target) * 100);
+  const k = Math.max(1, Math.min(Number(a.count) || 2, 4));
+  if (!isFinite(target) || target <= 0) return { tool: "ap_find_sum", title: "Bills adding up to a total", lines: ["I need a target amount to look for."], source: "Accounts Payable sheet", asOf: asOfText(s), data: { error: "no target" } };
+  const status = lc(a.status) || "open";
+  const base = s.apBills.filter(b => entityMatches(b, a.entity) && (!a.vendor || lc(b.vendor).includes(lc(a.vendor))));
+  const search = (pool: APBill[]) => {
+    const cents = pool.map(b => ({ b, c: Math.round((isOpenBill(b) ? billRemaining(b) : Number(b.originalAmount ?? b.amount) || 0) * 100) })).filter(x => x.c > 0 && x.c <= target);
+    const cap = k >= 4 ? 120 : 500;
+    const items = cents.length > cap ? cents.sort((x, y) => y.c - x.c).slice(0, cap) : cents;
+    const out: typeof items[] = [];
+    const rec = (start: number, left: number, picked: typeof items) => {
+      if (out.length >= 10) return;
+      if (picked.length === k) { if (left === 0) out.push([...picked]); return; }
+      for (let i = start; i < items.length && out.length < 10; i++) { if (items[i].c > left) continue; picked.push(items[i]); rec(i + 1, left - items[i].c, picked); picked.pop(); }
+    };
+    rec(0, target, []);
+    return { out, searched: items.length };
+  };
+  const scopes: [string, APBill[]][] = status === "all" ? [["all bills", base]] : status === "paid" ? [["paid bills", base.filter(b => lc(b.status) === "paid")]] : [["open bills", base.filter(isOpenBill)], ["all bills (paid too)", base]];
+  let found: { label: string; out: any[][]; searched: number } | null = null;
+  for (const [label, pool] of scopes) { const r = search(pool); if (r.out.length) { found = { label, ...r }; break; } if (!found) found = { label, out: [], searched: r.searched }; }
+  const who = [a.entity ? `entity ${a.entity}` : "", a.vendor ? `vendor "${a.vendor}"` : ""].filter(Boolean).join(", ") || "all entities";
+  const tgt = money(target / 100);
+  const fmt = (x: any) => `${x.b.vendor} (${entityLabel(x.b)}) ${money(x.c / 100)}, due ${x.b.dueDate}${x.b.invoiceNo ? ", inv " + x.b.invoiceNo : ""}, ${x.b.status}`;
+  const lines = !found || found.out.length === 0
+    ? [`No combination of ${k} bill${k === 1 ? "" : "s"} adds up to exactly **${tgt}** (${who}; checked ${found?.searched ?? 0} bills).`]
+    : [`Found ${plural(found.out.length, "combination")} of ${k} bill${k === 1 ? "" : "s"} totaling exactly **${tgt}** (${found.label}, ${who}):`,
+       ...found.out.map((c, i) => `${i + 1}. ` + c.map(fmt).join("  +  "))];
+  return { tool: "ap_find_sum", title: "Bills adding up to a total", lines, links: AP_LINK, source: "Accounts Payable sheet", asOf: asOfText(s),
+    data: { target: target / 100, billsPerCombo: k, scope: found?.label, checked: found?.searched ?? 0, matchCount: found?.out.length ?? 0,
+      matches: (found?.out || []).map(c => c.map(x => ({ vendor: x.b.vendor, entity: entityLabel(x.b), amount: x.c / 100, dueDate: x.b.dueDate, invoiceNo: x.b.invoiceNo, status: x.b.status }))),
+      note: "Exact-cent search. Open bills use the remaining balance." } };
+}
+
 /** Cash on hand vs what's overdue and coming due — the "can we cover it?" check, computed here. */
 function cashCoverage(s: CalcSnapshot, a: ToolArgs): ToolResult {
   const today = startOfDay(s.now);
@@ -900,6 +936,7 @@ export const CALC_TOOLS: Record<string, CalcToolDef> = {
   statements_due:    { description: "Upcoming bank statement DUE dates (Cut-Off Dates) and when entries get created; also the rules for how statement entries are generated, hidden or shown.", args: "{days?: number (default 14)}", run: statementsDue },
   ap_analyze:        { description: "Flexible bill analysis for questions the other bill lookups can't answer: group, rank, total or trend bills by vendor, entity, company, category, month, week, age or status, with filters. Use for \"which vendor/month/entity…\", \"how much did we spend/pay…\", \"average\", \"biggest\", \"trend\", \"compare\".", args: "{status?: 'open'(default)|'paid'|'all'|'unpaid'|'hold', entity?: string, vendor?: string, category?: string, groupBy?: 'vendor'|'entity'|'company'|'category'|'month'|'week'|'age'|'status', dateField?: 'due'(default)|'invoice'|'paid', month?: 'YYYY-MM', from?: 'YYYY-MM-DD', to?: 'YYYY-MM-DD', overdueOnly?: boolean, minAmount?: number, maxAmount?: number, top?: number, sort?: 'desc'|'asc'}", run: apAnalyze },
   ap_recent_added:   { description: "Bills newly ADDED/entered (today, this week, a date range): who added them and when (from the portal's Activity Log), plus the newest rows in each bill sheet. Use for \"what bills were added today/recently\", \"new bills\", \"what did we enter this week\". NOT for due dates.", args: "{days?: number (1 = today, 7 = last 7 days), from?: 'YYYY-MM-DD', to?: 'YYYY-MM-DD', entity?: string, vendor?: string}", run: apRecentAdded },
+  ap_find_sum:       { description: "Find which bills add up to an exact total (subset-sum): \"which 2 bills total 1347.22\", \"find bills that add up to X\". Exact search over the bills; never guess combinations yourself.", args: "{target: number, count?: number (bills per combination, default 2, max 4), entity?: string, vendor?: string, status?: 'open'(default, then widens to all)|'paid'|'all'}", run: apFindSum },
   cash_coverage:     { description: "Cash on hand vs overdue bills and bills due in the next N days: can we cover them, and the surplus or shortfall.", args: "{days?: number (default 7), entity?: string}", run: cashCoverage },
   calendar:          { description: "Calendar events in a date range (default today through 7 days).", args: "{days?: number, from?: 'YYYY-MM-DD', to?: 'YYYY-MM-DD', assignee?: string, entity?: string, includeDone?: boolean, list?: boolean}", run: calendar },
   notes_open:        { description: "Open Quick Notes, optionally filtered.", args: "{query?: string, category?: string, member?: string}", run: notesOpen },
@@ -1003,6 +1040,15 @@ export function routeQuestion(q: string, s: CalcSnapshot): { tool: string; args:
   const base: ToolArgs = entity ? { entity } : {};
   if (/\b(list|show|which|itemi[sz]e|every|each|all of them|all the bills)\b/.test(t)) base.list = true;
   if (/\bbriefing\b|catch me up|what.?s (going on|happening|new)|good morning|summary of today/.test(t)) return [{ tool: "briefing", args: {} }];
+
+  // "find 2 bills that total 1347.22" → exact subset-sum search
+  const sumM = t.match(/(?:total(?:s|ing|led)?|add(?:s|ing)? up|sum(?:s)?|equal(?:s|ing)?|come(?:s)? (?:out )?to|make(?:s)? up)\s*(?:to|of|up to)?\s*\$?\s*(\d[\d,]*(?:\.\d{1,2})?)/);
+  if (sumM && /\bbills?\b|\binvoices?\b/.test(t)) {
+    const cnt = t.match(/\b(\d|one|two|three|four)\s+(?:different\s+)?(?:bills?|invoices?)/);
+    const wordN: Record<string, number> = { one: 1, two: 2, three: 3, four: 4 };
+    const va = vendorFromQuestion(t, s);
+    return [{ tool: "ap_find_sum", args: { target: Number(sumM[1].replace(/,/g, "")), ...(cnt ? { count: wordN[cnt[1]] || Number(cnt[1]) } : {}), ...(entity ? { entity } : {}), ...(!entity && va ? { vendor: va } : {}) } }];
+  }
 
   // 4YR payroll: hours, wages, who worked, deductions
   if (/payroll|timesheet|hours (did|has|have|worked|are)|worked|wages|salary|labor cost|how many hours|deductions?\b|4yr/.test(t) && !/\b(bill|bills|invoice|owe|vendor)\b/.test(t)) {
