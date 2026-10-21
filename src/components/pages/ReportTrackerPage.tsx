@@ -704,7 +704,7 @@ export const ReportTrackerPage: React.FC = () => {
               <History className="w-4 h-4 text-[#0d9488]" />
               <h2 className={`text-sm font-bold ${strong}`}>History</h2>
               <span className={`text-[10px] px-2 py-0.5 rounded font-semibold ${isLight ? "bg-slate-200 text-slate-600" : "bg-[#1a2235] text-[#888]"}`}>
-                {history.filter(h => h.status === "done").length} of {history.filter(h => h.status !== "skipped").length} past runs complete since June
+                {history.filter(h => h.status === "done" || h.status === "skipped").length} of {history.length} past runs complete since June
                 {history.some(h => h.status === "skipped") ? ` · ${history.filter(h => h.status === "skipped").length} with no report due` : ""}
               </span>
             </div>
@@ -763,9 +763,9 @@ export const ReportTrackerPage: React.FC = () => {
                     {weekly && groups.map((g, gi) => {
                       const mk = `${rep.id}|${g.key}`;
                       const open = monthOpen[mk] ?? gi === 0;
-                      const doneN = g.rows.filter(r => r.status === "done").length;
                       const skipN = g.rows.filter(r => r.status === "skipped").length;
-                      const dueN = g.rows.length - skipN;
+                      const doneN = g.rows.filter(r => r.status === "done").length + skipN; // a week with no report due is finished too
+                      const dueN = g.rows.length;
                       return (
                         <div key={mk} className={`mb-1.5 rounded-lg border ${isLight ? "border-slate-200" : "border-[#1a2235]"}`}>
                           <button
@@ -778,7 +778,7 @@ export const ReportTrackerPage: React.FC = () => {
                               <span className={`text-xs font-bold ${strong}`}>{g.label}</span>
                             </span>
                             <span className={`text-[11px] ${muted}`}>
-                              {g.rows.length} week{g.rows.length === 1 ? "" : "s"} · {doneN} of {dueN} done{skipN ? ` · ${skipN} no report due` : ""}
+                              {g.rows.length} week{g.rows.length === 1 ? "" : "s"} · {doneN} of {dueN} done{skipN ? ` (${skipN} no report due)` : ""}
                             </span>
                           </button>
                           {open && <div className="px-2.5 pb-2">{table(g.rows)}</div>}
