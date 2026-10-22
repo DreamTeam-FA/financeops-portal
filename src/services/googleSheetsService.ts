@@ -1582,7 +1582,18 @@ export const writeSingleLoan = async (
   await updateSheetValues(spreadsheetId, range, [row], accessToken);
 };
 
-// Append a new loan row at the end of the sheet tab.
+// Loans tab due dates read like "17th of the month" — turn a picked date (or day number) into that wording.
+const loanDueText = (v: any): string => {
+  const raw = String(v ?? "").trim();
+  const m = raw.match(/^(d{4})-(d{2})-(d{2})$/) || raw.match(/^(d{1,2})$/);
+  const day = m ? Number(m.length === 4 ? m[3] : m[1]) : 0;
+  if (!day || day > 31) return raw;
+  const suf = day % 100 >= 11 && day % 100 <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[day % 10] || "th";
+  return day + suf + " of the month";
+};
+
+// Append a new loan row under the existing table. The Loans tab keeps its data in columns B:F (column A is empty),
+// so the append must target B:F — targeting A:A made Sheets find no table and write at row 1 over the top of the tab.
 export const appendLoan = async (
   loan: Loan,
   mappingRange: string,
@@ -1592,12 +1603,8 @@ export const appendLoan = async (
   const bangIdx = mappingRange.indexOf("!");
   const tabPart = bangIdx !== -1 ? mappingRange.slice(0, bangIdx) : mappingRange;
   const cleanLender = loan.lender.replace(/\s*\([^)]*\)\s*$/, "").trim();
-  const row: any[] = new Array(5).fill("");
-  row[1] = loan.entity;
-  row[2] = cleanLender;
-  row[3] = loan.monthly;
-  row[4] = loan.nextPay;
-  await appendSheetValues(spreadsheetId, `${tabPart}!A:A`, [row], accessToken);
+  const row: any[] = [loan.entity, cleanLender, loan.monthly, loanDueText(loan.nextPay), ""];
+  await appendSheetValues(spreadsheetId, tabPart + "!B:F", [row], accessToken);
 };
 
 // 0-indexed column number → A1-notation column letter (A=0, Z=25, AA=26, …)
