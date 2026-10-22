@@ -124,6 +124,7 @@ export const AddLoanModal: React.FC<{ isOpen: boolean; onClose: () => void }> = 
   const [principal, setPrincipal] = useState("");
   const [monthly, setMonthly] = useState("");
   const [nextPay, setNextPay] = useState(new Date().toISOString().split("T")[0]);
+  const [cutOff, setCutOff] = useState("");
 
   if (!isOpen) return null;
 
@@ -137,9 +138,9 @@ export const AddLoanModal: React.FC<{ isOpen: boolean; onClose: () => void }> = 
       // The Credit Cards tab has no entity column — the entity is the prefix of the card name (e.g. "TI Lowes").
       const prefix = entity === "Ruby's" ? "Ruby's " : entity === "CurcuminPro" ? "Curcumin " : entity + " ";
       const name = lender.trim().toLowerCase().startsWith(prefix.trim().toLowerCase()) ? lender.trim() : prefix + lender.trim();
-      addLoan({ lender: name, entity, purpose: "Credit Card Facility", principal: 0, outstanding: 0, monthly: parseFloat(monthly || "0"), nextPay, maturity: "Revolving", status: "Active" });
+      addLoan({ lender: name, entity, purpose: "Credit Card Facility", principal: 0, outstanding: 0, monthly: parseFloat(monthly || "0"), nextPay, cutOff: cutOff || undefined, maturity: "Revolving", status: "Active" });
       onClose();
-      setLender(""); setMonthly("");
+      setLender(""); setMonthly(""); setCutOff("");
       return;
     }
     if (!lender || !principal) return;
@@ -198,6 +199,12 @@ export const AddLoanModal: React.FC<{ isOpen: boolean; onClose: () => void }> = 
           <label className={labelCls(isLight)}>Next Due Date</label>
           <input type="date" value={nextPay} onChange={(e) => setNextPay(e.target.value)} className={inputCls(isLight)} />
         </div>
+        {kind === "card" && (
+          <div>
+            <label className={labelCls(isLight)}>Cut-Off Date <span className="normal-case font-normal opacity-60">(optional · saved to the sheet only)</span></label>
+            <input type="date" value={cutOff} onChange={(e) => setCutOff(e.target.value)} className={inputCls(isLight)} />
+          </div>
+        )}
         <div className={`flex justify-end gap-2 pt-3 border-t ${divider}`}>
           <button type="button" onClick={onClose} className={`px-3 py-1.5 rounded text-xs ${cancelBtn}`}>Cancel</button>
           <button type="submit" className="px-4 py-1.5 rounded bg-[#dc2626] text-xs font-semibold text-white hover:bg-[#b91c1c]">{kind === "card" ? "Save Card" : "Save Loan"}</button>

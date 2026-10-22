@@ -71,6 +71,7 @@ export interface Loan {
   maturity: string;
   status: "Active" | "Paid" | "Refinanced";
   row?: number; // 1-indexed row within fetched data range (set by parser; used for per-item sheet writes)
+  cutOff?: string; // credit cards only: statement cut-off date, saved to the Credit Cards tab (not shown in the portal)
 }
 
 export interface ARItem {

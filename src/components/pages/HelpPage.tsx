@@ -520,7 +520,7 @@ const SHEETS = [
       { name: "MSDx Bills",           gid: "626198915",  note: "AP bills — Mobile Swallowing Dx (Drive link: col AA)" },
       { name: "AR Dashboard Data",    gid: "1095820813", note: "Accounts Receivable" },
       { name: "Bank Balances",        gid: "573058575",  note: "Bank account balances" },
-      { name: "Loans",                gid: "860453470",  note: "Loans & credit card dues (Add Loan has a Loan / Credit Card switch: loans append under the Loans table, cards under the Credit Cards table; due date saved as e.g. 17th of the month; cards get the entity as a name prefix, e.g. "TI Lowes")" },
+      { name: "Loans",                gid: "860453470",  note: "Loans & credit card dues (Add Loan has a Loan / Credit Card switch: loans append under the Loans table, cards under the Credit Cards table; due date saved as e.g. 17th of the month; cards get the entity as a name prefix, e.g. "TI Lowes", and an optional Cut-Off Date that goes to the sheet only)" },
       { name: "Bank Statements Data", gid: "350904169",  note: "Statement download tracker" },
       { name: "Meeting Notes",        gid: "320158278",  note: "Quick Notes from the portal" },
       { name: "Metadata",             gid: "dynamic",    note: "Vendor metadata (due dates, recurring)" },
