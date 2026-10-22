@@ -117,6 +117,7 @@ export const AddBankModal: React.FC<{ isOpen: boolean; onClose: () => void }> = 
 export const AddLoanModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
   const { addLoan, theme } = useFinance() as any;
   const isLight = theme === "light";
+  const [kind, setKind] = useState<"loan" | "card">("loan");
   const [lender, setLender] = useState("");
   const [entity, setEntity] = useState<EntityName>("Ruby's");
   const [purpose, setPurpose] = useState("Equipment Financing");
@@ -131,6 +132,16 @@ export const AddLoanModal: React.FC<{ isOpen: boolean; onClose: () => void }> = 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (kind === "card") {
+      if (!lender) return;
+      // The Credit Cards tab has no entity column — the entity is the prefix of the card name (e.g. "TI Lowes").
+      const prefix = entity === "Ruby's" ? "Ruby's " : entity === "CurcuminPro" ? "Curcumin " : entity + " ";
+      const name = lender.trim().toLowerCase().startsWith(prefix.trim().toLowerCase()) ? lender.trim() : prefix + lender.trim();
+      addLoan({ lender: name, entity, purpose: "Credit Card Facility", principal: 0, outstanding: 0, monthly: parseFloat(monthly || "0"), nextPay, maturity: "Revolving", status: "Active" });
+      onClose();
+      setLender(""); setMonthly("");
+      return;
+    }
     if (!lender || !principal) return;
     const p = parseFloat(principal);
     addLoan({ lender, entity, purpose, principal: p, outstanding: p, monthly: parseFloat(monthly || "0"), nextPay, maturity: "2029-12", status: "Active" });
@@ -140,11 +151,19 @@ export const AddLoanModal: React.FC<{ isOpen: boolean; onClose: () => void }> = 
 
   return (
     <ModalShell isLight={isLight} accentColor="#dc2626">
-      <ModalHeader title="Add Loan" isLight={isLight} onClose={onClose} divider={divider} />
+      <ModalHeader title={kind === "card" ? "Add Credit Card Due" : "Add Loan"} isLight={isLight} onClose={onClose} divider={divider} />
       <form onSubmit={handleSubmit} className="mt-4 space-y-3">
+        <div className="grid grid-cols-2 gap-2">
+          {(["loan", "card"] as const).map((k) => (
+            <button key={k} type="button" onClick={() => setKind(k)}
+              className={`px-3 py-1.5 rounded text-xs font-semibold border transition-colors ${kind === k ? "bg-[#dc2626] border-[#dc2626] text-white" : (isLight ? "bg-white border-slate-200 text-slate-600 hover:bg-slate-50" : "bg-[#0d111a] border-[#1a2235] text-[#888] hover:bg-[#1a2235]")}`}>
+              {k === "loan" ? "Loan" : "Credit Card"}
+            </button>
+          ))}
+        </div>
         <div>
-          <label className={labelCls(isLight)}>Lender Name</label>
-          <input type="text" required value={lender} onChange={(e) => setLender(e.target.value)} placeholder="e.g. SBA Commercial Loan" className={inputCls(isLight)} />
+          <label className={labelCls(isLight)}>{kind === "card" ? "Card Name" : "Lender Name"}</label>
+          <input type="text" required value={lender} onChange={(e) => setLender(e.target.value)} placeholder={kind === "card" ? "e.g. Lowes x1234" : "e.g. SBA Commercial Loan"} className={inputCls(isLight)} />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -156,18 +175,22 @@ export const AddLoanModal: React.FC<{ isOpen: boolean; onClose: () => void }> = 
               <option value="CurcuminPro">CurcuminPro</option>
             </select>
           </div>
-          <div>
-            <label className={labelCls(isLight)}>Purpose</label>
-            <input type="text" value={purpose} onChange={(e) => setPurpose(e.target.value)} className={inputCls(isLight)} />
-          </div>
+          {kind === "loan" && (
+            <div>
+              <label className={labelCls(isLight)}>Purpose</label>
+              <input type="text" value={purpose} onChange={(e) => setPurpose(e.target.value)} className={inputCls(isLight)} />
+            </div>
+          )}
         </div>
         <div className="grid grid-cols-2 gap-3">
+          {kind === "loan" && (
+            <div>
+              <label className={labelCls(isLight)}>Principal Amount ($)</label>
+              <input type="number" required value={principal} onChange={(e) => setPrincipal(e.target.value)} placeholder="0" className={inputCls(isLight)} />
+            </div>
+          )}
           <div>
-            <label className={labelCls(isLight)}>Principal Amount ($)</label>
-            <input type="number" required value={principal} onChange={(e) => setPrincipal(e.target.value)} placeholder="0" className={inputCls(isLight)} />
-          </div>
-          <div>
-            <label className={labelCls(isLight)}>Monthly Payment ($)</label>
+            <label className={labelCls(isLight)}>{kind === "card" ? "Amount Due ($)" : "Monthly Payment ($)"}</label>
             <input type="number" value={monthly} onChange={(e) => setMonthly(e.target.value)} placeholder="0" className={inputCls(isLight)} />
           </div>
         </div>
@@ -177,7 +200,7 @@ export const AddLoanModal: React.FC<{ isOpen: boolean; onClose: () => void }> = 
         </div>
         <div className={`flex justify-end gap-2 pt-3 border-t ${divider}`}>
           <button type="button" onClick={onClose} className={`px-3 py-1.5 rounded text-xs ${cancelBtn}`}>Cancel</button>
-          <button type="submit" className="px-4 py-1.5 rounded bg-[#dc2626] text-xs font-semibold text-white hover:bg-[#b91c1c]">Save Loan</button>
+          <button type="submit" className="px-4 py-1.5 rounded bg-[#dc2626] text-xs font-semibold text-white hover:bg-[#b91c1c]">{kind === "card" ? "Save Card" : "Save Loan"}</button>
         </div>
       </form>
     </ModalShell>

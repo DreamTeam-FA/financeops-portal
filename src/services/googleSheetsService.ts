@@ -1603,6 +1603,11 @@ export const appendLoan = async (
   const bangIdx = mappingRange.indexOf("!");
   const tabPart = bangIdx !== -1 ? mappingRange.slice(0, bangIdx) : mappingRange;
   const cleanLender = loan.lender.replace(/\s*\([^)]*\)\s*$/, "").trim();
+  // Credit cards live on their own tab: B card name, C cut-off, D due date, E amount, F last updated.
+  if (/credit card/i.test(loan.purpose || "")) {
+    await appendSheetValues(spreadsheetId, "'Credit Cards'!B:F", [[cleanLender, "", loanDueText(loan.nextPay), loan.monthly, ""]], accessToken);
+    return;
+  }
   const row: any[] = [loan.entity, cleanLender, loan.monthly, loanDueText(loan.nextPay), ""];
   await appendSheetValues(spreadsheetId, tabPart + "!B:F", [row], accessToken);
 };
